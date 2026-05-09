@@ -46,24 +46,7 @@ Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
 
 ---
 
-## Getting the database
-
-Download the latest database release:
-
-```bash
-shodoukan-setup
-```
-
-Or download it manually from the [`shodoukan-db` releases](https://github.com/saul205/shodoukan-db/releases) and place it at `~/.local/share/shodoukan/shodoukan.sqlite`, or set `SHODOUKAN_DB_PATH` to a custom path.
-
----
-
 ## Running with Docker
-
-### Prerequisites
-
-- Docker and Docker Compose
-- The `shodoukan.sqlite` database file (see above)
 
 ### Quick start
 
@@ -71,16 +54,13 @@ Or download it manually from the [`shodoukan-db` releases](https://github.com/sa
 docker compose up --build
 ```
 
-If the database is at `~/.local/share/shodoukan/shodoukan.sqlite` (the default location used by `shodoukan-setup`), no configuration is needed. The API will be available at <http://localhost:8000>.
+The database is downloaded automatically during the image build. The API will be available at <http://localhost:8000>.
 
 ### Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DB_PATH` | `~/.local/share/shodoukan/shodoukan.sqlite` | Path to `shodoukan.sqlite` on the host |
 | `API_PORT` | `8000` | Port to expose the API on |
-
-The database file is mounted read-only into the container; it is never modified.
 
 ---
 
@@ -92,6 +72,7 @@ The database file is mounted read-only into the container; it is never modified.
 python -m venv .venv
 source .venv/bin/activate
 pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev]
+shodoukan-setup  # download the database
 ```
 
 ### Running locally

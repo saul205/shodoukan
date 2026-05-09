@@ -14,14 +14,19 @@ RUN pip install --no-cache-dir --no-deps \
     ./packages/shodoukan \
     ./packages/shodoukan-api
 
+# Download the database and bake it into the image.
+RUN shodoukan-setup
+
 # ── runtime stage ─────────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
-RUN useradd --system --no-create-home appuser
+RUN useradd --system --no-create-home appuser && mkdir /data
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages \
                     /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+COPY --from=builder /root/.local/share/shodoukan/shodoukan.sqlite \
+                    /data/shodoukan.sqlite
 
 ENV SHODOUKAN_DB_PATH=/data/shodoukan.sqlite
 
