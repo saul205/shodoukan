@@ -11,6 +11,7 @@ from shodoukan.models.entry import (
     Sense,
 )
 from shodoukan.models.kanji import Kanji, KanjiMeaning
+from shodoukan.models.search import SearchResult
 
 __all__ = [
     "CrossReference",
@@ -24,5 +25,6 @@ __all__ = [
     "KanjiReading",
     "Page",
     "Reading",
+    "SearchResult",
     "Sense",
 ]

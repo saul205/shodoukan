@@ -66,6 +66,35 @@ def test_search_kanji(dictionary):
     assert any(k.literal == "水" for k in page.items)
 
 
+def test_search_single_kanji(dictionary):
+    result = dictionary.search("食")
+    assert any(k.literal == "食" for k in result.kanji)
+    assert any(e.id == 1000001 for e in result.entries.items)
+
+
+def test_search_japanese_kana(dictionary):
+    result = dictionary.search("みず")
+    assert any(e.id == 1000002 for e in result.entries.items)
+    assert any(k.literal == "水" for k in result.kanji)
+
+
+def test_search_japanese_kanji_word(dictionary):
+    result = dictionary.search("食べる")
+    assert any(e.id == 1000001 for e in result.entries.items)
+    assert any(k.literal == "食" for k in result.kanji)
+
+
+def test_search_translation(dictionary):
+    result = dictionary.search("water")
+    assert any(e.id == 1000002 for e in result.entries.items)
+    assert any(k.literal == "水" for k in result.kanji)
+
+
+def test_search_translation_no_kanji_entry(dictionary):
+    result = dictionary.search("thank you")
+    assert any(e.id == 1000003 for e in result.entries.items)
+
+
 def test_context_manager(tmp_path, conn):
     db_file = tmp_path / "test.sqlite"
     backup = sqlite3.connect(str(db_file))

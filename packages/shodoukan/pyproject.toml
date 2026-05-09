@@ -22,6 +22,7 @@ dev = [
 
 [project.scripts]
 shodoukan-setup = "shodoukan.cli:setup"
+shodoukan = "shodoukan.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/shodoukan"]

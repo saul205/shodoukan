@@ -144,6 +144,23 @@ class EntryRepository:
         entry_ids = [r["entry_id"] for r in rows]
         return Page(items=self._hydrate(entry_ids), total=total, limit=limit, offset=offset)
 
+    def get_related_kanji_literals(self, entry_ids: list[int], limit: int = 10) -> list[str]:
+        if not entry_ids:
+            return []
+        ph = ",".join("?" * len(entry_ids))
+        rows = self._conn.execute(
+            f"""
+            SELECT ek.literal, MAX(ek.priority_score) AS score
+            FROM entry_kanji ek
+            WHERE ek.entry_id IN ({ph})
+            GROUP BY ek.literal
+            ORDER BY score DESC
+            LIMIT ?
+            """,
+            [*entry_ids, limit],
+        ).fetchall()
+        return [r["literal"] for r in rows]
+
     def _hydrate(self, entry_ids: list[int]) -> list[Entry]:
         if not entry_ids:
             return []
