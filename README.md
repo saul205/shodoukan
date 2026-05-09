@@ -64,6 +64,32 @@ The database is downloaded automatically during the image build. The API will be
 
 ---
 
+## Deployment (Fly.io)
+
+Every push to `main` that passes CI is deployed automatically to Fly.io.
+
+### First-time setup
+
+1. Install the [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) and log in:
+   ```bash
+   fly auth login
+   ```
+
+2. Create the app (only once):
+   ```bash
+   fly apps create shodoukan-api
+   ```
+
+3. Add `FLY_API_TOKEN` to your GitHub repository secrets:
+   ```bash
+   fly tokens create deploy -x 999999h
+   ```
+   Copy the token and add it at **Settings → Secrets → Actions → New repository secret**.
+
+After that, every push to `main` triggers a build on Fly's infrastructure and a zero-downtime rolling deploy.
+
+---
+
 ## Development
 
 ### Setup
