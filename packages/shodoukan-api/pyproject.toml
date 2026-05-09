@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shodoukan-api"
+version = "0.1.0"
+description = "Japanese-English dictionary web API"
+license = { file = "../../LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+    "shodoukan>=0.1.0",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+shodoukan-api = "shodoukan_api.app:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shodoukan_api"]
+
+[tool.ruff]
+src = ["src"]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["../../tests/shodoukan-api"]
