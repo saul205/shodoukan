@@ -1,5 +1,5 @@
 app = "shodoukan-api"
-primary_region = "mad"
+primary_region = "cdg"
 
 [build]
   dockerfile = "packages/shodoukan-api/Dockerfile"
