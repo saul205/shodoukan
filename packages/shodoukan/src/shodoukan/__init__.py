@@ -15,8 +15,8 @@ from shodoukan.models.kanji import Kanji, KanjiMeaning
 from shodoukan.models.search import SearchResult
 
 __all__ = [
-    "Dictionary",
     "CrossReference",
+    "Dictionary",
     "Entry",
     "EntryKanjiLink",
     "Example",

@@ -2,6 +2,7 @@ import json
 import sqlite3
 
 import pytest
+from sqlalchemy.pool import StaticPool
 
 _SCHEMA = """
 CREATE TABLE entries (id INTEGER PRIMARY KEY);
@@ -171,3 +172,9 @@ def conn() -> sqlite3.Connection:
     c.row_factory = sqlite3.Row
     _seed(c)
     return c
+
+
+@pytest.fixture
+def engine(conn):
+    from shodoukan.db.connection import open_test_connection
+    return open_test_connection(conn)

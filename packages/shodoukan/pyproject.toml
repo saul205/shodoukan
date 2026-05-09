@@ -6,12 +6,12 @@ build-backend = "hatchling.build"
 name = "shodoukan"
 version = "0.1.0"
 description = "Japanese-English dictionary library"
-readme = "../../README.md"
-license = { file = "../../LICENSE" }
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
     "httpx>=0.27",
+    "sqlalchemy>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -26,13 +26,6 @@ shodoukan = "shodoukan.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/shodoukan"]
-
-[tool.ruff]
-src = ["src"]
-line-length = 88
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["../../tests/shodoukan"]

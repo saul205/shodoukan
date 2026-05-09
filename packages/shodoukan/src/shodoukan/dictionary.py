@@ -19,12 +19,12 @@ class Dictionary:
         self._path = resolve_path(db_path)
         if auto_download:
             download(self._path)
-        self._conn = open_connection(self._path)
-        self._entries = EntryRepository(self._conn)
-        self._kanji = KanjiRepository(self._conn)
+        self._engine = open_connection(self._path)
+        self._entries = EntryRepository(self._engine)
+        self._kanji = KanjiRepository(self._engine)
 
     def close(self) -> None:
-        self._conn.close()
+        self._engine.dispose()
 
     def __enter__(self) -> "Dictionary":
         return self
@@ -71,7 +71,9 @@ class Dictionary:
         limit: int = 20,
         offset: int = 0,
     ) -> Page[Kanji]:
-        return self._kanji.search(query=query, grade=grade, jlpt=jlpt, limit=limit, offset=offset)
+        return self._kanji.search(
+            query=query, grade=grade, jlpt=jlpt, limit=limit, offset=offset
+        )
 
     def search(
         self,

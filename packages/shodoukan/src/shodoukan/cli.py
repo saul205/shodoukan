@@ -4,7 +4,6 @@ import sys
 from shodoukan.db.connection import resolve_path
 from shodoukan.db.download import download
 
-
 # ── Formatting helpers ────────────────────────────────────────────────────────
 
 def _fmt_entry(entry) -> str:

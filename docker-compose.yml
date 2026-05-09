@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: packages/shodoukan-api/Dockerfile
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - type: bind
+        source: ${DB_PATH:-${HOME}/.local/share/shodoukan/shodoukan.sqlite}
+        target: /data/shodoukan.sqlite
+        read_only: true
+    restart: unless-stopped

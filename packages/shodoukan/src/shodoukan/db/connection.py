@@ -2,6 +2,10 @@ import os
 import sqlite3
 from pathlib import Path
 
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.pool import StaticPool
+
 _ENV_VAR = "SHODOUKAN_DB_PATH"
 _DEFAULT = Path.home() / ".local" / "share" / "shodoukan" / "shodoukan.sqlite"
 
@@ -15,8 +19,18 @@ def resolve_path(path: Path | str | None = None) -> Path:
     return _DEFAULT
 
 
-def open_connection(path: Path) -> sqlite3.Connection:
-    uri = path.as_uri() + "?mode=ro"
-    conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+def open_connection(path: Path) -> Engine:
+    def _creator() -> sqlite3.Connection:
+        return sqlite3.connect(
+            f"file:{path}?mode=ro", uri=True, check_same_thread=False
+        )
+
+    return create_engine("sqlite://", creator=_creator)
+
+
+def open_test_connection(raw: sqlite3.Connection) -> Engine:
+    return create_engine(
+        "sqlite://",
+        creator=lambda: raw,
+        poolclass=StaticPool,
+    )

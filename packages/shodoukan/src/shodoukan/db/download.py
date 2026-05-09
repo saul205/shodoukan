@@ -13,13 +13,17 @@ def download(dest: Path, force: bool = False) -> None:
 
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"Fetching latest release info...", file=sys.stderr)
+    print("Fetching latest release info...", file=sys.stderr)
     response = httpx.get(_RELEASES_URL, follow_redirects=True)
     response.raise_for_status()
     release = response.json()
 
     asset_url = next(
-        (a["browser_download_url"] for a in release["assets"] if a["name"] == _ASSET_NAME),
+        (
+            a["browser_download_url"]
+            for a in release["assets"]
+            if a["name"] == _ASSET_NAME
+        ),
         None,
     )
     if asset_url is None:
