@@ -84,3 +84,24 @@ def test_priority_order(engine):
         for e in page.items
     ]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_japanese_search_orders_by_priority(conn, engine):
+    import json
+    # Entry 9990001: common word (ichi1 priority)
+    conn.execute("INSERT INTO entries VALUES (9990001)")
+    conn.execute(
+        "INSERT INTO readings(entry_id, text, priority) VALUES (9990001, 'さかな', ?)",
+        (json.dumps(["ichi1"]),),
+    )
+    conn.execute("INSERT INTO senses(entry_id, pos) VALUES (9990001, '[]')")
+    # Entry 9990002: rare word (no priority)
+    conn.execute("INSERT INTO entries VALUES (9990002)")
+    conn.execute("INSERT INTO readings(entry_id, text) VALUES (9990002, 'さかな')")
+    conn.execute("INSERT INTO senses(entry_id, pos) VALUES (9990002, '[]')")
+    conn.commit()
+
+    repo = EntryRepository(engine)
+    page = repo.search_by_japanese("さかな", limit=20, offset=0)
+    ids = [e.id for e in page.items]
+    assert ids.index(9990001) < ids.index(9990002)  # ichi1 comes first

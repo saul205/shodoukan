@@ -45,6 +45,22 @@ def test_search_entries_routes_english(dictionary):
     assert any(e.id == 1000001 for e in page.items)
 
 
+def test_search_entries_routes_romaji(dictionary):
+    page = dictionary.search_entries("taberu")
+    assert any(e.id == 1000001 for e in page.items)
+
+
+def test_search_entries_romaji_falls_back_to_english(dictionary):
+    # "water" contains 'w' which can't be fully converted to hiragana
+    page = dictionary.search_entries("water")
+    assert any(e.id == 1000002 for e in page.items)
+
+
+def test_search_routes_romaji(dictionary):
+    result = dictionary.search("taberu")
+    assert any(e.id == 1000001 for e in result.entries.items)
+
+
 def test_get_kanji_for_entry(dictionary):
     links = dictionary.get_kanji_for_entry(1000001)
     assert any(lk.literal == "食" for lk in links)

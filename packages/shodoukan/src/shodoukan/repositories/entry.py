@@ -1,4 +1,4 @@
-from sqlalchemy import and_, desc, distinct, func, or_, select, text
+from sqlalchemy import and_, case, desc, distinct, func, or_, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, selectinload
 
@@ -14,6 +14,18 @@ from shodoukan.db.orm import (
 )
 from shodoukan.models.entry import Entry, EntryKanjiLink, Page
 from shodoukan.repositories.mapper import entry_to_domain
+
+
+def _priority_score(field):
+    """Numeric score derived from a JMDict priority JSON field."""
+    safe = func.coalesce(field, "[]")
+    return sum(
+        case((func.instr(safe, code) > 0, pts), else_=0)
+        for code, pts in [
+            ("ichi1", 200), ("news1", 200), ("spec1", 200), ("gai1", 200),
+            ("ichi2", 100), ("news2", 100), ("spec2", 100), ("gai2", 100),
+        ]
+    )
 
 
 def _fts_query(query: str) -> str:
@@ -60,7 +72,11 @@ class EntryRepository:
         exact = or_(
             KanjiReadingORM.kanji == query,
             ReadingORM.text == query,
-        ).label("exact_match")
+        )
+        priority = func.max(
+            _priority_score(KanjiReadingORM.priority)
+            + _priority_score(ReadingORM.priority)
+        ).label("priority")
 
         def base(s):
             return (
@@ -75,8 +91,15 @@ class EntryRepository:
                 base(select(func.count(distinct(EntryORM.id))))
             ).scalar() or 0
             entry_ids = session.execute(
-                base(select(EntryORM.id, exact).distinct())
-                .order_by(desc(exact))
+                base(
+                    select(
+                        EntryORM.id,
+                        func.max(exact).label("exact_match"),
+                        priority,
+                    )
+                )
+                .group_by(EntryORM.id)
+                .order_by(desc("exact_match"), desc("priority"))
                 .limit(limit)
                 .offset(offset)
             ).scalars().all()

@@ -7,7 +7,8 @@ from shodoukan.models.kanji import Kanji
 from shodoukan.models.search import SearchResult
 from shodoukan.repositories.entry import EntryRepository
 from shodoukan.repositories.kanji import KanjiRepository
-from shodoukan.utils.detect import contains_kanji, is_japanese
+from shodoukan.utils.detect import contains_kanji, is_japanese, is_romaji
+from shodoukan.utils.romaji import to_hiragana
 
 
 class Dictionary:
@@ -45,6 +46,10 @@ class Dictionary:
     ) -> Page[Entry]:
         if is_japanese(query):
             return self._entries.search_by_japanese(query, limit=limit, offset=offset)
+        if is_romaji(query):
+            hiragana = to_hiragana(query)
+            if hiragana:
+                return self._entries.search_by_japanese(hiragana, limit=limit, offset=offset)
         return self._entries.search_by_english(query, limit=limit, offset=offset)
 
     def get_kanji_for_entry(self, entry_id: int) -> list[EntryKanjiLink]:
@@ -85,6 +90,10 @@ class Dictionary:
             return self._search_single_kanji(query, limit, offset)
         if is_japanese(query):
             return self._search_japanese(query, limit, offset)
+        if is_romaji(query):
+            hiragana = to_hiragana(query)
+            if hiragana:
+                return self._search_japanese(hiragana, limit, offset)
         return self._search_translation(query, limit, offset)
 
     def _search_single_kanji(
