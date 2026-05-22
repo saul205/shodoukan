@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import and_, case, desc, distinct, func, or_, select, text
+from sqlalchemy import and_, desc, distinct, func, or_, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, aliased, selectinload
 
@@ -15,52 +15,14 @@ from shodoukan.db.orm import (
     SenseORM,
 )
 from shodoukan.models.entry import Entry, EntryKanjiLink, Page, ScoreBreakdown
+from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import entry_to_domain
+from shodoukan.repositories.scoring import JLPT_WEIGHT, common_word_bonus, per_tag_score
 from shodoukan.utils.lang import gloss_lang
 
 
 def _debug_mode() -> bool:
     return os.getenv("SHODOUKAN_DEBUG") == "1"
-
-_JLPT_WEIGHT = 100
-
-
-_TIER1 = ("ichi1", "spec1", "news1", "gai1")
-
-
-def _per_tag_score(field):
-    safe = func.coalesce(field, "[]")
-    return sum(
-        case((func.instr(safe, code) > 0, pts), else_=0)
-        for code, pts in [
-            ("ichi1", 10), ("spec1", 10), ("news1", 10), ("gai1", 10),
-            ("ichi2",  5), ("spec2",  5), ("news2",  5), ("gai2",  5),
-        ]
-    )
-
-
-def _common_word_bonus(k_field, r_field):
-    k = func.coalesce(k_field, "[]")
-    r = func.coalesce(r_field, "[]")
-    return case(
-        (
-            or_(
-                *(func.instr(k, c) > 0 for c in _TIER1),
-                *(func.instr(r, c) > 0 for c in _TIER1),
-            ),
-            500,
-        ),
-        else_=0,
-    )
-
-
-def _fts_query(query: str) -> str:
-    escaped = query.replace('"', '""')
-    return f'"{escaped}"'
-
-
-def _fts_prefix_query(query: str) -> str:
-    return " ".join(f"{word}*" for word in query.split())
 
 
 def _load_options():
@@ -100,11 +62,11 @@ class EntryRepository:
             ReadingORM.text == query,
         )
         _freq_j = func.max(
-            _common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
-            + _per_tag_score(KanjiReadingORM.priority)
-            + _per_tag_score(ReadingORM.priority)
+            common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
+            + per_tag_score(KanjiReadingORM.priority)
+            + per_tag_score(ReadingORM.priority)
         )
-        _jlpt_j = func.coalesce(func.max(EntryORM.jlpt), 0) * _JLPT_WEIGHT
+        _jlpt_j = func.coalesce(func.max(EntryORM.jlpt), 0) * JLPT_WEIGHT
         priority = (_freq_j + _jlpt_j).label("priority")
 
         def base(s):
@@ -182,11 +144,11 @@ class EntryRepository:
             .scalar_subquery()
         )
         _freq = func.max(
-            _common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
-            + _per_tag_score(KanjiReadingORM.priority)
-            + _per_tag_score(ReadingORM.priority)
+            common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
+            + per_tag_score(KanjiReadingORM.priority)
+            + per_tag_score(ReadingORM.priority)
         )
-        _jlpt_pts = func.coalesce(func.max(EntryORM.jlpt), 0) * _JLPT_WEIGHT
+        _jlpt_pts = func.coalesce(func.max(EntryORM.jlpt), 0) * JLPT_WEIGHT
         _total = func.min(_sense_total_sq)
         composite = (
             (_freq + _jlpt_pts)
@@ -255,12 +217,12 @@ class EntryRepository:
             }
 
         with Session(self._engine) as session:
-            id_stmt, count_stmt = _build(_fts_query(query))
+            id_stmt, count_stmt = _build(fts_query(query))
             rows = session.execute(id_stmt).all()
             entry_ids, scores = _extract(rows)
             total = session.execute(count_stmt).scalar() or 0
             if not entry_ids:
-                id_stmt, count_stmt = _build(_fts_prefix_query(query))
+                id_stmt, count_stmt = _build(fts_prefix_query(query))
                 rows = session.execute(id_stmt).all()
                 entry_ids, scores = _extract(rows)
                 total = session.execute(count_stmt).scalar() or 0

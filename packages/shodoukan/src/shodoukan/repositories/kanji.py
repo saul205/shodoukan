@@ -6,18 +6,10 @@ from shodoukan.db import schema as fts
 from shodoukan.db.orm import KanjiMeaningORM, KanjiORM
 from shodoukan.models.entry import Page
 from shodoukan.models.kanji import Kanji
+from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import kanji_to_domain
 from shodoukan.utils.detect import contains_kana, contains_kanji
 from shodoukan.utils.lang import meaning_lang
-
-
-def _fts_query(query: str) -> str:
-    escaped = query.replace('"', '""')
-    return f'"{escaped}"'
-
-
-def _fts_prefix_query(query: str) -> str:
-    return " ".join(f"{word}*" for word in query.split())
 
 
 _READING_SQL = (
@@ -144,11 +136,11 @@ class KanjiRepository:
                 )
 
             with Session(self._engine) as session:
-                id_stmt, count_stmt = _build(_fts_query(query))
+                id_stmt, count_stmt = _build(fts_query(query))
                 literals = session.execute(id_stmt).scalars().all()
                 total = session.execute(count_stmt).scalar() or 0
                 if not literals:
-                    id_stmt, count_stmt = _build(_fts_prefix_query(query))
+                    id_stmt, count_stmt = _build(fts_prefix_query(query))
                     literals = session.execute(id_stmt).scalars().all()
                     total = session.execute(count_stmt).scalar() or 0
                 items = self._load_by_literals(session, list(literals))
