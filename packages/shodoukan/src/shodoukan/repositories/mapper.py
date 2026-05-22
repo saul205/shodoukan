@@ -23,6 +23,7 @@ def _json(value: str) -> list[str]:
 def entry_to_domain(e: EntryORM) -> Entry:
     return Entry(
         id=e.id,
+        jlpt=e.jlpt,
         kanji_readings=[
             KanjiReading(
                 id=kr.id,

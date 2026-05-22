@@ -5,7 +5,10 @@ import pytest
 from sqlalchemy.pool import StaticPool
 
 _SCHEMA = """
-CREATE TABLE entries (id INTEGER PRIMARY KEY);
+CREATE TABLE entries (
+    id   INTEGER PRIMARY KEY,
+    jlpt INTEGER
+);
 
 CREATE TABLE kanji_readings (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,17 +127,16 @@ CREATE INDEX idx_entry_kanji_literal ON entry_kanji(literal);
 
 def _seed(conn: sqlite3.Connection) -> None:
     # Entry 1000001: 食べる (to eat)
-    conn.execute("INSERT INTO entries VALUES (1000001)")
+    conn.execute("INSERT INTO entries VALUES (1000001, 5)")
     conn.execute("INSERT INTO kanji_readings(entry_id, kanji, priority) VALUES (1000001, '食べる', ?)", (json.dumps(["ichi1"]),))
     conn.execute("INSERT INTO readings(entry_id, text, priority) VALUES (1000001, 'たべる', ?)", (json.dumps(["ichi1"]),))
     sense_id = conn.execute("INSERT INTO senses(entry_id, pos) VALUES (1000001, ?)", (json.dumps(["verb"]),)).lastrowid
     conn.execute("INSERT INTO glosses(sense_id, text, lang) VALUES (?, 'to eat', 'eng')", (sense_id,))
     conn.execute("INSERT INTO glosses(sense_id, text, lang) VALUES (?, 'to have a meal', 'eng')", (sense_id,))
     conn.execute("INSERT INTO entry_kanji(entry_id, literal, priority_score) VALUES (1000001, '食', 1000)")
-    conn.execute("INSERT INTO entry_kanji(entry_id, literal, priority_score) VALUES (1000001, '食べる', 1000)")
 
     # Entry 1000002: 水 (water)
-    conn.execute("INSERT INTO entries VALUES (1000002)")
+    conn.execute("INSERT INTO entries VALUES (1000002, 4)")
     conn.execute("INSERT INTO kanji_readings(entry_id, kanji) VALUES (1000002, '水')")
     conn.execute("INSERT INTO readings(entry_id, text) VALUES (1000002, 'みず')")
     sense_id = conn.execute("INSERT INTO senses(entry_id, pos) VALUES (1000002, ?)", (json.dumps(["noun"]),)).lastrowid
@@ -142,7 +144,7 @@ def _seed(conn: sqlite3.Connection) -> None:
     conn.execute("INSERT INTO entry_kanji(entry_id, literal, priority_score) VALUES (1000002, '水', 500)")
 
     # Entry 1000003: no-kanji entry (ありがとう)
-    conn.execute("INSERT INTO entries VALUES (1000003)")
+    conn.execute("INSERT INTO entries VALUES (1000003, NULL)")
     conn.execute("INSERT INTO readings(entry_id, text, no_kanji) VALUES (1000003, 'ありがとう', 1)")
     sense_id = conn.execute("INSERT INTO senses(entry_id, pos) VALUES (1000003, ?)", (json.dumps(["interjection"]),)).lastrowid
     conn.execute("INSERT INTO glosses(sense_id, text, lang) VALUES (?, 'thank you', 'eng')", (sense_id,))

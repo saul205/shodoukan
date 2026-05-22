@@ -6,17 +6,10 @@ from shodoukan.db import schema as fts
 from shodoukan.db.orm import KanjiMeaningORM, KanjiORM
 from shodoukan.models.entry import Page
 from shodoukan.models.kanji import Kanji
+from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import kanji_to_domain
 from shodoukan.utils.detect import contains_kana, contains_kanji
-
-
-def _fts_query(query: str) -> str:
-    escaped = query.replace('"', '""')
-    return f'"{escaped}"'
-
-
-def _fts_prefix_query(query: str) -> str:
-    return " ".join(f"{word}*" for word in query.split())
+from shodoukan.utils.lang import meaning_lang
 
 
 _READING_SQL = (
@@ -53,6 +46,7 @@ class KanjiRepository:
         jlpt: int | None,
         limit: int,
         offset: int,
+        lang: str = "en",
     ) -> Page[Kanji]:
         if query and len(query) == 1 and contains_kanji(query):
             k = self.get_by_literal(query)
@@ -67,7 +61,7 @@ class KanjiRepository:
         if query and contains_kana(query):
             return self._search_by_reading(query, grade, jlpt, limit, offset)
 
-        return self._search_by_meaning(query, grade, jlpt, limit, offset)
+        return self._search_by_meaning(query, grade, jlpt, limit, offset, lang=lang)
 
     def _grade_jlpt_conds(self, grade: int | None, jlpt: int | None) -> list:
         conds = []
@@ -110,6 +104,7 @@ class KanjiRepository:
         jlpt: int | None,
         limit: int,
         offset: int,
+        lang: str = "en",
     ) -> Page[Kanji]:
         extra = self._grade_jlpt_conds(grade, jlpt)
 
@@ -117,7 +112,7 @@ class KanjiRepository:
             def _build(fts_q: str):
                 fts_where = and_(
                     text("kanji_meanings_fts MATCH :fts_q").bindparams(fts_q=fts_q),
-                    KanjiMeaningORM.lang == "en",
+                    KanjiMeaningORM.lang == meaning_lang(lang),
                     *extra,
                 )
 
@@ -141,11 +136,11 @@ class KanjiRepository:
                 )
 
             with Session(self._engine) as session:
-                id_stmt, count_stmt = _build(_fts_query(query))
+                id_stmt, count_stmt = _build(fts_query(query))
                 literals = session.execute(id_stmt).scalars().all()
                 total = session.execute(count_stmt).scalar() or 0
                 if not literals:
-                    id_stmt, count_stmt = _build(_fts_prefix_query(query))
+                    id_stmt, count_stmt = _build(fts_prefix_query(query))
                     literals = session.execute(id_stmt).scalars().all()
                     total = session.execute(count_stmt).scalar() or 0
                 items = self._load_by_literals(session, list(literals))

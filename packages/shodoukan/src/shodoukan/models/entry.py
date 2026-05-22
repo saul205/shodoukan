@@ -65,11 +65,23 @@ class KanjiReading(BaseModel):
     info: list[str]
 
 
+class ScoreBreakdown(BaseModel):
+    freq: int | None = None
+    jlpt_bonus: int | None = None
+    exact_match: bool | None = None
+    fts_rank: float | None = None
+    sense_pos: int | None = None
+    total_senses: int | None = None
+    composite: float | None = None
+
+
 class Entry(BaseModel):
     id: int
     kanji_readings: list[KanjiReading]
     readings: list[Reading]
     senses: list[Sense]
+    jlpt: int | None = None
+    score: ScoreBreakdown | None = None
 
 
 class EntryKanjiLink(BaseModel):

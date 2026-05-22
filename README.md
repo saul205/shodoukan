@@ -18,11 +18,13 @@ Package for building applications on top of the dictionary.
 from shodoukan import Dictionary
 
 with Dictionary() as d:
-    results = d.search_entries("日本語", limit=10)
-    kanji = d.get_kanji("日")
+    results = d.search_entries("日本語", limit=10)   # kanji / kana
+    results = d.search_entries("taberu")             # romaji → hiragana
+    results = d.search_entries("comer", lang="es")   # multilingual gloss
+    kanji   = d.get_kanji("日")
 ```
 
-Supports lookup by reading (kana), kanji, or English meaning. See [packages/shodoukan/](packages/shodoukan/) for the full API.
+Supports lookup by kanji, kana, Hepburn romaji, or gloss in any JMDict language. Each `Entry` includes its JLPT level (`jlpt: int | None`). See [packages/shodoukan/](packages/shodoukan/) for the full API.
 
 ### `shodoukan-api` — REST API
 
@@ -37,6 +39,8 @@ FastAPI application that exposes the library over HTTP. See [packages/shodoukan-
 | GET | `/entries/by-kanji/{literal}` | Get entries that contain a kanji |
 | GET | `/kanji/search` | Search kanji |
 | GET | `/kanji/{literal}` | Get kanji by literal |
+
+Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` for pagination.
 
 Interactive docs available at `/docs` when the server is running.
 
@@ -61,6 +65,7 @@ The database is downloaded automatically during the image build. The API will be
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `API_PORT` | `8000` | Port to expose the API on |
+| `SHODOUKAN_DEBUG` | `0` | Set to `1` to include score breakdown in search responses |
 
 ---
 

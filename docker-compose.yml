@@ -5,4 +5,6 @@ services:
       dockerfile: packages/shodoukan-api/Dockerfile
     ports:
       - "${API_PORT:-8000}:8000"
+    environment:
+      - SHODOUKAN_DEBUG=${SHODOUKAN_DEBUG:-0}
     restart: unless-stopped
