@@ -40,12 +40,15 @@ class Dictionary:
     def search_entries(
         self,
         query: str,
+        lang: str = "en",
         limit: int = 20,
         offset: int = 0,
     ) -> Page[Entry]:
         if is_japanese(query):
             return self._entries.search_by_japanese(query, limit=limit, offset=offset)
-        return self._entries.search_by_english(query, limit=limit, offset=offset)
+        return self._entries.search_by_gloss(
+            query, lang=lang, limit=limit, offset=offset
+        )
 
     def get_kanji_for_entry(self, entry_id: int) -> list[EntryKanjiLink]:
         return self._entries.get_kanji_for_entry(entry_id)
@@ -68,16 +71,18 @@ class Dictionary:
         query: str | None = None,
         grade: int | None = None,
         jlpt: int | None = None,
+        lang: str = "en",
         limit: int = 20,
         offset: int = 0,
     ) -> Page[Kanji]:
         return self._kanji.search(
-            query=query, grade=grade, jlpt=jlpt, limit=limit, offset=offset
+            query=query, grade=grade, jlpt=jlpt, lang=lang, limit=limit, offset=offset
         )
 
     def search(
         self,
         query: str,
+        lang: str = "en",
         limit: int = 20,
         offset: int = 0,
     ) -> SearchResult:
@@ -85,7 +90,7 @@ class Dictionary:
             return self._search_single_kanji(query, limit, offset)
         if is_japanese(query):
             return self._search_japanese(query, limit, offset)
-        return self._search_translation(query, limit, offset)
+        return self._search_translation(query, lang=lang, limit=limit, offset=offset)
 
     def _search_single_kanji(
         self, literal: str, limit: int, offset: int
@@ -103,13 +108,17 @@ class Dictionary:
         kanji = [k for lit in literals if (k := self._kanji.get_by_literal(lit))]
         return SearchResult(entries=entries, kanji=kanji)
 
-    def _search_translation(self, query: str, limit: int, offset: int) -> SearchResult:
-        entries = self._entries.search_by_english(query, limit=limit, offset=offset)
+    def _search_translation(
+        self, query: str, lang: str, limit: int, offset: int
+    ) -> SearchResult:
+        entries = self._entries.search_by_gloss(
+            query, lang=lang, limit=limit, offset=offset
+        )
         entry_ids = [e.id for e in entries.items]
 
         related_literals = self._entries.get_related_kanji_literals(entry_ids, limit=10)
         meaning_page = self._kanji.search(
-            query=query, grade=None, jlpt=None, limit=5, offset=0
+            query=query, grade=None, jlpt=None, lang=lang, limit=5, offset=0
         )
         meaning_literals = [k.literal for k in meaning_page.items]
 

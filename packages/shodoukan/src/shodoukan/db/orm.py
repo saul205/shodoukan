@@ -26,6 +26,7 @@ class EntryORM(Base):
     __tablename__ = "entries"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    jlpt: Mapped[int | None]
 
     kanji_readings: Mapped[list[KanjiReadingORM]] = relationship(
         back_populates="entry"

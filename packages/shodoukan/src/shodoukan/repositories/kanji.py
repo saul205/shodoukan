@@ -8,6 +8,7 @@ from shodoukan.models.entry import Page
 from shodoukan.models.kanji import Kanji
 from shodoukan.repositories.mapper import kanji_to_domain
 from shodoukan.utils.detect import contains_kana, contains_kanji
+from shodoukan.utils.lang import meaning_lang
 
 
 def _fts_query(query: str) -> str:
@@ -53,6 +54,7 @@ class KanjiRepository:
         jlpt: int | None,
         limit: int,
         offset: int,
+        lang: str = "en",
     ) -> Page[Kanji]:
         if query and len(query) == 1 and contains_kanji(query):
             k = self.get_by_literal(query)
@@ -67,7 +69,7 @@ class KanjiRepository:
         if query and contains_kana(query):
             return self._search_by_reading(query, grade, jlpt, limit, offset)
 
-        return self._search_by_meaning(query, grade, jlpt, limit, offset)
+        return self._search_by_meaning(query, grade, jlpt, limit, offset, lang=lang)
 
     def _grade_jlpt_conds(self, grade: int | None, jlpt: int | None) -> list:
         conds = []
@@ -109,6 +111,7 @@ class KanjiRepository:
         jlpt: int | None,
         limit: int,
         offset: int,
+        lang: str = "en",
     ) -> Page[Kanji]:
         extra = self._grade_jlpt_conds(grade, jlpt)
 
@@ -116,7 +119,7 @@ class KanjiRepository:
             def _build(fts_q: str):
                 fts_where = and_(
                     text("kanji_meanings_fts MATCH :fts_q").bindparams(fts_q=fts_q),
-                    KanjiMeaningORM.lang == "en",
+                    KanjiMeaningORM.lang == meaning_lang(lang),
                     *extra,
                 )
 

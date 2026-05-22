@@ -17,7 +17,7 @@ from shodoukan_api.deps import dictionary_dep
 
 # Reuse the same schema and seed from the library tests
 _SCHEMA = """
-CREATE TABLE entries (id INTEGER PRIMARY KEY);
+CREATE TABLE entries (id INTEGER PRIMARY KEY, jlpt INTEGER);
 CREATE TABLE kanji_readings (id INTEGER PRIMARY KEY AUTOINCREMENT, entry_id INTEGER NOT NULL, kanji TEXT NOT NULL, priority TEXT NOT NULL DEFAULT '[]', info TEXT NOT NULL DEFAULT '[]');
 CREATE INDEX idx_kanji_readings_entry ON kanji_readings(entry_id);
 CREATE INDEX idx_kanji_readings_kanji ON kanji_readings(kanji);
@@ -42,14 +42,14 @@ CREATE INDEX idx_entry_kanji_literal ON entry_kanji(literal);
 
 
 def _seed(conn: sqlite3.Connection) -> None:
-    conn.execute("INSERT INTO entries VALUES (1000001)")
+    conn.execute("INSERT INTO entries VALUES (1000001, 5)")
     conn.execute("INSERT INTO kanji_readings(entry_id, kanji, priority) VALUES (1000001, '食べる', ?)", (json.dumps(["ichi1"]),))
     conn.execute("INSERT INTO readings(entry_id, text, priority) VALUES (1000001, 'たべる', ?)", (json.dumps(["ichi1"]),))
     sid = conn.execute("INSERT INTO senses(entry_id, pos) VALUES (1000001, ?)", (json.dumps(["verb"]),)).lastrowid
     conn.execute("INSERT INTO glosses(sense_id, text, lang) VALUES (?, 'to eat', 'eng')", (sid,))
     conn.execute("INSERT INTO entry_kanji VALUES (1000001, '食', 1000)")
 
-    conn.execute("INSERT INTO entries VALUES (1000002)")
+    conn.execute("INSERT INTO entries VALUES (1000002, 4)")
     conn.execute("INSERT INTO kanji_readings(entry_id, kanji) VALUES (1000002, '水')")
     conn.execute("INSERT INTO readings(entry_id, text) VALUES (1000002, 'みず')")
     sid = conn.execute("INSERT INTO senses(entry_id, pos) VALUES (1000002, ?)", (json.dumps(["noun"]),)).lastrowid

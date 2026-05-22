@@ -1,6 +1,8 @@
-from sqlalchemy import and_, desc, distinct, func, or_, select, text
+import os
+
+from sqlalchemy import and_, case, desc, distinct, func, or_, select, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from shodoukan.db import schema as fts
 from shodoukan.db.orm import (
@@ -12,8 +14,44 @@ from shodoukan.db.orm import (
     ReadingORM,
     SenseORM,
 )
-from shodoukan.models.entry import Entry, EntryKanjiLink, Page
+from shodoukan.models.entry import Entry, EntryKanjiLink, Page, ScoreBreakdown
 from shodoukan.repositories.mapper import entry_to_domain
+from shodoukan.utils.lang import gloss_lang
+
+
+def _debug_mode() -> bool:
+    return os.getenv("SHODOUKAN_DEBUG") == "1"
+
+_JLPT_WEIGHT = 100
+
+
+_TIER1 = ("ichi1", "spec1", "news1", "gai1")
+
+
+def _per_tag_score(field):
+    safe = func.coalesce(field, "[]")
+    return sum(
+        case((func.instr(safe, code) > 0, pts), else_=0)
+        for code, pts in [
+            ("ichi1", 10), ("spec1", 10), ("news1", 10), ("gai1", 10),
+            ("ichi2",  5), ("spec2",  5), ("news2",  5), ("gai2",  5),
+        ]
+    )
+
+
+def _common_word_bonus(k_field, r_field):
+    k = func.coalesce(k_field, "[]")
+    r = func.coalesce(r_field, "[]")
+    return case(
+        (
+            or_(
+                *(func.instr(k, c) > 0 for c in _TIER1),
+                *(func.instr(r, c) > 0 for c in _TIER1),
+            ),
+            500,
+        ),
+        else_=0,
+    )
 
 
 def _fts_query(query: str) -> str:
@@ -60,7 +98,14 @@ class EntryRepository:
         exact = or_(
             KanjiReadingORM.kanji == query,
             ReadingORM.text == query,
-        ).label("exact_match")
+        )
+        _freq_j = func.max(
+            _common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
+            + _per_tag_score(KanjiReadingORM.priority)
+            + _per_tag_score(ReadingORM.priority)
+        )
+        _jlpt_j = func.coalesce(func.max(EntryORM.jlpt), 0) * _JLPT_WEIGHT
+        priority = (_freq_j + _jlpt_j).label("priority")
 
         def base(s):
             return (
@@ -74,21 +119,87 @@ class EntryRepository:
             total = session.execute(
                 base(select(func.count(distinct(EntryORM.id))))
             ).scalar() or 0
-            entry_ids = session.execute(
-                base(select(EntryORM.id, exact).distinct())
-                .order_by(desc(exact))
+            debug = _debug_mode()
+            cols = [EntryORM.id, func.max(exact).label("exact_match"), priority]
+            if debug:
+                cols += [_freq_j.label("debug_freq"), _jlpt_j.label("debug_jlpt")]
+            rows = session.execute(
+                base(select(*cols))
+                .group_by(EntryORM.id)
+                .order_by(desc("exact_match"), desc("priority"))
                 .limit(limit)
                 .offset(offset)
-            ).scalars().all()
-            items = self._hydrate(session, entry_ids)
+            ).all()
+            entry_ids = [r.id for r in rows]
+            scores = None
+            if debug:
+                scores = {
+                    r.id: ScoreBreakdown(
+                        freq=r.debug_freq,
+                        jlpt_bonus=r.debug_jlpt,
+                        exact_match=bool(r.exact_match),
+                    )
+                    for r in rows
+                }
+            items = self._hydrate(session, entry_ids, scores=scores)
 
         return Page(items=items, total=total, limit=limit, offset=offset)
 
-    def search_by_english(self, query: str, limit: int, offset: int) -> Page[Entry]:
+    def search_by_gloss(
+        self, query: str, lang: str = "en", limit: int = 20, offset: int = 0
+    ) -> Page[Entry]:
+        _lg_pos = aliased(GlossORM)
+        _lg_total = aliased(GlossORM)
+        _sense_pos_sq = (
+            select(func.count(distinct(SenseORM.id)))
+            .select_from(SenseORM)
+            .join(
+                _lg_pos,
+                and_(
+                    _lg_pos.sense_id == SenseORM.id,
+                    _lg_pos.lang == gloss_lang(lang),
+                ),
+            )
+            .where(
+                SenseORM.entry_id == EntryORM.id,
+                SenseORM.id < GlossORM.sense_id,
+            )
+            .correlate(EntryORM, GlossORM)
+            .scalar_subquery()
+        )
+        _sense_total_sq = (
+            select(func.count(distinct(SenseORM.id)))
+            .select_from(SenseORM)
+            .join(
+                _lg_total,
+                and_(
+                    _lg_total.sense_id == SenseORM.id,
+                    _lg_total.lang == gloss_lang(lang),
+                ),
+            )
+            .where(SenseORM.entry_id == EntryORM.id)
+            .correlate(EntryORM)
+            .scalar_subquery()
+        )
+        _freq = func.max(
+            _common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
+            + _per_tag_score(KanjiReadingORM.priority)
+            + _per_tag_score(ReadingORM.priority)
+        )
+        _jlpt_pts = func.coalesce(func.max(EntryORM.jlpt), 0) * _JLPT_WEIGHT
+        _total = func.min(_sense_total_sq)
+        composite = (
+            (_freq + _jlpt_pts)
+            * (_total - func.min(_sense_pos_sq))
+            / (_total * (0.9 + 0.1 * _total))
+        ).label("composite")
+
+        debug = _debug_mode()
+
         def _build(fts_q: str):
             fts_where = and_(
                 text("glosses_fts MATCH :fts_q").bindparams(fts_q=fts_q),
-                GlossORM.lang == "eng",
+                GlossORM.lang == gloss_lang(lang),
             )
 
             def base(s):
@@ -97,26 +208,63 @@ class EntryRepository:
                     .join(EntryORM.senses)
                     .join(SenseORM.glosses)
                     .join(fts.glosses_fts, fts.glosses_fts.c.rowid == GlossORM.id)
+                    .outerjoin(EntryORM.kanji_readings)
+                    .outerjoin(EntryORM.readings)
                     .where(fts_where)
                 )
 
+            extra = []
+            if debug:
+                extra = [
+                    _freq.label("debug_freq"),
+                    _jlpt_pts.label("debug_jlpt"),
+                    func.min(_sense_pos_sq).label("debug_sense_pos"),
+                    func.min(_sense_total_sq).label("debug_total_senses"),
+                ]
+
             return (
-                base(select(distinct(EntryORM.id)))
-                .order_by(text("rank"))
+                base(
+                    select(
+                        EntryORM.id,
+                        composite,
+                        func.min(text("rank")).label("fts_rank"),
+                        *extra,
+                    )
+                )
+                .group_by(EntryORM.id)
+                .order_by(text("fts_rank"), desc("composite"))
                 .limit(limit)
                 .offset(offset),
                 base(select(func.count(distinct(EntryORM.id)))),
             )
 
+        def _extract(rows):
+            ids = [r.id for r in rows]
+            if not debug:
+                return ids, None
+            return ids, {
+                r.id: ScoreBreakdown(
+                    freq=r.debug_freq,
+                    jlpt_bonus=r.debug_jlpt,
+                    fts_rank=r.fts_rank,
+                    composite=r.composite,
+                    sense_pos=r.debug_sense_pos,
+                    total_senses=r.debug_total_senses,
+                )
+                for r in rows
+            }
+
         with Session(self._engine) as session:
             id_stmt, count_stmt = _build(_fts_query(query))
-            entry_ids = session.execute(id_stmt).scalars().all()
+            rows = session.execute(id_stmt).all()
+            entry_ids, scores = _extract(rows)
             total = session.execute(count_stmt).scalar() or 0
             if not entry_ids:
                 id_stmt, count_stmt = _build(_fts_prefix_query(query))
-                entry_ids = session.execute(id_stmt).scalars().all()
+                rows = session.execute(id_stmt).all()
+                entry_ids, scores = _extract(rows)
                 total = session.execute(count_stmt).scalar() or 0
-            items = self._hydrate(session, list(entry_ids))
+            items = self._hydrate(session, list(entry_ids), scores=scores)
 
         return Page(items=items, total=total, limit=limit, offset=offset)
 
@@ -168,7 +316,12 @@ class EntryRepository:
             ).all()
         return [r.literal for r in rows]
 
-    def _hydrate(self, session: Session, entry_ids: list[int]) -> list[Entry]:
+    def _hydrate(
+        self,
+        session: Session,
+        entry_ids: list[int],
+        scores: dict[int, ScoreBreakdown] | None = None,
+    ) -> list[Entry]:
         if not entry_ids:
             return []
         entries = {
@@ -179,4 +332,8 @@ class EntryRepository:
                 .where(EntryORM.id.in_(entry_ids))
             ).scalars().all()
         }
-        return [entry_to_domain(entries[eid]) for eid in entry_ids if eid in entries]
+        result = [entry_to_domain(entries[eid]) for eid in entry_ids if eid in entries]
+        if scores:
+            for entry in result:
+                entry.score = scores.get(entry.id)
+        return result
