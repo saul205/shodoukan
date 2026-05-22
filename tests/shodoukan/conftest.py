@@ -134,7 +134,6 @@ def _seed(conn: sqlite3.Connection) -> None:
     conn.execute("INSERT INTO glosses(sense_id, text, lang) VALUES (?, 'to eat', 'eng')", (sense_id,))
     conn.execute("INSERT INTO glosses(sense_id, text, lang) VALUES (?, 'to have a meal', 'eng')", (sense_id,))
     conn.execute("INSERT INTO entry_kanji(entry_id, literal, priority_score) VALUES (1000001, '食', 1000)")
-    conn.execute("INSERT INTO entry_kanji(entry_id, literal, priority_score) VALUES (1000001, '食べる', 1000)")
 
     # Entry 1000002: 水 (water)
     conn.execute("INSERT INTO entries VALUES (1000002, 4)")

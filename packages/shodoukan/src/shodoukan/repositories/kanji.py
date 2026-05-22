@@ -94,6 +94,7 @@ class KanjiRepository:
                 select(KanjiORM)
                 .options(_with_meanings())
                 .where(where_clause)
+                .order_by(KanjiORM.freq.asc().nulls_last())
                 .limit(limit)
                 .offset(offset)
             ).scalars().all()
