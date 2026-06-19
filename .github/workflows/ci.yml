@@ -31,17 +31,12 @@ jobs:
         run: pytest tests/shodoukan-api
 
   deploy:
-    name: Deploy to Fly.io
+    name: Deploy to Render
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy
-        run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Trigger Render Deploy
+        # El comando curl "llama" a Render para que empiece el build
+        run: |
+          curl -f "${{ secrets.DEPLOY_HOOK }}"
