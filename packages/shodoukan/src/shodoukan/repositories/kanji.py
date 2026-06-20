@@ -1,4 +1,4 @@
-from sqlalchemy import and_, distinct, func, select, text, true
+from sqlalchemy import and_, desc, distinct, func, select, text, true
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, selectinload
 
@@ -8,6 +8,7 @@ from shodoukan.models.entry import Page
 from shodoukan.models.kanji import Kanji
 from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import kanji_to_domain
+from shodoukan.repositories.scoring import kanji_score
 from shodoukan.utils.detect import contains_kana, contains_kanji
 from shodoukan.utils.lang import meaning_lang
 
@@ -86,7 +87,9 @@ class KanjiRepository:
                 select(KanjiORM)
                 .options(_with_meanings())
                 .where(where_clause)
-                .order_by(KanjiORM.freq.asc().nulls_last())
+                .order_by(desc(kanji_score(
+                    KanjiORM.jlpt, KanjiORM.freq, KanjiORM.grade
+                )))
                 .limit(limit)
                 .offset(offset)
             ).scalars().all()
@@ -129,7 +132,9 @@ class KanjiRepository:
 
                 return (
                     base(select(KanjiORM.literal).distinct())
-                    .order_by(text("rank"))
+                    .order_by(desc(kanji_score(
+                        KanjiORM.jlpt, KanjiORM.freq, KanjiORM.grade
+                    )))
                     .limit(limit)
                     .offset(offset),
                     base(select(func.count(distinct(KanjiORM.literal)))),
@@ -155,12 +160,19 @@ class KanjiRepository:
                     session.execute(
                         select(KanjiORM.literal)
                         .where(where_clause)
+                        .order_by(desc(kanji_score(
+                            KanjiORM.jlpt, KanjiORM.freq, KanjiORM.grade
+                        )))
                         .limit(limit)
                         .offset(offset)
                     ).scalars().all(),
                 )
 
         return Page(items=items, total=total, limit=limit, offset=offset)
+
+    def get_by_literals(self, literals: list[str]) -> list[Kanji]:
+        with Session(self._engine) as session:
+            return self._load_by_literals(session, literals)
 
     def _load_by_literals(self, session: Session, literals: list[str]) -> list[Kanji]:
         if not literals:

@@ -11,6 +11,7 @@ from shodoukan.db.orm import (
     EntrySenseLangCountORM,
     ExampleORM,
     GlossORM,
+    KanjiORM,
     KanjiReadingORM,
     ReadingORM,
     SenseLangIndexORM,
@@ -19,7 +20,7 @@ from shodoukan.db.orm import (
 from shodoukan.models.entry import Entry, EntryKanjiLink, Page, ScoreBreakdown
 from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import entry_to_domain
-from shodoukan.repositories.scoring import JLPT_WEIGHT
+from shodoukan.repositories.scoring import JLPT_WEIGHT, kanji_score
 from shodoukan.utils.lang import gloss_lang
 
 
@@ -56,6 +57,7 @@ class EntryRepository:
         prefix = query + "%"
         cond = or_(
             KanjiReadingORM.kanji == query,
+            KanjiReadingORM.kanji.like(prefix),
             ReadingORM.text == query,
             ReadingORM.text.like(prefix),
         )
@@ -204,6 +206,18 @@ class EntryRepository:
 
         return Page(items=items, total=total, limit=limit, offset=offset)
 
+    def get_kanji_literals_for_entries(self, entry_ids: list[int]) -> list[str]:
+        if not entry_ids:
+            return []
+        with Session(self._engine) as session:
+            return list(
+                session.execute(
+                    select(EntryKanjiORM.literal)
+                    .where(EntryKanjiORM.entry_id.in_(entry_ids))
+                    .distinct()
+                ).scalars().all()
+            )
+
     def get_kanji_for_entry(self, entry_id: int) -> list[EntryKanjiLink]:
         with Session(self._engine) as session:
             literals = session.execute(
@@ -240,16 +254,32 @@ class EntryRepository:
         with Session(self._engine) as session:
             rows = session.execute(
                 select(
+                    EntryKanjiORM.entry_id,
                     EntryKanjiORM.literal,
-                    func.max(EntryORM.freq_score).label("score"),
+                    kanji_score(KanjiORM.jlpt, KanjiORM.freq).label("k_score"),
                 )
-                .join(EntryORM, EntryORM.id == EntryKanjiORM.entry_id)
+                .join(KanjiORM, KanjiORM.literal == EntryKanjiORM.literal)
                 .where(EntryKanjiORM.entry_id.in_(entry_ids))
-                .group_by(EntryKanjiORM.literal)
-                .order_by(desc("score"))
-                .limit(limit)
             ).all()
-        return [r.literal for r in rows]
+
+        # Group kanji per entry, sorted by kanji score within each entry
+        by_entry: dict[int, list[tuple[str, int]]] = {}
+        for row in rows:
+            by_entry.setdefault(row.entry_id, []).append((row.literal, row.k_score))
+        for kanji_list in by_entry.values():
+            kanji_list.sort(key=lambda x: x[1], reverse=True)
+
+        # Walk entries in result order; place each kanji at its first appearance
+        seen: set[str] = set()
+        result: list[str] = []
+        for eid in entry_ids:
+            for literal, _ in by_entry.get(eid, []):
+                if literal not in seen:
+                    seen.add(literal)
+                    result.append(literal)
+                    if len(result) == limit:
+                        return result
+        return result
 
     def _hydrate(
         self,
