@@ -2,22 +2,24 @@ import os
 
 from sqlalchemy import and_, desc, distinct, func, or_, select, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, aliased, selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from shodoukan.db import schema as fts
 from shodoukan.db.orm import (
     EntryKanjiORM,
     EntryORM,
+    EntrySenseLangCountORM,
     ExampleORM,
     GlossORM,
     KanjiReadingORM,
     ReadingORM,
+    SenseLangIndexORM,
     SenseORM,
 )
 from shodoukan.models.entry import Entry, EntryKanjiLink, Page, ScoreBreakdown
 from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import entry_to_domain
-from shodoukan.repositories.scoring import JLPT_WEIGHT, common_word_bonus, per_tag_score
+from shodoukan.repositories.scoring import JLPT_WEIGHT
 from shodoukan.utils.lang import gloss_lang
 
 
@@ -61,11 +63,7 @@ class EntryRepository:
             KanjiReadingORM.kanji == query,
             ReadingORM.text == query,
         )
-        _freq_j = func.max(
-            common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
-            + per_tag_score(KanjiReadingORM.priority)
-            + per_tag_score(ReadingORM.priority)
-        )
+        _freq_j = EntryORM.freq_score
         _jlpt_j = func.coalesce(func.max(EntryORM.jlpt), 0) * JLPT_WEIGHT
         priority = (_freq_j + _jlpt_j).label("priority")
 
@@ -110,49 +108,13 @@ class EntryRepository:
     def search_by_gloss(
         self, query: str, lang: str = "en", limit: int = 20, offset: int = 0
     ) -> Page[Entry]:
-        _lg_pos = aliased(GlossORM)
-        _lg_total = aliased(GlossORM)
-        _sense_pos_sq = (
-            select(func.count(distinct(SenseORM.id)))
-            .select_from(SenseORM)
-            .join(
-                _lg_pos,
-                and_(
-                    _lg_pos.sense_id == SenseORM.id,
-                    _lg_pos.lang == gloss_lang(lang),
-                ),
-            )
-            .where(
-                SenseORM.entry_id == EntryORM.id,
-                SenseORM.id < GlossORM.sense_id,
-            )
-            .correlate(EntryORM, GlossORM)
-            .scalar_subquery()
-        )
-        _sense_total_sq = (
-            select(func.count(distinct(SenseORM.id)))
-            .select_from(SenseORM)
-            .join(
-                _lg_total,
-                and_(
-                    _lg_total.sense_id == SenseORM.id,
-                    _lg_total.lang == gloss_lang(lang),
-                ),
-            )
-            .where(SenseORM.entry_id == EntryORM.id)
-            .correlate(EntryORM)
-            .scalar_subquery()
-        )
-        _freq = func.max(
-            common_word_bonus(KanjiReadingORM.priority, ReadingORM.priority)
-            + per_tag_score(KanjiReadingORM.priority)
-            + per_tag_score(ReadingORM.priority)
-        )
-        _jlpt_pts = func.coalesce(func.max(EntryORM.jlpt), 0) * JLPT_WEIGHT
-        _total = func.min(_sense_total_sq)
+        _freq = EntryORM.freq_score
+        _jlpt_pts = func.coalesce(EntryORM.jlpt, 0) * JLPT_WEIGHT
+        _total = EntrySenseLangCountORM.count
+        _pos = func.min(SenseLangIndexORM.lang_sense_index)
         composite = (
             (_freq + _jlpt_pts)
-            * (_total - func.min(_sense_pos_sq))
+            * (_total - _pos)
             / (_total * (0.9 + 0.1 * _total))
         ).label("composite")
 
@@ -170,18 +132,30 @@ class EntryRepository:
                     .join(EntryORM.senses)
                     .join(SenseORM.glosses)
                     .join(fts.glosses_fts, fts.glosses_fts.c.rowid == GlossORM.id)
-                    .outerjoin(EntryORM.kanji_readings)
-                    .outerjoin(EntryORM.readings)
+                    .join(
+                        EntrySenseLangCountORM,
+                        and_(
+                            EntrySenseLangCountORM.entry_id == EntryORM.id,
+                            EntrySenseLangCountORM.lang == gloss_lang(lang),
+                        ),
+                    )
+                    .join(
+                        SenseLangIndexORM,
+                        and_(
+                            SenseLangIndexORM.sense_id == SenseORM.id,
+                            SenseLangIndexORM.lang == gloss_lang(lang),
+                        ),
+                    )
                     .where(fts_where)
                 )
 
             extra = []
             if debug:
                 extra = [
-                    _freq.label("debug_freq"),
+                    EntryORM.freq_score.label("debug_freq"),
                     _jlpt_pts.label("debug_jlpt"),
-                    func.min(_sense_pos_sq).label("debug_sense_pos"),
-                    func.min(_sense_total_sq).label("debug_total_senses"),
+                    _pos.label("debug_sense_pos"),
+                    EntrySenseLangCountORM.count.label("debug_total_senses"),
                 ]
 
             return (
@@ -232,15 +206,12 @@ class EntryRepository:
 
     def get_kanji_for_entry(self, entry_id: int) -> list[EntryKanjiLink]:
         with Session(self._engine) as session:
-            rows = session.execute(
-                select(EntryKanjiORM.literal, EntryKanjiORM.priority_score)
+            literals = session.execute(
+                select(EntryKanjiORM.literal)
                 .where(EntryKanjiORM.entry_id == entry_id)
-                .order_by(desc(EntryKanjiORM.priority_score))
-            ).all()
-        return [
-            EntryKanjiLink(literal=r.literal, priority_score=r.priority_score)
-            for r in rows
-        ]
+                .order_by(EntryKanjiORM.literal)
+            ).scalars().all()
+        return [EntryKanjiLink(literal=lit) for lit in literals]
 
     def get_entries_for_kanji(
         self, literal: str, limit: int, offset: int
@@ -251,8 +222,9 @@ class EntryRepository:
             ).scalar() or 0
             entry_ids = session.execute(
                 select(EntryKanjiORM.entry_id)
+                .join(EntryORM, EntryORM.id == EntryKanjiORM.entry_id)
                 .where(EntryKanjiORM.literal == literal)
-                .order_by(desc(EntryKanjiORM.priority_score))
+                .order_by(desc(EntryORM.freq_score))
                 .limit(limit)
                 .offset(offset)
             ).scalars().all()
@@ -269,8 +241,9 @@ class EntryRepository:
             rows = session.execute(
                 select(
                     EntryKanjiORM.literal,
-                    func.max(EntryKanjiORM.priority_score).label("score"),
+                    func.max(EntryORM.freq_score).label("score"),
                 )
+                .join(EntryORM, EntryORM.id == EntryKanjiORM.entry_id)
                 .where(EntryKanjiORM.entry_id.in_(entry_ids))
                 .group_by(EntryKanjiORM.literal)
                 .order_by(desc("score"))
