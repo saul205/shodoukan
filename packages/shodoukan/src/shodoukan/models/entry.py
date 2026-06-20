@@ -86,4 +86,3 @@ class Entry(BaseModel):
 
 class EntryKanjiLink(BaseModel):
     literal: str
-    priority_score: int
