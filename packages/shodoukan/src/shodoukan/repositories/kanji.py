@@ -1,4 +1,4 @@
-from sqlalchemy import and_, desc, distinct, func, select, text, true
+from sqlalchemy import and_, case, desc, distinct, func, select, text, true
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, selectinload
 
@@ -20,6 +20,12 @@ _READING_SQL = (
     " WHERE value LIKE :q || '%')"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings)"
     " WHERE value LIKE :q || '.' || '%')"
+)
+
+# Evaluates to 1 for exact reading matches, 0 for prefix-only matches.
+_READING_EXACT_SQL = (
+    "EXISTS (SELECT 1 FROM json_each(kanji.on_readings) WHERE value = :q)"
+    " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings) WHERE value = :q)"
 )
 
 
@@ -79,26 +85,24 @@ class KanjiRepository:
             text(_READING_SQL).bindparams(q=query),
             *self._grade_jlpt_conds(grade, jlpt),
         )
+        exact_case = case(
+            (text(_READING_EXACT_SQL).bindparams(q=query), 1), else_=0
+        )
         with Session(self._engine) as session:
             total = session.execute(
                 select(func.count()).select_from(KanjiORM).where(where_clause)
             ).scalar() or 0
-            items = session.execute(
-                select(KanjiORM)
-                .options(_with_meanings())
+            literals = session.execute(
+                select(KanjiORM.literal)
                 .where(where_clause)
-                .order_by(desc(kanji_score(
+                .order_by(desc(exact_case), desc(kanji_score(
                     KanjiORM.jlpt, KanjiORM.freq, KanjiORM.grade
                 )))
                 .limit(limit)
                 .offset(offset)
             ).scalars().all()
-        return Page(
-            items=[kanji_to_domain(k) for k in items],
-            total=total,
-            limit=limit,
-            offset=offset,
-        )
+            items = self._load_by_literals(session, list(literals))
+        return Page(items=items, total=total, limit=limit, offset=offset)
 
     def _search_by_meaning(
         self,
@@ -131,8 +135,14 @@ class KanjiRepository:
                     )
 
                 return (
-                    base(select(KanjiORM.literal).distinct())
-                    .order_by(desc(kanji_score(
+                    base(
+                        select(
+                            KanjiORM.literal,
+                            func.min(text("rank")).label("fts_rank"),
+                        )
+                    )
+                    .group_by(KanjiORM.literal)
+                    .order_by("fts_rank", desc(kanji_score(
                         KanjiORM.jlpt, KanjiORM.freq, KanjiORM.grade
                     )))
                     .limit(limit)

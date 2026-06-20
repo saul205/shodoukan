@@ -95,63 +95,42 @@ class Dictionary:
         offset: int = 0,
     ) -> SearchResult:
         if is_kanji_only(query):
-            return self._search_literals(query, limit, offset)
-        if is_japanese(query):
-            return self._search_japanese(query, limit, offset)
-        if is_romaji(query):
-            hiragana = to_hiragana(query)
-            if hiragana:
-                return self._search_japanese(hiragana, limit, offset)
-        return self._search_translation(query, lang=lang, limit=limit, offset=offset)
+            entries = self._entries.search_by_japanese(
+                query, limit=limit, offset=offset
+            )
+            kanji = self._literal_kanji(query)
+        elif is_japanese(query):
+            entries = self._entries.search_by_japanese(
+                query, limit=limit, offset=offset
+            )
+            kanji = self._kanji.search(
+                query, grade=None, jlpt=None, limit=_KANJI_SIDE_LIMIT, offset=0
+            ).items
+        elif is_romaji(query) and (hiragana := to_hiragana(query)):
+            entries = self._entries.search_by_japanese(
+                hiragana, limit=limit, offset=offset
+            )
+            kanji = self._kanji.search(
+                hiragana, grade=None, jlpt=None, limit=_KANJI_SIDE_LIMIT, offset=0
+            ).items
+        else:
+            entries = self._entries.search_by_gloss(
+                query, lang=lang, limit=limit, offset=offset
+            )
+            kanji = self._kanji.search(
+                query, grade=None, jlpt=None, lang=lang,
+                limit=_KANJI_SIDE_LIMIT, offset=0,
+            ).items
+        return SearchResult(entries=entries, kanji=kanji)
 
-    def _search_literals(self, query: str, limit: int, offset: int) -> SearchResult:
-        entries = self._entries.search_by_japanese(query, limit=limit, offset=offset)
+    def _literal_kanji(self, query: str) -> list[Kanji]:
         seen: dict[str, Kanji] = {}
         for ch in query:
             if ch not in seen:
                 k = self._kanji.get_by_literal(ch)
                 if k:
                     seen[ch] = k
-        kanji = sorted(seen.values(), key=kanji_score_value, reverse=True)
-        return SearchResult(entries=entries, kanji=kanji)
-
-    def _search_japanese(self, query: str, limit: int, offset: int) -> SearchResult:
-        entries = self._entries.search_by_japanese(query, limit=limit, offset=offset)
-        entry_ids = [e.id for e in entries.items]
-        literals_a = self._entries.get_kanji_literals_for_entries(entry_ids)
-        kanji_b = self._kanji.search(
-            query=query, grade=None, jlpt=None, limit=_KANJI_SIDE_LIMIT, offset=0,
-        ).items
-        return SearchResult(
-            entries=entries, kanji=self._merge_kanji(literals_a, kanji_b)
-        )
-
-    def _search_translation(
-        self, query: str, lang: str, limit: int, offset: int
-    ) -> SearchResult:
-        entries = self._entries.search_by_gloss(
-            query, lang=lang, limit=limit, offset=offset
-        )
-        entry_ids = [e.id for e in entries.items]
-        literals_a = self._entries.get_kanji_literals_for_entries(entry_ids)
-        kanji_b = self._kanji.search(
-            query=query, grade=None, jlpt=None, lang=lang,
-            limit=_KANJI_SIDE_LIMIT, offset=0,
-        ).items
-        return SearchResult(
-            entries=entries, kanji=self._merge_kanji(literals_a, kanji_b)
-        )
-
-    def _merge_kanji(
-        self, literals_a: list[str], kanji_b: list[Kanji]
-    ) -> list[Kanji]:
-        kanji_a = self._kanji.get_by_literals(literals_a)
-        seen: dict[str, Kanji] = {}
-        for k in (*kanji_a, *kanji_b):
-            seen.setdefault(k.literal, k)
-        return sorted(
-            seen.values(), key=kanji_score_value, reverse=True
-        )[:_KANJI_SIDE_LIMIT]
+        return sorted(seen.values(), key=kanji_score_value, reverse=True)
 
     def get_kanji_for_entry_related(self, entry_id: int) -> list[Kanji]:
         literals = self._entries.get_related_kanji_literals([entry_id])
