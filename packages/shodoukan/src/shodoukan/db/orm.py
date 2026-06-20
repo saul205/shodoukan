@@ -27,6 +27,8 @@ class EntryORM(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     jlpt: Mapped[int | None]
+    freq_score: Mapped[int]
+    has_common: Mapped[int]
 
     kanji_readings: Mapped[list[KanjiReadingORM]] = relationship(
         back_populates="entry"
@@ -70,6 +72,7 @@ class SenseORM(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(ForeignKey("entries.id"))
+    sense_index: Mapped[int]
     pos: Mapped[str]
     misc: Mapped[str]
     dialects: Mapped[str]
@@ -140,9 +143,24 @@ class EntryKanjiORM(Base):
         ForeignKey("entries.id"), primary_key=True
     )
     literal: Mapped[str] = mapped_column(primary_key=True)
-    priority_score: Mapped[int]
 
     entry: Mapped[EntryORM] = relationship(back_populates="entry_kanji")
+
+
+class EntrySenseLangCountORM(Base):
+    __tablename__ = "entry_sense_counts"
+
+    entry_id: Mapped[int] = mapped_column(ForeignKey("entries.id"), primary_key=True)
+    lang: Mapped[str] = mapped_column(primary_key=True)
+    count: Mapped[int]
+
+
+class SenseLangIndexORM(Base):
+    __tablename__ = "sense_lang_index"
+
+    sense_id: Mapped[int] = mapped_column(ForeignKey("senses.id"), primary_key=True)
+    lang: Mapped[str] = mapped_column(primary_key=True)
+    lang_sense_index: Mapped[int]
 
 
 class KanjiORM(Base):
