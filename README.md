@@ -66,32 +66,26 @@ The database is downloaded automatically during the image build. The API will be
 |----------|---------|-------------|
 | `API_PORT` | `8000` | Port to expose the API on |
 | `SHODOUKAN_DEBUG` | `0` | Set to `1` to include score breakdown in search responses |
+| `CORS_ORIGINS` | `*` | Comma-separated list of allowed origins. Use `*` in development; set to your domain in production (e.g. `https://shodoukan.onrender.com`). |
 
 ---
 
-## Deployment (Fly.io)
+## Deployment (Render)
 
-Every push to `main` that passes CI is deployed automatically to Fly.io.
+Every push to `main` that passes CI is deployed automatically to Render.
 
 ### First-time setup
 
-1. Install the [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) and log in:
-   ```bash
-   fly auth login
-   ```
+1. Create a new **Web Service** on [Render](https://render.com) pointing to this repository.
+2. Set the build command to `docker build` (Render detects the Dockerfile automatically).
+3. Add the following environment variables in the Render dashboard:
 
-2. Create the app (only once):
-   ```bash
-   fly apps create shodoukan-api
-   ```
+| Variable | Value |
+|----------|-------|
+| `CORS_ORIGINS` | Your frontend domain, e.g. `https://shodoukan.onrender.com` |
+| `SHODOUKAN_DEBUG` | `0` |
 
-3. Add `FLY_API_TOKEN` to your GitHub repository secrets:
-   ```bash
-   fly tokens create deploy -x 999999h
-   ```
-   Copy the token and add it at **Settings → Secrets → Actions → New repository secret**.
-
-After that, every push to `main` triggers a build on Fly's infrastructure and a zero-downtime rolling deploy.
+After that, every push to `main` triggers a new deploy.
 
 ---
 

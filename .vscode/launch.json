@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Back",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["shodoukan_api.app:app", "--reload"],
+      "jinja": true,
+      "envFile": "${workspaceFolder}/.env.dev",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/packages/shodoukan/src:${workspaceFolder}/packages/shodoukan-api/src"
+      }
+    },
+    {
+      "name": "Front",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/packages/shodoukan-web",
+      "preLaunchTask": "nuxt: dev"
+    },
+    {
+      "name": "Front [Full Stack]",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/packages/shodoukan-web",
+      "preLaunchTask": "nuxt: dev (after api)"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack",
+      "configurations": ["Back", "Front [Full Stack]"],
+      "stopAll": true
+    }
+  ]
+}

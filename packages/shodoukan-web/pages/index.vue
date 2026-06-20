@@ -1,0 +1,78 @@
+<script setup lang="ts">
+import { search } from '~/services/search'
+import type { SearchResult } from '~/models/search'
+
+const config = useRuntimeConfig()
+
+const query = ref('')
+const lang = ref('en')
+const results = ref<SearchResult | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+async function handleSearch() {
+  if (!query.value.trim()) return
+  loading.value = true
+  error.value = null
+  try {
+    results.value = await search(query.value.trim(), config.public.apiBase, lang.value)
+  }
+  catch {
+    error.value = 'Failed to fetch results. Is the API running?'
+    results.value = null
+  }
+  finally {
+    loading.value = false
+  }
+}
+</script>
+
+<template>
+  <main class="mx-auto max-w-5xl px-4 py-10">
+    <div class="mb-8 flex items-center gap-3">
+      <div class="flex-1">
+        <SearchBar v-model="query" @search="handleSearch" />
+      </div>
+      <LanguageSelector v-model="lang" />
+    </div>
+
+    <div v-if="loading" class="py-12 text-center text-zinc-500">
+      Searching…
+    </div>
+
+    <div v-else-if="error" class="py-12 text-center text-red-400">
+      {{ error }}
+    </div>
+
+    <div
+      v-else-if="results"
+      class="flex gap-6"
+    >
+      <aside
+        v-if="results.kanji.length"
+        class="flex w-32 shrink-0 flex-col gap-3"
+      >
+        <KanjiCardCompact
+          v-for="k in results.kanji"
+          :key="k.literal"
+          :kanji="k"
+        />
+      </aside>
+
+      <section class="flex flex-1 flex-col gap-3">
+        <EntryCard
+          v-for="e in results.entries.items"
+          :key="e.id"
+          :entry="e"
+          :lang="lang"
+        />
+        <p
+          v-if="!results.entries.items.length && !results.kanji.length"
+          class="py-12 text-center text-zinc-500"
+        >
+          No results for "{{ query }}".
+        </p>
+      </section>
+    </div>
+  </main>
+</template>

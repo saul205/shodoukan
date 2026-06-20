@@ -12,6 +12,7 @@ dependencies = [
     "shodoukan>=0.2.0",
     "fastapi>=0.111",
     "uvicorn[standard]>=0.29",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
