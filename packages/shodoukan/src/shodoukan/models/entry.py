@@ -81,6 +81,7 @@ class Entry(BaseModel):
     readings: list[Reading]
     senses: list[Sense]
     jlpt: int | None = None
+    is_common: bool = False
     score: ScoreBreakdown | None = None
 
 

@@ -51,12 +51,24 @@ export interface KanjiReading {
   info: string[]
 }
 
+export interface ScoreBreakdown {
+  freq: number | null
+  jlpt_bonus: number | null
+  exact_match: boolean | null
+  fts_rank: number | null
+  sense_pos: number | null
+  total_senses: number | null
+  composite: number | null
+}
+
 export interface Entry {
   id: number
   kanji_readings: KanjiReading[]
   readings: Reading[]
   senses: Sense[]
   jlpt: number | null
+  is_common: boolean
+  score: ScoreBreakdown | null
 }
 
 export interface EntryKanjiLink {

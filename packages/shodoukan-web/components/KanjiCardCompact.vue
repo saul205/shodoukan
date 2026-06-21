@@ -1,18 +1,34 @@
 <script setup lang="ts">
 import type { Kanji } from '~/models/kanji'
 
-defineProps<{ kanji: Kanji }>()
+const props = defineProps<{ kanji: Kanji; lang: string }>()
+
+const meanings = computed(() =>
+  props.kanji.meanings
+    .filter((m) => m.lang === props.lang)
+    .map((m) => m.text)
+    .join(', '),
+)
+
+const jlptLabel = computed(() =>
+  props.kanji.jlpt ? `N${props.kanji.jlpt}` : null,
+)
+
+const tags = [jlptLabel]
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-800/50 px-3 py-4 text-center">
+  <div class="flex min-w-[14rem] flex-1 flex-col items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-800/50 px-3 py-4 text-center">
     <span class="font-japanese text-4xl font-bold text-zinc-100">{{ kanji.literal }}</span>
 
+    <span v-if="meanings.length" class="text-xs text-zinc-400">
+      {{ meanings }}
+    </span>
     <span v-if="kanji.kun_readings.length" class="text-xs text-zinc-400">
-      {{ kanji.kun_readings.join('、') }}
+      Kun: {{ kanji.kun_readings.join('、') }}
     </span>
     <span v-if="kanji.on_readings.length" class="text-xs text-zinc-500">
-      {{ kanji.on_readings.join('、') }}
+      On: {{ kanji.on_readings.join('、') }}
     </span>
 
     <span

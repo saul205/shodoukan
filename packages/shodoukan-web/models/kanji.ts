@@ -26,3 +26,11 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'fr', label: 'Français' },
   { code: 'de', label: 'Deutsch' },
 ]
+
+const _GLOSS_LANG: Record<string, string> = {
+  en: 'eng', es: 'spa', fr: 'fre', de: 'ger',
+}
+
+export function glossLang(code: string): string {
+  return _GLOSS_LANG[code] ?? code
+}

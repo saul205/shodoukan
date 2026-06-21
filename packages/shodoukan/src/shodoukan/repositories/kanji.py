@@ -16,6 +16,8 @@ from shodoukan.utils.lang import meaning_lang
 _READING_SQL = (
     "EXISTS (SELECT 1 FROM json_each(kanji.on_readings) WHERE value = :q)"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings) WHERE value = :q)"
+    " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings)"
+    " WHERE REPLACE(value, '.', '') = :q)"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.on_readings)"
     " WHERE value LIKE :q || '%')"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings)"
@@ -26,6 +28,8 @@ _READING_SQL = (
 _READING_EXACT_SQL = (
     "EXISTS (SELECT 1 FROM json_each(kanji.on_readings) WHERE value = :q)"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings) WHERE value = :q)"
+    " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings)"
+    " WHERE REPLACE(value, '.', '') = :q)"
 )
 
 

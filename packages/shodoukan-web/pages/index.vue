@@ -28,12 +28,14 @@ async function handleSearch() {
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl px-4 py-10">
-    <div class="mb-8 flex items-center gap-3">
-      <div class="flex-1">
-        <SearchBar v-model="query" @search="handleSearch" />
+  <main class="mx-auto w-[80%] px-4 py-10">
+    <div class="mb-8 mx-auto max-w-[60%]">
+      <div class="flex items-center gap-3">
+        <div class="flex-1">
+          <SearchBar v-model="query" @search="handleSearch" />
+        </div>
+        <LanguageSelector v-model="lang" />
       </div>
-      <LanguageSelector v-model="lang" />
     </div>
 
     <div v-if="loading" class="py-12 text-center text-zinc-500">
@@ -46,18 +48,19 @@ async function handleSearch() {
 
     <div
       v-else-if="results"
-      class="flex gap-6"
+      class="flex flex-col-reverse gap-6 md:flex-row"
     >
-      <aside
+      <div
         v-if="results.kanji.length"
-        class="flex w-32 shrink-0 flex-col gap-3"
+        class="[flex:0] flex flex-wrap gap-3 self-start"
       >
         <KanjiCardCompact
           v-for="k in results.kanji"
           :key="k.literal"
           :kanji="k"
+          :lang="lang"
         />
-      </aside>
+      </div>
 
       <section class="flex flex-1 flex-col gap-3">
         <EntryCard
