@@ -113,9 +113,16 @@ function notesFor(sense: Sense): string[] {
       </ol>
     </div>
 
+    <div class="mt-3 flex justify-end">
+      <NuxtLink
+        :to="`/entry/${entry.id}`"
+        class="text-xs text-zinc-500 transition hover:text-zinc-300"
+      >details →</NuxtLink>
+    </div>
+
     <div
       v-if="debugFields"
-      class="mt-3 border-t border-zinc-700 pt-2 font-mono text-xs text-zinc-500"
+      class="mt-2 border-t border-zinc-700 pt-2 font-mono text-xs text-zinc-500"
     >
       <span
         v-for="field in debugFields"

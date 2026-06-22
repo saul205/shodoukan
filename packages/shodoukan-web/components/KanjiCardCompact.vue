@@ -10,15 +10,13 @@ const meanings = computed(() =>
     .join(', '),
 )
 
-const jlptLabel = computed(() =>
-  props.kanji.jlpt ? `N${props.kanji.jlpt}` : null,
-)
-
-const tags = [jlptLabel]
 </script>
 
 <template>
-  <div class="flex min-w-[14rem] flex-1 flex-col items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-800/50 px-3 py-4 text-center">
+  <NuxtLink
+    :to="`/kanji/${kanji.literal}`"
+    class="flex min-w-[14rem] flex-1 flex-col items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-800/50 px-3 py-4 text-center transition hover:border-zinc-600 hover:bg-zinc-800"
+  >
     <span class="font-japanese text-4xl font-bold text-zinc-100">{{ kanji.literal }}</span>
 
     <span v-if="meanings.length" class="text-xs text-zinc-400">
@@ -37,5 +35,5 @@ const tags = [jlptLabel]
     >
       N{{ kanji.jlpt }}
     </span>
-  </div>
+  </NuxtLink>
 </template>

@@ -2,20 +2,26 @@
 import { search } from '~/services/search'
 import type { SearchResult } from '~/models/search'
 
-const config = useRuntimeConfig()
+definePageMeta({ layout: 'dictionary' })
 
-const query = ref('')
-const lang = ref('en')
+const config = useRuntimeConfig()
+const route = useRoute()
+
+const q = computed(() => (route.query.q as string) ?? '')
+const lang = computed(() => (route.query.lang as string) ?? 'en')
 const results = ref<SearchResult | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-async function handleSearch() {
-  if (!query.value.trim()) return
+async function doSearch() {
+  if (!q.value.trim()) {
+    results.value = null
+    return
+  }
   loading.value = true
   error.value = null
   try {
-    results.value = await search(query.value.trim(), config.public.apiBase, lang.value)
+    results.value = await search(q.value.trim(), config.public.apiBase, lang.value)
   }
   catch {
     error.value = 'Failed to fetch results. Is the API running?'
@@ -25,14 +31,12 @@ async function handleSearch() {
     loading.value = false
   }
 }
+
+watch([q, lang], doSearch, { immediate: true })
 </script>
 
 <template>
   <main class="mx-auto w-[80%] px-4 py-10">
-    <div class="mb-8 mx-auto max-w-full md:max-w-[60%]">
-      <SearchBar v-model="query" v-model:lang="lang" @search="handleSearch" />
-    </div>
-
     <div v-if="loading" class="py-12 text-center text-zinc-500">
       Searching…
     </div>
@@ -68,9 +72,16 @@ async function handleSearch() {
           v-if="!results.entries.items.length && !results.kanji.length"
           class="py-12 text-center text-zinc-500"
         >
-          No results for "{{ query }}".
+          No results for "{{ q }}".
         </p>
       </section>
     </div>
+
+    <p
+      v-else-if="!q"
+      class="py-20 text-center text-zinc-600"
+    >
+      Search for a word, kanji, or reading above.
+    </p>
   </main>
 </template>
