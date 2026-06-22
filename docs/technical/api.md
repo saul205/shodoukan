@@ -1,4 +1,4 @@
-# Shodoukan API
+# Shodoukan API — Technical Reference
 
 Base URL: `http://localhost:8000`
 
@@ -104,12 +104,6 @@ Returns a single entry by its JMDict sequence number.
 
 Returns the individual kanji characters contained in the written forms of an entry.
 
-**Path parameters**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `entry_id` | integer | JMDict sequence number. |
-
 **Response** `200 OK` — `EntryKanjiLink[]`
 
 ---
@@ -155,12 +149,6 @@ Searches kanji. At least one of `q`, `grade`, or `jlpt` must be provided.
 
 Returns a single kanji by its character.
 
-**Path parameters**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `literal` | string | A single kanji character (e.g. `食`). |
-
 **Response**
 
 | Status | Body | When |
@@ -189,6 +177,7 @@ Returns a single kanji by its character.
 {
   "id": 1358280,
   "jlpt": 5,
+  "is_common": true,
   "kanji_readings": [
     {
       "id": 28429,
@@ -220,9 +209,30 @@ Returns a single kanji by its character.
       "cross_references": [],
       "examples": []
     }
-  ]
+  ],
+  "score": null
 }
 ```
+
+**`is_common`** — pre-computed on the backend from the `has_common` DB column. `true` for words that appear frequently in newspapers and general use. Do not derive this from `priority` tags.
+
+**`score`** — `null` by default. Populated with a `ScoreBreakdown` object when the API runs with `SHODOUKAN_DEBUG=1`.
+
+### `ScoreBreakdown` (debug mode only)
+
+```json
+{
+  "freq": 510,
+  "jlpt_bonus": 500,
+  "exact_match": true,
+  "fts_rank": null,
+  "sense_pos": null,
+  "total_senses": null,
+  "composite": null
+}
+```
+
+Japanese search populates `freq`, `jlpt_bonus`, `exact_match`. Gloss search populates `freq`, `jlpt_bonus`, `fts_rank`, `sense_pos`, `total_senses`, `composite`. The effective sort key is `composite` (gloss) or `freq + jlpt_bonus` (Japanese).
 
 ### `EntryKanjiLink`
 

@@ -213,7 +213,6 @@ tempCodeRunnerFile.py
 .ruff_cache/
 
 # Claude Code
-CLAUDE.md
 .claude
 
 # PyPI configuration file
