@@ -82,11 +82,11 @@ function notesFor(sense: Sense): string[] {
       >
         <span
           v-if="jlptLabel"
-          class="rounded bg-indigo-600/30 px-2 py-0.5 text-xs font-medium text-indigo-300"
+          class="min-w-max rounded bg-indigo-600/30 px-2 py-0.5 text-xs font-medium text-indigo-300"
         >JLPT {{ jlptLabel }}</span>
         <span
           v-if="isCommon"
-          class="rounded bg-teal-600/30 px-2 py-0.5 text-xs font-medium text-teal-300"
+          class="min-w-max rounded bg-teal-600/30 px-2 py-0.5 text-xs font-medium text-teal-300"
         >common</span>
       </div>
 
@@ -101,7 +101,7 @@ function notesFor(sense: Sense): string[] {
             <span
               v-for="pos in sense.pos"
               :key="pos"
-              class="rounded bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400"
+              class="min-w-max rounded bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400"
             >{{ shortenPos(pos) }}</span>
           </div>
           <p class="text-zinc-200">{{ glossesFor(sense) }}</p>

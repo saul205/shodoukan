@@ -97,7 +97,7 @@ def test_search_japanese_kana(dictionary):
 def test_search_japanese_kanji_word(dictionary):
     result = dictionary.search("食べる")
     assert any(e.id == 1000001 for e in result.entries.items)
-    assert result.kanji == []
+    assert any(k.literal == "食" for k in result.kanji)
 
 
 def test_search_translation(dictionary):

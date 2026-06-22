@@ -3,6 +3,7 @@ from sqlalchemy import func
 from shodoukan.models.kanji import Kanji
 
 JLPT_WEIGHT = 100
+FTS_KANJI_WEIGHT = 1000
 
 # Weight applied to entry position when ranking related kanji.
 # gap(pos 0 → pos 3) = 75 000 > max k_score spread (~50 000),

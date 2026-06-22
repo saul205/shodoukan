@@ -8,7 +8,7 @@ from shodoukan.models.search import SearchResult
 from shodoukan.repositories.entry import EntryRepository
 from shodoukan.repositories.kanji import KanjiRepository
 from shodoukan.repositories.scoring import kanji_score_value
-from shodoukan.utils.detect import is_japanese, is_kanji_only, is_romaji
+from shodoukan.utils.detect import contains_kanji, is_japanese, is_kanji_only, is_romaji
 from shodoukan.utils.romaji import to_hiragana
 
 _KANJI_SIDE_LIMIT = 10
@@ -53,7 +53,20 @@ class Dictionary:
         if is_romaji(query):
             hiragana = to_hiragana(query)
             if hiragana:
-                return self._entries.search_by_japanese(hiragana, limit=limit, offset=offset)
+                jp_page = self._entries.search_by_japanese(
+                    hiragana, limit=limit, offset=offset
+                )
+                gloss_page = self._entries.search_by_gloss(
+                    query, lang=lang, limit=limit, offset=offset
+                )
+                seen = {e.id for e in jp_page.items}
+                merged = jp_page.items + [e for e in gloss_page.items if e.id not in seen]
+                return Page(
+                    items=merged[:limit],
+                    total=gloss_page.total,
+                    limit=limit,
+                    offset=offset,
+                )
         return self._entries.search_by_gloss(
             query, lang=lang, limit=limit, offset=offset
         )
@@ -107,12 +120,31 @@ class Dictionary:
                 query, grade=None, jlpt=None, limit=_KANJI_SIDE_LIMIT, offset=0
             ).items
         elif is_romaji(query) and (hiragana := to_hiragana(query)):
-            entries = self._entries.search_by_japanese(
+            jp_page = self._entries.search_by_japanese(
                 hiragana, limit=limit, offset=offset
             )
-            kanji = self._kanji.search(
+            gloss_page = self._entries.search_by_gloss(
+                query, lang=lang, limit=limit, offset=offset
+            )
+            seen = {e.id for e in jp_page.items}
+            merged = jp_page.items + [e for e in gloss_page.items if e.id not in seen]
+            merged.sort(key=lambda e: (not e.is_common, -(e.jlpt or 0)))
+            entries = Page(
+                items=merged[:limit], total=gloss_page.total, limit=limit, offset=offset
+            )
+            jp_kanji = self._kanji.search(
                 hiragana, grade=None, jlpt=None, limit=_KANJI_SIDE_LIMIT, offset=0
             ).items
+            gloss_kanji = self._kanji.search(
+                query, grade=None, jlpt=None, lang=lang,
+                limit=_KANJI_SIDE_LIMIT, offset=0,
+            ).items
+            seen_lit = {k.literal for k in jp_kanji}
+            kanji = sorted(
+                jp_kanji + [k for k in gloss_kanji if k.literal not in seen_lit],
+                key=kanji_score_value,
+                reverse=True,
+            )[:_KANJI_SIDE_LIMIT]
         else:
             entries = self._entries.search_by_gloss(
                 query, lang=lang, limit=limit, offset=offset
@@ -124,13 +156,12 @@ class Dictionary:
         return SearchResult(entries=entries, kanji=kanji)
 
     def _literal_kanji(self, query: str) -> list[Kanji]:
-        seen: dict[str, Kanji] = {}
-        for ch in query:
-            if ch not in seen:
-                k = self._kanji.get_by_literal(ch)
-                if k:
-                    seen[ch] = k
-        return sorted(seen.values(), key=kanji_score_value, reverse=True)
+        literals = list(dict.fromkeys(ch for ch in query if contains_kanji(ch)))
+        if not literals:
+            return []
+        return sorted(
+            self._kanji.get_by_literals(literals), key=kanji_score_value, reverse=True
+        )
 
     def get_kanji_for_entry_related(self, entry_id: int) -> list[Kanji]:
         literals = self._entries.get_related_kanji_literals([entry_id])

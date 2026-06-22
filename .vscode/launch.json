@@ -11,7 +11,8 @@
       "envFile": "${workspaceFolder}/.env.dev",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/packages/shodoukan/src:${workspaceFolder}/packages/shodoukan-api/src"
-      }
+      },
+      "justMyCode": false
     },
     {
       "name": "Front",
