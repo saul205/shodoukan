@@ -25,6 +25,34 @@ const strokeOrderUrl = computed(() => {
   return `https://raw.githack.com/KanjiVG/kanjivg/master/kanji/${cp.toString(16).padStart(5, '0')}.svg`
 })
 
+const primaryMeanings = computed(() =>
+  kanji.value?.meanings
+    .filter(m => m.lang === lang.value)
+    .map(m => m.text)
+    .join(' · ') ?? '',
+)
+
+interface ReadingGroup {
+  label: string
+  readings: string[]
+  toQuery: (r: string) => string
+}
+
+const readingGroups = computed<ReadingGroup[]>(() => {
+  if (!kanji.value) return []
+  return [
+    kanji.value.on_readings.length
+      ? { label: "On'yomi", readings: kanji.value.on_readings, toQuery: r => r }
+      : null,
+    kanji.value.kun_readings.length
+      ? { label: "Kun'yomi", readings: kanji.value.kun_readings, toQuery: r => r.replace('.', '') }
+      : null,
+    kanji.value.nanori.length
+      ? { label: 'Nanori', readings: kanji.value.nanori, toQuery: r => r }
+      : null,
+  ].filter(Boolean) as ReadingGroup[]
+})
+
 const meaningsByLang = computed<{ label: string; texts: string[] }[]>(() => {
   if (!kanji.value) return []
   const groups: Record<string, string[]> = {}
@@ -72,9 +100,9 @@ watch(literal, load, { immediate: true })
     </div>
 
     <template v-else-if="kanji">
-      <!-- Header row: kanji + stroke visuals wrap together -->
+      <!-- Header row -->
       <div class="mb-4 flex flex-wrap items-start gap-20">
-        <!-- Large kanji + badges -->
+        <!-- Left: kanji + badges + primary meanings -->
         <div class="flex flex-col items-center gap-3">
           <span class="font-japanese text-[8rem] leading-none text-zinc-100">{{ kanji.literal }}</span>
           <div class="flex flex-wrap justify-center gap-2">
@@ -98,11 +126,16 @@ watch(literal, load, { immediate: true })
               class="min-w-max cursor-help rounded bg-zinc-700 px-2 py-0.5 text-xs text-zinc-400"
             >Freq #{{ kanji.freq }}</span>
           </div>
+          <p
+            v-if="primaryMeanings"
+            class="max-w-[16rem] text-center text-3xl font-bold text-zinc-100"
+          >
+            {{ primaryMeanings }}
+          </p>
         </div>
 
-        <!-- Diagram + Animated: sit to the right of the kanji, wrap as a pair -->
-        <div class="flex flex-1 flex-wrap items-start justify-around gap-16">
-          <!-- Static KanjiVG diagram -->
+        <!-- Right: diagram + animation -->
+        <div class="flex flex-1 flex-wrap justify-around gap-16">
           <div class="flex flex-col items-center gap-1">
             <img
               v-if="strokeOrderUrl && !strokeError"
@@ -116,7 +149,6 @@ watch(literal, load, { immediate: true })
             <span class="text-xs text-zinc-600">Diagram</span>
           </div>
 
-          <!-- Animated writer -->
           <div class="flex flex-col items-center gap-1">
             <ClientOnly>
               <KanjiStrokeAnimator :literal="kanji.literal" />
@@ -129,7 +161,34 @@ watch(literal, load, { immediate: true })
         </div>
       </div>
 
-      <!-- Step-by-step grid (full width, below the header row) -->
+      <!-- On / Kun / Nanori -->
+      <div class="mb-6 flex flex-wrap border-y border-zinc-800 py-6">
+        <template
+          v-for="(group, i) in readingGroups"
+          :key="group.label"
+        >
+          <div
+            class="flex flex-col gap-2"
+            :class="i === 0 ? 'pr-10' : 'border-l border-zinc-700 px-10'"
+          >
+            <span class="text-xs font-medium uppercase tracking-wide text-zinc-500">{{ group.label }}</span>
+            <div class="flex flex-wrap items-baseline gap-y-1">
+              <template v-for="(r, j) in group.readings" :key="r">
+                <NuxtLink
+                  :to="{ path: '/', query: { q: group.toQuery(r), lang } }"
+                  class="font-japanese text-2xl text-zinc-200 decoration-dotted decoration-zinc-600 underline underline-offset-4 transition hover:text-indigo-300 hover:decoration-indigo-400"
+                >{{ r }}</NuxtLink>
+                <span
+                  v-if="j < group.readings.length - 1"
+                  class="font-japanese text-2xl text-zinc-600"
+                >、</span>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Step-by-step grid -->
       <div class="mb-8">
         <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-zinc-500">Stroke by stroke</span>
         <ClientOnly>
@@ -138,22 +197,6 @@ watch(literal, load, { immediate: true })
             <p class="text-sm text-zinc-600">Loading…</p>
           </template>
         </ClientOnly>
-      </div>
-
-      <!-- Readings -->
-      <div class="mb-8 grid gap-4 sm:grid-cols-3">
-        <div v-if="kanji.on_readings.length" class="flex flex-col gap-1">
-          <span class="text-xs font-medium uppercase tracking-wide text-zinc-500">On</span>
-          <span class="font-japanese text-zinc-200">{{ kanji.on_readings.join('、') }}</span>
-        </div>
-        <div v-if="kanji.kun_readings.length" class="flex flex-col gap-1">
-          <span class="text-xs font-medium uppercase tracking-wide text-zinc-500">Kun</span>
-          <span class="font-japanese text-zinc-200">{{ kanji.kun_readings.join('、') }}</span>
-        </div>
-        <div v-if="kanji.nanori.length" class="flex flex-col gap-1">
-          <span class="text-xs font-medium uppercase tracking-wide text-zinc-500">Nanori</span>
-          <span class="font-japanese text-zinc-200">{{ kanji.nanori.join('、') }}</span>
-        </div>
       </div>
 
       <!-- Meanings -->
