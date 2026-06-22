@@ -29,13 +29,8 @@ async function handleSearch() {
 
 <template>
   <main class="mx-auto w-[80%] px-4 py-10">
-    <div class="mb-8 mx-auto max-w-[60%]">
-      <div class="flex items-center gap-3">
-        <div class="flex-1">
-          <SearchBar v-model="query" @search="handleSearch" />
-        </div>
-        <LanguageSelector v-model="lang" />
-      </div>
+    <div class="mb-8 mx-auto max-w-full md:max-w-[60%]">
+      <SearchBar v-model="query" v-model:lang="lang" @search="handleSearch" />
     </div>
 
     <div v-if="loading" class="py-12 text-center text-zinc-500">
