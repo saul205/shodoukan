@@ -1,4 +1,6 @@
 <script setup lang="ts">
+definePageMeta({ layout: 'dictionary' })
+
 const sources = [
   {
     name: 'JMDict',

@@ -2,7 +2,7 @@
 import { search } from '~/services/search'
 import type { SearchResult } from '~/models/search'
 
-definePageMeta({ layout: 'dictionary' })
+definePageMeta({ layout: 'dictionary', keepalive: true })
 
 const config = useRuntimeConfig()
 const route = useRoute()

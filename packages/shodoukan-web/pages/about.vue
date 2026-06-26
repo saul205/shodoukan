@@ -65,6 +65,8 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ layout: 'dictionary' })
+
 const stack = [
   { layer: 'Data', tech: 'JMDict · KANJIDIC2' },
   { layer: 'DB pipeline', tech: 'Rust · SQLite' },

@@ -1,8 +1,15 @@
 <script setup lang="ts">
 const route = useRoute()
+const lastSearch = useLastSearch()
 
 const isDictionary = computed(() =>
   route.path === '/' || route.path.startsWith('/kanji/') || route.path.startsWith('/entry/'),
+)
+
+const dictionaryTo = computed(() =>
+  lastSearch.value.q
+    ? { path: '/', query: { q: lastSearch.value.q, lang: lastSearch.value.lang } }
+    : '/',
 )
 </script>
 
@@ -16,7 +23,7 @@ const isDictionary = computed(() =>
     </NuxtLink>
 
     <NuxtLink
-      to="/"
+      :to="dictionaryTo"
       class="text-sm transition"
       :class="isDictionary ? 'text-white' : 'text-zinc-400 hover:text-zinc-200'"
     >

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
+const lastSearch = useLastSearch()
 
 const query = ref((route.query.q as string) ?? '')
 const lang = ref((route.query.lang as string) ?? 'en')
@@ -11,6 +12,16 @@ watch(
     lang.value = (q.lang as string) ?? 'en'
   },
 )
+
+watch([query, lang], ([q, l]) => {
+  if (q) lastSearch.value = { q, lang: l }
+})
+
+watch(lang, (newLang) => {
+  if (query.value && route.query.lang !== newLang) {
+    navigateTo({ path: '/', query: { q: query.value, lang: newLang }, replace: true })
+  }
+})
 
 function doSearch() {
   navigateTo({ path: '/', query: { q: query.value, lang: lang.value } })
