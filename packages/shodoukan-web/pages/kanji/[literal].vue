@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { getKanji } from '~/services/kanji'
-import { getEntriesForKanji } from '~/services/entries'
-import type { Kanji } from '~/models/kanji'
-import type { Entry } from '~/models/entry'
-import { SUPPORTED_LANGUAGES } from '~/models/kanji'
+import { getKanji, getEntriesForKanji, SUPPORTED_LANGUAGES, EntryCard, type Kanji, type Entry } from 'shodoukan-ui'
+import { NuxtLink } from '#components'
 
 definePageMeta({ layout: 'dictionary' })
 
@@ -225,6 +222,7 @@ watch(literal, load, { immediate: true })
             :key="e.id"
             :entry="e"
             :lang="lang"
+            :link-component="NuxtLink"
           />
         </div>
       </div>

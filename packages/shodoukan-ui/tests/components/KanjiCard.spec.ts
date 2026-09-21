@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import KanjiCard from '../../components/KanjiCard.vue'
-import type { Kanji } from '../../models/kanji'
+import KanjiCard from '../../src/components/KanjiCard.vue'
+import type { Kanji } from '../../src/models/kanji'
 
 const kanji: Kanji = {
   literal: '食',

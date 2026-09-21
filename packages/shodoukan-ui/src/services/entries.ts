@@ -1,6 +1,6 @@
 import { $fetch } from 'ofetch'
-import type { Entry, EntryKanjiLink } from '~/models/entry'
-import type { Page } from '~/models/common'
+import type { Entry, EntryKanjiLink } from '../models/entry'
+import type { Page } from '../models/common'
 
 export async function searchEntries(
   q: string,

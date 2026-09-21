@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import type { Entry, ScoreBreakdown, Sense } from '~/models/entry'
-import { glossLang } from '~/models/kanji'
-import { shortenPos } from '~/utils/pos'
+import { computed, type Component } from 'vue'
+import type { Entry, ScoreBreakdown, Sense } from '../models/entry'
+import { glossLang } from '../models/kanji'
+import { shortenPos } from '../utils/pos'
 
-const props = defineProps<{ entry: Entry; lang: string }>()
+const props = withDefaults(
+  defineProps<{ entry: Entry; lang: string; linkComponent?: Component | string }>(),
+  { linkComponent: 'a' },
+)
 
 const langCode = computed(() => glossLang(props.lang))
 
@@ -23,6 +27,11 @@ const filteredSenses = computed(() =>
 
 const jlptLabel = computed(() => (props.entry.jlpt ? `N${props.entry.jlpt}` : null))
 const hasTags = computed(() => !!(jlptLabel.value || isCommon.value))
+
+const detailsLinkProps = computed(() => {
+  const href = `/entry/${props.entry.id}`
+  return props.linkComponent === 'a' ? { href } : { to: href }
+})
 
 const debugFields = computed(() => {
   const s = props.entry.score
@@ -114,10 +123,11 @@ function notesFor(sense: Sense): string[] {
     </div>
 
     <div class="mt-3 flex justify-end">
-      <NuxtLink
-        :to="`/entry/${entry.id}`"
+      <component
+        :is="linkComponent"
+        v-bind="detailsLinkProps"
         class="text-xs text-zinc-500 transition hover:text-zinc-300"
-      >details →</NuxtLink>
+      >details →</component>
     </div>
 
     <div

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Kanji } from '~/models/kanji'
+import { computed } from 'vue'
+import type { Kanji } from '../models/kanji'
 
 const props = defineProps<{ kanji: Kanji; lang: string }>()
 

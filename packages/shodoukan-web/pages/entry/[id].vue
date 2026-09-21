@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { getEntry, getEntryKanji } from '~/services/entries'
-import type { Entry, EntryKanjiLink, Sense, ExampleSentence } from '~/models/entry'
-import { glossLang } from '~/models/kanji'
-import { shortenPos } from '~/utils/pos'
+import { getEntry, getEntryKanji, glossLang, shortenPos, type Entry, type EntryKanjiLink, type Sense, type ExampleSentence } from 'shodoukan-ui'
 
 definePageMeta({ layout: 'dictionary' })
 

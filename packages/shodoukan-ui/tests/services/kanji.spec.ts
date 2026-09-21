@@ -3,7 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 const mockFetch = vi.fn()
 vi.mock('ofetch', () => ({ $fetch: mockFetch }))
 
-const { searchKanji, getKanji } = await import('../../services/kanji')
+const { searchKanji, getKanji } = await import('../../src/services/kanji')
 
 const emptyPage = { items: [], total: 0, limit: 20, offset: 0 }
 

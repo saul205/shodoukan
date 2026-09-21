@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { SearchBar } from 'shodoukan-ui'
+
 const route = useRoute()
 const lastSearch = useLastSearch()
 
