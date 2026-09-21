@@ -90,7 +90,7 @@ watch(literal, load, { immediate: true })
 </script>
 
 <template>
-  <main class="mx-auto w-[80%] px-4 py-10">
+  <PageContainer>
     <div v-if="loading" class="py-12 text-center text-zinc-500">
       Loading…
     </div>
@@ -135,7 +135,7 @@ watch(literal, load, { immediate: true })
         </div>
 
         <!-- Right: diagram + animation -->
-        <div class="flex flex-1 flex-wrap justify-around gap-16">
+        <div class="flex flex-1 flex-wrap justify-evenly gap-16">
           <div class="flex flex-col items-center gap-1">
             <img
               v-if="strokeOrderUrl && !strokeError"
@@ -162,15 +162,13 @@ watch(literal, load, { immediate: true })
       </div>
 
       <!-- On / Kun / Nanori -->
-      <div class="mb-6 flex flex-wrap border-y border-zinc-800 py-6">
+      <div class="mb-6 flex flex-wrap justify-evenly border-y border-zinc-800 py-6">
         <template
           v-for="(group, i) in readingGroups"
           :key="group.label"
         >
-          <div
-            class="flex flex-col gap-2"
-            :class="i === 0 ? 'pr-10' : 'border-l border-zinc-700 px-10'"
-          >
+          <div v-if="i > 0" class="w-px self-stretch bg-zinc-700" />
+          <div class="flex flex-col gap-2">
             <span class="text-xs font-medium uppercase tracking-wide text-zinc-500">{{ group.label }}</span>
             <div class="flex flex-wrap items-baseline gap-y-1">
               <template v-for="(r, j) in group.readings" :key="r">
@@ -204,11 +202,11 @@ watch(literal, load, { immediate: true })
         <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
           Meanings
         </h2>
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col divide-y divide-zinc-800">
           <div
             v-for="group in meaningsByLang"
             :key="group.label"
-            class="flex gap-3"
+            class="flex gap-3 py-2"
           >
             <span class="w-20 shrink-0 text-xs text-zinc-500">{{ group.label }}</span>
             <span class="text-zinc-200">{{ group.texts.join(' · ') }}</span>
@@ -231,5 +229,5 @@ watch(literal, load, { immediate: true })
         </div>
       </div>
     </template>
-  </main>
+  </PageContainer>
 </template>

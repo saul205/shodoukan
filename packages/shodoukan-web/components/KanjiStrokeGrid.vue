@@ -21,15 +21,15 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="data" class="flex flex-wrap gap-1.5">
+  <div v-if="data" class="grid grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] justify-center gap-1.5">
     <svg
       v-for="i in data.strokes.length"
       :key="i"
-      viewBox="0 0 900 900"
-      class="h-24 w-24 rounded border border-zinc-700 bg-zinc-800/60"
+      viewBox="-64 -64 1152 1152"
+      class="aspect-square w-full max-w-[12rem] overflow-hidden rounded border border-zinc-700 bg-zinc-800/60"
     >
-      <line x1="450" y1="0" x2="450" y2="900" stroke="#3f3f46" stroke-width="3" stroke-dasharray="15 15" />
-      <line x1="0" y1="450" x2="900" y2="450" stroke="#3f3f46" stroke-width="3" stroke-dasharray="15 15" />
+      <line x1="512" y1="0" x2="512" y2="1024" stroke="#3f3f46" stroke-width="3" stroke-dasharray="17 17" />
+      <line x1="0" y1="512" x2="1024" y2="512" stroke="#3f3f46" stroke-width="3" stroke-dasharray="17 17" />
 
       <g transform="scale(1,-1) translate(0,-900)">
         <path

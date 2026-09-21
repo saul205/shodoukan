@@ -36,7 +36,7 @@ watch([q, lang], doSearch, { immediate: true })
 </script>
 
 <template>
-  <main class="mx-auto w-[80%] px-4 py-10">
+  <PageContainer>
     <div v-if="loading" class="py-12 text-center text-zinc-500">
       Searching…
     </div>
@@ -83,5 +83,5 @@ watch([q, lang], doSearch, { immediate: true })
     >
       Search for a word, kanji, or reading above.
     </p>
-  </main>
+  </PageContainer>
 </template>

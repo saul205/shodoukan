@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "options": {
     "env": {
-      "PATH": "${userHome}/.local/share/pnpm/bin:${env:PATH}"
+      "PATH": "${userHome}/.nvm/versions/node/v24.18.0/bin:${userHome}/.local/share/pnpm/bin:${env:PATH}"
     }
   },
   "tasks": [
