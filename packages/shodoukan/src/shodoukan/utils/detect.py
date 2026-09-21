@@ -28,6 +28,12 @@ def is_japanese(text: str) -> bool:
     return contains_kanji(text) or contains_kana(text)
 
 
+def is_kanji_only(text: str) -> bool:
+    return bool(text) and all(
+        any(lo <= ord(c) <= hi for lo, hi in _CJK_RANGES) for c in text
+    )
+
+
 def is_romaji(text: str) -> bool:
     """True if text consists only of ASCII letters, apostrophes and hyphens."""
     return bool(text) and all(c.isalpha() and c.isascii() or c in "'-" for c in text)

@@ -24,6 +24,7 @@ def entry_to_domain(e: EntryORM) -> Entry:
     return Entry(
         id=e.id,
         jlpt=e.jlpt,
+        is_common=bool(e.has_common),
         kanji_readings=[
             KanjiReading(
                 id=kr.id,
