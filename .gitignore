@@ -227,3 +227,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 **.notes
+
+# Node / pnpm workspace
+node_modules/

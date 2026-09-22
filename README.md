@@ -96,7 +96,7 @@ After that, every push to `main` triggers a new deploy.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev]
+pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev] -e packages/shodoukan-practice[dev]
 shodoukan-setup  # download the database
 ```
 
@@ -117,6 +117,7 @@ shodoukan-api
 ```bash
 pytest tests/shodoukan
 pytest tests/shodoukan-api
+pytest tests/shodoukan-practice
 ```
 
 ### CLI

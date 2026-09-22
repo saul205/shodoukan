@@ -25,12 +25,15 @@ Japanese-English dictionary platform with three main deliverables:
 
 ```
 packages/
-  shodoukan/        Python library (search, ORM, domain models)
-  shodoukan-api/    FastAPI routes, Dockerfile, docker-compose
-  shodoukan-web/    Nuxt 3 frontend (see FRONTEND.md for full reference)
+  shodoukan/           Python library (search, ORM, domain models)
+  shodoukan-api/       FastAPI routes, Dockerfile, docker-compose
+  shodoukan-practice/  Practice/exercises backend: import + edit + activate dictionary entries (scaffold, no functionality yet)
+  shodoukan-ui/        Shared Vue component library (EntryCard, KanjiCard, SearchBar, ...), own Tailwind build
+  shodoukan-web/       Nuxt 3 frontend (see FRONTEND.md for full reference)
 tests/
-  shodoukan/        Backend unit + integration tests
-  shodoukan-api/    API route tests
+  shodoukan/           Backend unit + integration tests
+  shodoukan-api/       API route tests
+  shodoukan-practice/  Practice backend tests (empty scaffold)
 ```
 
 The database pipeline lives in a separate repo (`shodoukan-db`). It downloads JMDict and KANJIDIC2, builds a SQLite database, and publishes it as a GitHub Release asset on a monthly schedule. The DB is consumed by the Python library and the API.
