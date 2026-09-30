@@ -66,3 +66,11 @@ If you add a new package or introduce a significant architectural decision, crea
 - `Entry.is_common` is pre-computed on the backend from `EntryORM.has_common` (DB column). The frontend reads it directly — **never derive it from priority tags**.
 - Debug mode: set `SHODOUKAN_DEBUG=1` in the API environment to include `ScoreBreakdown` in every entry response. See `packages/shodoukan/src/shodoukan/repositories/entry.py`.
 - Ranking uses `JLPT_WEIGHT = 100` (validated). Do not change without re-running ranking tests.
+
+## Development conventions
+
+- Backend Python conventions (layering, typing, entities/mappers/repositories,
+  testing, async) are documented in
+  `.claude/skills/python-backend-clean-code/SKILL.md`.
+- Git, documentation, and changelog conventions (repo-wide, not just Python) are in
+  `.claude/rules/git-and-docs.md`.
