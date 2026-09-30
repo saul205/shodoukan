@@ -1,0 +1,76 @@
+"""Frozen snapshot of a shodoukan Entry, plus the mutable practice state
+(enabled/disabled, added items) layered on top.
+"""
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel
+
+
+class PracticeGloss(BaseModel):
+    id: int | None
+    text: str
+    lang: str
+    type: str | None
+    enabled: bool = True
+    origin: Literal["imported", "added"] = "imported"
+
+
+class PracticeExampleSentence(BaseModel):
+    lang: str
+    text: str
+
+
+class PracticeExample(BaseModel):
+    id: int | None
+    text: str
+    sentences: list[PracticeExampleSentence]
+    enabled: bool = True
+    origin: Literal["imported", "added"] = "imported"
+
+
+class PracticeSense(BaseModel):
+    id: int | None
+    pos: list[str]
+    misc: list[str]
+    dialects: list[str]
+    info: list[str]
+    glosses: list[PracticeGloss]
+    examples: list[PracticeExample]
+
+
+class PracticeReading(BaseModel):
+    id: int | None
+    text: str
+    no_kanji: bool
+    info: list[str]
+    restricted_to: list[str]
+    enabled: bool = True
+
+
+class PracticeKanjiReading(BaseModel):
+    """Kanji spelling of a word entry (e.g. "食べる").
+
+    Not to be confused with the on/kun readings of a character — see
+    `PracticeReadingItem` in `kanji.py`.
+    """
+
+    id: int | None
+    kanji: str
+    info: list[str]
+    enabled: bool = True
+
+
+class PracticeEntry(BaseModel):
+    id: int | None
+    user_id: int
+    source_entry_id: int  # sole reference back to shodoukan's Entry.id
+    kanji_readings: list[PracticeKanjiReading]
+    readings: list[PracticeReading]
+    senses: list[PracticeSense]
+    jlpt: int | None
+    is_common: bool
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime
