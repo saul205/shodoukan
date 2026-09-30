@@ -36,8 +36,7 @@ Refs #<issue>
   *why* and any decision a reviewer would otherwise ask about; the diff already shows
   the *how*.
 - **Footer**: reference the issue from the branch name — `Refs #16` for work in
-  progress, `Fixes #16` only on the commit that closes it. Trailers such as
-  `Co-Authored-By:` go after it.
+  progress, `Fixes #16` only on the commit that closes it.
 - English only. No empty, duplicated or "wip"/"fixes" messages on branches that will
   be merged; squash those before opening the PR.
 
