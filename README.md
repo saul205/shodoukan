@@ -100,6 +100,23 @@ pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev] -e package
 shodoukan-setup  # download the database
 ```
 
+### Practice database (PostgreSQL)
+
+`shodoukan-practice` stores user data in PostgreSQL. Copy the "Practice database"
+block from `.env.example` into your `.env.dev` (with your own password), then:
+
+```bash
+docker compose up -d practice-db          # local Postgres on 127.0.0.1:5432
+set -a; . ./.env.dev; set +a              # export PRACTICE_DATABASE_URL
+alembic -c packages/shodoukan-practice/alembic.ini upgrade head
+```
+
+After changing an ORM model, create a migration and review it:
+
+```bash
+alembic -c packages/shodoukan-practice/alembic.ini revision --autogenerate -m "Describe the change"
+```
+
 ### Running locally
 
 ```bash

@@ -123,6 +123,27 @@ Target pattern for any package with write behavior (e.g. `shodoukan-practice`):
 classes with no interface, constructed directly. That's fine for a read-only library;
 don't retrofit it. New write-capable packages should use interfaces from the start.
 
+## Database & migrations (shodoukan-practice)
+
+- Target engine is **PostgreSQL**; tests run on SQLite, so use only portable column
+  types (`sa.JSON`, not `JSONB`; `func.current_timestamp()`, not `now()`).
+- ORM models: `infrastructure/db/orm/<entity>_orm.py`, all on the `Base` from
+  `orm/base_orm.py`, whose `naming_convention` gives every constraint a stable name.
+  Owned child rows use `children("<Model>.position")` (ordered, cascade delete);
+  their FKs use `ondelete="CASCADE"`. Enum-like strings get a named `CheckConstraint`.
+  Link tables are plain `Table` objects with no ORM relationship: repositories query
+  them explicitly.
+- Defaults live in both places: `default=` for the ORM and `server_default=` for the
+  database, so raw SQL inserts get them too.
+- Migrations: Alembic, `packages/shodoukan-practice/alembic.ini`, scripts in
+  `infrastructure/db/migrations/versions/`. Every model change ships with a migration:
+  `alembic -c packages/shodoukan-practice/alembic.ini revision --autogenerate -m
+  "<Summary>"` against the local Postgres, then review the generated file by hand.
+- `tests/shodoukan-practice/infrastructure/test_migrations.py` fails if the migrations
+  and the models drift apart; CI also runs upgrade/check/downgrade on real Postgres.
+- The URL comes only from `PRACTICE_DATABASE_URL` (no default in code). Credentials
+  live in the gitignored `.env.dev`; `.env.example` documents every variable.
+
 ## Mappers
 
 One mapper file per aggregate, mirroring the entity split — not a single catch-all
@@ -178,6 +199,9 @@ Real SQLite as the "mock" database — never mock the repository or the ORM dire
   it via `open_test_connection` with `StaticPool` so every session reuses the same
   in-memory connection (a plain SQLAlchemy engine would otherwise open a new, empty
   `:memory:` DB per connection).
+- `tests/shodoukan-practice/infrastructure/conftest.py` — same idea for the practice
+  ORM: `sqlite://` + `StaticPool`, `PRAGMA foreign_keys = ON` (SQLite ignores FKs and
+  `ON DELETE CASCADE` otherwise) and `Base.metadata.create_all`.
 - One test file per module under test, named `test_<subject>_<role>.py` — see
   `tests/shodoukan/test_entry_repository.py` and
   `tests/shodoukan-practice/domain/test_collection_service.py`: plain pytest
