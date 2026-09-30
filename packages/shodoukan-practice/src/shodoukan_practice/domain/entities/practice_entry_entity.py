@@ -53,7 +53,7 @@ class PracticeKanjiReading(BaseModel):
     """Kanji spelling of a word entry (e.g. "食べる").
 
     Not to be confused with the on/kun readings of a character — see
-    `PracticeReadingItem` in `kanji.py`.
+    `PracticeReadingItem` in `practice_kanji_entity.py`.
     """
 
     id: int | None

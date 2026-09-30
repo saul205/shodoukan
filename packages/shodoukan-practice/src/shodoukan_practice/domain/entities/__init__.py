@@ -1,4 +1,5 @@
-from .entry import (
+from .collection_entity import Collection, EntryCollection, KanjiCollection
+from .practice_entry_entity import (
     PracticeEntry,
     PracticeExample,
     PracticeExampleSentence,
@@ -7,9 +8,17 @@ from .entry import (
     PracticeReading,
     PracticeSense,
 )
-from .kanji import PracticeKanji, PracticeKanjiMeaning, PracticeReadingItem
+from .practice_kanji_entity import (
+    PracticeKanji,
+    PracticeKanjiMeaning,
+    PracticeReadingItem,
+)
+from .user_entity import User
 
 __all__ = [
+    "Collection",
+    "EntryCollection",
+    "KanjiCollection",
     "PracticeEntry",
     "PracticeExample",
     "PracticeExampleSentence",
@@ -20,4 +29,5 @@ __all__ = [
     "PracticeReading",
     "PracticeReadingItem",
     "PracticeSense",
+    "User",
 ]
