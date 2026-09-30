@@ -91,6 +91,14 @@ Examples:
 - `packages/shodoukan/src/shodoukan/models/entry.py` — same split in the core library
   (older naming).
 
+Aggregates change only through their own methods (`Collection.rename`,
+`PracticeEntry.deactivate`, ...); use cases call methods instead of assigning fields
+of a loaded aggregate. Aggregates inherit `TimestampedEntity`
+(`domain/entities/timestamped_entity.py`): `created_at`/`updated_at` default to
+`utc_now()`, and **every method that changes state calls `touch()`**, so
+`updated_at` moves with any change. A call that changes nothing doesn't touch.
+`validate_assignment` is on, so methods get the same validation as the constructor.
+
 ## Repositories: interfaces + dependency inversion
 
 Target pattern for any package with write behavior (e.g. `shodoukan-practice`):
@@ -139,18 +147,38 @@ don't retrofit it. New write-capable packages should use interfaces from the sta
 ## Database & migrations (shodoukan-practice)
 
 - Target engine is **PostgreSQL**; tests run on SQLite, so use only portable column
-  types (`sa.JSON`, not `JSONB`; `func.current_timestamp()`, not `now()`).
-  Datetime columns use `UtcDateTime` from `orm/base_orm.py`: SQLite drops the time
-  zone, so this type stores UTC and always returns aware UTC datetimes on both
-  engines (naive datetimes are rejected on write).
+  types (e.g. `sa.JSON`, not `JSONB`).
+- **Dates: naive UTC in the database, aware UTC in the backend, ISO with offset in
+  the API.** Datetime columns use `UtcDateTime` from `orm/base_orm.py`
+  (`timestamp without time zone`): it converts aware datetimes to UTC and strips the
+  zone on write, attaches UTC on read, and rejects naive datetimes instead of guessing
+  their zone. Domain entities and use cases only handle aware UTC datetimes
+  (`utc_now()` from `domain/clock.py`); Pydantic serializes them with the offset
+  (`...Z`) and clients convert to local time.
+- **"Now" is decided by the domain, not the database or the ORM.** Entities default
+  their timestamps via `TimestampedEntity` and bump `updated_at` with `touch()`; the
+  mapper copies them to the row. Timestamp columns have no `default`, `onupdate` or
+  `server_default`, so a missing one fails instead of being invented by persistence.
+  Rows with no entity behind them (e.g. `added_at` in collection link tables) get
+  `utc_now()` from the repository that inserts them.
+- Why no database defaults for timestamps: they only pay off when something writes
+  to the database without going through the app (SQL scripts, bulk loads, another
+  service), or when a trigger must stamp *every* write. Here they would hide the
+  dates from the entity until after the insert, fight the domain's `updated_at`,
+  make time hard to control in tests, and need dialect-specific SQL (on a naive
+  column PostgreSQL needs `timezone('utc', now())`, which SQLite lacks). Performance
+  and scale are the same either way. Revisit if a non-app writer appears: then add
+  `server_default` as a safety net, keeping the domain as the source of the value.
 - ORM models: `infrastructure/db/orm/<entity>_orm.py`, all on the `Base` from
   `orm/base_orm.py`, whose `naming_convention` gives every constraint a stable name.
   Owned child rows use `children("<Model>.position")` (ordered, cascade delete);
   their FKs use `ondelete="CASCADE"`. Enum-like strings get a named `CheckConstraint`.
   Link tables are plain `Table` objects with no ORM relationship: repositories query
   them explicitly.
-- Defaults live in both places: `default=` for the ORM and `server_default=` for the
-  database, so raw SQL inserts get them too.
+- Non-time defaults live in both places: `default=` for the ORM and
+  `server_default=` for the database, so raw SQL inserts get them too.
+- Alembic's `env.py` has a `render_item` hook that writes custom types such as
+  `UtcDateTime` as their plain SQLAlchemy type, so migrations never import app code.
 - Migrations: Alembic, `packages/shodoukan-practice/alembic.ini`, scripts in
   `infrastructure/db/migrations/versions/`. Every model change ships with a migration:
   `alembic -c packages/shodoukan-practice/alembic.ini revision --autogenerate -m
