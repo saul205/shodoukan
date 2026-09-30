@@ -53,7 +53,7 @@ A module's name states its role on its own, without relying on the folder it's i
 - **Class: singular.** Entities are unsuffixed (`PracticeEntry`, not
   `PracticeEntryEntity`); everything else carries its role (`UserRepository`,
   `UserORM`). Concrete implementations are prefixed with their technology
-  (`SqlitePracticeKanjiRepository`).
+  (`SqlAlchemyPracticeKanjiRepository`).
 - **Spell the role out** (`_repository`, not `_repo`): it matches the class name and
   is greppable.
 - **Tests: `test_<subject>_<role>.py`**, one per module under test.
@@ -66,7 +66,7 @@ A module's name states its role on its own, without relying on the folder it's i
 | Use cases | `application/commands/`, `application/queries/` | `collection_commands.py`, `collection_queries.py` | one function/class per use case |
 | ORM model | `infrastructure/db/orm/` | `practice_entry_orm.py` | `PracticeEntryORM` (+ its link tables) |
 | Mapper | `infrastructure/db/mappers/` | `practice_entry_mapper.py` | `practice_entry_to_domain`, `practice_entry_to_db` |
-| Concrete repository | `infrastructure/repositories/` | `sqlite_practice_entry_repository.py` | `SqlitePracticeEntryRepository` |
+| Concrete repository | `infrastructure/repositories/` | `sqlalchemy_practice_entry_repository.py` | `SqlAlchemyPracticeEntryRepository` |
 | API routes / schemas | `api/routes/`, `api/schemas/` | `collection_routes.py`, `collection_schemas.py` | routers, request/response models |
 | Test | `tests/<package>/<layer>/` | `test_collection_service.py` | `test_*` functions |
 
@@ -111,7 +111,20 @@ Target pattern for any package with write behavior (e.g. `shodoukan-practice`):
     implementation, or reliable `isinstance` checks.
 - Concrete implementations live in
   `infrastructure/repositories/<tech>_<entity>_repository.py`, one file per
-  repository, implementing the domain interface.
+  repository, and inherit their Protocol explicitly
+  (`class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository)`) so mypy checks
+  them at the definition. The tech prefix names the library, not the engine
+  (`sqlalchemy_`: the same code runs on PostgreSQL and on SQLite in tests).
+- Repositories receive a `Session` in `__init__`, `flush()` to get ids and surface
+  constraint errors, and **never commit**: the use case / request that opened the
+  session owns the transaction, so several repositories can share one unit of work.
+- Every query is scoped to the owning user (`user_id`), directly or through the
+  collection.
+- `update(entity)` checks that the stored row exists and has the same `user_id`
+  (else `EntityNotFoundError`), then `session.merge(<entity>_to_db(entity))`: nested
+  items with an id are updated, items with `id=None` inserted, missing ones deleted
+  (`delete-orphan`).
+- Load nested snapshots eagerly with `selectinload` (one query per level, no N+1).
 - Relationships held in link tables (e.g. collection membership) are read and
   changed through repository methods (`add_item`, `list_by_collection`, ...), not
   loaded onto the entity: pagination, ordering and set operations belong in SQL.
@@ -127,6 +140,9 @@ don't retrofit it. New write-capable packages should use interfaces from the sta
 
 - Target engine is **PostgreSQL**; tests run on SQLite, so use only portable column
   types (`sa.JSON`, not `JSONB`; `func.current_timestamp()`, not `now()`).
+  Datetime columns use `UtcDateTime` from `orm/base_orm.py`: SQLite drops the time
+  zone, so this type stores UTC and always returns aware UTC datetimes on both
+  engines (naive datetimes are rejected on write).
 - ORM models: `infrastructure/db/orm/<entity>_orm.py`, all on the `Base` from
   `orm/base_orm.py`, whose `naming_convention` gives every constraint a stable name.
   Owned child rows use `children("<Model>.position")` (ordered, cascade delete);

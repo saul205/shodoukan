@@ -28,7 +28,7 @@ Japanese-English dictionary platform with three main deliverables:
 packages/
   shodoukan/           Python library (search, ORM, domain models)
   shodoukan-api/       FastAPI routes, Dockerfile, docker-compose
-  shodoukan-practice/  Practice/exercises backend: users' imported entries/kanji and collections (domain + PostgreSQL ORM/migrations; no API yet)
+  shodoukan-practice/  Practice/exercises backend: users' imported entries/kanji and collections (domain, PostgreSQL ORM/migrations, mappers and SQLAlchemy repositories; no API yet)
   shodoukan-ui/        Shared Vue component library (EntryCard, KanjiCard, SearchBar, ...), own Tailwind build
   shodoukan-web/       Nuxt 3 frontend (see FRONTEND.md for full reference)
 tests/
