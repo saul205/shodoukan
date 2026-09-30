@@ -11,6 +11,22 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
 
+    # Throwaway database, only reachable from this job.
+    services:
+      practice-db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: shodoukan_practice
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d shodoukan_practice"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +52,15 @@ jobs:
 
       - name: Test practice
         run: pytest tests/shodoukan-practice
+
+      - name: Migrate practice database (PostgreSQL)
+        env:
+          PRACTICE_DATABASE_URL: postgresql+psycopg://ci:ci@localhost:5432/shodoukan_practice
+        run: |
+          alembic -c packages/shodoukan-practice/alembic.ini upgrade head
+          alembic -c packages/shodoukan-practice/alembic.ini check
+          alembic -c packages/shodoukan-practice/alembic.ini downgrade base
+          alembic -c packages/shodoukan-practice/alembic.ini upgrade head
 
   deploy:
     name: Deploy to Render
