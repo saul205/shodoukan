@@ -66,7 +66,20 @@ Refs #16
 - `docs/index.md` + `docs/functional/*.md` + `docs/technical/*.md` — functional and
   technical detail per area (search, web, api, ...).
 
+- `docs/practice/` — the practice app's own tree: `functional/` (one folder per
+  feature) and `technical/` (architecture, domain, infrastructure, cross-cutting,
+  testing, decisions).
+
 Update these as part of the change that makes them stale, not as a follow-up task.
+
+**Document on the fly.** Technical documentation is written with the code, not after
+it: a change that adds or alters architecture, entities, ports, schema, migrations,
+configuration or conventions updates the matching technical page in the same commit.
+For the practice app, the "where to document what" table in
+`docs/practice/technical/README.md` says which page. Record non-obvious or reversed
+choices in `docs/practice/technical/decisions.md`. Functional docs are added once a
+feature's use cases are defined. Link new pages from their index; use relative
+Markdown links.
 When you add a package or make a significant architectural decision, add/extend the
 relevant doc file and add a row to the table in `CLAUDE.md`.
 

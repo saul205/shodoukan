@@ -44,9 +44,25 @@ Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` 
 
 Interactive docs available at `/docs` when the server is running.
 
+### `shodoukan-practice` — Practice app *(in progress)*
+
+Backend for studying with the dictionary: each user imports entries and kanji into a
+personal library, customises them, and groups them into collections (which double as
+tags) to practise with. Domain and PostgreSQL persistence are built; the API is not
+yet. See the [practice app documentation](docs/practice/README.md).
+
 ### Web interface *(planned)*
 
 Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
+
+---
+
+## Documentation
+
+- [Documentation index](docs/index.md): functional and technical docs for search, the
+  API and the web interface.
+- [Practice app](docs/practice/README.md): [functional](docs/practice/functional/README.md)
+  and [technical](docs/practice/technical/README.md) documentation.
 
 ---
 

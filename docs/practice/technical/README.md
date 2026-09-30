@@ -1,0 +1,46 @@
+# Practice App — Technical Documentation
+
+[← Practice app](../README.md)
+
+For developers and agents working on `shodoukan-practice`. It describes what is built
+and why. Coding conventions (naming, typing, testing style) live in the backend skill,
+[`.claude/skills/python-backend-clean-code/SKILL.md`](../../../.claude/skills/python-backend-clean-code/SKILL.md).
+
+## Contents
+
+- [Architecture](architecture.md): layers, dependency rule, package map, status.
+- [Design decisions](decisions.md): why things are the way they are.
+- Domain
+  - [Entities](domain/entities.md): aggregates, practice state, timestamps.
+  - [Repository ports](domain/repository-ports.md): the persistence contracts.
+  - [Services and errors](domain/services-and-errors.md): domain rules, exceptions, clock.
+- Infrastructure
+  - [Database schema](infrastructure/database-schema.md): tables, constraints, cascades.
+  - [ORM and mappers](infrastructure/orm-and-mappers.md): SQLAlchemy models and domain ↔ row mapping.
+  - [Repositories](infrastructure/repositories.md): the SQLAlchemy implementations.
+  - [Migrations](infrastructure/migrations.md): Alembic setup and workflow.
+- Cross-cutting
+  - [Dates and time zones](cross-cutting/dates-and-time-zones.md)
+  - [Configuration and local setup](cross-cutting/configuration.md)
+- [Testing](testing.md)
+
+## Where to document what
+
+Technical docs are updated **in the same change** as the code. Use this table to find
+the page to update:
+
+| When you change… | Update |
+|---|---|
+| A layer, a package folder, or what a layer may import | [architecture.md](architecture.md) |
+| A non-obvious design choice, or a reversed one | [decisions.md](decisions.md) (add an entry) |
+| `domain/entities/` | [domain/entities.md](domain/entities.md) |
+| `domain/repositories/` | [domain/repository-ports.md](domain/repository-ports.md) |
+| `domain/services/`, `domain/exceptions.py`, `domain/clock.py` | [domain/services-and-errors.md](domain/services-and-errors.md) |
+| Tables, columns, constraints (`infrastructure/db/orm/`) | [infrastructure/database-schema.md](infrastructure/database-schema.md) and [infrastructure/orm-and-mappers.md](infrastructure/orm-and-mappers.md) |
+| `infrastructure/db/mappers/` | [infrastructure/orm-and-mappers.md](infrastructure/orm-and-mappers.md) |
+| `infrastructure/repositories/` | [infrastructure/repositories.md](infrastructure/repositories.md) |
+| Alembic config or workflow | [infrastructure/migrations.md](infrastructure/migrations.md) |
+| Date handling | [cross-cutting/dates-and-time-zones.md](cross-cutting/dates-and-time-zones.md) |
+| Environment variables, docker compose, `connection.py` | [cross-cutting/configuration.md](cross-cutting/configuration.md) |
+| Test fixtures, factories, CI | [testing.md](testing.md) |
+| A new layer or area (e.g. `application/`, `api/`) | Add a folder here (`application/`, `api/`), link it above and in this table |
