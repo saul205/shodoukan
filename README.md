@@ -120,6 +120,13 @@ pytest tests/shodoukan-api
 pytest tests/shodoukan-practice
 ```
 
+### Lint and type check
+
+```bash
+ruff check . && ruff format --check .
+mypy  # config in mypy.ini; strict for shodoukan-practice
+```
+
 ### CLI
 
 ```bash

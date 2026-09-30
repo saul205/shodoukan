@@ -22,13 +22,20 @@ jobs:
       - name: Install
         run: |
           pip install -e "packages/shodoukan[dev]" \
-                      -e "packages/shodoukan-api[dev]"
+                      -e "packages/shodoukan-api[dev]" \
+                      -e "packages/shodoukan-practice[dev]"
+
+      - name: Type check
+        run: mypy
 
       - name: Test library
         run: pytest tests/shodoukan
 
       - name: Test API
         run: pytest tests/shodoukan-api
+
+      - name: Test practice
+        run: pytest tests/shodoukan-practice
 
   deploy:
     name: Deploy to Render
