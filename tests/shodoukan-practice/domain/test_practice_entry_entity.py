@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from shodoukan_practice.domain.entities import (
     PracticeEntry,
@@ -10,7 +10,7 @@ from shodoukan_practice.domain.entities import (
     PracticeSense,
 )
 
-NOW = datetime(2026, 1, 1)
+NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def make_entry() -> PracticeEntry:
@@ -77,3 +77,22 @@ def test_practice_entry_serializes_round_trip() -> None:
     entry = make_entry()
     dumped = entry.model_dump()
     assert PracticeEntry.model_validate(dumped) == entry
+
+
+def test_deactivate_and_activate_touch() -> None:
+    item = make_entry()
+    item.deactivate()
+    assert item.is_active is False
+    assert item.updated_at > NOW
+
+    touched = item.updated_at
+    item.activate()
+    assert item.is_active is True
+    assert item.updated_at >= touched
+
+
+def test_activate_when_active_does_not_touch() -> None:
+    item = make_entry()
+    item.activate()
+
+    assert item.updated_at == NOW

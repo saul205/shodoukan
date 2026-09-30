@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 
@@ -13,7 +13,7 @@ from shodoukan_practice.domain.exceptions import (
 )
 from shodoukan_practice.domain.services import ensure_combinable
 
-NOW = datetime(2026, 1, 1)
+NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def make_collection(

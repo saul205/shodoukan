@@ -5,9 +5,11 @@ The URL comes from `sqlalchemy.url` when a caller sets it programmatically
 """
 
 from logging.config import fileConfig
+from typing import Any, Literal
 
 from alembic import context
-from sqlalchemy import create_engine, pool
+from alembic.autogenerate.api import AutogenContext
+from sqlalchemy import TypeDecorator, create_engine, pool
 
 from shodoukan_practice.infrastructure.db.connection import database_url
 from shodoukan_practice.infrastructure.db.orm import Base
@@ -23,12 +25,23 @@ def _url() -> str:
     return config.get_main_option("sqlalchemy.url") or database_url()
 
 
+def render_item(
+    type_: str, obj: Any, autogen_context: AutogenContext
+) -> str | Literal[False]:
+    """Render custom column types (e.g. UtcDateTime) as their plain SQLAlchemy
+    type, so migrations never import application code."""
+    if type_ == "type" and isinstance(obj, TypeDecorator):
+        return f"sa.{obj.impl!r}"
+    return False
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
+        render_item=render_item,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -41,6 +54,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
+            render_item=render_item,
             # SQLite (tests) can't ALTER most things in place.
             render_as_batch=connection.dialect.name == "sqlite",
         )

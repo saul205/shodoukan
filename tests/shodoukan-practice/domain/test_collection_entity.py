@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -9,7 +9,7 @@ from shodoukan_practice.domain.entities import (
     KanjiCollection,
 )
 
-NOW = datetime(2026, 1, 1)
+NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def make_collection(
@@ -37,3 +37,31 @@ def test_subclasses_are_collections() -> None:
 def test_collection_serializes_round_trip() -> None:
     collection = make_collection(KanjiCollection)
     assert KanjiCollection.model_validate(collection.model_dump()) == collection
+
+
+def test_rename_touches() -> None:
+    collection = make_collection()
+    collection.rename("nouns")
+
+    assert collection.name == "nouns"
+    assert collection.updated_at > NOW
+
+
+def test_rename_to_same_name_does_not_touch() -> None:
+    collection = make_collection(name="verbs")
+    collection.rename("verbs")
+
+    assert collection.updated_at == NOW
+
+
+def test_rename_validates_the_name() -> None:
+    with pytest.raises(ValidationError):
+        make_collection().rename("")
+
+
+def test_describe_touches() -> None:
+    collection = make_collection()
+    collection.describe("Godan and ichidan")
+
+    assert collection.description == "Godan and ichidan"
+    assert collection.updated_at > NOW

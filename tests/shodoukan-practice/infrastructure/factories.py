@@ -19,6 +19,9 @@ from shodoukan_practice.domain.entities import (
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
+# For ORM rows built directly in tests: the database has no timestamp defaults.
+TIMESTAMPS = {"created_at": NOW, "updated_at": NOW}
+
 
 def make_entry(
     user_id: int, source_entry_id: int = 1000001, *, is_active: bool = True

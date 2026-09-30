@@ -13,6 +13,7 @@ from .practice_kanji_entity import (
     PracticeKanjiMeaning,
     PracticeReadingItem,
 )
+from .timestamped_entity import TimestampedEntity
 from .user_entity import User
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "PracticeReading",
     "PracticeReadingItem",
     "PracticeSense",
+    "TimestampedEntity",
     "User",
 ]

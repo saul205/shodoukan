@@ -2,10 +2,11 @@
 (enabled/disabled, added items) layered on top.
 """
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
+
+from .timestamped_entity import TimestampedEntity
 
 
 class PracticeGloss(BaseModel):
@@ -62,7 +63,7 @@ class PracticeKanjiReading(BaseModel):
     enabled: bool = True
 
 
-class PracticeEntry(BaseModel):
+class PracticeEntry(TimestampedEntity):
     id: int | None
     user_id: int
     source_entry_id: int  # sole reference back to shodoukan's Entry.id
@@ -72,5 +73,13 @@ class PracticeEntry(BaseModel):
     jlpt: int | None
     is_common: bool
     is_active: bool = True
-    created_at: datetime
-    updated_at: datetime
+
+    def activate(self) -> None:
+        if not self.is_active:
+            self.is_active = True
+            self.touch()
+
+    def deactivate(self) -> None:
+        if self.is_active:
+            self.is_active = False
+            self.touch()

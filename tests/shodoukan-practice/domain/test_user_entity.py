@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from shodoukan_practice.domain.entities import User
 
-NOW = datetime(2026, 1, 1)
+NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def test_user_shape() -> None:

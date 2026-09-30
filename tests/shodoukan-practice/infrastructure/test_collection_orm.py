@@ -1,4 +1,5 @@
 import pytest
+from factories import NOW, TIMESTAMPS
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,14 +14,16 @@ from shodoukan_practice.infrastructure.db.orm import (
 
 
 def add_entry(session: Session, user: UserORM) -> PracticeEntryORM:
-    entry = PracticeEntryORM(user_id=user.id, source_entry_id=1, is_common=True)
+    entry = PracticeEntryORM(
+        user_id=user.id, source_entry_id=1, is_common=True, **TIMESTAMPS
+    )
     session.add(entry)
     session.flush()
     return entry
 
 
 def add_collection(session: Session, user: UserORM, name: str) -> EntryCollectionORM:
-    collection = EntryCollectionORM(user_id=user.id, name=name)
+    collection = EntryCollectionORM(user_id=user.id, name=name, **TIMESTAMPS)
     session.add(collection)
     session.flush()
     return collection
@@ -41,14 +44,14 @@ def test_same_name_for_entry_and_kanji_collections(
     session: Session, user: UserORM
 ) -> None:
     add_collection(session, user, "N5")
-    session.add(KanjiCollectionORM(user_id=user.id, name="N5"))
+    session.add(KanjiCollectionORM(user_id=user.id, name="N5", **TIMESTAMPS))
     session.commit()
 
 
 def test_item_can_only_be_linked_once(session: Session, user: UserORM) -> None:
     entry = add_entry(session, user)
     collection = add_collection(session, user, "verbs")
-    link = {"collection_id": collection.id, "entry_id": entry.id}
+    link = {"collection_id": collection.id, "entry_id": entry.id, "added_at": NOW}
     session.execute(insert(entry_collection_items).values(link))
     with pytest.raises(IntegrityError):
         session.execute(insert(entry_collection_items).values(link))
@@ -59,7 +62,7 @@ def test_deleting_entry_removes_its_links(session: Session, user: UserORM) -> No
     collection = add_collection(session, user, "verbs")
     session.execute(
         insert(entry_collection_items).values(
-            collection_id=collection.id, entry_id=entry.id
+            collection_id=collection.id, entry_id=entry.id, added_at=NOW
         )
     )
     session.delete(entry)
@@ -76,7 +79,7 @@ def test_deleting_user_cascades_to_library_and_collections(
     collection = add_collection(session, user, "verbs")
     session.execute(
         insert(entry_collection_items).values(
-            collection_id=collection.id, entry_id=entry.id
+            collection_id=collection.id, entry_id=entry.id, added_at=NOW
         )
     )
     session.commit()

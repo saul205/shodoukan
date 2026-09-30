@@ -14,20 +14,28 @@ holds. Their ids come from different tables and can collide, so repositories
 take the typed entity rather than a bare id.
 """
 
-from datetime import datetime
+from pydantic import Field
 
-from pydantic import BaseModel, Field
+from .timestamped_entity import TimestampedEntity
 
 
-class Collection(BaseModel):
+class Collection(TimestampedEntity):
     """Shared base; instantiate `EntryCollection` or `KanjiCollection`."""
 
     id: int | None
     user_id: int
     name: str = Field(min_length=1)
     description: str | None = None
-    created_at: datetime
-    updated_at: datetime
+
+    def rename(self, name: str) -> None:
+        if name != self.name:
+            self.name = name
+            self.touch()
+
+    def describe(self, description: str | None) -> None:
+        if description != self.description:
+            self.description = description
+            self.touch()
 
 
 class EntryCollection(Collection):

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from shodoukan_practice.domain.entities import (
     PracticeKanji,
@@ -6,7 +6,7 @@ from shodoukan_practice.domain.entities import (
     PracticeReadingItem,
 )
 
-NOW = datetime(2026, 1, 1)
+NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def make_kanji() -> PracticeKanji:
@@ -46,3 +46,22 @@ def test_practice_kanji_serializes_round_trip() -> None:
     kanji = make_kanji()
     dumped = kanji.model_dump()
     assert PracticeKanji.model_validate(dumped) == kanji
+
+
+def test_deactivate_and_activate_touch() -> None:
+    item = make_kanji()
+    item.deactivate()
+    assert item.is_active is False
+    assert item.updated_at > NOW
+
+    touched = item.updated_at
+    item.activate()
+    assert item.is_active is True
+    assert item.updated_at >= touched
+
+
+def test_activate_when_active_does_not_touch() -> None:
+    item = make_kanji()
+    item.activate()
+
+    assert item.updated_at == NOW

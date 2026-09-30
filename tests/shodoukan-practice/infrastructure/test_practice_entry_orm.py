@@ -1,4 +1,5 @@
 import pytest
+from factories import TIMESTAMPS
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -16,6 +17,7 @@ from shodoukan_practice.infrastructure.db.orm import (
 
 def make_entry(user: UserORM, source_entry_id: int = 1000001) -> PracticeEntryORM:
     return PracticeEntryORM(
+        **TIMESTAMPS,
         user_id=user.id,
         source_entry_id=source_entry_id,
         jlpt=5,

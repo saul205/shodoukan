@@ -1,4 +1,5 @@
 import pytest
+from factories import TIMESTAMPS
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ from shodoukan_practice.infrastructure.db.orm import (
 
 def make_kanji(user: UserORM, literal: str = "食") -> PracticeKanjiORM:
     return PracticeKanjiORM(
+        **TIMESTAMPS,
         user_id=user.id,
         literal=literal,
         grade=2,
@@ -52,7 +54,7 @@ def test_literal_is_unique_per_user(session: Session, user: UserORM) -> None:
 
 
 def test_same_literal_for_different_users(session: Session, user: UserORM) -> None:
-    other = UserORM(username="other")
+    other = UserORM(username="other", **TIMESTAMPS)
     session.add(other)
     session.flush()
     session.add_all([make_kanji(user), make_kanji(other)])

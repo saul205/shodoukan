@@ -5,13 +5,9 @@ here: it is the set of `PracticeEntry` / `PracticeKanji` rows whose
 `user_id` points to this user, loaded through their repositories.
 """
 
-from datetime import datetime
-
-from pydantic import BaseModel
+from .timestamped_entity import TimestampedEntity
 
 
-class User(BaseModel):
+class User(TimestampedEntity):
     id: int | None
     username: str
-    created_at: datetime
-    updated_at: datetime

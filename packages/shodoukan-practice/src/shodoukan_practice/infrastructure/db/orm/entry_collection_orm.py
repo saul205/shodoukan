@@ -13,11 +13,15 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
-    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_orm import Base, UtcDateTime, created_at_column, updated_at_column
+from .base_orm import (
+    Base,
+    UtcDateTime,
+    created_at_column,
+    updated_at_column,
+)
 
 
 class EntryCollectionORM(Base):
@@ -53,7 +57,6 @@ entry_collection_items = Table(
     Column(
         "added_at",
         UtcDateTime,
-        nullable=False,
-        server_default=func.current_timestamp(),
+        nullable=False,  # set by the repository (domain clock)
     ),
 )

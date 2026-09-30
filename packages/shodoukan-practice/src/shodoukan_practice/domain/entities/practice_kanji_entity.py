@@ -2,10 +2,11 @@
 (enabled/disabled, added items) layered on top.
 """
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
+
+from .timestamped_entity import TimestampedEntity
 
 
 class PracticeReadingItem(BaseModel):
@@ -28,7 +29,7 @@ class PracticeKanjiMeaning(BaseModel):
     origin: Literal["imported", "added"] = "imported"
 
 
-class PracticeKanji(BaseModel):
+class PracticeKanji(TimestampedEntity):
     id: int | None
     user_id: int
     literal: str  # sole reference: shodoukan's Kanji.literal
@@ -41,5 +42,13 @@ class PracticeKanji(BaseModel):
     nanori: list[PracticeReadingItem]
     meanings: list[PracticeKanjiMeaning]
     is_active: bool = True
-    created_at: datetime
-    updated_at: datetime
+
+    def activate(self) -> None:
+        if not self.is_active:
+            self.is_active = True
+            self.touch()
+
+    def deactivate(self) -> None:
+        if self.is_active:
+            self.is_active = False
+            self.touch()

@@ -7,7 +7,7 @@ name, so Alembic can generate and later drop/alter them reliably.
 import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Dialect, MetaData, TypeDecorator, func
+from sqlalchemy import DateTime, Dialect, MetaData, TypeDecorator
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -29,14 +29,16 @@ ORIGINS = ("imported", "added")
 
 
 class UtcDateTime(TypeDecorator[datetime.datetime]):
-    """Timezone-aware datetime, always stored and returned in UTC.
+    """UTC instant stored as a naive `timestamp without time zone`.
 
-    PostgreSQL keeps the offset (timestamptz) but SQLite doesn't and returns
-    naive values; this makes both engines hand back the same aware datetime.
-    Naive datetimes are rejected on write instead of guessing their zone.
+    The database only ever holds naive UTC values. The backend works with
+    timezone-aware UTC datetimes: they are converted to UTC and stripped on
+    write, and get UTC attached on read, so the API can send them with an
+    explicit offset and clients convert to local time. Naive datetimes are
+    rejected on write instead of guessing their zone.
     """
 
-    impl = DateTime(timezone=True)
+    impl = DateTime(timezone=False)
     cache_ok = True
 
     def process_bind_param(
@@ -46,32 +48,28 @@ class UtcDateTime(TypeDecorator[datetime.datetime]):
             return None
         if value.tzinfo is None:
             raise ValueError("naive datetime; pass a timezone-aware value")
-        return value.astimezone(datetime.UTC)
+        return value.astimezone(datetime.UTC).replace(tzinfo=None)
 
     def process_result_value(
         self, value: datetime.datetime | None, dialect: Dialect
     ) -> datetime.datetime | None:
         if value is None:
             return None
-        if value.tzinfo is None:
-            return value.replace(tzinfo=datetime.UTC)
-        return value.astimezone(datetime.UTC)
+        return value.replace(tzinfo=datetime.UTC)
 
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
+# No defaults: timestamps come from the domain entity (`domain.clock`), so a
+# missing one fails instead of being invented by the persistence layer.
 def created_at_column() -> Mapped[datetime.datetime]:
-    return mapped_column(UtcDateTime, server_default=func.current_timestamp())
+    return mapped_column(UtcDateTime)
 
 
 def updated_at_column() -> Mapped[datetime.datetime]:
-    return mapped_column(
-        UtcDateTime,
-        server_default=func.current_timestamp(),
-        onupdate=func.current_timestamp(),
-    )
+    return mapped_column(UtcDateTime)
 
 
 def children(order_by: str) -> Relationship[Any]:

@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
+from ...domain.clock import utc_now
 from ...domain.entities import EntryCollection, PracticeEntry
 from ...domain.exceptions import CollectionOwnershipError, EntityNotFoundError
 from ...domain.repositories import EntryCollectionRepository
@@ -57,7 +58,9 @@ class SqlAlchemyEntryCollectionRepository(EntryCollectionRepository):
             select(entry_collection_items.c.collection_id).filter_by(**link)
         )
         if exists is None:
-            self._session.execute(insert(entry_collection_items).values(link))
+            self._session.execute(
+                insert(entry_collection_items).values(**link, added_at=utc_now())
+            )
             self._session.flush()
 
     def remove_item(self, collection: EntryCollection, entry: PracticeEntry) -> None:

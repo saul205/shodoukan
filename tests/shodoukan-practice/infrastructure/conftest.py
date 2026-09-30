@@ -13,6 +13,8 @@ from shodoukan_practice.infrastructure.db.orm import Base, UserORM
 # Make the local `factories` helper importable from the test modules.
 sys.path.insert(0, str(Path(__file__).parent))
 
+from factories import TIMESTAMPS
+
 
 @pytest.fixture
 def engine() -> Engine:
@@ -36,7 +38,7 @@ def session(engine: Engine) -> Iterator[Session]:
 
 @pytest.fixture
 def user(session: Session) -> UserORM:
-    user = UserORM(username="saul")
+    user = UserORM(username="saul", **TIMESTAMPS)
     session.add(user)
     session.flush()
     return user
@@ -44,7 +46,7 @@ def user(session: Session) -> UserORM:
 
 @pytest.fixture
 def other_user(session: Session) -> UserORM:
-    other = UserORM(username="other")
+    other = UserORM(username="other", **TIMESTAMPS)
     session.add(other)
     session.flush()
     return other
