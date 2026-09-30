@@ -8,7 +8,6 @@ import datetime
 
 from sqlalchemy import (
     Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -18,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_orm import Base, created_at_column, updated_at_column
+from .base_orm import Base, UtcDateTime, created_at_column, updated_at_column
 
 
 class KanjiCollectionORM(Base):
@@ -53,7 +52,7 @@ kanji_collection_items = Table(
     ),
     Column(
         "added_at",
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.current_timestamp(),
     ),

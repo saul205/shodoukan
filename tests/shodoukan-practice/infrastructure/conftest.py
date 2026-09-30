@@ -1,4 +1,6 @@
+import sys
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -7,6 +9,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from shodoukan_practice.infrastructure.db.orm import Base, UserORM
+
+# Make the local `factories` helper importable from the test modules.
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 @pytest.fixture
@@ -35,3 +40,11 @@ def user(session: Session) -> UserORM:
     session.add(user)
     session.flush()
     return user
+
+
+@pytest.fixture
+def other_user(session: Session) -> UserORM:
+    other = UserORM(username="other")
+    session.add(other)
+    session.flush()
+    return other

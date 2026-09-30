@@ -7,7 +7,7 @@ name, so Alembic can generate and later drop/alter them reliably.
 import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, Dialect, MetaData, TypeDecorator, func
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -28,19 +28,47 @@ NAMING_CONVENTION = {
 ORIGINS = ("imported", "added")
 
 
+class UtcDateTime(TypeDecorator[datetime.datetime]):
+    """Timezone-aware datetime, always stored and returned in UTC.
+
+    PostgreSQL keeps the offset (timestamptz) but SQLite doesn't and returns
+    naive values; this makes both engines hand back the same aware datetime.
+    Naive datetimes are rejected on write instead of guessing their zone.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(
+        self, value: datetime.datetime | None, dialect: Dialect
+    ) -> datetime.datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            raise ValueError("naive datetime; pass a timezone-aware value")
+        return value.astimezone(datetime.UTC)
+
+    def process_result_value(
+        self, value: datetime.datetime | None, dialect: Dialect
+    ) -> datetime.datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=datetime.UTC)
+        return value.astimezone(datetime.UTC)
+
+
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
 def created_at_column() -> Mapped[datetime.datetime]:
-    return mapped_column(
-        DateTime(timezone=True), server_default=func.current_timestamp()
-    )
+    return mapped_column(UtcDateTime, server_default=func.current_timestamp())
 
 
 def updated_at_column() -> Mapped[datetime.datetime]:
     return mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         server_default=func.current_timestamp(),
         onupdate=func.current_timestamp(),
     )
