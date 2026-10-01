@@ -48,8 +48,9 @@ Interactive docs available at `/docs` when the server is running.
 
 Backend for studying with the dictionary: each user imports entries and kanji into a
 personal library, customises them, and groups them into collections (which double as
-tags) to practise with. Domain and PostgreSQL persistence are built; the API is not
-yet. See the [practice app documentation](docs/practice/README.md).
+tags) to practise with. Built so far: the domain, PostgreSQL persistence, and importing
+entries and kanji (`POST /library/entries`, `POST /library/kanji`, Keycloak bearer
+tokens). See the [practice app documentation](docs/practice/README.md).
 
 ### Web interface *(planned)*
 

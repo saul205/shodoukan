@@ -10,8 +10,10 @@ exercises built from those collections.
 |---|---|
 | Domain (entities, rules, repository ports) | Built |
 | Persistence (PostgreSQL, Alembic, mappers, repositories) | Built |
-| Application use cases | Not started |
-| HTTP API | Not started |
+| Dictionary integration (in-process `shodoukan` library) | Built |
+| Application use cases | Import an entry or kanji |
+| HTTP API (Keycloak bearer tokens) | `POST /library/entries`, `POST /library/kanji` |
+| User registration | Not started (users are created outside the API) |
 | Exercises | Not designed |
 
 ## Documentation
