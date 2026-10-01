@@ -5,6 +5,11 @@
 Describes what users can do with the practice app, one folder per feature, with one
 page per use case.
 
+## Account
+
+- [Signing up and signing in](account/sign-in.md): sign-in page, practice account
+  created automatically.
+
 ## Library
 
 - [Importing into the library](library/import.md): add a dictionary word or kanji to

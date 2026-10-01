@@ -41,7 +41,6 @@ copies.
 | Situation | Result |
 |---|---|
 | Not signed in, or the session expired | Rejected; the user must sign in again |
-| Signed in but not registered in the practice app | Rejected until registration exists |
 | The word or kanji isn't in the dictionary | Rejected as not found |
 
 Technical details: [use cases](../../technical/application/use-cases.md) and

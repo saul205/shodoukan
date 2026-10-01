@@ -12,8 +12,8 @@ exercises built from those collections.
 | Persistence (PostgreSQL, Alembic, mappers, repositories) | Built |
 | Dictionary integration (in-process `shodoukan` library) | Built |
 | Application use cases | Import an entry or kanji |
-| HTTP API (Keycloak bearer tokens) | `POST /library/entries`, `POST /library/kanji` |
-| User registration | Not started (users are created outside the API) |
+| Sign-in (Keycloak, OAuth2 / OpenID Connect) | Built: local Keycloak with the `shodoukan` realm; practice users created on first request |
+| HTTP API | `GET /users/me`, `POST /library/entries`, `POST /library/kanji` |
 | Exercises | Not designed |
 
 ## Documentation
