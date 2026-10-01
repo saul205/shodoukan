@@ -10,6 +10,7 @@ Environment variables, the local PostgreSQL, and how the app connects.
 |---|---|---|
 | `PRACTICE_DATABASE_URL` | app, Alembic | SQLAlchemy URL, e.g. `postgresql+psycopg://user:pass@localhost:5432/shodoukan_practice`. **Required.** There's no default, so credentials never live in code. |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `practice-db` container | Must match the URL. |
+| `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
 
 Real values live in the gitignored `.env.dev` (local) or the deployment's secret
 settings. [`.env.example`](../../../../.env.example) documents every variable with
@@ -31,6 +32,21 @@ set -a; . ./.env.dev; set +a
 alembic -c packages/shodoukan-practice/alembic.ini upgrade head
 docker compose stop practice-db     # when done
 ```
+
+## Dictionary database
+
+The practice app reads the shodoukan dictionary in-process (see the
+[dictionary gateway](../infrastructure/dictionary-gateway.md)), so it needs the
+dictionary SQLite on disk:
+
+- **Locally:** `shodoukan-setup` downloads it to the default path, or set
+  `SHODOUKAN_DB_PATH`. `Dictionary()` also downloads it on first use if it's missing.
+- **In a deployment:** download it at image build time with `shodoukan-setup`, as
+  `packages/shodoukan-api/Dockerfile` does, or mount it. There's no practice
+  Dockerfile yet.
+
+The file is read-only and published monthly by `shodoukan-db`. Imported items are
+snapshots, so a dictionary update never changes what users already have.
 
 ## Connection (`infrastructure/db/connection.py`)
 

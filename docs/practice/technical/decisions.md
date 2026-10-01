@@ -63,3 +63,21 @@ control in tests, and need dialect-specific SQL (`timezone('utc', now())` on
 PostgreSQL, which SQLite lacks). Performance and scale are the same either way.
 Revisit if a non-app writer appears, and then add a `server_default` only as a safety
 net.
+
+## The dictionary is used in-process behind a port
+
+`shodoukan` already is the shared library: `shodoukan-api` is a thin FastAPI layer over
+`shodoukan.Dictionary`. The practice app uses it the same way, in-process, behind a
+`DictionaryGateway` port, and wires its own cached instance (nothing is shared with
+the API beyond the library). The practice app only needs the dictionary at import
+time, since imported items are snapshots. Considered and rejected for now:
+
+- **HTTP calls to `shodoukan-api`:** one owner of the data, but it adds latency,
+  failure handling and an API contract to keep stable.
+- **Merging both apps:** one deployable, but read-only search and per-user writes
+  would share their scaling and deploy cycle.
+- **A new common package:** `shodoukan` already is that package.
+
+The port makes an HTTP adapter a drop-in replacement if the services need to be split.
+The gateway returns domain entities, and an anti-corruption mapper keeps the
+dictionary's models out of the domain.

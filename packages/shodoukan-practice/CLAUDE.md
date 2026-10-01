@@ -9,7 +9,8 @@ document what" table there).
 
 ## Status
 
-Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy repositories.
+Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy repositories,
+and the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`).
 Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined yet.
 
 ## Layout
@@ -21,6 +22,7 @@ Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined y
     `user_entity.py`, `collection_entity.py`, and `timestamped_entity.py`
     (`TimestampedEntity` with `touch()`).
   - `repositories/`: Protocol ports.
+  - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port.
   - `services/collection_service.py`: `ensure_combinable`.
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
@@ -28,6 +30,8 @@ Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined y
     per aggregate.
   - `mappers/`, `migrations/`, `connection.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
+- `infrastructure/dictionary/`: `ShodoukanDictionaryGateway` and `shodoukan_mapper.py`
+  (the anti-corruption layer). Wired in `api/deps.py` (cached `Dictionary()`).
 
 ## Domain rules specific to this app
 
@@ -63,5 +67,7 @@ Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined y
   FKs on. Fixtures `engine`, `session`, `user`, `other_user`.
 - `infrastructure/factories.py`: `make_entry`, `make_kanji`, `make_*_collection`,
   `NOW`, `TIMESTAMPS`.
+- The `dictionary` fixture is a real `shodoukan.Dictionary` seeded from the core
+  `tests/db_helpers.py`.
 - `infrastructure/test_migrations.py` is the migration drift test. CI also runs the
   migrations on a throwaway PostgreSQL.

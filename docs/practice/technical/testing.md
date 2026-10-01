@@ -29,6 +29,8 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `infrastructure/test_*_mapper.py` | `to_domain(to_db(entity)) == entity` without a database |
 | `infrastructure/test_sqlalchemy_*_repository.py` | Each repository through its port, including owner scoping and membership |
 | `infrastructure/test_migrations.py` | Migrations match the models; downgrade works |
+| `infrastructure/test_shodoukan_mapper.py` | Dictionary models → fresh practice entities, every language kept |
+| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary |
 
 ## Fixtures and helpers
 
@@ -36,7 +38,10 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
   - `engine`: `sqlite://` with `StaticPool` (every session shares the same in-memory
     database), `PRAGMA foreign_keys = ON` (SQLite ignores FKs and `ON DELETE CASCADE`
     otherwise), and `Base.metadata.create_all`;
-  - `session`, `user`, `other_user`.
+  - `session`, `user`, `other_user`;
+  - `dictionary`: a real `shodoukan.Dictionary` over a temporary SQLite, built with
+    the core library's `SCHEMA` and `seed` from `tests/db_helpers.py`
+    (`auto_download=False`).
 - `infrastructure/factories.py`: `make_entry`, `make_kanji`, `make_entry_collection`,
   `make_kanji_collection` (domain entities), `NOW`, and `TIMESTAMPS` for ORM rows built
   directly (the database has no timestamp defaults).

@@ -19,6 +19,7 @@ and why. Coding conventions (naming, typing, testing style) live in the backend 
   - [ORM and mappers](infrastructure/orm-and-mappers.md): SQLAlchemy models and domain ↔ row mapping.
   - [Repositories](infrastructure/repositories.md): the SQLAlchemy implementations.
   - [Migrations](infrastructure/migrations.md): Alembic setup and workflow.
+  - [Dictionary gateway](infrastructure/dictionary-gateway.md): reading the shodoukan dictionary and mapping it to practice entities.
 - Cross-cutting
   - [Dates and time zones](cross-cutting/dates-and-time-zones.md)
   - [Configuration and local setup](cross-cutting/configuration.md)
@@ -34,12 +35,13 @@ the page to update:
 | A layer, a package folder, or what a layer may import | [architecture.md](architecture.md) |
 | A non-obvious design choice, or a reversed one | [decisions.md](decisions.md) (add an entry) |
 | `domain/entities/` | [domain/entities.md](domain/entities.md) |
-| `domain/repositories/` | [domain/repository-ports.md](domain/repository-ports.md) |
+| `domain/repositories/`, `domain/gateways/` | [domain/repository-ports.md](domain/repository-ports.md) |
 | `domain/services/`, `domain/exceptions.py`, `domain/clock.py` | [domain/services-and-errors.md](domain/services-and-errors.md) |
 | Tables, columns, constraints (`infrastructure/db/orm/`) | [infrastructure/database-schema.md](infrastructure/database-schema.md) and [infrastructure/orm-and-mappers.md](infrastructure/orm-and-mappers.md) |
 | `infrastructure/db/mappers/` | [infrastructure/orm-and-mappers.md](infrastructure/orm-and-mappers.md) |
 | `infrastructure/repositories/` | [infrastructure/repositories.md](infrastructure/repositories.md) |
 | Alembic config or workflow | [infrastructure/migrations.md](infrastructure/migrations.md) |
+| `infrastructure/dictionary/`, dictionary wiring in `api/deps.py` | [infrastructure/dictionary-gateway.md](infrastructure/dictionary-gateway.md) |
 | Date handling | [cross-cutting/dates-and-time-zones.md](cross-cutting/dates-and-time-zones.md) |
 | Environment variables, docker compose, `connection.py` | [cross-cutting/configuration.md](cross-cutting/configuration.md) |
 | Test fixtures, factories, CI | [testing.md](testing.md) |

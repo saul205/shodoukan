@@ -1,3 +1,4 @@
+import sqlite3
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -8,11 +9,14 @@ from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from shodoukan import Dictionary
 from shodoukan_practice.infrastructure.db.orm import Base, UserORM
 
-# Make the local `factories` helper importable from the test modules.
+# Make the local `factories` helper and the core `db_helpers` (tests/) importable.
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parents[2]))
 
+from db_helpers import SCHEMA, seed  # type: ignore[import-not-found]
 from factories import TIMESTAMPS
 
 
@@ -50,3 +54,15 @@ def other_user(session: Session) -> UserORM:
     session.add(other)
     session.flush()
     return other
+
+
+@pytest.fixture
+def dictionary(tmp_path: Path) -> Iterator[Dictionary]:
+    """A real shodoukan dictionary, seeded with the core library's test data."""
+    path = tmp_path / "dictionary.sqlite"
+    conn = sqlite3.connect(path)
+    conn.executescript(SCHEMA)
+    seed(conn)
+    conn.close()
+    with Dictionary(db_path=path, auto_download=False) as dictionary:
+        yield dictionary

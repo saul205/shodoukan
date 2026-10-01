@@ -1,11 +1,14 @@
-# Repository Ports
+# Repository and Gateway Ports
 
 [← Technical documentation](../README.md)
 
-The persistence contracts the domain depends on. Code:
-`src/shodoukan_practice/domain/repositories/`, one `typing.Protocol` per file. The
-implementations are described in
-[infrastructure/repositories](../infrastructure/repositories.md).
+The contracts the domain depends on, all `typing.Protocol`s, one per file:
+
+- **Repositories** (`src/shodoukan_practice/domain/repositories/`): persistence of
+  practice data, implemented in
+  [infrastructure/repositories](../infrastructure/repositories.md).
+- **Gateways** (`src/shodoukan_practice/domain/gateways/`): read-only external
+  sources, implemented in [infrastructure/dictionary](../infrastructure/dictionary-gateway.md).
 
 ## Contract shared by all ports
 
@@ -49,3 +52,13 @@ implementations are described in
 | `item_ids(collections)` | distinct ids of the **active** items across the collections |
 | `add(collection)` / `update(collection)` | the stored collection |
 | `delete(collection)` | removes the collection and its links; the items stay |
+
+## `DictionaryGateway`
+
+Read-only access to the shodoukan dictionary. It returns **fresh practice entities**
+(not stored, ids `None`) so the domain never depends on the dictionary's models.
+
+| Method | Returns |
+|---|---|
+| `new_practice_entry(source_entry_id, user_id)` | a `PracticeEntry` snapshot of the dictionary entry, or `None` if it doesn't exist |
+| `new_practice_kanji(literal, user_id)` | a `PracticeKanji` snapshot of the dictionary kanji, or `None` |

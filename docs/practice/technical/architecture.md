@@ -18,7 +18,7 @@ api/ ──► application/ ──► domain/ ◄── infrastructure/
 |---|---|---|---|
 | `domain/` | Entities, business rules, repository ports (Protocols) | Only itself (and Pydantic) | Built: [entities](domain/entities.md), [ports](domain/repository-ports.md), [services](domain/services-and-errors.md) |
 | `application/` | Use cases: commands (write) and queries (read), transaction boundaries | `domain/` | Not built yet |
-| `infrastructure/` | Persistence: ORM, mappers, repository implementations, migrations, DB connection | `domain/` | Built: [schema](infrastructure/database-schema.md), [ORM and mappers](infrastructure/orm-and-mappers.md), [repositories](infrastructure/repositories.md), [migrations](infrastructure/migrations.md) |
+| `infrastructure/` | Persistence (ORM, mappers, repository implementations, migrations, DB connection) and the dictionary adapter | `domain/`, the `shodoukan` library | Built: [schema](infrastructure/database-schema.md), [ORM and mappers](infrastructure/orm-and-mappers.md), [repositories](infrastructure/repositories.md), [migrations](infrastructure/migrations.md), [dictionary gateway](infrastructure/dictionary-gateway.md) |
 | `api/` | FastAPI routes, request/response schemas, dependency wiring (`deps.py`) | `application/`, and `infrastructure/` for wiring only | Not built yet |
 
 `infrastructure/` implements the ports defined in `domain/`. `api/deps.py` will open
@@ -36,6 +36,7 @@ packages/shodoukan-practice/
       exceptions.py
       entities/                       *_entity.py, one module per aggregate
       repositories/                   *_repository.py, Protocol ports
+      gateways/                       *_gateway.py, ports to external sources
       services/                       *_service.py, pure business rules
     application/                      (scaffold)
     infrastructure/
@@ -44,6 +45,7 @@ packages/shodoukan-practice/
       db/mappers/                     *_mapper.py
       db/migrations/                  env.py, script.py.mako, versions/
       repositories/                   sqlalchemy_*_repository.py
+      dictionary/                     shodoukan gateway + anti-corruption mapper
     api/                              (scaffold) app.py, deps.py, routes/, schemas/
 ```
 
@@ -52,7 +54,10 @@ See the Naming section of the backend skill.
 
 ## Relationship with the dictionary
 
-The practice app doesn't read the dictionary database at query time. An imported entry
-or kanji is a snapshot stored in the practice database. The only link back is
-`source_entry_id` (shodoukan `Entry.id`) or `literal` (shodoukan `Kanji.literal`).
-See [entities](domain/entities.md#snapshot-and-practice-state).
+The practice app uses the `shodoukan` library **in-process**, behind the
+`DictionaryGateway` port, just as `shodoukan-api` uses it. It reads the dictionary
+only when importing. An imported entry or kanji is a snapshot stored in the practice
+database, and the only link back is `source_entry_id` (shodoukan `Entry.id`) or
+`literal` (shodoukan `Kanji.literal`). See the
+[dictionary gateway](infrastructure/dictionary-gateway.md) and
+[entities](domain/entities.md#snapshot-and-practice-state).
