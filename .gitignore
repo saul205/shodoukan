@@ -155,6 +155,7 @@ activemq-data/
 .env
 .env.dev
 .env.prod
+.env.keycloak
 .envrc
 .venv
 env/
