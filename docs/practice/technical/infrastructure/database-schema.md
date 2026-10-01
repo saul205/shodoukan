@@ -11,7 +11,7 @@ The models that define these tables are described in
 
 | Table | Parent | Constraints and notes |
 |---|---|---|
-| `users` | — | `subject` (identity-provider user id, `UNIQUE`), `UNIQUE(username)` |
+| `users` | — | `id` **`uuid`**: the identity provider's user id (token `sub`), not generated here; `username` (display name, up to 255 characters, not unique) |
 | `practice_entries` | `users` | `UNIQUE(user_id, source_entry_id)` |
 | `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled` |
 | `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled` |
@@ -27,7 +27,10 @@ The models that define these tables are described in
 | `entry_collection_items` | link table | PK `(collection_id, entry_id)`, index on `entry_id`, `added_at` |
 | `kanji_collection_items` | link table | PK `(collection_id, kanji_id)`, index on `kanji_id`, `added_at` |
 
-Every table except the link tables has an integer `id` primary key. Aggregate tables
+Every table except `users` and the link tables has an integer `id` primary key.
+`users.id` is a UUID, and so is every `user_id` foreign key (`practice_entries`,
+`practice_kanji`, `entry_collections`, `kanji_collections`). SQLAlchemy's `Uuid` type is
+native `uuid` on PostgreSQL and `CHAR(32)` on SQLite. Aggregate tables
 (`users`, `practice_entries`, `practice_kanji`, `*_collections`) have `created_at` and
 `updated_at`.
 

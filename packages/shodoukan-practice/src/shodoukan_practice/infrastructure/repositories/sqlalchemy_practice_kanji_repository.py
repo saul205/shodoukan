@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from uuid import UUID
 
 from sqlalchemy import Select, select
 from sqlalchemy.exc import IntegrityError
@@ -23,14 +24,14 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get(self, kanji_id: int, user_id: int) -> PracticeKanji | None:
+    def get(self, kanji_id: int, user_id: UUID) -> PracticeKanji | None:
         query = self._select().where(
             PracticeKanjiORM.id == kanji_id, PracticeKanjiORM.user_id == user_id
         )
         row = self._session.scalars(query).one_or_none()
         return practice_kanji_to_domain(row) if row else None
 
-    def get_many(self, ids: Iterable[int], user_id: int) -> list[PracticeKanji]:
+    def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeKanji]:
         query = (
             self._select()
             .where(
@@ -60,7 +61,7 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
         )
         return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
 
-    def get_by_literal(self, literal: str, user_id: int) -> PracticeKanji | None:
+    def get_by_literal(self, literal: str, user_id: UUID) -> PracticeKanji | None:
         query = self._select().where(
             PracticeKanjiORM.literal == literal, PracticeKanjiORM.user_id == user_id
         )

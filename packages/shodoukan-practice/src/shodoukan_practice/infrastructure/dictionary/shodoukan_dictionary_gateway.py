@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from shodoukan import Dictionary
 
 from ...domain.entities import PracticeEntry, PracticeKanji
@@ -12,11 +14,11 @@ class ShodoukanDictionaryGateway(DictionaryGateway):
         self._dictionary = dictionary
 
     def new_practice_entry(
-        self, source_entry_id: int, user_id: int
+        self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:
         entry = self._dictionary.get_entry(source_entry_id)
         return shodoukan_entry_to_practice(entry, user_id) if entry else None
 
-    def new_practice_kanji(self, literal: str, user_id: int) -> PracticeKanji | None:
+    def new_practice_kanji(self, literal: str, user_id: UUID) -> PracticeKanji | None:
         kanji = self._dictionary.get_kanji(literal)
         return shodoukan_kanji_to_practice(kanji, user_id) if kanji else None

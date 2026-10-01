@@ -2,14 +2,15 @@
 
 from collections.abc import Sequence
 from typing import Protocol
+from uuid import UUID
 
 from ..entities import KanjiCollection, PracticeKanji
 
 
 class KanjiCollectionRepository(Protocol):
-    def get(self, collection_id: int, user_id: int) -> KanjiCollection | None: ...
+    def get(self, collection_id: int, user_id: UUID) -> KanjiCollection | None: ...
 
-    def list_for_user(self, user_id: int) -> list[KanjiCollection]: ...
+    def list_for_user(self, user_id: UUID) -> list[KanjiCollection]: ...
 
     def list_for_item(self, kanji: PracticeKanji) -> list[KanjiCollection]:
         """Collections the kanji belongs to (its tags)."""

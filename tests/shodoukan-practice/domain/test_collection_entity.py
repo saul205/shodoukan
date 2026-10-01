@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
@@ -10,11 +11,13 @@ from shodoukan_practice.domain.entities import (
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
+USER_ID = UUID("8f14e45f-ceea-467a-9575-2ad4a6a1a001")
+OTHER_USER_ID = UUID("8f14e45f-ceea-467a-9575-2ad4a6a1a002")
 
 
 def make_collection(
     cls: type[Collection] = EntryCollection,
-    user_id: int = 1,
+    user_id: UUID = USER_ID,
     name: str = "verbs",
 ) -> Collection:
     return cls(id=None, user_id=user_id, name=name, created_at=NOW, updated_at=NOW)

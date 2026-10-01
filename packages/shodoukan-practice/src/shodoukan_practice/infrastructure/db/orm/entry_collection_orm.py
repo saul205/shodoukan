@@ -5,6 +5,7 @@ it with explicit queries on `entry_collection_items`.
 """
 
 import datetime
+import uuid
 
 from sqlalchemy import (
     Column,
@@ -29,7 +30,7 @@ class EntryCollectionORM(Base):
     __table_args__ = (UniqueConstraint("user_id", "name"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(100))

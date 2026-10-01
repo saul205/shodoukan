@@ -3,6 +3,7 @@
 """
 
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -65,7 +66,7 @@ class PracticeKanjiReading(BaseModel):
 
 class PracticeEntry(TimestampedEntity):
     id: int | None
-    user_id: int
+    user_id: UUID
     source_entry_id: int  # sole reference back to shodoukan's Entry.id
     kanji_readings: list[PracticeKanjiReading]
     readings: list[PracticeReading]

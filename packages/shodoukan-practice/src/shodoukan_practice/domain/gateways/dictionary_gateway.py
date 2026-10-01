@@ -6,13 +6,14 @@ depends on the dictionary's own models.
 """
 
 from typing import Protocol
+from uuid import UUID
 
 from ..entities import PracticeEntry, PracticeKanji
 
 
 class DictionaryGateway(Protocol):
     def new_practice_entry(
-        self, source_entry_id: int, user_id: int
+        self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:
         """Snapshot of dictionary entry `source_entry_id` for `user_id`.
 
@@ -21,6 +22,6 @@ class DictionaryGateway(Protocol):
         """
         ...
 
-    def new_practice_kanji(self, literal: str, user_id: int) -> PracticeKanji | None:
+    def new_practice_kanji(self, literal: str, user_id: UUID) -> PracticeKanji | None:
         """Snapshot of dictionary kanji `literal` for `user_id`, or `None`."""
         ...

@@ -5,7 +5,9 @@
 The HTTP API of the practice app. Code: `src/shodoukan_practice/api/`
 (`app.py`, `routes/`, `schemas/`, `deps.py`). Interactive docs at `/docs` when running.
 
-Every endpoint requires a bearer token; see [authentication](authentication.md).
+Every endpoint requires a bearer token; see [authentication](authentication.md). The
+app runs on port **8001** (`shodoukan-api` uses 8000):
+`uvicorn shodoukan_practice.api.app:app --port 8001` or `shodoukan-practice`.
 
 ## `POST /library/entries`
 
@@ -22,7 +24,7 @@ Request body:
 |---|---|---|
 | `201` | Imported now | `PracticeEntryResponse` |
 | `200` | Already in the library | the existing `PracticeEntryResponse` |
-| `401` / `403` | See [authentication](authentication.md#errors) | `{"detail": ...}` |
+| `401` | See [authentication](authentication.md#errors) | `{"detail": ...}` |
 | `404` | Not in the dictionary | `{"detail": ...}` |
 | `422` | Invalid body | validation errors |
 
@@ -46,6 +48,18 @@ Same status codes as above. `PracticeKanjiResponse`: `id`, `literal`, `grade`,
 `stroke_count`, `freq`, `jlpt`, `on_readings`, `kun_readings`, `nanori`, `meanings`,
 `is_active`, `created_at`, `updated_at`.
 
+## `GET /users/me`
+
+The current user's practice profile. On the first request of a new identity, the user
+is created ([`EnsureUser`](../application/use-cases.md#ensureuserusersexecuteuser_id-username)),
+so the frontend can call this right after sign-in.
+
+| Status | When | Body |
+|---|---|---|
+| `200` | Always, for a valid token | `UserResponse`: `id` (the identity provider's user id, a UUID: equal to the token's `sub`), `username`, `created_at` |
+| `401` | Missing or invalid token | `{"detail": ...}` |
+
+
 ## Conventions
 
 - **Schemas** (`schemas/<subject>_schemas.py`) are separate from domain entities, so the
@@ -68,7 +82,8 @@ committed is rolled back when the session closes.
 |---|---|
 | `get_session` | the request's `Session` |
 | `get_token_verifier` | `TokenVerifier.from_env()`, cached per process |
-| `get_current_user` | the registered `User` behind the bearer token |
+| `_oauth2` | the OAuth2 (authorization code) security scheme: extracts the bearer token and documents the Keycloak login for Swagger |
+| `get_current_user` | the `User` behind the bearer token, created on first use (`EnsureUser`) |
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
 | `get_import_entry` / `get_import_kanji` | use cases with SQLAlchemy repositories on the request's session |
 

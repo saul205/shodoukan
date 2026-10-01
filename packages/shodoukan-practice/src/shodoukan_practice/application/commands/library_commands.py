@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import Generic, TypeVar
+from uuid import UUID
 
 from ...domain.entities import PracticeEntry, PracticeKanji
 from ...domain.exceptions import DictionaryItemNotFoundError
@@ -33,7 +34,7 @@ class ImportEntry:
         self._entries = entries
 
     def execute(
-        self, user_id: int, source_entry_id: int
+        self, user_id: UUID, source_entry_id: int
     ) -> ImportResult[PracticeEntry]:
         existing = self._entries.get_by_source_entry_id(source_entry_id, user_id)
         if existing is not None:
@@ -58,7 +59,7 @@ class ImportKanji:
         self._dictionary = dictionary
         self._kanji = kanji
 
-    def execute(self, user_id: int, literal: str) -> ImportResult[PracticeKanji]:
+    def execute(self, user_id: UUID, literal: str) -> ImportResult[PracticeKanji]:
         existing = self._kanji.get_by_literal(literal, user_id)
         if existing is not None:
             return ImportResult(existing, created=False)

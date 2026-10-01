@@ -50,7 +50,7 @@ N+1 queries.
 
 ## `add_if_absent`
 
-Used by imports. It inserts inside a **savepoint** (`session.begin_nested()`). If the
+Used by imports and by `EnsureUser` (users, keyed by their primary key, the provider's UUID). It inserts inside a **savepoint** (`session.begin_nested()`). If the
 user's unique constraint fires (`UNIQUE(user_id, source_entry_id)` or
 `UNIQUE(user_id, literal)`), meaning a concurrent request just imported the same item,
 only the savepoint is rolled back. The existing copy is read and returned with

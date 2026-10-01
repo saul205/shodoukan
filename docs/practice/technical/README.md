@@ -14,7 +14,7 @@ and why. Coding conventions (naming, typing, testing style) live in the backend 
   - [Use cases](application/use-cases.md): what each command and query does.
 - API
   - [Endpoints](api/endpoints.md): routes, schemas, status codes, transactions, wiring.
-  - [Authentication](api/authentication.md): Keycloak bearer tokens, 401 vs 403.
+  - [Authentication](api/authentication.md): Keycloak sign-in, token checks, auto-created users, Swagger login.
 - Domain
   - [Entities](domain/entities.md): aggregates, practice state, timestamps.
   - [Repository ports](domain/repository-ports.md): the persistence contracts.
@@ -52,5 +52,6 @@ the page to update:
 | Test fixtures, factories, CI | [testing.md](testing.md) |
 | `application/` (commands, queries) | [application/use-cases.md](application/use-cases.md) |
 | `api/routes/`, `api/schemas/`, `api/app.py`, `api/deps.py` | [api/endpoints.md](api/endpoints.md) |
-| `api/auth.py`, `get_current_user` | [api/authentication.md](api/authentication.md) |
+| `api/auth.py`, `get_current_user`, `docker/keycloak/` (realm, clients) | [api/authentication.md](api/authentication.md) |
+| `docker-compose.yml`, `.env.example`, `.env.keycloak.example` | [cross-cutting/configuration.md](cross-cutting/configuration.md) |
 | A new layer or area | Add a folder here, link it above and in this table |

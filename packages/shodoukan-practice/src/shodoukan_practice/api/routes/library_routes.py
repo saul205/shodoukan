@@ -19,7 +19,6 @@ _IMPORT_RESPONSES: dict[int | str, dict[str, str]] = {
     status.HTTP_200_OK: {"description": "Already in the library; returned as is."},
     status.HTTP_201_CREATED: {"description": "Imported into the library."},
     status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid token."},
-    status.HTTP_403_FORBIDDEN: {"description": "User not registered."},
     status.HTTP_404_NOT_FOUND: {"description": "Not in the dictionary."},
 }
 
@@ -38,7 +37,7 @@ def import_entry(
     use_case: Annotated[ImportEntry, Depends(get_import_entry)],
 ) -> PracticeEntryResponse:
     """Copy a dictionary entry into the current user's library."""
-    result = use_case.execute(_user_id(user.id), body.entry_id)
+    result = use_case.execute(user.id, body.entry_id)
     session.commit()
     if not result.created:
         response.status_code = status.HTTP_200_OK
@@ -59,15 +58,8 @@ def import_kanji(
     use_case: Annotated[ImportKanji, Depends(get_import_kanji)],
 ) -> PracticeKanjiResponse:
     """Copy a dictionary kanji into the current user's library."""
-    result = use_case.execute(_user_id(user.id), body.literal)
+    result = use_case.execute(user.id, body.literal)
     session.commit()
     if not result.created:
         response.status_code = status.HTTP_200_OK
     return PracticeKanjiResponse.model_validate(result.item)
-
-
-def _user_id(user_id: int | None) -> int:
-    # Users from the repository are always stored, so they have an id.
-    if user_id is None:
-        raise RuntimeError("stored user without id")
-    return user_id

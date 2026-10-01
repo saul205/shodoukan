@@ -2,14 +2,15 @@
 
 from collections.abc import Iterable
 from typing import Protocol
+from uuid import UUID
 
 from ..entities import EntryCollection, PracticeEntry
 
 
 class PracticeEntryRepository(Protocol):
-    def get(self, entry_id: int, user_id: int) -> PracticeEntry | None: ...
+    def get(self, entry_id: int, user_id: UUID) -> PracticeEntry | None: ...
 
-    def get_many(self, ids: Iterable[int], user_id: int) -> list[PracticeEntry]: ...
+    def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeEntry]: ...
 
     def list_by_collection(
         self, collection: EntryCollection, limit: int, offset: int
@@ -18,7 +19,7 @@ class PracticeEntryRepository(Protocol):
         ...
 
     def get_by_source_entry_id(
-        self, source_entry_id: int, user_id: int
+        self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:
         """The user's copy of dictionary entry `source_entry_id`, if imported."""
         ...

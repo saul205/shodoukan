@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from tokens import TokenFactory, bearer
@@ -5,6 +7,7 @@ from tokens import TokenFactory, bearer
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyPracticeEntryRepository,
+    SqlAlchemyUserRepository,
 )
 
 
@@ -94,12 +97,17 @@ def test_invalid_token_is_401(client: TestClient, user: UserORM) -> None:
     assert response.status_code == 401
 
 
-def test_unregistered_user_is_403(
-    client: TestClient, make_token: TokenFactory, user: UserORM
+def test_first_request_of_a_new_identity_creates_its_user(
+    client: TestClient, make_token: TokenFactory, session: Session
 ) -> None:
+    provider_id = uuid4()
     response = client.post(
         "/library/entries",
         json={"entry_id": 1000001},
-        headers=bearer(make_token("sub-nobody")),
+        headers=bearer(make_token(str(provider_id), preferred_username="newbie")),
     )
-    assert response.status_code == 403
+
+    assert response.status_code == 201
+    created = SqlAlchemyUserRepository(session).get(provider_id)
+    assert created is not None
+    assert created.username == "newbie"

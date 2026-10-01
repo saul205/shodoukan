@@ -14,6 +14,8 @@ holds. Their ids come from different tables and can collide, so repositories
 take the typed entity rather than a bare id.
 """
 
+from uuid import UUID
+
 from pydantic import Field
 
 from .timestamped_entity import TimestampedEntity
@@ -23,7 +25,7 @@ class Collection(TimestampedEntity):
     """Shared base; instantiate `EntryCollection` or `KanjiCollection`."""
 
     id: int | None
-    user_id: int
+    user_id: UUID
     name: str = Field(min_length=1)
     description: str | None = None
 

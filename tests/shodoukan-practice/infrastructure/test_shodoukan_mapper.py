@@ -1,3 +1,5 @@
+from factories import USER_ID
+
 from shodoukan.models.entry import (
     CrossReference,
     Entry,
@@ -65,10 +67,10 @@ def make_dictionary_entry() -> Entry:
 
 
 def test_entry_becomes_a_fresh_snapshot_for_the_user() -> None:
-    practice = shodoukan_entry_to_practice(make_dictionary_entry(), user_id=3)
+    practice = shodoukan_entry_to_practice(make_dictionary_entry(), user_id=USER_ID)
 
     assert practice.id is None
-    assert practice.user_id == 3
+    assert practice.user_id == USER_ID
     assert practice.source_entry_id == 1000001
     assert practice.jlpt == 5
     assert practice.is_common is True
@@ -78,7 +80,7 @@ def test_entry_becomes_a_fresh_snapshot_for_the_user() -> None:
 
 
 def test_entry_keeps_every_language_and_marks_items_imported() -> None:
-    sense = shodoukan_entry_to_practice(make_dictionary_entry(), 3).senses[0]
+    sense = shodoukan_entry_to_practice(make_dictionary_entry(), USER_ID).senses[0]
 
     assert [(g.text, g.lang) for g in sense.glosses] == [
         ("to eat", "eng"),
@@ -89,7 +91,7 @@ def test_entry_keeps_every_language_and_marks_items_imported() -> None:
 
 
 def test_dictionary_ids_are_not_copied_to_nested_items() -> None:
-    practice = shodoukan_entry_to_practice(make_dictionary_entry(), 3)
+    practice = shodoukan_entry_to_practice(make_dictionary_entry(), USER_ID)
     sense = practice.senses[0]
 
     assert practice.readings[0].id is None
@@ -114,10 +116,10 @@ def test_kanji_becomes_a_fresh_snapshot_for_the_user() -> None:
         ],
     )
 
-    practice = shodoukan_kanji_to_practice(kanji, user_id=3)
+    practice = shodoukan_kanji_to_practice(kanji, user_id=USER_ID)
 
     assert practice.id is None
-    assert practice.user_id == 3
+    assert practice.user_id == USER_ID
     assert practice.literal == "食"
     assert [r.text for r in practice.on_readings] == ["ショク", "ジキ"]
     assert [r.text for r in practice.kun_readings] == ["た.べる"]

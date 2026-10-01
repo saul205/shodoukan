@@ -1,6 +1,7 @@
 """Domain entities used across the practice infrastructure tests."""
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from shodoukan_practice.domain.entities import (
     EntryCollection,
@@ -19,12 +20,16 @@ from shodoukan_practice.domain.entities import (
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
+# Practice users are keyed by the identity provider's user id (a UUID).
+USER_ID = UUID("8f14e45f-ceea-467a-9575-2ad4a6a1a001")
+OTHER_USER_ID = UUID("8f14e45f-ceea-467a-9575-2ad4a6a1a002")
+
 # For ORM rows built directly in tests: the database has no timestamp defaults.
 TIMESTAMPS = {"created_at": NOW, "updated_at": NOW}
 
 
 def make_entry(
-    user_id: int, source_entry_id: int = 1000001, *, is_active: bool = True
+    user_id: UUID, source_entry_id: int = 1000001, *, is_active: bool = True
 ) -> PracticeEntry:
     return PracticeEntry(
         id=None,
@@ -71,7 +76,7 @@ def make_entry(
 
 
 def make_kanji(
-    user_id: int, literal: str = "食", *, is_active: bool = True
+    user_id: UUID, literal: str = "食", *, is_active: bool = True
 ) -> PracticeKanji:
     return PracticeKanji(
         id=None,
@@ -97,13 +102,13 @@ def make_kanji(
     )
 
 
-def make_entry_collection(user_id: int, name: str = "verbs") -> EntryCollection:
+def make_entry_collection(user_id: UUID, name: str = "verbs") -> EntryCollection:
     return EntryCollection(
         id=None, user_id=user_id, name=name, created_at=NOW, updated_at=NOW
     )
 
 
-def make_kanji_collection(user_id: int, name: str = "N5") -> KanjiCollection:
+def make_kanji_collection(user_id: UUID, name: str = "N5") -> KanjiCollection:
     return KanjiCollection(
         id=None, user_id=user_id, name=name, created_at=NOW, updated_at=NOW
     )

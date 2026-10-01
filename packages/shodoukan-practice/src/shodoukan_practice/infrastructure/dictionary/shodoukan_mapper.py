@@ -7,6 +7,8 @@ purpose: priority tags, cross references, search scores and example
 provenance (`source_name`, `source_id`).
 """
 
+from uuid import UUID
+
 from shodoukan.models.entry import Entry, Example, Sense
 from shodoukan.models.kanji import Kanji
 
@@ -24,7 +26,7 @@ from ...domain.entities import (
 )
 
 
-def shodoukan_entry_to_practice(entry: Entry, user_id: int) -> PracticeEntry:
+def shodoukan_entry_to_practice(entry: Entry, user_id: UUID) -> PracticeEntry:
     return PracticeEntry(
         id=None,
         user_id=user_id,
@@ -74,7 +76,7 @@ def _example(example: Example) -> PracticeExample:
     )
 
 
-def shodoukan_kanji_to_practice(kanji: Kanji, user_id: int) -> PracticeKanji:
+def shodoukan_kanji_to_practice(kanji: Kanji, user_id: UUID) -> PracticeKanji:
     return PracticeKanji(
         id=None,
         user_id=user_id,

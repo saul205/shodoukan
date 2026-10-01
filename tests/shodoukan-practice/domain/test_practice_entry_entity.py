@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 from shodoukan_practice.domain.entities import (
     PracticeEntry,
@@ -11,12 +12,13 @@ from shodoukan_practice.domain.entities import (
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
+USER_ID = UUID("8f14e45f-ceea-467a-9575-2ad4a6a1a001")
 
 
 def make_entry() -> PracticeEntry:
     return PracticeEntry(
         id=1,
-        user_id=1,
+        user_id=USER_ID,
         source_entry_id=1000001,
         kanji_readings=[
             PracticeKanjiReading(id=1, kanji="食べる", info=[]),

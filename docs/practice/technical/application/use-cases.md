@@ -30,10 +30,17 @@ Returns `ImportResult[PracticeEntry]` (`item`, `created`).
 Same flow for kanji, keyed by `literal` (`kanji.get_by_literal`,
 `dictionary.new_practice_kanji`).
 
-## Queries (`queries/user_queries.py`)
+## Commands (`commands/user_commands.py`)
 
-### `GetRegisteredUser(users).execute(subject)`
+### `EnsureUser(users).execute(user_id, username)`
 
-Returns the practice user whose `subject` is the identity provider's user id (the
-token's `sub`). Raises `UserNotRegisteredError` if there's none. Users aren't created
-on first sight; see [decisions](../decisions.md#unregistered-users-are-rejected).
+Returns the practice user whose `id` is `user_id`, the identity provider's user id
+(the token's `sub`, a UUID), **creating it** with that same id if this is the
+identity's first request. `username`
+(the token's `preferred_username`) is only used on creation. Creation goes through
+`users.add_if_absent`, so two concurrent first requests create a single user. See
+[decisions](../decisions.md#users-are-created-on-their-first-request).
+
+## Queries
+
+None yet. `queries/` is added with the first read use case.

@@ -29,8 +29,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from db_helpers import SCHEMA, seed  # type: ignore[import-not-found]
-from factories import TIMESTAMPS
-from tokens import ISSUER, TokenFactory
+from factories import OTHER_USER_ID, TIMESTAMPS, USER_ID
+from tokens import DEFAULT_SUBJECT, ISSUER, TokenFactory
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def session(engine: Engine) -> Iterator[Session]:
 
 @pytest.fixture
 def user(session: Session) -> UserORM:
-    user = UserORM(subject="sub-saul", username="saul", **TIMESTAMPS)
+    user = UserORM(id=USER_ID, username="saul", **TIMESTAMPS)
     session.add(user)
     session.flush()
     return user
@@ -76,7 +76,7 @@ def user(session: Session) -> UserORM:
 
 @pytest.fixture
 def other_user(session: Session) -> UserORM:
-    other = UserORM(subject="sub-other", username="other", **TIMESTAMPS)
+    other = UserORM(id=OTHER_USER_ID, username="other", **TIMESTAMPS)
     session.add(other)
     session.flush()
     return other
@@ -105,7 +105,7 @@ def signing_key() -> rsa.RSAPrivateKey:
 @pytest.fixture
 def make_token(signing_key: rsa.RSAPrivateKey) -> TokenFactory:
     def _make(
-        subject: str = "sub-saul",
+        subject: str = DEFAULT_SUBJECT,
         *,
         issuer: str = ISSUER,
         expires_in: timedelta = timedelta(minutes=5),

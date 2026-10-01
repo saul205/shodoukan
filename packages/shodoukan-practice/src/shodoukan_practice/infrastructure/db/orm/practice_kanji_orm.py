@@ -6,6 +6,7 @@ On-readings, kun-readings and nanori share one table, told apart by `kind`.
 from __future__ import annotations
 
 import datetime
+import uuid
 
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, true
 from sqlalchemy.orm import Mapped, mapped_column
@@ -27,7 +28,7 @@ class PracticeKanjiORM(Base):
     __table_args__ = (UniqueConstraint("user_id", "literal"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     literal: Mapped[str] = mapped_column(String(8))

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from uuid import UUID
 
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
@@ -20,11 +21,11 @@ class SqlAlchemyEntryCollectionRepository(EntryCollectionRepository):
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get(self, collection_id: int, user_id: int) -> EntryCollection | None:
+    def get(self, collection_id: int, user_id: UUID) -> EntryCollection | None:
         row = self._get_row(collection_id, user_id)
         return entry_collection_to_domain(row) if row else None
 
-    def list_for_user(self, user_id: int) -> list[EntryCollection]:
+    def list_for_user(self, user_id: UUID) -> list[EntryCollection]:
         query = (
             select(EntryCollectionORM)
             .where(EntryCollectionORM.user_id == user_id)
@@ -106,7 +107,7 @@ class SqlAlchemyEntryCollectionRepository(EntryCollectionRepository):
         self._session.delete(self._require_row(collection))
         self._session.flush()
 
-    def _get_row(self, collection_id: int, user_id: int) -> EntryCollectionORM | None:
+    def _get_row(self, collection_id: int, user_id: UUID) -> EntryCollectionORM | None:
         query = select(EntryCollectionORM).where(
             EntryCollectionORM.id == collection_id,
             EntryCollectionORM.user_id == user_id,

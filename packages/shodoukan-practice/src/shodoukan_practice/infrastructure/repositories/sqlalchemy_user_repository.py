@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from uuid import UUID
+
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ...domain.entities import User
@@ -13,15 +15,23 @@ class SqlAlchemyUserRepository(UserRepository):
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get(self, user_id: int) -> User | None:
+    def get(self, user_id: UUID) -> User | None:
         row = self._session.get(UserORM, user_id)
         return user_to_domain(row) if row else None
 
-    def get_by_subject(self, subject: str) -> User | None:
-        row = self._session.scalars(
-            select(UserORM).where(UserORM.subject == subject)
-        ).one_or_none()
-        return user_to_domain(row) if row else None
+    def add_if_absent(self, user: User) -> tuple[User, bool]:
+        row = user_to_db(user)
+        try:
+            # Savepoint: a concurrent first request for the same user
+            # (primary-key clash) rolls back only this insert.
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError:
+            existing = self.get(user.id)
+            if existing is None:
+                raise
+            return existing, False
+        return user_to_domain(row), True
 
     def add(self, user: User) -> User:
         row = user_to_db(user)

@@ -3,6 +3,7 @@
 """
 
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -31,7 +32,7 @@ class PracticeKanjiMeaning(BaseModel):
 
 class PracticeKanji(TimestampedEntity):
     id: int | None
-    user_id: int
+    user_id: UUID
     literal: str  # sole reference: shodoukan's Kanji.literal
     grade: int | None
     stroke_count: int

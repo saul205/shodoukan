@@ -2,14 +2,15 @@
 
 from collections.abc import Sequence
 from typing import Protocol
+from uuid import UUID
 
 from ..entities import EntryCollection, PracticeEntry
 
 
 class EntryCollectionRepository(Protocol):
-    def get(self, collection_id: int, user_id: int) -> EntryCollection | None: ...
+    def get(self, collection_id: int, user_id: UUID) -> EntryCollection | None: ...
 
-    def list_for_user(self, user_id: int) -> list[EntryCollection]: ...
+    def list_for_user(self, user_id: UUID) -> list[EntryCollection]: ...
 
     def list_for_item(self, entry: PracticeEntry) -> list[EntryCollection]:
         """Collections the entry belongs to (its tags)."""

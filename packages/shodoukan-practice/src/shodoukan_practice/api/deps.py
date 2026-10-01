@@ -11,15 +11,13 @@ from typing import Annotated
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import OAuth2AuthorizationCodeBearer
 from sqlalchemy.orm import Session, sessionmaker
 
 from shodoukan import Dictionary
 
-from ..application.commands import ImportEntry, ImportKanji
-from ..application.queries import GetRegisteredUser
+from ..application.commands import EnsureUser, ImportEntry, ImportKanji
 from ..domain.entities import User
-from ..domain.exceptions import UserNotRegisteredError
 from ..domain.gateways import DictionaryGateway
 from ..infrastructure.db.connection import create_db_engine, create_session_factory
 from ..infrastructure.dictionary import ShodoukanDictionaryGateway
@@ -28,7 +26,13 @@ from ..infrastructure.repositories import (
     SqlAlchemyPracticeKanjiRepository,
     SqlAlchemyUserRepository,
 )
-from .auth import TokenVerifier
+from .auth import (
+    DEFAULT_ISSUER,
+    TokenVerifier,
+    authorization_url,
+    issuer_from_env,
+    token_url,
+)
 
 # --- Infrastructure singletons (one per process) ---
 
@@ -65,31 +69,38 @@ def get_dictionary_gateway() -> DictionaryGateway:
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-_bearer = HTTPBearer(auto_error=False)
+# Declares the OAuth2 flow (authorization code + PKCE) in the OpenAPI schema, so
+# the Swagger UI can sign in with Keycloak. It only extracts the bearer token;
+# TokenVerifier does the checking. The URLs are for the docs only, so they fall
+# back to the local realm when AUTH_ISSUER isn't set (e.g. in tests).
+_issuer_for_docs = issuer_from_env() or DEFAULT_ISSUER
+_oauth2 = OAuth2AuthorizationCodeBearer(
+    authorizationUrl=authorization_url(_issuer_for_docs),
+    tokenUrl=token_url(_issuer_for_docs),
+    scopes={"openid": "OpenID Connect", "profile": "Username"},
+    auto_error=False,
+)
 
 
 def get_current_user(
     session: SessionDep,
     verifier: Annotated[TokenVerifier, Depends(get_token_verifier)],
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    token: Annotated[str | None, Depends(_oauth2)],
 ) -> User:
-    """The registered practice user behind the request's bearer token.
+    """The practice user behind the request's bearer token.
 
-    401 for a missing or invalid token, 403 for a valid token whose user
-    isn't registered.
+    401 for a missing or invalid token. A valid token from an identity
+    without a practice user creates it (see EnsureUser); the route's commit
+    persists it.
     """
-    if credentials is None:
+    if token is None:
         raise _unauthorized("missing bearer token")
     try:
-        subject = verifier.subject(credentials.credentials)
+        identity = verifier.identity(token)
     except jwt.PyJWTError as error:
         raise _unauthorized("invalid token") from error
-    try:
-        return GetRegisteredUser(SqlAlchemyUserRepository(session)).execute(subject)
-    except UserNotRegisteredError as error:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, detail="user not registered"
-        ) from error
+    users = SqlAlchemyUserRepository(session)
+    return EnsureUser(users).execute(identity.user_id, identity.username)
 
 
 CurrentUserDep = Annotated[User, Depends(get_current_user)]

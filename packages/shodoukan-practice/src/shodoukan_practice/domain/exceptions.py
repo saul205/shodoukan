@@ -15,7 +15,3 @@ class EntityNotFoundError(LookupError):
 
 class DictionaryItemNotFoundError(LookupError):
     """The dictionary has no entry or kanji with the requested id."""
-
-
-class UserNotRegisteredError(PermissionError):
-    """An authenticated identity has no practice user registered yet."""

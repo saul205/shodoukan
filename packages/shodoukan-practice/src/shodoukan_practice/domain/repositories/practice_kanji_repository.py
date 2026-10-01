@@ -2,14 +2,15 @@
 
 from collections.abc import Iterable
 from typing import Protocol
+from uuid import UUID
 
 from ..entities import KanjiCollection, PracticeKanji
 
 
 class PracticeKanjiRepository(Protocol):
-    def get(self, kanji_id: int, user_id: int) -> PracticeKanji | None: ...
+    def get(self, kanji_id: int, user_id: UUID) -> PracticeKanji | None: ...
 
-    def get_many(self, ids: Iterable[int], user_id: int) -> list[PracticeKanji]: ...
+    def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeKanji]: ...
 
     def list_by_collection(
         self, collection: KanjiCollection, limit: int, offset: int
@@ -17,7 +18,7 @@ class PracticeKanjiRepository(Protocol):
         """Active kanji in the collection, paginated in the database."""
         ...
 
-    def get_by_literal(self, literal: str, user_id: int) -> PracticeKanji | None:
+    def get_by_literal(self, literal: str, user_id: UUID) -> PracticeKanji | None:
         """The user's copy of kanji `literal`, if imported."""
         ...
 

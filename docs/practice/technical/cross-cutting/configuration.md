@@ -10,13 +10,15 @@ Environment variables, the local PostgreSQL, and how the app connects.
 |---|---|---|
 | `PRACTICE_DATABASE_URL` | app, Alembic | SQLAlchemy URL, e.g. `postgresql+psycopg://user:pass@localhost:5432/shodoukan_practice`. **Required.** There's no default, so credentials never live in code. |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `practice-db` container | Must match the URL. |
-| `AUTH_ISSUER` | API | **Required to serve requests.** Keycloak realm URL, e.g. `https://keycloak.example/realms/shodoukan`; tokens must carry it as `iss`. |
-| `AUTH_AUDIENCE` | API | Optional. When set, tokens must carry it in `aud` (needs a Keycloak audience mapper). |
+| `AUTH_ISSUER` | API | **Required to serve requests.** Realm URL; locally `http://localhost:8080/realms/shodoukan`. Tokens must carry it as `iss`. |
+| `AUTH_AUDIENCE` | API | Recommended. Tokens must carry it in `aud`; locally `shodoukan-practice`. |
 | `AUTH_JWKS_URL` | API | Optional. Defaults to `<AUTH_ISSUER>/protocol/openid-connect/certs`. |
+| `AUTH_SWAGGER_CLIENT_ID` | API docs | Optional. Client the Swagger UI signs in with; default `shodoukan-web`. |
+| `KEYCLOAK_PORT` | compose | Optional host port for Keycloak; default `8080`. Changing it also changes the issuer URL. |
 | `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
 
 Real values live in the gitignored `.env.dev` (local) or the deployment's secret
-settings. [`.env.example`](../../../../.env.example) documents every variable with
+settings. Keycloak and its database have their own file; see [Keycloak](#keycloak). [`.env.example`](../../../../.env.example) documents every variable with
 placeholder values.
 
 ## Local PostgreSQL
@@ -30,11 +32,69 @@ placeholder values.
   `depends_on: condition: service_healthy`.
 
 ```bash
-docker compose up -d practice-db
+docker compose up -d practice-db keycloak
 set -a; . ./.env.dev; set +a
 alembic -c packages/shodoukan-practice/alembic.ini upgrade head
-docker compose stop practice-db     # when done
+uvicorn shodoukan_practice.api.app:app --port 8001 --reload   # docs: http://localhost:8001/docs
+docker compose stop keycloak practice-db                       # when done
 ```
+
+## Authentication
+
+The API verifies Keycloak access tokens (see [authentication](../api/authentication.md)).
+Locally, `.env.dev` sets `AUTH_ISSUER=http://localhost:8080/realms/shodoukan` and
+`AUTH_AUDIENCE=shodoukan-practice`. `TokenVerifier.from_env()` raises at the first
+authenticated request if `AUTH_ISSUER` is missing.
+
+## Keycloak
+
+Two compose services, independent of the practice API and its database:
+
+| Service | Image | Role |
+|---|---|---|
+| `keycloak-db` | `postgres:16-alpine` | Keycloak's own database. Starts empty and Keycloak creates its tables on first start; no init scripts. Not exposed to the host. Volume `keycloak-db-data`. |
+| `keycloak` | `quay.io/keycloak/keycloak:26.3` | `start-dev --import-realm`, on `127.0.0.1:${KEYCLOAK_PORT:-8080}`. Waits for `keycloak-db`; health check on the management port (`9000/health/ready`). |
+
+- `KC_HOSTNAME=http://localhost:8080`, so tokens are issued as
+  `http://localhost:8080/realms/shodoukan` for both the browser and the API on the
+  host.
+- It imports `docker/keycloak/realm-shodoukan.json` on start, but only if the realm
+  doesn't exist yet.
+- The two databases are separate servers: Keycloak never touches the practice tables,
+  and the practice app only knows Keycloak through tokens (`sub` = `users.id`).
+
+### `.env.keycloak`
+
+Both services read the gitignored `.env.keycloak`; copy it from
+[`.env.keycloak.example`](../../../../.env.keycloak.example). It's separate from
+`.env.dev` because `keycloak-db` needs `POSTGRES_*` variables, the same names
+`practice-db` uses. Keycloak's connection values reference the database ones
+(Compose interpolates `${...}` inside env files), so each value is written once:
+
+| Variable | Read by | Description |
+|---|---|---|
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | `keycloak-db` | Database and owner created on first start |
+| `KC_DB_URL_DATABASE`, `KC_DB_USERNAME`, `KC_DB_PASSWORD` | `keycloak` | `${POSTGRES_DB}`, `${POSTGRES_USER}`, `${POSTGRES_PASSWORD}` |
+| `KC_BOOTSTRAP_ADMIN_USERNAME`, `KC_BOOTSTRAP_ADMIN_PASSWORD` | `keycloak` | First admin of the console (`http://localhost:8080/admin`) |
+
+```bash
+cp .env.keycloak.example .env.keycloak   # then set real passwords
+docker compose up -d keycloak            # starts keycloak-db first
+```
+
+To re-import the realm after editing `realm-shodoukan.json`, either reset Keycloak's
+data (`docker compose rm -sf keycloak keycloak-db && docker volume rm
+shodoukan_keycloak-db-data`), or delete just the realm and restart:
+
+```bash
+docker compose exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080 --realm master --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD"
+docker compose exec keycloak /opt/keycloak/bin/kcadm.sh delete realms/shodoukan
+docker compose restart keycloak
+```
+
+Either way the realm's users are recreated with new `sub`s, so existing practice users
+won't match them any more. Do it only on throwaway local data.
 
 ## Dictionary database
 

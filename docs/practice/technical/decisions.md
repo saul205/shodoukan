@@ -106,3 +106,46 @@ UI filters by language, and switching language never needs a re-import.
 The request's `Session` is shared by every repository it uses. Use cases don't commit;
 the route commits after the use case succeeds and before responding, so the client
 never gets a success response for a transaction that then fails to commit.
+
+## External identity provider instead of our own user management
+
+Sign-up, sign-in, password storage and reset, sessions, brute-force protection, MFA and
+social login stay with an OpenID Connect provider (Keycloak locally). Building them in
+the practice API would put the most security-sensitive code of the system in our hands
+for little gain. The API is written against the standard (signature, `iss`, `aud`,
+`exp`), so the provider can be self-hosted Keycloak or a managed service in
+production, changing configuration only.
+
+## Users are created on their first request
+
+This **replaces** "Unregistered users are rejected". The identity provider already
+decides who may sign up, so any identity it vouches for gets a practice user on its
+first request (`EnsureUser`, `GET /users/me`). There's no 403 any more. `username` is
+the provider's display name, so it isn't unique and isn't updated after creation.
+
+## Keycloak has its own database container
+
+Keycloak stores its realm, users and sessions in a dedicated `keycloak-db` Postgres,
+not in `practice-db`. It starts from an empty image and Keycloak creates its own
+tables, so there are no init scripts or extra users to manage. Its environment lives in
+its own `.env.keycloak`, and the identity provider can run, be upgraded or move
+independently of the practice API, as it would in production.
+
+## Users are keyed by the identity provider's UUID
+
+`users.id` **is** the provider's user id (the token's `sub`, a UUID), and every
+`user_id` foreign key is a UUID. This replaces the integer id plus `subject` column: a
+strict 1:1 with provider users, with no second id to keep in sync, and the same id in
+the API, the database and Keycloak. The cost is that the provider must issue UUID
+`sub`s (Keycloak, Cognito and Supabase do; Auth0, Google and Okta don't), and tokens
+with any other `sub` get `401`. Switching to such a provider would need an id-mapping
+column again.
+
+## Migrations squashed before the first deploy
+
+The integer-to-UUID change was folded into a single regenerated initial migration
+instead of a conversion migration, although the original initial migration had
+already been pushed to the feature branch. No environment had ever applied it (the
+practice database has never been deployed and the branch wasn't merged), so there was
+no data to convert. This is the only exception to "never edit a pushed migration", and
+it ends with the first deployment.

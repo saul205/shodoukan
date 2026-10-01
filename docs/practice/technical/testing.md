@@ -32,9 +32,10 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `infrastructure/test_shodoukan_mapper.py` | Dictionary models → fresh practice entities, every language kept |
 | `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary |
 | `application/test_library_commands.py` | Import use cases with real repositories and the real gateway: created, already imported, per-user copies, not found |
-| `application/test_user_queries.py` | `GetRegisteredUser` |
-| `api/test_library_routes.py` | The endpoints through `TestClient`: 201/200/404/422/401/403 |
-| `api/test_auth.py` | `TokenVerifier`: expiry, issuer, signature, audience, configuration |
+| `application/test_user_commands.py` | `EnsureUser`: existing identity, first request creates, no duplicates |
+| `api/test_library_routes.py` | The import endpoints through `TestClient`: 201/200/404/422/401, and user creation on first request |
+| `api/test_user_routes.py` | `GET /users/me`, and the OAuth2 login declared in the OpenAPI schema |
+| `api/test_auth.py` | `TokenVerifier`: identity, expiry, issuer, signature, audience, configuration |
 
 ## Fixtures and helpers
 
@@ -51,17 +52,27 @@ same name in folders that aren't packages.
     because pysqlite's own transaction handling breaks savepoints (`begin_nested`,
     used by `add_if_absent`);
   - `Base.metadata.create_all`.
-- `session`, `user` (`subject="sub-saul"`), `other_user`.
+- `session`, `user` (`id=USER_ID`), `other_user` (`id=OTHER_USER_ID`).
 - `dictionary`: a real `shodoukan.Dictionary` over a temporary SQLite, built with the
   core library's `SCHEMA` and `seed` from `tests/db_helpers.py` (`auto_download=False`).
 - API: `signing_key` (an RSA key generated per test run), `make_token(subject, ...)`
-  (signs RS256 tokens with overridable claims), `verifier` (a `TokenVerifier` given
+  (signs RS256 tokens with overridable claims; the default `sub` is `str(USER_ID)`), `verifier` (a `TokenVerifier` given
   the matching public key), and `client` (a `TestClient` with `get_session`,
   `get_dictionary_gateway` and `get_token_verifier` overridden).
 - Helper modules next to `conftest.py`:
-  - `factories.py`: `make_entry`, `make_kanji`, `make_*_collection`, `NOW`, and
+  - `factories.py`: `USER_ID` / `OTHER_USER_ID` (fixed UUIDs), `make_entry`,
+    `make_kanji`, `make_*_collection`, `NOW`, and
     `TIMESTAMPS` for ORM rows built directly;
-  - `tokens.py`: `ISSUER`, `TokenFactory`, `bearer(token)`.
+  - `tokens.py`: `ISSUER`, `DEFAULT_SUBJECT`, `TokenFactory`, `bearer(token)`.
+
+## Against the real Keycloak
+
+The unit tests use locally signed tokens. To check the real sign-in end to end, start
+`practice-db` and `keycloak`, run the API on port 8001, get a token (password grant
+with `shodoukan-dev-cli`, see [authentication](api/authentication.md#local-keycloak)),
+and call `/users/me`. Scripting the browser flow (authorization code + PKCE with
+`shodoukan-web`) also works, but Keycloak's session cookies are `Secure`: browsers send
+them on `http://localhost`, while scripted HTTP clients have to forward them by hand.
 
 ## CI
 

@@ -7,6 +7,7 @@ one is a single-row write. `position` keeps the original order.
 from __future__ import annotations
 
 import datetime
+import uuid
 
 from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, UniqueConstraint, true
 from sqlalchemy.orm import Mapped, mapped_column
@@ -26,7 +27,7 @@ class PracticeEntryORM(Base):
     __table_args__ = (UniqueConstraint("user_id", "source_entry_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     source_entry_id: Mapped[int]

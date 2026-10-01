@@ -41,7 +41,10 @@ Generate against the local PostgreSQL (see
 the real engine.
 
 Don't edit a migration that has been pushed or applied anywhere shared. Add a new one
-instead. A migration that exists only locally can be regenerated.
+instead. A migration that exists only locally can be regenerated. The one exception
+was before the first deployment: the history was squashed into a single initial
+migration (see [decisions](../decisions.md#migrations-squashed-before-the-first-deploy)).
+Once any environment is deployed, migrations are append-only.
 
 ## Safety nets
 

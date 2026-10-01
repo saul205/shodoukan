@@ -6,10 +6,12 @@ from .library_schemas import (
     PracticeEntryResponse,
     PracticeKanjiResponse,
 )
+from .user_schemas import UserResponse
 
 __all__ = [
     "ImportEntryRequest",
     "ImportKanjiRequest",
     "PracticeEntryResponse",
     "PracticeKanjiResponse",
+    "UserResponse",
 ]

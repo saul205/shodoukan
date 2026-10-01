@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from uuid import UUID
 
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
@@ -20,11 +21,11 @@ class SqlAlchemyKanjiCollectionRepository(KanjiCollectionRepository):
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get(self, collection_id: int, user_id: int) -> KanjiCollection | None:
+    def get(self, collection_id: int, user_id: UUID) -> KanjiCollection | None:
         row = self._get_row(collection_id, user_id)
         return kanji_collection_to_domain(row) if row else None
 
-    def list_for_user(self, user_id: int) -> list[KanjiCollection]:
+    def list_for_user(self, user_id: UUID) -> list[KanjiCollection]:
         query = (
             select(KanjiCollectionORM)
             .where(KanjiCollectionORM.user_id == user_id)
@@ -106,7 +107,7 @@ class SqlAlchemyKanjiCollectionRepository(KanjiCollectionRepository):
         self._session.delete(self._require_row(collection))
         self._session.flush()
 
-    def _get_row(self, collection_id: int, user_id: int) -> KanjiCollectionORM | None:
+    def _get_row(self, collection_id: int, user_id: UUID) -> KanjiCollectionORM | None:
         query = select(KanjiCollectionORM).where(
             KanjiCollectionORM.id == collection_id,
             KanjiCollectionORM.user_id == user_id,

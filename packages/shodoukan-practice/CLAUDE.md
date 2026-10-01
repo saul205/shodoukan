@@ -11,9 +11,9 @@ document what" table there).
 
 Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy repositories,
 the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`),
-and the first feature: importing an entry or kanji (`POST /library/entries`,
-`POST /library/kanji`) with Keycloak bearer-token auth. Not built yet: user
-registration, collections and customisation endpoints, exercises.
+sign-in through Keycloak (users auto-created on first request, `GET /users/me`), and
+importing an entry or kanji (`POST /library/entries`, `POST /library/kanji`). Not built
+yet: collections and customisation endpoints, exercises.
 
 ## Layout
 
@@ -33,7 +33,7 @@ registration, collections and customisation endpoints, exercises.
   - `mappers/`, `migrations/`, `connection.py`.
 - `application/commands/library_commands.py`: `ImportEntry`, `ImportKanji`
   (idempotent, return `ImportResult(item, created)`).
-- `application/queries/user_queries.py`: `GetRegisteredUser`.
+- `application/commands/user_commands.py`: `EnsureUser` (creates the user on first use).
 - `api/`: `app.py`, `auth.py` (`TokenVerifier`), `deps.py` (one session per request;
   routes commit), `routes/library_routes.py`, `schemas/library_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
@@ -48,8 +48,11 @@ registration, collections and customisation endpoints, exercises.
   `kanji_collection_items` and goes through the collection repositories.
 - Every query is scoped to `user_id`. `update()` raises `EntityNotFoundError` for a
   missing or foreign row.
-- Users are identified by `User.subject` (the token's `sub`). Unknown subjects get
-  `403`: users aren't created on first request.
+- `User.id` **is** the identity provider's user id (the token's `sub`, a UUID); every
+  `user_id` is a `UUID`. Users are created on their first request. A non-UUID `sub` →
+  401. `username` is a display name, not unique.
+- Migrations are append-only from now on (the pre-deploy history was squashed into one
+  initial migration).
 - Imports keep every language. Importing again returns the existing copy (`200`);
   `add_if_absent` uses a savepoint to handle concurrent duplicates.
 - Mutating methods so far: `Collection.rename` / `describe` and
@@ -71,14 +74,18 @@ registration, collections and customisation endpoints, exercises.
   alembic -c packages/shodoukan-practice/alembic.ini check
   ```
 
-## Auth
+## Auth (Keycloak)
 
-`AUTH_ISSUER` (Keycloak realm URL) is required to serve requests. `AUTH_AUDIENCE` and
-`AUTH_JWKS_URL` are optional. See `docs/practice/technical/api/authentication.md`.
-
-```bash
-AUTH_ISSUER=https://keycloak.example/realms/shodoukan uvicorn shodoukan_practice.api.app:app --reload
-```
+- Local identity provider: `docker compose up -d keycloak` (it starts its own
+  `keycloak-db`; env in `.env.keycloak`, from `.env.keycloak.example`). The realm is
+  `docker/keycloak/realm-shodoukan.json`: clients `shodoukan-web` (PKCE; frontend and
+  Swagger) and `shodoukan-dev-cli` (password grant, local only), user `dev`/`dev`.
+- API env (`.env.dev`): `AUTH_ISSUER=http://localhost:8080/realms/shodoukan`,
+  `AUTH_AUDIENCE=shodoukan-practice`.
+- Run: `uvicorn shodoukan_practice.api.app:app --port 8001 --reload`; `/docs` has
+  **Authorize** (Keycloak login).
+- Token for scripts: `curl -s -X POST http://localhost:8080/realms/shodoukan/protocol/openid-connect/token -d grant_type=password -d client_id=shodoukan-dev-cli -d username=dev -d password=dev`.
+- Details: `docs/practice/technical/api/authentication.md`.
 
 ## Tests
 

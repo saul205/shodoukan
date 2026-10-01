@@ -12,8 +12,8 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 
 ## Contract shared by all ports
 
-- Every read is scoped to a user: methods take a `user_id`, or an entity that carries
-  it.
+- Every read is scoped to a user: methods take a `user_id` (a `UUID`), or an entity
+  that carries it.
 - Methods that act on a collection take the **typed collection entity**
   (`EntryCollection` / `KanjiCollection`), never a bare id. Entry and kanji collection
   ids come from different tables and can collide, and mypy rejects passing the wrong
@@ -25,9 +25,9 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 
 | Method | Returns |
 |---|---|
-| `get(user_id)` | `User \| None` |
-| `get_by_subject(subject)` | the user with that identity-provider id, or `None` |
+| `get(user_id)` | `User \| None` (`user_id` is the identity provider's user id, a UUID) |
 | `add(user)` | the stored `User` (with id) |
+| `add_if_absent(user)` | `(stored user, created)`: stores it unless a user with the same id exists; safe against concurrent first requests |
 
 ## `PracticeEntryRepository` / `PracticeKanjiRepository`
 

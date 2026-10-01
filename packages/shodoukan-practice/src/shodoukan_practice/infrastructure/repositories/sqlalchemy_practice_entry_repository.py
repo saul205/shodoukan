@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from uuid import UUID
 
 from sqlalchemy import Select, select
 from sqlalchemy.exc import IntegrityError
@@ -32,14 +33,14 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get(self, entry_id: int, user_id: int) -> PracticeEntry | None:
+    def get(self, entry_id: int, user_id: UUID) -> PracticeEntry | None:
         query = self._select().where(
             PracticeEntryORM.id == entry_id, PracticeEntryORM.user_id == user_id
         )
         row = self._session.scalars(query).one_or_none()
         return practice_entry_to_domain(row) if row else None
 
-    def get_many(self, ids: Iterable[int], user_id: int) -> list[PracticeEntry]:
+    def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeEntry]:
         query = (
             self._select()
             .where(
@@ -70,7 +71,7 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
 
     def get_by_source_entry_id(
-        self, source_entry_id: int, user_id: int
+        self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:
         query = self._select().where(
             PracticeEntryORM.source_entry_id == source_entry_id,
