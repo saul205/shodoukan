@@ -10,6 +10,11 @@ and why. Coding conventions (naming, typing, testing style) live in the backend 
 
 - [Architecture](architecture.md): layers, dependency rule, package map, status.
 - [Design decisions](decisions.md): why things are the way they are.
+- Application
+  - [Use cases](application/use-cases.md): what each command and query does.
+- API
+  - [Endpoints](api/endpoints.md): routes, schemas, status codes, transactions, wiring.
+  - [Authentication](api/authentication.md): Keycloak bearer tokens, 401 vs 403.
 - Domain
   - [Entities](domain/entities.md): aggregates, practice state, timestamps.
   - [Repository ports](domain/repository-ports.md): the persistence contracts.
@@ -45,4 +50,7 @@ the page to update:
 | Date handling | [cross-cutting/dates-and-time-zones.md](cross-cutting/dates-and-time-zones.md) |
 | Environment variables, docker compose, `connection.py` | [cross-cutting/configuration.md](cross-cutting/configuration.md) |
 | Test fixtures, factories, CI | [testing.md](testing.md) |
-| A new layer or area (e.g. `application/`, `api/`) | Add a folder here (`application/`, `api/`), link it above and in this table |
+| `application/` (commands, queries) | [application/use-cases.md](application/use-cases.md) |
+| `api/routes/`, `api/schemas/`, `api/app.py`, `api/deps.py` | [api/endpoints.md](api/endpoints.md) |
+| `api/auth.py`, `get_current_user` | [api/authentication.md](api/authentication.md) |
+| A new layer or area | Add a folder here, link it above and in this table |

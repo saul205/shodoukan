@@ -12,7 +12,7 @@ All entities are Pydantic models. Aggregate roots inherit
 
 | Aggregate | Module | Key fields |
 |---|---|---|
-| `User` | `user_entity.py` | `username` |
+| `User` | `user_entity.py` | `subject` (identity-provider user id, the token's `sub`), `username` |
 | `PracticeEntry` | `practice_entry_entity.py` | `user_id`, `source_entry_id`, `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active` |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active` |
 | `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (non-empty), `description` |

@@ -17,6 +17,20 @@ class PracticeEntryRepository(Protocol):
         """Active entries in the collection, paginated in the database."""
         ...
 
+    def get_by_source_entry_id(
+        self, source_entry_id: int, user_id: int
+    ) -> PracticeEntry | None:
+        """The user's copy of dictionary entry `source_entry_id`, if imported."""
+        ...
+
     def add(self, entry: PracticeEntry) -> PracticeEntry: ...
+
+    def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:
+        """Store `entry` unless the user already has it.
+
+        Returns the stored item and whether it was created. Safe against a
+        concurrent import of the same item: the existing copy is returned.
+        """
+        ...
 
     def update(self, entry: PracticeEntry) -> PracticeEntry: ...

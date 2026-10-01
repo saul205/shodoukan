@@ -25,6 +25,8 @@ repository (`item_ids`), not here.
 | `CollectionOwnershipError` | `ValueError` | Collections of different users are combined, or an item is added to another user's collection |
 | `CollectionKindMismatchError` | `ValueError` | Entry and kanji collections are combined |
 | `EntityNotFoundError` | `LookupError` | An update/delete targets something that doesn't exist or belongs to another user |
+| `DictionaryItemNotFoundError` | `LookupError` | An import asks for an entry or kanji the dictionary doesn't have (HTTP `404`) |
+| `UserNotRegisteredError` | `PermissionError` | An authenticated identity has no practice user (HTTP `403`) |
 
 ## Clock (`domain/clock.py`)
 

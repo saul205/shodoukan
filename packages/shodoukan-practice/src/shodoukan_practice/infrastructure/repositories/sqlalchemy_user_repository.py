@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ...domain.entities import User
@@ -14,6 +15,12 @@ class SqlAlchemyUserRepository(UserRepository):
 
     def get(self, user_id: int) -> User | None:
         row = self._session.get(UserORM, user_id)
+        return user_to_domain(row) if row else None
+
+    def get_by_subject(self, subject: str) -> User | None:
+        row = self._session.scalars(
+            select(UserORM).where(UserORM.subject == subject)
+        ).one_or_none()
         return user_to_domain(row) if row else None
 
     def add(self, user: User) -> User:

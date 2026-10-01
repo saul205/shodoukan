@@ -17,13 +17,14 @@ api/ ──► application/ ──► domain/ ◄── infrastructure/
 | Layer | Responsibility | May import | Status |
 |---|---|---|---|
 | `domain/` | Entities, business rules, repository ports (Protocols) | Only itself (and Pydantic) | Built: [entities](domain/entities.md), [ports](domain/repository-ports.md), [services](domain/services-and-errors.md) |
-| `application/` | Use cases: commands (write) and queries (read), transaction boundaries | `domain/` | Not built yet |
+| `application/` | Use cases: commands (write) and queries (read) | `domain/` | Built: [use cases](application/use-cases.md) |
 | `infrastructure/` | Persistence (ORM, mappers, repository implementations, migrations, DB connection) and the dictionary adapter | `domain/`, the `shodoukan` library | Built: [schema](infrastructure/database-schema.md), [ORM and mappers](infrastructure/orm-and-mappers.md), [repositories](infrastructure/repositories.md), [migrations](infrastructure/migrations.md), [dictionary gateway](infrastructure/dictionary-gateway.md) |
-| `api/` | FastAPI routes, request/response schemas, dependency wiring (`deps.py`) | `application/`, and `infrastructure/` for wiring only | Not built yet |
+| `api/` | FastAPI routes, request/response schemas, authentication, dependency wiring (`deps.py`), commit per request | `application/`, and `infrastructure/` for wiring only | Built: [endpoints](api/endpoints.md), [authentication](api/authentication.md) |
 
-`infrastructure/` implements the ports defined in `domain/`. `api/deps.py` will open
-one `Session` per request, build the concrete repositories, hand them to use cases and
-commit at the end (see [repositories](infrastructure/repositories.md#transactions)).
+`infrastructure/` implements the ports defined in `domain/`. `api/deps.py` opens one
+`Session` per request, builds the concrete repositories and the dictionary gateway,
+and hands them to use cases. The route commits after the use case succeeds (see
+[endpoints](api/endpoints.md#transactions)).
 
 ## Package map
 
@@ -38,7 +39,9 @@ packages/shodoukan-practice/
       repositories/                   *_repository.py, Protocol ports
       gateways/                       *_gateway.py, ports to external sources
       services/                       *_service.py, pure business rules
-    application/                      (scaffold)
+    application/
+      commands/                       *_commands.py, write use cases
+      queries/                        *_queries.py, read use cases
     infrastructure/
       db/connection.py
       db/orm/                         *_orm.py + base_orm.py
@@ -46,7 +49,12 @@ packages/shodoukan-practice/
       db/migrations/                  env.py, script.py.mako, versions/
       repositories/                   sqlalchemy_*_repository.py
       dictionary/                     shodoukan gateway + anti-corruption mapper
-    api/                              (scaffold) app.py, deps.py, routes/, schemas/
+    api/
+      app.py                          FastAPI app, domain error → HTTP mapping
+      auth.py                         TokenVerifier (Keycloak, RS256 via JWKS)
+      deps.py                         wiring: session, verifier, current user, use cases
+      routes/                         *_routes.py
+      schemas/                        *_schemas.py, request/response models
 ```
 
 Module names follow `<subject>_<role>.py`; packages are plural and classes singular.

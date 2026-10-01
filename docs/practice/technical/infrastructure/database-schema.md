@@ -11,7 +11,7 @@ The models that define these tables are described in
 
 | Table | Parent | Constraints and notes |
 |---|---|---|
-| `users` | — | `UNIQUE(username)` |
+| `users` | — | `subject` (identity-provider user id, `UNIQUE`), `UNIQUE(username)` |
 | `practice_entries` | `users` | `UNIQUE(user_id, source_entry_id)` |
 | `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled` |
 | `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled` |

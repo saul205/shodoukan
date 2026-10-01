@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 
 from sqlalchemy import Select, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from ...domain.entities import EntryCollection, PracticeEntry
@@ -67,6 +68,30 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
             .offset(offset)
         )
         return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
+
+    def get_by_source_entry_id(
+        self, source_entry_id: int, user_id: int
+    ) -> PracticeEntry | None:
+        query = self._select().where(
+            PracticeEntryORM.source_entry_id == source_entry_id,
+            PracticeEntryORM.user_id == user_id,
+        )
+        row = self._session.scalars(query).one_or_none()
+        return practice_entry_to_domain(row) if row else None
+
+    def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:
+        row = practice_entry_to_db(entry)
+        try:
+            # Savepoint: a unique-constraint clash (a concurrent import of the
+            # same item) rolls back only this insert, not the caller's work.
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError:
+            existing = self.get_by_source_entry_id(entry.source_entry_id, entry.user_id)
+            if existing is None:
+                raise
+            return existing, False
+        return practice_entry_to_domain(row), True
 
     def add(self, entry: PracticeEntry) -> PracticeEntry:
         row = practice_entry_to_db(entry)

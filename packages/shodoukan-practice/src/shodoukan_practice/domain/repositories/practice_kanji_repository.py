@@ -17,6 +17,18 @@ class PracticeKanjiRepository(Protocol):
         """Active kanji in the collection, paginated in the database."""
         ...
 
+    def get_by_literal(self, literal: str, user_id: int) -> PracticeKanji | None:
+        """The user's copy of kanji `literal`, if imported."""
+        ...
+
     def add(self, kanji: PracticeKanji) -> PracticeKanji: ...
+
+    def add_if_absent(self, kanji: PracticeKanji) -> tuple[PracticeKanji, bool]:
+        """Store `kanji` unless the user already has it.
+
+        Returns the stored item and whether it was created. Safe against a
+        concurrent import of the same item: the existing copy is returned.
+        """
+        ...
 
     def update(self, kanji: PracticeKanji) -> PracticeKanji: ...

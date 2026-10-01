@@ -10,8 +10,10 @@ document what" table there).
 ## Status
 
 Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy repositories,
-and the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`).
-Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined yet.
+the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`),
+and the first feature: importing an entry or kanji (`POST /library/entries`,
+`POST /library/kanji`) with Keycloak bearer-token auth. Not built yet: user
+registration, collections and customisation endpoints, exercises.
 
 ## Layout
 
@@ -29,6 +31,11 @@ Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined y
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`
     per aggregate.
   - `mappers/`, `migrations/`, `connection.py`.
+- `application/commands/library_commands.py`: `ImportEntry`, `ImportKanji`
+  (idempotent, return `ImportResult(item, created)`).
+- `application/queries/user_queries.py`: `GetRegisteredUser`.
+- `api/`: `app.py`, `auth.py` (`TokenVerifier`), `deps.py` (one session per request;
+  routes commit), `routes/library_routes.py`, `schemas/library_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
 - `infrastructure/dictionary/`: `ShodoukanDictionaryGateway` and `shodoukan_mapper.py`
   (the anti-corruption layer). Wired in `api/deps.py` (cached `Dictionary()`).
@@ -41,6 +48,10 @@ Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined y
   `kanji_collection_items` and goes through the collection repositories.
 - Every query is scoped to `user_id`. `update()` raises `EntityNotFoundError` for a
   missing or foreign row.
+- Users are identified by `User.subject` (the token's `sub`). Unknown subjects get
+  `403`: users aren't created on first request.
+- Imports keep every language. Importing again returns the existing copy (`200`);
+  `add_if_absent` uses a savepoint to handle concurrent duplicates.
 - Mutating methods so far: `Collection.rename` / `describe` and
   `PracticeEntry` / `PracticeKanji.activate` / `deactivate`. Add new ones with their use
   cases; each calls `touch()`.
@@ -60,14 +71,26 @@ Scaffolds only: `application/`, `api/`. Use cases and exercises aren't defined y
   alembic -c packages/shodoukan-practice/alembic.ini check
   ```
 
+## Auth
+
+`AUTH_ISSUER` (Keycloak realm URL) is required to serve requests. `AUTH_AUDIENCE` and
+`AUTH_JWKS_URL` are optional. See `docs/practice/technical/api/authentication.md`.
+
+```bash
+AUTH_ISSUER=https://keycloak.example/realms/shodoukan uvicorn shodoukan_practice.api.app:app --reload
+```
+
 ## Tests
 
 - `pytest tests/shodoukan-practice` (domain + infrastructure).
-- `tests/shodoukan-practice/infrastructure/conftest.py`: SQLite `StaticPool` engine with
-  FKs on. Fixtures `engine`, `session`, `user`, `other_user`.
-- `infrastructure/factories.py`: `make_entry`, `make_kanji`, `make_*_collection`,
-  `NOW`, `TIMESTAMPS`.
+- `tests/shodoukan-practice/conftest.py` (the only conftest; mypy rejects duplicate
+  module names): SQLite engine with FKs on, savepoint-safe, cross-thread for
+  `TestClient`. Fixtures: `engine`, `session`, `user`, `other_user`, `dictionary`,
+  `signing_key`, `make_token`, `verifier`, `client`.
+- Helpers next to it: `factories.py` (`make_entry`, `make_kanji`, `make_*_collection`,
+  `NOW`, `TIMESTAMPS`) and `tokens.py` (`ISSUER`, `bearer`).
 - The `dictionary` fixture is a real `shodoukan.Dictionary` seeded from the core
   `tests/db_helpers.py`.
+- Layout: `domain/`, `application/`, `infrastructure/`, `api/`.
 - `infrastructure/test_migrations.py` is the migration drift test. CI also runs the
   migrations on a throwaway PostgreSQL.

@@ -81,3 +81,28 @@ time, since imported items are snapshots. Considered and rejected for now:
 The port makes an HTTP adapter a drop-in replacement if the services need to be split.
 The gateway returns domain entities, and an anti-corruption mapper keeps the
 dictionary's models out of the domain.
+
+## Keycloak, with the API as a resource server
+
+Users sign in with Keycloak (OIDC). The API only verifies access tokens (RS256 against
+the realm's JWKS, plus `exp`, `iss` and optionally `aud`) and identifies the user by
+`sub`, stored as `users.subject`. No passwords or login code live in this repo.
+
+## Unregistered users are rejected
+
+A valid token whose `sub` has no practice user gets `403`. Users aren't created on
+first sight; a registration use case will create them. This keeps account creation
+an explicit step.
+
+## Imports are idempotent and keep every language
+
+Importing an item the user already has returns that copy (`200`) instead of failing,
+so double clicks and retries are harmless. A concurrent duplicate is handled with a
+savepoint (`add_if_absent`). The snapshot keeps every language the dictionary has: the
+UI filters by language, and switching language never needs a re-import.
+
+## One session per request; routes commit
+
+The request's `Session` is shared by every repository it uses. Use cases don't commit;
+the route commits after the use case succeeds and before responding, so the client
+never gets a success response for a transaction that then fails to commit.

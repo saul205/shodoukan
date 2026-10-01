@@ -26,6 +26,7 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 | Method | Returns |
 |---|---|
 | `get(user_id)` | `User \| None` |
+| `get_by_subject(subject)` | the user with that identity-provider id, or `None` |
 | `add(user)` | the stored `User` (with id) |
 
 ## `PracticeEntryRepository` / `PracticeKanjiRepository`
@@ -35,7 +36,9 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 | `get(id, user_id)` | the item or `None` |
 | `get_many(ids, user_id)` | the user's items among `ids`, ordered by id |
 | `list_by_collection(collection, limit, offset)` | active items in the collection, in the order they were added, paginated |
+| `get_by_source_entry_id(source_entry_id, user_id)` / `get_by_literal(literal, user_id)` | the user's copy of that dictionary item, or `None` |
 | `add(item)` | the stored item, with ids for it and every nested part |
+| `add_if_absent(item)` | `(stored item, created)`: stores it unless the user already has it, and is safe against a concurrent import of the same item |
 | `update(item)` | the stored item. Replaces the whole snapshot: nested parts with an id are updated, those without one are inserted, missing ones are deleted |
 
 ## Collection repositories

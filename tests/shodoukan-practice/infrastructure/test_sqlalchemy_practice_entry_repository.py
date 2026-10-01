@@ -81,3 +81,27 @@ def test_update_of_unsaved_entry_fails(
 ) -> None:
     with pytest.raises(EntityNotFoundError):
         repo.update(make_entry(user.id))
+
+
+def test_get_by_source_entry_id_is_scoped_to_the_owner(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM, other_user: UserORM
+) -> None:
+    added = repo.add(make_entry(user.id))
+
+    assert repo.get_by_source_entry_id(1000001, user.id) == added
+    assert repo.get_by_source_entry_id(1000001, other_user.id) is None
+
+
+def test_add_if_absent_creates_once(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM, session: Session
+) -> None:
+    first, created = repo.add_if_absent(make_entry(user.id))
+    again, created_again = repo.add_if_absent(make_entry(user.id))
+
+    assert created is True
+    assert created_again is False
+    assert again == first
+    # The failed insert only rolled back its savepoint: the session still works.
+    session.commit()
+    assert first.id is not None
+    assert repo.get(first.id, user.id) == first

@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 
 from sqlalchemy import Select, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from ...domain.entities import KanjiCollection, PracticeKanji
@@ -58,6 +59,27 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
             .offset(offset)
         )
         return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
+
+    def get_by_literal(self, literal: str, user_id: int) -> PracticeKanji | None:
+        query = self._select().where(
+            PracticeKanjiORM.literal == literal, PracticeKanjiORM.user_id == user_id
+        )
+        row = self._session.scalars(query).one_or_none()
+        return practice_kanji_to_domain(row) if row else None
+
+    def add_if_absent(self, kanji: PracticeKanji) -> tuple[PracticeKanji, bool]:
+        row = practice_kanji_to_db(kanji)
+        try:
+            # Savepoint: a unique-constraint clash (a concurrent import of the
+            # same item) rolls back only this insert, not the caller's work.
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError:
+            existing = self.get_by_literal(kanji.literal, kanji.user_id)
+            if existing is None:
+                raise
+            return existing, False
+        return practice_kanji_to_domain(row), True
 
     def add(self, kanji: PracticeKanji) -> PracticeKanji:
         row = practice_kanji_to_db(kanji)

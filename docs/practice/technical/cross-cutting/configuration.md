@@ -10,6 +10,9 @@ Environment variables, the local PostgreSQL, and how the app connects.
 |---|---|---|
 | `PRACTICE_DATABASE_URL` | app, Alembic | SQLAlchemy URL, e.g. `postgresql+psycopg://user:pass@localhost:5432/shodoukan_practice`. **Required.** There's no default, so credentials never live in code. |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `practice-db` container | Must match the URL. |
+| `AUTH_ISSUER` | API | **Required to serve requests.** Keycloak realm URL, e.g. `https://keycloak.example/realms/shodoukan`; tokens must carry it as `iss`. |
+| `AUTH_AUDIENCE` | API | Optional. When set, tokens must carry it in `aud` (needs a Keycloak audience mapper). |
+| `AUTH_JWKS_URL` | API | Optional. Defaults to `<AUTH_ISSUER>/protocol/openid-connect/certs`. |
 | `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
 
 Real values live in the gitignored `.env.dev` (local) or the deployment's secret

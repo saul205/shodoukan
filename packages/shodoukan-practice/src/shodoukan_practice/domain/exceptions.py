@@ -11,3 +11,11 @@ class CollectionKindMismatchError(ValueError):
 
 class EntityNotFoundError(LookupError):
     """The entity doesn't exist or doesn't belong to the given user."""
+
+
+class DictionaryItemNotFoundError(LookupError):
+    """The dictionary has no entry or kanji with the requested id."""
+
+
+class UserNotRegisteredError(PermissionError):
+    """An authenticated identity has no practice user registered yet."""
