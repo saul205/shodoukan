@@ -37,6 +37,7 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 | `get_many(ids, user_id)` | the user's items among `ids`, ordered by id |
 | `list_by_collection(collection, limit, offset)` | active items in the collection, in the order they were added, paginated |
 | `get_by_source_entry_id(source_entry_id, user_id)` / `get_by_literal(literal, user_id)` | the user's copy of that dictionary item, or `None` |
+| `practice_ids_by_source_entry_id(source_entry_ids, user_id)` / `practice_ids_by_literal(literals, user_id)` | `{source_entry_id or literal: practice id}` for the ones the user has imported; reads two columns, no snapshot |
 | `add(item)` | the stored item, with ids for it and every nested part |
 | `add_if_absent(item)` | `(stored item, created)`: stores it unless the user already has it, and is safe against a concurrent import of the same item |
 | `update(item)` | the stored item. Replaces the whole snapshot: nested parts with an id are updated, those without one are inserted, missing ones are deleted |
@@ -65,3 +66,9 @@ Read-only access to the shodoukan dictionary. It returns **fresh practice entiti
 |---|---|
 | `new_practice_entry(source_entry_id, user_id)` | a `PracticeEntry` snapshot of the dictionary entry, or `None` if it doesn't exist |
 | `new_practice_kanji(literal, user_id)` | a `PracticeKanji` snapshot of the dictionary kanji, or `None` |
+| `search(query, lang, limit, offset)` | `DictionarySearchResult`: a page of `DictionaryEntry`s and the related `DictionaryKanji`s |
+
+The `Dictionary*` read models (`DictionaryEntry`, `DictionarySense`, `DictionaryGloss`,
+`DictionaryKanji`, `DictionaryEntryPage`, `DictionarySearchResult`, ...) are defined
+with the port in `dictionary_gateway.py`. They're the practice app's own contract for
+showing dictionary data: frozen, with no practice state and no `shodoukan` types.

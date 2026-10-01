@@ -63,8 +63,9 @@ See the Naming section of the backend skill.
 ## Relationship with the dictionary
 
 The practice app uses the `shodoukan` library **in-process**, behind the
-`DictionaryGateway` port, just as `shodoukan-api` uses it. It reads the dictionary
-only when importing. An imported entry or kanji is a snapshot stored in the practice
+`DictionaryGateway` port, just as `shodoukan-api` uses it. It reads the dictionary to
+search (`GET /dictionary/search`) and to import. The two apps are standalone and
+don't call each other. An imported entry or kanji is a snapshot stored in the practice
 database, and the only link back is `source_entry_id` (shodoukan `Entry.id`) or
 `literal` (shodoukan `Kanji.literal`). See the
 [dictionary gateway](infrastructure/dictionary-gateway.md) and

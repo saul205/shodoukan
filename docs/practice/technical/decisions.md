@@ -149,3 +149,27 @@ already been pushed to the feature branch. No environment had ever applied it (t
 practice database has never been deployed and the branch wasn't merged), so there was
 no data to convert. This is the only exception to "never edit a pushed migration", and
 it ends with the first deployment.
+
+## Import status is a separate request from dictionary search
+
+The dictionary page searches with `shodoukan-api`'s public `GET /search` and, in
+parallel, asks the practice API `GET /library/imported` with the ids of the results.
+Search is the same for everyone: public, cacheable, and no sign-in needed to browse.
+Import status is per user: it needs a token and the practice database. Merging them
+would make every search require sign-in, defeat shared caching, make search depend on
+PostgreSQL, and duplicate `shodoukan-api`'s search in the practice API. The cost is a
+second, short request. Searching the user's own imported data (the collection page)
+is a separate, future use case.
+
+## The practice app has its own dictionary search
+
+The dictionary and the practice app are **standalone applications** that may evolve
+separately. So the practice API exposes `GET /dictionary/search` itself instead of
+relying on `shodoukan-api` being up, and the dictionary page searches there. This
+partly supersedes "Import status is a separate request from dictionary search": status
+is still a separate per-user request, but the search now comes from the practice API.
+Nothing is reimplemented: both apps call the `shodoukan` library's `Dictionary.search`,
+so query detection and ranking stay identical, and search changes belong in the
+library. The response has `shodoukan-api`'s shape (so UI components can serve both)
+but is the practice API's own read model (`Dictionary*`), translated in the
+anti-corruption mapper so the two APIs' contracts can diverge.

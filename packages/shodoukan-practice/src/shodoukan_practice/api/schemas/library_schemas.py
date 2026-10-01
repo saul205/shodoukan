@@ -116,3 +116,24 @@ class PracticeKanjiResponse(_Response):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ImportedEntryResponse(BaseModel):
+    source_entry_id: int
+    id: int  # the practice entry
+
+
+class ImportedKanjiResponse(BaseModel):
+    literal: str
+    id: int  # the practice kanji
+
+
+class ImportStatusResponse(BaseModel):
+    """Which of the asked-about dictionary items are in the user's library.
+
+    Only imported items are listed; anything asked about and missing here
+    isn't imported.
+    """
+
+    entries: list[ImportedEntryResponse]
+    kanji: list[ImportedKanjiResponse]

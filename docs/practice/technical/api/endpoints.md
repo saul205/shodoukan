@@ -5,7 +5,8 @@
 The HTTP API of the practice app. Code: `src/shodoukan_practice/api/`
 (`app.py`, `routes/`, `schemas/`, `deps.py`). Interactive docs at `/docs` when running.
 
-Every endpoint requires a bearer token; see [authentication](authentication.md). The
+Every endpoint except `GET /dictionary/search` requires a bearer token; see
+[authentication](authentication.md). The
 app runs on port **8001** (`shodoukan-api` uses 8000):
 `uvicorn shodoukan_practice.api.app:app --port 8001` or `shodoukan-practice`.
 
@@ -48,6 +49,86 @@ Same status codes as above. `PracticeKanjiResponse`: `id`, `literal`, `grade`,
 `stroke_count`, `freq`, `jlpt`, `on_readings`, `kun_readings`, `nanori`, `meanings`,
 `is_active`, `created_at`, `updated_at`.
 
+## `GET /dictionary/search`
+
+Public dictionary search: no token needed
+([`SearchDictionary`](../application/use-cases.md#searchdictionarydictionaryexecutequery-lang-limit-offset)).
+It runs the same `Dictionary.search` as `shodoukan-api`'s `GET /search` through the
+[dictionary gateway](../infrastructure/dictionary-gateway.md), so query detection
+(kanji, kana, romaji, meaning) and ranking are identical. The practice app doesn't
+depend on `shodoukan-api` being up. Why it's duplicated:
+[decisions](../decisions.md#the-practice-app-has-its-own-dictionary-search).
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `q` | string, min 1 | required | Kanji, kana, Hepburn romaji or a meaning |
+| `lang` | string | `en` | ISO 639-1 language meanings are matched in; results keep every language |
+| `limit` | int, 1–100 | `20` | Entries per page |
+| `offset` | int, ≥ 0 | `0` | Entries to skip |
+
+| Status | When | Body |
+|---|---|---|
+| `200` | Always | `DictionarySearchResponse` |
+| `422` | Missing or empty `q`, or out-of-range `limit` / `offset` | validation errors |
+
+`DictionarySearchResponse` has the same shape as `shodoukan-api`'s response, so
+frontend components can render either. It's this API's own model, so the two apps
+can evolve separately:
+
+```json
+{
+  "entries": {
+    "items": [{ "id": 1358280, "kanji_readings": [...], "readings": [...],
+                "senses": [...], "jlpt": 5, "is_common": true }],
+    "total": 2, "limit": 20, "offset": 0
+  },
+  "kanji": [{ "literal": "食", "on_readings": ["ショク", "ジキ"], "meanings": [...], ... }]
+}
+```
+
+Entry `id` is what `POST /library/entries` takes as `entry_id`, and kanji `literal`
+is what `POST /library/kanji` takes. Compared to `shodoukan-api`, the practice API
+omits priority tags, nested row ids, example provenance and debug scores, and cross
+references use `sense_index`.
+
+## `GET /library/imported`
+
+Which of a set of dictionary items the current user has already imported
+([`GetImportStatus`](../application/use-cases.md#getimportstatusentries-kanjiexecuteuser_id-source_entry_ids-literals)).
+It's meant for the dictionary page: the page searches with
+[`GET /dictionary/search`](#get-dictionarysearch) (public), then asks this in parallel
+with the ids of the results, to enable or disable each Import button. Why two requests:
+[decisions](../decisions.md#import-status-is-a-separate-request-from-dictionary-search).
+
+Query parameters, each repeated, up to 100 of each (one search page):
+
+```
+GET /library/imported?entry_ids=1358280&entry_ids=2847337&literals=食&literals=噇
+```
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `entry_ids` | int, repeated | Dictionary entry ids (`Entry.id` from the search) |
+| `literals` | one character, repeated | Kanji from the search |
+
+| Status | When | Body |
+|---|---|---|
+| `200` | Always, for a valid token | `ImportStatusResponse` |
+| `401` | Missing or invalid token | `{"detail": ...}` |
+| `422` | More than 100 of a kind, or a `literals` value that isn't one character | validation errors |
+
+`ImportStatusResponse` lists **only the imported items**, with their practice ids.
+Anything asked about and missing from the response isn't imported:
+
+```json
+{
+  "entries": [{ "source_entry_id": 1358280, "id": 1 }],
+  "kanji": [{ "literal": "食", "id": 3 }]
+}
+```
+
+Deactivated items still count as imported.
+
 ## `GET /users/me`
 
 The current user's practice profile. On the first request of a new identity, the user
@@ -66,6 +147,10 @@ so the frontend can call this right after sign-in.
   API contract doesn't change when the domain does. Responses are built with
   `model_validate(entity)` (`from_attributes`).
 - **Dates** are ISO 8601 UTC with `Z`; see [dates](../cross-cutting/dates-and-time-zones.md).
+- **CORS:** the frontend calls the API from the browser with an `Authorization`
+  header, so `app.py` enables CORS for `CORS_ORIGINS` (methods `GET`/`POST`, headers
+  `Authorization`/`Content-Type`). It's the same variable `shodoukan-api` uses; see
+  [configuration](../cross-cutting/configuration.md).
 - **Domain errors → HTTP:** `DictionaryItemNotFoundError` → `404` (exception handler
   in `app.py`). Authentication errors are raised as `HTTPException`s in `deps.py`.
 
@@ -85,7 +170,8 @@ committed is rolled back when the session closes.
 | `_oauth2` | the OAuth2 (authorization code) security scheme: extracts the bearer token and documents the Keycloak login for Swagger |
 | `get_current_user` | the `User` behind the bearer token, created on first use (`EnsureUser`) |
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
-| `get_import_entry` / `get_import_kanji` | use cases with SQLAlchemy repositories on the request's session |
+| `get_import_entry` / `get_import_kanji` / `get_import_status` | use cases with SQLAlchemy repositories on the request's session |
+| `get_search_dictionary` | `SearchDictionary` over the dictionary gateway (no session, no user) |
 
 Tests replace `get_session`, `get_dictionary_gateway` and `get_token_verifier` with
 `app.dependency_overrides`.

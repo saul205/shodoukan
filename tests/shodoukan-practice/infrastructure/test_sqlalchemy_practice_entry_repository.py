@@ -105,3 +105,16 @@ def test_add_if_absent_creates_once(
     session.commit()
     assert first.id is not None
     assert repo.get(first.id, user.id) == first
+
+
+def test_practice_ids_by_source_entry_id_lists_only_the_users_imports(
+    repo: SqlAlchemyPracticeEntryRepository,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    mine = repo.add(make_entry(user.id, 1000001))
+    repo.add(make_entry(other_user.id, 1000002))
+
+    found = repo.practice_ids_by_source_entry_id([1000001, 1000002, 999], user.id)
+
+    assert found == {1000001: mine.id}

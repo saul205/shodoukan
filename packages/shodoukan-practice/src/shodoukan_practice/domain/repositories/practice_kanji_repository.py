@@ -22,6 +22,15 @@ class PracticeKanjiRepository(Protocol):
         """The user's copy of kanji `literal`, if imported."""
         ...
 
+    def practice_ids_by_literal(
+        self, literals: Iterable[str], user_id: UUID
+    ) -> dict[str, int]:
+        """`{literal: practice id}` for the ones the user has imported.
+
+        Lightweight: no snapshot is loaded.
+        """
+        ...
+
     def add(self, kanji: PracticeKanji) -> PracticeKanji: ...
 
     def add_if_absent(self, kanji: PracticeKanji) -> tuple[PracticeKanji, bool]:

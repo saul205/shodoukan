@@ -34,3 +34,23 @@ def test_new_practice_kanji_from_the_dictionary(dictionary: Dictionary) -> None:
 def test_unknown_kanji_is_none(dictionary: Dictionary) -> None:
     gateway = ShodoukanDictionaryGateway(dictionary)
     assert gateway.new_practice_kanji("龘", user_id=USER_ID) is None
+
+
+def test_search_by_japanese(dictionary: Dictionary) -> None:
+    result = ShodoukanDictionaryGateway(dictionary).search(
+        "食べる", lang="en", limit=20, offset=0
+    )
+
+    assert [e.id for e in result.entries.items] == [1000001]
+    assert result.entries.total == 1
+
+
+def test_search_by_romaji_and_by_meaning(dictionary: Dictionary) -> None:
+    gateway = ShodoukanDictionaryGateway(dictionary)
+
+    by_romaji = gateway.search("taberu", lang="en", limit=20, offset=0)
+    by_meaning = gateway.search("water", lang="en", limit=20, offset=0)
+
+    assert 1000001 in [e.id for e in by_romaji.entries.items]
+    assert [e.id for e in by_meaning.entries.items] == [1000002]
+    assert "水" in [k.literal for k in by_meaning.kanji]

@@ -13,6 +13,7 @@ Environment variables, the local PostgreSQL, and how the app connects.
 | `AUTH_ISSUER` | API | **Required to serve requests.** Realm URL; locally `http://localhost:8080/realms/shodoukan`. Tokens must carry it as `iss`. |
 | `AUTH_AUDIENCE` | API | Recommended. Tokens must carry it in `aud`; locally `shodoukan-practice`. |
 | `AUTH_JWKS_URL` | API | Optional. Defaults to `<AUTH_ISSUER>/protocol/openid-connect/certs`. |
+| `CORS_ORIGINS` | API | Comma-separated browser origins allowed to call the API; default `http://localhost:3000`. Shared with `shodoukan-api`. |
 | `AUTH_SWAGGER_CLIENT_ID` | API docs | Optional. Client the Swagger UI signs in with; default `shodoukan-web`. |
 | `KEYCLOAK_PORT` | compose | Optional host port for Keycloak; default `8080`. Changing it also changes the issuer URL. |
 | `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
@@ -38,6 +39,11 @@ alembic -c packages/shodoukan-practice/alembic.ini upgrade head
 uvicorn shodoukan_practice.api.app:app --port 8001 --reload   # docs: http://localhost:8001/docs
 docker compose stop keycloak practice-db                       # when done
 ```
+
+In VS Code, the **Practice API** launch configuration does the same with the debugger
+attached. Its `practice: prepare` task starts `practice-db` and `keycloak` (waiting
+until they're healthy), applies the migrations, and then runs uvicorn on port 8001
+with `.env.dev` loaded.
 
 ## Authentication
 

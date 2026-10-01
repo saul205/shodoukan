@@ -7,13 +7,16 @@ from shodoukan.models.entry import (
     ExampleSentence,
     Gloss,
     KanjiReading,
+    Page,
     Reading,
     Sense,
 )
 from shodoukan.models.kanji import Kanji, KanjiMeaning
+from shodoukan.models.search import SearchResult
 from shodoukan_practice.infrastructure.dictionary import (
     shodoukan_entry_to_practice,
     shodoukan_kanji_to_practice,
+    shodoukan_search_to_dictionary,
 )
 
 
@@ -128,3 +131,42 @@ def test_kanji_becomes_a_fresh_snapshot_for_the_user() -> None:
         ("eat", "en", "imported"),
         ("comer", "es", "imported"),
     ]
+
+
+def test_search_result_becomes_read_models() -> None:
+    result = SearchResult(
+        entries=Page(items=[make_dictionary_entry()], total=7, limit=1, offset=2),
+        kanji=[
+            Kanji(
+                literal="食",
+                grade=2,
+                stroke_count=9,
+                freq=316,
+                jlpt=4,
+                on_readings=["ショク"],
+                kun_readings=["た.べる"],
+                nanori=[],
+                meanings=[KanjiMeaning(text="eat", lang="en")],
+            )
+        ],
+    )
+
+    found = shodoukan_search_to_dictionary(result)
+
+    assert (found.entries.total, found.entries.limit, found.entries.offset) == (7, 1, 2)
+    entry = found.entries.items[0]
+    assert entry.id == 1000001
+    assert entry.is_common is True
+    sense = entry.senses[0]
+    assert [(g.text, g.lang) for g in sense.glosses] == [
+        ("to eat", "eng"),
+        ("comer", "spa"),
+    ]
+    assert sense.cross_references[0].reference == "食う"
+    assert sense.cross_references[0].sense_index is None
+    assert [s.text for s in sense.examples[0].sentences] == [
+        "ご飯を食べる。",
+        "I eat rice.",
+    ]
+    assert found.kanji[0].on_readings == ["ショク"]
+    assert found.kanji[0].meanings[0].text == "eat"

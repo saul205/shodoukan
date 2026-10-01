@@ -24,6 +24,15 @@ class PracticeEntryRepository(Protocol):
         """The user's copy of dictionary entry `source_entry_id`, if imported."""
         ...
 
+    def practice_ids_by_source_entry_id(
+        self, source_entry_ids: Iterable[int], user_id: UUID
+    ) -> dict[int, int]:
+        """`{source_entry_id: practice id}` for the ones the user has imported.
+
+        Lightweight: no snapshot is loaded.
+        """
+        ...
+
     def add(self, entry: PracticeEntry) -> PracticeEntry: ...
 
     def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:

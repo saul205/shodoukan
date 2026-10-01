@@ -30,10 +30,12 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `infrastructure/test_sqlalchemy_*_repository.py` | Each repository through its port, including owner scoping and membership |
 | `infrastructure/test_migrations.py` | Migrations match the models; downgrade works |
 | `infrastructure/test_shodoukan_mapper.py` | Dictionary models → fresh practice entities, every language kept |
-| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary |
+| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary: snapshots, and search by Japanese, romaji and meaning |
 | `application/test_library_commands.py` | Import use cases with real repositories and the real gateway: created, already imported, per-user copies, not found |
+| `application/test_library_queries.py` | `GetImportStatus`: only the user's imports, empty input |
 | `application/test_user_commands.py` | `EnsureUser`: existing identity, first request creates, no duplicates |
-| `api/test_library_routes.py` | The import endpoints through `TestClient`: 201/200/404/422/401, and user creation on first request |
+| `api/test_library_routes.py` | The library endpoints through `TestClient`: import (201/200/404/422/401), import status (only the user's imports, limits, validation), user creation on first request, CORS preflight |
+| `api/test_dictionary_routes.py` | `GET /dictionary/search`: public, the same shape as shodoukan-api, pagination, validation, and that results can be imported |
 | `api/test_user_routes.py` | `GET /users/me`, and the OAuth2 login declared in the OpenAPI schema |
 | `api/test_auth.py` | `TokenVerifier`: identity, expiry, issuer, signature, audience, configuration |
 

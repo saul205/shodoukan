@@ -2,8 +2,8 @@
 
 [← Technical documentation](../README.md)
 
-How the practice app reads the shodoukan dictionary, and how dictionary data becomes
-practice entities. Code: `src/shodoukan_practice/infrastructure/dictionary/`.
+How the practice app reads the shodoukan dictionary, both to import items and to
+search, and how dictionary data becomes practice models. Code: `src/shodoukan_practice/infrastructure/dictionary/`.
 
 ## Integration model
 
@@ -31,6 +31,7 @@ mean writing a new adapter; use cases wouldn't change.
 |---|---|---|
 | `new_practice_entry(source_entry_id, user_id)` | `Dictionary.get_entry(id)` | a fresh `PracticeEntry`, or `None` |
 | `new_practice_kanji(literal, user_id)` | `Dictionary.get_kanji(literal)` | a fresh `PracticeKanji`, or `None` |
+| `search(query, lang, limit, offset)` | `Dictionary.search(...)` | `DictionarySearchResult` read models |
 
 "Fresh" means not stored yet: all ids are `None`, every part is enabled, and
 glosses, examples and meanings have `origin="imported"`. Both dictionary calls return
@@ -50,6 +51,16 @@ practice entities. The domain never imports `shodoukan`.
 | `Kanji.on_readings` / `kun_readings` / `nanori` (strings) | `PracticeReadingItem`s | each gets its own identity |
 | `priority`, `cross_references`, `score`, example `source_name` / `source_id` | dropped | not needed for practice |
 
+## Search
+
+`search` delegates to `Dictionary.search`, the same function `shodoukan-api`'s
+`/search` uses, so results, ranking and query detection are identical. Nothing is
+reimplemented: improvements to search belong in the `shodoukan` library and reach both
+apps. `shodoukan_search_to_dictionary(result)` maps the results to the read models,
+which keep the entry `id` and kanji `literal` (what the import endpoints take), every
+language, cross-references (`sense_idx` becomes `sense_index`) and examples. Priority
+tags, nested row ids, example provenance and debug scores are dropped.
+
 ## Wiring
 
 `api/deps.py`:
@@ -58,7 +69,8 @@ practice entities. The domain never imports `shodoukan`.
   It's read-only, so it's safe to share. Its path comes from `SHODOUKAN_DB_PATH` (or
   the library's default), and the file is downloaded on first use if it's missing.
   See [configuration](../cross-cutting/configuration.md#dictionary-database).
-- `get_dictionary_gateway()` returns a `ShodoukanDictionaryGateway` around it.
+- `get_dictionary_gateway()` returns a `ShodoukanDictionaryGateway` around it. It
+  serves both the import use cases and `SearchDictionary`.
 
 ## Tests
 

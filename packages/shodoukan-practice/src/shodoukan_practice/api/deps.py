@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from shodoukan import Dictionary
 
 from ..application.commands import EnsureUser, ImportEntry, ImportKanji
+from ..application.queries import GetImportStatus, SearchDictionary
 from ..domain.entities import User
 from ..domain.gateways import DictionaryGateway
 from ..infrastructure.db.connection import create_db_engine, create_session_factory
@@ -118,6 +119,19 @@ def get_import_kanji(
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> ImportKanji:
     return ImportKanji(dictionary, SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_search_dictionary(
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> SearchDictionary:
+    return SearchDictionary(dictionary)
+
+
+def get_import_status(session: SessionDep) -> GetImportStatus:
+    return GetImportStatus(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+    )
 
 
 def _unauthorized(detail: str) -> HTTPException:

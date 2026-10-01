@@ -80,6 +80,15 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         row = self._session.scalars(query).one_or_none()
         return practice_entry_to_domain(row) if row else None
 
+    def practice_ids_by_source_entry_id(
+        self, source_entry_ids: Iterable[int], user_id: UUID
+    ) -> dict[int, int]:
+        query = select(PracticeEntryORM.source_entry_id, PracticeEntryORM.id).where(
+            PracticeEntryORM.source_entry_id.in_(list(source_entry_ids)),
+            PracticeEntryORM.user_id == user_id,
+        )
+        return dict(self._session.execute(query).tuples().all())
+
     def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:
         row = practice_entry_to_db(entry)
         try:

@@ -10,6 +10,11 @@ page per use case.
 - [Signing up and signing in](account/sign-in.md): sign-in page, practice account
   created automatically.
 
+## Dictionary
+
+- [Searching the dictionary](dictionary/search.md): find words and kanji by kanji,
+  kana, romaji or meaning.
+
 ## Library
 
 - [Importing into the library](library/import.md): add a dictionary word or kanji to

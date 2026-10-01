@@ -28,6 +28,13 @@ change the copy, so the user's customisations are never overwritten. Some dictio
 details aren't copied because practice doesn't use them: frequency tags,
 cross-references between words, and where an example sentence came from.
 
+## Seeing what's already imported
+
+On the dictionary page, every result shows whether it's already in the user's
+library. Results already imported have their **Import** button disabled; the rest can
+be imported. Searching works the same for everyone, signed in or not; the import
+status is only shown to a signed-in user.
+
 ## Importing twice
 
 Importing something already in the library does nothing harmful: the user gets the

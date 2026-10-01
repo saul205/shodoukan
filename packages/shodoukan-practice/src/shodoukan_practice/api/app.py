@@ -1,10 +1,11 @@
 import os
 
 from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ..domain.exceptions import DictionaryItemNotFoundError
-from .routes import library_router, user_router
+from .routes import dictionary_router, library_router, user_router
 
 PORT = 8001  # shodoukan-api uses 8000
 
@@ -21,6 +22,15 @@ def create_app() -> FastAPI:
             "scopes": "openid profile",
         },
     )
+    # The frontend calls this API from the browser with an Authorization
+    # header, so it needs CORS (same variable as shodoukan-api).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
+    app.include_router(dictionary_router)
     app.include_router(library_router)
     app.include_router(user_router)
     app.add_exception_handler(DictionaryItemNotFoundError, _not_found)

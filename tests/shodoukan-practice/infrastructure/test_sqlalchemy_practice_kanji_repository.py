@@ -93,3 +93,16 @@ def test_add_if_absent_creates_once(
     session.commit()
     assert first.id is not None
     assert repo.get(first.id, user.id) == first
+
+
+def test_practice_ids_by_literal_lists_only_the_users_imports(
+    repo: SqlAlchemyPracticeKanjiRepository,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    mine = repo.add(make_kanji(user.id, "食"))
+    repo.add(make_kanji(other_user.id, "水"))
+
+    found = repo.practice_ids_by_literal(["食", "水", "龘"], user.id)
+
+    assert found == {"食": mine.id}

@@ -111,3 +111,75 @@ def test_first_request_of_a_new_identity_creates_its_user(
     created = SqlAlchemyUserRepository(session).get(provider_id)
     assert created is not None
     assert created.username == "newbie"
+
+
+def test_imported_lists_what_the_user_has(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    headers = bearer(make_token())
+    entry = client.post("/library/entries", json={"entry_id": 1000001}, headers=headers)
+    kanji = client.post("/library/kanji", json={"literal": "食"}, headers=headers)
+
+    response = client.get(
+        "/library/imported",
+        params={"entry_ids": [1000001, 1000002], "literals": ["食", "水"]},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "entries": [{"source_entry_id": 1000001, "id": entry.json()["id"]}],
+        "kanji": [{"literal": "食", "id": kanji.json()["id"]}],
+    }
+
+
+def test_imported_ignores_other_users_imports(
+    client: TestClient, make_token: TokenFactory, user: UserORM, other_user: UserORM
+) -> None:
+    client.post(
+        "/library/entries",
+        json={"entry_id": 1000001},
+        headers=bearer(make_token(str(other_user.id))),
+    )
+
+    response = client.get(
+        "/library/imported",
+        params={"entry_ids": [1000001]},
+        headers=bearer(make_token()),
+    )
+
+    assert response.json() == {"entries": [], "kanji": []}
+
+
+def test_imported_validates_its_parameters(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    headers = bearer(make_token())
+
+    too_many = client.get(
+        "/library/imported", params={"entry_ids": list(range(101))}, headers=headers
+    )
+    not_a_kanji = client.get(
+        "/library/imported", params={"literals": ["食べ"]}, headers=headers
+    )
+
+    assert too_many.status_code == 422
+    assert not_a_kanji.status_code == 422
+
+
+def test_imported_requires_a_token(client: TestClient) -> None:
+    assert client.get("/library/imported").status_code == 401
+
+
+def test_cors_allows_the_frontend(client: TestClient) -> None:
+    response = client.options(
+        "/library/imported",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "Authorization",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"

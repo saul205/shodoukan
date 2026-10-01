@@ -41,6 +41,22 @@ identity's first request. `username`
 `users.add_if_absent`, so two concurrent first requests create a single user. See
 [decisions](../decisions.md#users-are-created-on-their-first-request).
 
-## Queries
+## Queries (`queries/dictionary_queries.py`)
 
-None yet. `queries/` is added with the first read use case.
+### `SearchDictionary(dictionary).execute(query, lang, limit, offset)`
+
+Dictionary search through the [dictionary gateway](../infrastructure/dictionary-gateway.md#search).
+It returns the gateway's `DictionarySearchResult` read models. It needs no user: the
+results are the same for everyone, and import status is
+[`GetImportStatus`](#getimportstatusentries-kanjiexecuteuser_id-source_entry_ids-literals).
+
+## Queries (`queries/library_queries.py`)
+
+### `GetImportStatus(entries, kanji).execute(user_id, source_entry_ids, literals)`
+
+Which of the given dictionary items the user has imported, e.g. a page of search
+results. Returns `ImportStatus(entries={source_entry_id: practice_id},
+kanji={literal: practice_id})` with only the imported ones. Duplicates in the input
+are ignored, and an empty input skips the query. It uses the repositories' lightweight
+lookups (`practice_ids_by_source_entry_id`, `practice_ids_by_literal`), which read two
+columns and load no snapshots.

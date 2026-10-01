@@ -1,6 +1,8 @@
-"""Anti-corruption layer: shodoukan dictionary models -> practice entities.
+"""Anti-corruption layer: shodoukan dictionary models -> practice models.
 
-Only what the practice app needs is copied. Dictionary row ids aren't kept
+Two translations: snapshots for import (practice entities) and search
+results (the gateway's `Dictionary*` read models). Only what the practice
+app needs is copied. Dictionary row ids aren't kept
 on nested items (the snapshot gets its own ids when stored); the entry keeps
 `source_entry_id` and the kanji its `literal` as the link back. Dropped on
 purpose: priority tags, cross references, search scores and example
@@ -11,6 +13,7 @@ from uuid import UUID
 
 from shodoukan.models.entry import Entry, Example, Sense
 from shodoukan.models.kanji import Kanji
+from shodoukan.models.search import SearchResult
 
 from ...domain.entities import (
     PracticeEntry,
@@ -23,6 +26,20 @@ from ...domain.entities import (
     PracticeReading,
     PracticeReadingItem,
     PracticeSense,
+)
+from ...domain.gateways import (
+    DictionaryCrossReference,
+    DictionaryEntry,
+    DictionaryEntryPage,
+    DictionaryExample,
+    DictionaryExampleSentence,
+    DictionaryGloss,
+    DictionaryKanji,
+    DictionaryKanjiMeaning,
+    DictionaryKanjiReading,
+    DictionaryReading,
+    DictionarySearchResult,
+    DictionarySense,
 )
 
 
@@ -97,3 +114,85 @@ def shodoukan_kanji_to_practice(kanji: Kanji, user_id: UUID) -> PracticeKanji:
 
 def _items(texts: list[str]) -> list[PracticeReadingItem]:
     return [PracticeReadingItem(id=None, text=text) for text in texts]
+
+
+# --- Search results -> read models
+
+
+def shodoukan_search_to_dictionary(result: SearchResult) -> DictionarySearchResult:
+    return DictionarySearchResult(
+        entries=DictionaryEntryPage(
+            items=[_dictionary_entry(e) for e in result.entries.items],
+            total=result.entries.total,
+            limit=result.entries.limit,
+            offset=result.entries.offset,
+        ),
+        kanji=[_dictionary_kanji(k) for k in result.kanji],
+    )
+
+
+def _dictionary_entry(entry: Entry) -> DictionaryEntry:
+    return DictionaryEntry(
+        id=entry.id,
+        kanji_readings=[
+            DictionaryKanjiReading(kanji=kr.kanji, info=list(kr.info))
+            for kr in entry.kanji_readings
+        ],
+        readings=[
+            DictionaryReading(
+                text=r.text,
+                no_kanji=r.no_kanji,
+                info=list(r.info),
+                restricted_to=list(r.restricted_to),
+            )
+            for r in entry.readings
+        ],
+        senses=[_dictionary_sense(s) for s in entry.senses],
+        jlpt=entry.jlpt,
+        is_common=entry.is_common,
+    )
+
+
+def _dictionary_sense(sense: Sense) -> DictionarySense:
+    return DictionarySense(
+        pos=list(sense.pos),
+        misc=list(sense.misc),
+        dialects=list(sense.dialects),
+        info=list(sense.info),
+        glosses=[
+            DictionaryGloss(text=g.text, lang=g.lang, type=g.type)
+            for g in sense.glosses
+        ],
+        cross_references=[
+            DictionaryCrossReference(
+                reference=x.reference, reading=x.reading, sense_index=x.sense_idx
+            )
+            for x in sense.cross_references
+        ],
+        examples=[
+            DictionaryExample(
+                text=ex.text,
+                sentences=[
+                    DictionaryExampleSentence(lang=s.lang, text=s.text)
+                    for s in ex.sentences
+                ],
+            )
+            for ex in sense.examples
+        ],
+    )
+
+
+def _dictionary_kanji(kanji: Kanji) -> DictionaryKanji:
+    return DictionaryKanji(
+        literal=kanji.literal,
+        grade=kanji.grade,
+        stroke_count=kanji.stroke_count,
+        freq=kanji.freq,
+        jlpt=kanji.jlpt,
+        on_readings=list(kanji.on_readings),
+        kun_readings=list(kanji.kun_readings),
+        nanori=list(kanji.nanori),
+        meanings=[
+            DictionaryKanjiMeaning(text=m.text, lang=m.lang) for m in kanji.meanings
+        ],
+    )

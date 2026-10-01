@@ -68,6 +68,15 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
         row = self._session.scalars(query).one_or_none()
         return practice_kanji_to_domain(row) if row else None
 
+    def practice_ids_by_literal(
+        self, literals: Iterable[str], user_id: UUID
+    ) -> dict[str, int]:
+        query = select(PracticeKanjiORM.literal, PracticeKanjiORM.id).where(
+            PracticeKanjiORM.literal.in_(list(literals)),
+            PracticeKanjiORM.user_id == user_id,
+        )
+        return dict(self._session.execute(query).tuples().all())
+
     def add_if_absent(self, kanji: PracticeKanji) -> tuple[PracticeKanji, bool]:
         row = practice_kanji_to_db(kanji)
         try:

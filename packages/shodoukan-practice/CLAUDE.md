@@ -11,8 +11,10 @@ document what" table there).
 
 Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy repositories,
 the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`),
-sign-in through Keycloak (users auto-created on first request, `GET /users/me`), and
-importing an entry or kanji (`POST /library/entries`, `POST /library/kanji`). Not built
+sign-in through Keycloak (users auto-created on first request, `GET /users/me`), importing an entry or kanji (`POST /library/entries`, `POST /library/kanji`), and public
+dictionary search (`GET /dictionary/search`, same `Dictionary.search` as shodoukan-api),
+and the import status of search results (`GET /library/imported`). The practice and
+dictionary apps are standalone: never call shodoukan-api from here. Not built
 yet: collections and customisation endpoints, exercises.
 
 ## Layout
@@ -34,6 +36,10 @@ yet: collections and customisation endpoints, exercises.
 - `application/commands/library_commands.py`: `ImportEntry`, `ImportKanji`
   (idempotent, return `ImportResult(item, created)`).
 - `application/commands/user_commands.py`: `EnsureUser` (creates the user on first use).
+- `application/queries/library_queries.py`: `GetImportStatus`;
+  `queries/dictionary_queries.py`: `SearchDictionary`.
+- Dictionary read models (`DictionaryEntry`, `DictionarySearchResult`, ...) live with
+  the port in `domain/gateways/dictionary_gateway.py`.
 - `api/`: `app.py`, `auth.py` (`TokenVerifier`), `deps.py` (one session per request;
   routes commit), `routes/library_routes.py`, `schemas/library_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
@@ -84,6 +90,8 @@ yet: collections and customisation endpoints, exercises.
   `AUTH_AUDIENCE=shodoukan-practice`.
 - Run: `uvicorn shodoukan_practice.api.app:app --port 8001 --reload`; `/docs` has
   **Authorize** (Keycloak login).
+- VS Code: the **Practice API** launch configuration starts the services, migrates
+  (task `practice: prepare`) and runs the API with the debugger.
 - Token for scripts: `curl -s -X POST http://localhost:8080/realms/shodoukan/protocol/openid-connect/token -d grant_type=password -d client_id=shodoukan-dev-cli -d username=dev -d password=dev`.
 - Details: `docs/practice/technical/api/authentication.md`.
 
