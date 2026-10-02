@@ -141,6 +141,49 @@ so the frontend can call this right after sign-in.
 | `401` | Missing or invalid token | `{"detail": ...}` |
 
 
+## Collections
+
+Two routers with the same shape: `/collections/entries` for entry collections and
+`/collections/kanji` for kanji collections (they never mix). Code:
+`routes/collection_routes.py`, `schemas/collection_schemas.py`. All need a token.
+Lookups are scoped to the user, so another user's collection or item is a `404`, the
+same as a missing one.
+
+| Method | Route | Use case | Success |
+|---|---|---|---|
+| `GET` | `/collections/entries` | `ListEntryCollections` | `200` `list[CollectionResponse]`, by name |
+| `POST` | `/collections/entries` | `CreateEntryCollection` | `201` `CollectionResponse` |
+| `GET` | `/collections/entries/{collection_id}` | `GetEntryCollection` | `200` `CollectionResponse` |
+| `PUT` | `/collections/entries/{collection_id}` | `UpdateEntryCollection` | `200` `CollectionResponse` |
+| `DELETE` | `/collections/entries/{collection_id}` | `DeleteEntryCollection` | `204` (the entries stay in the library) |
+| `GET` | `/collections/entries/{collection_id}/items` | `ListEntryCollectionItems` | `200` `list[PracticeEntryResponse]` |
+| `PUT` | `/collections/entries/{collection_id}/items/{entry_id}` | `AddEntryToCollection` | `204`, idempotent |
+| `DELETE` | `/collections/entries/{collection_id}/items/{entry_id}` | `RemoveEntryFromCollection` | `204`, idempotent |
+
+The kanji routes are the same under `/collections/kanji`, with `{kanji_id}` and
+`PracticeKanjiResponse`. Item ids are **practice** ids (the `id` returned by the
+import), not dictionary ids.
+
+`POST` and `PUT` take a `CollectionRequest`:
+
+```json
+{ "name": "verbs", "description": "Godan and ichidan" }
+```
+
+`name` is stripped and must be 1–100 characters; `description` is optional. `PUT`
+replaces both fields, so an omitted `description` clears it. `CollectionResponse`:
+`id`, `name`, `description`, `created_at`, `updated_at`.
+
+`GET .../items` takes `limit` (1–100, default `20`) and `offset` (≥ 0, default `0`) and
+returns the active items in the order they were added.
+
+| Status | When |
+|---|---|
+| `401` | Missing or invalid token |
+| `404` | No such collection, or no such item in the user's library |
+| `409` | The user already has a collection of that kind with that name (`POST`, `PUT`) |
+| `422` | Invalid body, name, `limit` or `offset` |
+
 ## Conventions
 
 - **Schemas** (`schemas/<subject>_schemas.py`) are separate from domain entities, so the
@@ -148,11 +191,12 @@ so the frontend can call this right after sign-in.
   `model_validate(entity)` (`from_attributes`).
 - **Dates** are ISO 8601 UTC with `Z`; see [dates](../cross-cutting/dates-and-time-zones.md).
 - **CORS:** the frontend calls the API from the browser with an `Authorization`
-  header, so `app.py` enables CORS for `CORS_ORIGINS` (methods `GET`/`POST`, headers
+  header, so `app.py` enables CORS for `CORS_ORIGINS` (methods `GET`/`POST`/`PUT`/`DELETE`, headers
   `Authorization`/`Content-Type`). It's the same variable `shodoukan-api` uses; see
   [configuration](../cross-cutting/configuration.md).
-- **Domain errors → HTTP:** `DictionaryItemNotFoundError` → `404` (exception handler
-  in `app.py`). Authentication errors are raised as `HTTPException`s in `deps.py`.
+- **Domain errors → HTTP** (exception handlers in `app.py`):
+  `DictionaryItemNotFoundError` and `EntityNotFoundError` → `404`,
+  `CollectionNameTakenError` → `409`. Authentication errors are raised as `HTTPException`s in `deps.py`.
 
 ## Transactions
 
@@ -171,6 +215,7 @@ committed is rolled back when the session closes.
 | `get_current_user` | the `User` behind the bearer token, created on first use (`EnsureUser`) |
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
 | `get_import_entry` / `get_import_kanji` / `get_import_status` | use cases with SQLAlchemy repositories on the request's session |
+| `get_<use case>` for collections (`get_create_entry_collection`, `get_add_kanji_to_collection`, ...) | one factory per collection use case, with the collection and item repositories on the request's session |
 | `get_search_dictionary` | `SearchDictionary` over the dictionary gateway (no session, no user) |
 
 Tests replace `get_session`, `get_dictionary_gateway` and `get_token_verifier` with

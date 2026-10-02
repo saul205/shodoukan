@@ -181,3 +181,12 @@ repository doesn't look the name up before writing: it writes in a savepoint and
 the `UNIQUE(user_id, name)` violation into `CollectionNameTakenError`. A pre-check
 alone would let two concurrent requests both pass it, and the loser would get a `500`
 instead of a `409`.
+
+## Collection updates replace name and description
+
+`PUT /collections/{kind}/{id}` takes the whole `CollectionRequest` and replaces both
+fields, instead of a `PATCH` with optional fields. With only two editable fields the
+client always has both, and the use case stays typed (`name: str`,
+`description: str | None`) without a sentinel to tell "not sent" from "cleared". The
+cost: an omitted `description` clears it. If collections gain more fields, revisit
+with a `PATCH`.

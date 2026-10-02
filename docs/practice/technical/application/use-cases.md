@@ -30,6 +30,39 @@ Returns `ImportResult[PracticeEntry]` (`item`, `created`).
 Same flow for kanji, keyed by `literal` (`kanji.get_by_literal`,
 `dictionary.new_practice_kanji`).
 
+## Commands (`commands/collection_commands.py`)
+
+Entry and kanji collections have their own use cases with the same behavior
+(`...EntryCollection` / `...KanjiCollection`, `Add/RemoveEntry...` /
+`Add/RemoveKanji...`). Collections and items are looked up with the user's id, so a
+missing one and another user's one both raise `EntityNotFoundError`.
+
+### `CreateEntryCollection(collections).execute(user_id, name, description=None)`
+
+Stores an empty collection and returns it. `CollectionNameTakenError` if the user
+already has an entry collection with that name (entry and kanji collections may share
+one).
+
+### `UpdateEntryCollection(collections).execute(user_id, collection_id, name, description)`
+
+Replaces both editable fields through `rename` and `describe`, so `updated_at` only
+moves when something changed. `EntityNotFoundError` or `CollectionNameTakenError`.
+Why both at once: [decisions](../decisions.md#collection-updates-replace-name-and-description).
+
+### `DeleteEntryCollection(collections).execute(user_id, collection_id)`
+
+Deletes the collection and its membership links; the items stay in the library.
+
+### `AddEntryToCollection(collections, entries).execute(user_id, collection_id, entry_id)`
+
+Links a library entry (its practice id) to the collection. Idempotent. Kanji:
+`AddKanjiToCollection(collections, kanji)`.
+
+### `RemoveEntryFromCollection(collections, entries).execute(user_id, collection_id, entry_id)`
+
+Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
+exist (else `EntityNotFoundError`).
+
 ## Commands (`commands/user_commands.py`)
 
 ### `EnsureUser(users).execute(user_id, username)`
@@ -60,3 +93,19 @@ kanji={literal: practice_id})` with only the imported ones. Duplicates in the in
 are ignored, and an empty input skips the query. It uses the repositories' lightweight
 lookups (`practice_ids_by_source_entry_id`, `practice_ids_by_literal`), which read two
 columns and load no snapshots.
+
+## Queries (`queries/collection_queries.py`)
+
+### `ListEntryCollections(collections).execute(user_id)`
+
+The user's entry collections, ordered by name. `ListKanjiCollections` likewise.
+
+### `GetEntryCollection(collections).execute(user_id, collection_id)`
+
+One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
+
+### `ListEntryCollectionItems(collections, entries).execute(user_id, collection_id, limit, offset)`
+
+A page of the collection's **active** items, in the order they were added
+(`list_by_collection`). `EntityNotFoundError` if the collection isn't the user's.
+`ListKanjiCollectionItems(collections, kanji)` likewise.
