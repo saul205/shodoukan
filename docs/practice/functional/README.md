@@ -20,11 +20,15 @@ page per use case.
 - [Importing into the library](library/import.md): add a dictionary word or kanji to
   your library.
 
+## Collections
+
+- [Managing collections](collections/manage.md): group words and kanji from the
+  library, and use collections as tags.
+
 ## Not defined yet
 
 These features will get their folder once their use cases are agreed:
 
-- `collections/`: grouping items, and using collections as tags.
 - `exercises/`: practising with one or more collections.
 - More `library/` pages: browsing and customising imported items.
 

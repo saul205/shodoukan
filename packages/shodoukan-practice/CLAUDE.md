@@ -13,9 +13,10 @@ Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy reposi
 the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`),
 sign-in through Keycloak (users auto-created on first request, `GET /users/me`), importing an entry or kanji (`POST /library/entries`, `POST /library/kanji`), and public
 dictionary search (`GET /dictionary/search`, same `Dictionary.search` as shodoukan-api),
-and the import status of search results (`GET /library/imported`). The practice and
-dictionary apps are standalone: never call shodoukan-api from here. Not built
-yet: collections and customisation endpoints, exercises.
+the import status of search results (`GET /library/imported`), and collections
+(`/collections/entries`, `/collections/kanji`: CRUD plus adding, removing and paging
+items). The practice and dictionary apps are standalone: never call shodoukan-api from
+here. Not built yet: customisation endpoints, exercises.
 
 ## Layout
 
@@ -36,12 +37,16 @@ yet: collections and customisation endpoints, exercises.
 - `application/commands/library_commands.py`: `ImportEntry`, `ImportKanji`
   (idempotent, return `ImportResult(item, created)`).
 - `application/commands/user_commands.py`: `EnsureUser` (creates the user on first use).
+- `application/commands/collection_commands.py` / `queries/collection_queries.py`:
+  collection use cases, one class per use case and kind (`CreateEntryCollection`,
+  `AddKanjiToCollection`, `ListEntryCollectionItems`, ...).
 - `application/queries/library_queries.py`: `GetImportStatus`;
   `queries/dictionary_queries.py`: `SearchDictionary`.
 - Dictionary read models (`DictionaryEntry`, `DictionarySearchResult`, ...) live with
   the port in `domain/gateways/dictionary_gateway.py`.
-- `api/`: `app.py`, `auth.py` (`TokenVerifier`), `deps.py` (one session per request;
-  routes commit), `routes/library_routes.py`, `schemas/library_schemas.py`.
+- `api/`: `app.py` (maps `EntityNotFoundError` → 404, `CollectionNameTakenError` →
+  409), `auth.py` (`TokenVerifier`), `deps.py` (one session per request; routes
+  commit), `routes/*_routes.py`, `schemas/*_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
 - `infrastructure/dictionary/`: `ShodoukanDictionaryGateway` and `shodoukan_mapper.py`
   (the anti-corruption layer). Wired in `api/deps.py` (cached `Dictionary()`).
@@ -53,7 +58,9 @@ yet: collections and customisation endpoints, exercises.
 - Collections are metadata only. Membership lives in `entry_collection_items` /
   `kanji_collection_items` and goes through the collection repositories.
 - Every query is scoped to `user_id`. `update()` raises `EntityNotFoundError` for a
-  missing or foreign row.
+  missing or foreign row; the API answers 404 for both.
+- Collection names: 1–100 characters, unique per user and kind. The repository turns
+  the unique-constraint violation into `CollectionNameTakenError` (savepoint).
 - `User.id` **is** the identity provider's user id (the token's `sub`, a UUID); every
   `user_id` is a `UUID`. Users are created on their first request. A non-UUID `sub` →
   401. `username` is a display name, not unique.

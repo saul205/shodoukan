@@ -51,7 +51,8 @@ personal library, customises them, and groups them into collections (which doubl
 tags) to practise with. Built so far: the domain, PostgreSQL persistence, sign-in
 through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
 (`GET /dictionary/search`), and importing entries and kanji (`POST /library/entries`,
-`POST /library/kanji`). See the [practice app documentation](docs/practice/README.md).
+`POST /library/kanji`), and grouping them into collections (`/collections/entries`,
+`/collections/kanji`). See the [practice app documentation](docs/practice/README.md).
 
 ### Web interface *(planned)*
 
