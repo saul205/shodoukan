@@ -1,12 +1,18 @@
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from uuid import UUID
 
 from sqlalchemy import delete, insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ...domain.clock import utc_now
 from ...domain.entities import EntryCollection, PracticeEntry
-from ...domain.exceptions import CollectionOwnershipError, EntityNotFoundError
+from ...domain.exceptions import (
+    CollectionNameTakenError,
+    CollectionOwnershipError,
+    EntityNotFoundError,
+)
 from ...domain.repositories import EntryCollectionRepository
 from ..db.mappers import entry_collection_to_db, entry_collection_to_domain
 from ..db.orm import EntryCollectionORM, PracticeEntryORM, entry_collection_items
@@ -91,21 +97,50 @@ class SqlAlchemyEntryCollectionRepository(EntryCollectionRepository):
         return set(self._session.scalars(query))
 
     def add(self, collection: EntryCollection) -> EntryCollection:
+        """Raises `CollectionNameTakenError` if the user has that name already."""
         row = entry_collection_to_db(collection)
-        self._session.add(row)
-        self._session.flush()
+        with self._name_guard(collection):
+            self._session.add(row)
         return entry_collection_to_domain(row)
 
     def update(self, collection: EntryCollection) -> EntryCollection:
+        """Raises `CollectionNameTakenError` if the user has that name already."""
         self._require_row(collection)
-        row = self._session.merge(entry_collection_to_db(collection))
-        self._session.flush()
+        with self._name_guard(collection):
+            row = self._session.merge(entry_collection_to_db(collection))
         return entry_collection_to_domain(row)
 
     def delete(self, collection: EntryCollection) -> None:
         """Delete the collection and its links; the items themselves stay."""
         self._session.delete(self._require_row(collection))
         self._session.flush()
+
+    @contextmanager
+    def _name_guard(self, collection: EntryCollection) -> Iterator[None]:
+        """Flush the block's changes in a savepoint; a name clash raises
+        `CollectionNameTakenError` and rolls back only this block.
+
+        The `(user_id, name)` unique constraint is the check, so a concurrent
+        request taking the same name is caught too.
+        """
+        try:
+            with self._session.begin_nested():
+                yield
+        except IntegrityError:
+            if not self._name_taken(collection):
+                raise
+            raise CollectionNameTakenError(
+                f"a collection named {collection.name!r} already exists"
+            ) from None
+
+    def _name_taken(self, collection: EntryCollection) -> bool:
+        query = select(EntryCollectionORM.id).where(
+            EntryCollectionORM.user_id == collection.user_id,
+            EntryCollectionORM.name == collection.name,
+        )
+        if collection.id is not None:
+            query = query.where(EntryCollectionORM.id != collection.id)
+        return self._session.scalar(query) is not None
 
     def _get_row(self, collection_id: int, user_id: UUID) -> EntryCollectionORM | None:
         query = select(EntryCollectionORM).where(

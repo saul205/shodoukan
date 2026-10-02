@@ -15,3 +15,7 @@ class EntityNotFoundError(LookupError):
 
 class DictionaryItemNotFoundError(LookupError):
     """The dictionary has no entry or kanji with the requested id."""
+
+
+class CollectionNameTakenError(ValueError):
+    """The user already has a collection of that kind with that name."""

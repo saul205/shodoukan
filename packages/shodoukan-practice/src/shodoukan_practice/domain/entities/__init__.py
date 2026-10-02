@@ -1,4 +1,9 @@
-from .collection_entity import Collection, EntryCollection, KanjiCollection
+from .collection_entity import (
+    COLLECTION_NAME_MAX_LENGTH,
+    Collection,
+    EntryCollection,
+    KanjiCollection,
+)
 from .practice_entry_entity import (
     PracticeEntry,
     PracticeExample,
@@ -17,6 +22,7 @@ from .timestamped_entity import TimestampedEntity
 from .user_entity import User
 
 __all__ = [
+    "COLLECTION_NAME_MAX_LENGTH",
     "Collection",
     "EntryCollection",
     "KanjiCollection",

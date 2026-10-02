@@ -56,6 +56,14 @@ user's unique constraint fires (`UNIQUE(user_id, source_entry_id)` or
 only the savepoint is rolled back. The existing copy is read and returned with
 `created=False`, and the rest of the transaction is unaffected.
 
+## Collection names
+
+`UNIQUE(user_id, name)` on each collection table is the check for duplicate names.
+Collection `add` and `update` flush inside a **savepoint**; on an `IntegrityError` they
+look for another collection of the user with that name and, if there is one, raise
+`CollectionNameTakenError` (anything else is re-raised). Only the savepoint is rolled
+back, so the session stays usable. Why: [decisions](../decisions.md#collection-name-clashes-come-from-the-unique-constraint).
+
 ## Collection membership
 
 Membership is read and written directly on the link tables:

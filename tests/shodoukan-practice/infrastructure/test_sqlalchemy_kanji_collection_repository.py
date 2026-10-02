@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from shodoukan_practice.domain.entities import PracticeKanji
 from shodoukan_practice.domain.exceptions import (
+    CollectionNameTakenError,
     CollectionOwnershipError,
     EntityNotFoundError,
 )
@@ -153,3 +154,29 @@ def test_delete_keeps_the_items(
     assert (
         SqlAlchemyPracticeKanjiRepository(session).get(items[0].id, user.id) is not None
     )
+
+
+def test_add_with_a_taken_name_fails_and_keeps_the_session_usable(
+    repo: SqlAlchemyKanjiCollectionRepository, user: UserORM, other_user: UserORM
+) -> None:
+    kept = repo.add(make_kanji_collection(user.id, "same"))
+    theirs = repo.add(make_kanji_collection(other_user.id, "same"))
+
+    with pytest.raises(CollectionNameTakenError):
+        repo.add(make_kanji_collection(user.id, "same"))
+
+    assert theirs.name == "same"  # names are unique per user only
+    assert repo.list_for_user(user.id) == [kept]
+
+
+def test_update_to_a_taken_name_fails(
+    repo: SqlAlchemyKanjiCollectionRepository, user: UserORM
+) -> None:
+    repo.add(make_kanji_collection(user.id, "a"))
+    b = repo.add(make_kanji_collection(user.id, "b"))
+
+    with pytest.raises(CollectionNameTakenError):
+        repo.update(b.model_copy(update={"name": "a"}))
+
+    assert b.id is not None
+    assert repo.get(b.id, user.id) == b

@@ -15,7 +15,7 @@ All entities are Pydantic models. Aggregate roots inherit
 | `User` | `user_entity.py` | `id: UUID`, the identity provider's user id (the token's `sub`), so practice users map 1:1 to provider users; `username` (display name from the provider, not unique) |
 | `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id`, `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active` |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active` |
-| `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (non-empty), `description` |
+| `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description` |
 
 Everything is re-exported from `domain/entities/__init__.py`.
 

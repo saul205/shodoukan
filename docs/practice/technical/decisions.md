@@ -173,3 +173,11 @@ so query detection and ranking stay identical, and search changes belong in the
 library. The response has `shodoukan-api`'s shape (so UI components can serve both)
 but is the practice API's own read model (`Dictionary*`), translated in the
 anti-corruption mapper so the two APIs' contracts can diverge.
+
+## Collection name clashes come from the unique constraint
+
+A user can't have two entry (or two kanji) collections with the same name. The
+repository doesn't look the name up before writing: it writes in a savepoint and turns
+the `UNIQUE(user_id, name)` violation into `CollectionNameTakenError`. A pre-check
+alone would let two concurrent requests both pass it, and the loser would get a `500`
+instead of a `409`.

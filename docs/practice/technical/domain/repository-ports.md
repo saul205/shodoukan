@@ -54,7 +54,7 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 | `add_item(collection, item)` | links the item; no-op if already linked; `CollectionOwnershipError` if the item belongs to another user |
 | `remove_item(collection, item)` | unlinks the item; no-op if not linked |
 | `item_ids(collections)` | distinct ids of the **active** items across the collections |
-| `add(collection)` / `update(collection)` | the stored collection |
+| `add(collection)` / `update(collection)` | the stored collection; `CollectionNameTakenError` if the user already has a collection of that kind with that name |
 | `delete(collection)` | removes the collection and its links; the items stay |
 
 ## `DictionaryGateway`

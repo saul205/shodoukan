@@ -5,6 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from shodoukan_practice.domain.entities import (
+    COLLECTION_NAME_MAX_LENGTH,
     Collection,
     EntryCollection,
     KanjiCollection,
@@ -68,3 +69,9 @@ def test_describe_touches() -> None:
 
     assert collection.description == "Godan and ichidan"
     assert collection.updated_at > NOW
+
+
+def test_collection_name_is_at_most_100_characters() -> None:
+    assert make_collection(name="x" * COLLECTION_NAME_MAX_LENGTH).name
+    with pytest.raises(ValidationError):
+        make_collection(name="x" * (COLLECTION_NAME_MAX_LENGTH + 1))

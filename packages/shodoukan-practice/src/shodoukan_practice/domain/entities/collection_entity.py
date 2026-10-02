@@ -20,13 +20,15 @@ from pydantic import Field
 
 from .timestamped_entity import TimestampedEntity
 
+COLLECTION_NAME_MAX_LENGTH = 100
+
 
 class Collection(TimestampedEntity):
     """Shared base; instantiate `EntryCollection` or `KanjiCollection`."""
 
     id: int | None
     user_id: UUID
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=COLLECTION_NAME_MAX_LENGTH)
     description: str | None = None
 
     def rename(self, name: str) -> None:
