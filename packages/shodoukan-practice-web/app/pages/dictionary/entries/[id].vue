@@ -84,12 +84,20 @@ const senses = computed(() =>
             variant="ghost"
             size="sm"
           />
-          <ImportButton
-            :imported="status.entries.value.has(data.entry.id)"
-            :loading="status.isBusyEntry(data.entry.id)"
-            @import="status.addEntry(data.entry.id)"
-            @remove="status.removeEntry(data.entry.id)"
-          />
+          <UFieldGroup>
+            <ImportButton
+              :imported="status.entries.value.has(data.entry.id)"
+              :loading="status.isBusyEntry(data.entry.id)"
+              @import="status.addEntry(data.entry.id)"
+              @remove="status.removeEntry(data.entry.id)"
+            />
+            <CollectionMenuButton
+              kind="entries"
+              :practice-id="status.entries.value.get(data.entry.id)"
+              :loading="status.isBusyEntry(data.entry.id)"
+              @import="status.addEntry(data.entry.id, $event)"
+            />
+          </UFieldGroup>
         </div>
       </header>
 
@@ -155,14 +163,22 @@ const senses = computed(() =>
               :link-component="NuxtLink"
               :href="`/dictionary/kanji/${k.literal}`"
             />
-            <ImportButton
-              icon-only
-              :imported="status.kanji.value.has(k.literal)"
-              :loading="status.isBusyKanji(k.literal)"
-              class="absolute top-2 right-2"
-              @import="status.addKanji(k.literal)"
-              @remove="status.removeKanji(k.literal)"
-            />
+            <UFieldGroup class="absolute top-2 right-2">
+              <ImportButton
+                icon-only
+                :imported="status.kanji.value.has(k.literal)"
+                :loading="status.isBusyKanji(k.literal)"
+                @import="status.addKanji(k.literal)"
+                @remove="status.removeKanji(k.literal)"
+              />
+              <CollectionMenuButton
+                kind="kanji"
+                icon-only
+                :practice-id="status.kanji.value.get(k.literal)"
+                :loading="status.isBusyKanji(k.literal)"
+                @import="status.addKanji(k.literal, $event)"
+              />
+            </UFieldGroup>
           </div>
         </div>
       </section>

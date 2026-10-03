@@ -19,12 +19,18 @@ export function getMe(api: ApiClient): Promise<PracticeUser> {
 
 // --- Import ---
 
-export function importEntry(api: ApiClient, entryId: number): Promise<PracticeEntry> {
-  return api<PracticeEntry>('/library/entries', { method: 'POST', body: { entry_id: entryId } })
+// `collectionIds` puts the item in those collections in the same request: if
+// one isn't the user's, nothing is imported (404). Idempotent.
+
+export function importEntry(api: ApiClient, entryId: number, collectionIds: number[] = []): Promise<PracticeEntry> {
+  return api<PracticeEntry>('/library/entries', {
+    method: 'POST',
+    body: { entry_id: entryId, collection_ids: collectionIds },
+  })
 }
 
-export function importKanji(api: ApiClient, literal: string): Promise<PracticeKanji> {
-  return api<PracticeKanji>('/library/kanji', { method: 'POST', body: { literal } })
+export function importKanji(api: ApiClient, literal: string, collectionIds: number[] = []): Promise<PracticeKanji> {
+  return api<PracticeKanji>('/library/kanji', { method: 'POST', body: { literal, collection_ids: collectionIds } })
 }
 
 /** Which of these dictionary items the user has imported, with their practice ids. */

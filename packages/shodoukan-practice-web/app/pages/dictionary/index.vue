@@ -99,14 +99,22 @@ function goToPage(next: number) {
               :link-component="NuxtLink"
               :href="`/dictionary/kanji/${k.literal}`"
             />
-            <ImportButton
-              icon-only
-              :imported="status.kanji.value.has(k.literal)"
-              :loading="status.isBusyKanji(k.literal)"
-              class="absolute top-2 right-2"
-              @import="status.addKanji(k.literal)"
-              @remove="status.removeKanji(k.literal)"
-            />
+            <UFieldGroup class="absolute top-2 right-2">
+              <ImportButton
+                icon-only
+                :imported="status.kanji.value.has(k.literal)"
+                :loading="status.isBusyKanji(k.literal)"
+                @import="status.addKanji(k.literal)"
+                @remove="status.removeKanji(k.literal)"
+              />
+              <CollectionMenuButton
+                kind="kanji"
+                icon-only
+                :practice-id="status.kanji.value.get(k.literal)"
+                :loading="status.isBusyKanji(k.literal)"
+                @import="status.addKanji(k.literal, $event)"
+              />
+            </UFieldGroup>
           </div>
         </section>
 
@@ -120,14 +128,22 @@ function goToPage(next: number) {
               :details-href="`/dictionary/entries/${entry.id}`"
               details-label="detalles →"
             />
-            <ImportButton
-              icon-only
-              :imported="status.entries.value.has(entry.id)"
-              :loading="status.isBusyEntry(entry.id)"
-              class="absolute top-3 right-3"
-              @import="status.addEntry(entry.id)"
-              @remove="status.removeEntry(entry.id)"
-            />
+            <UFieldGroup class="absolute top-3 right-3">
+              <ImportButton
+                icon-only
+                :imported="status.entries.value.has(entry.id)"
+                :loading="status.isBusyEntry(entry.id)"
+                @import="status.addEntry(entry.id)"
+                @remove="status.removeEntry(entry.id)"
+              />
+              <CollectionMenuButton
+                kind="entries"
+                icon-only
+                :practice-id="status.entries.value.get(entry.id)"
+                :loading="status.isBusyEntry(entry.id)"
+                @import="status.addEntry(entry.id, $event)"
+              />
+            </UFieldGroup>
           </div>
 
           <UPagination

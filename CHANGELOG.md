@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan-practice:** `POST /library/entries` and `POST /library/kanji` take
   optional `collection_ids` to import an item straight into collections, in one
   transaction: an unknown collection imports nothing.
+- **shodoukan-practice-web:** The dictionary's import button has a folder half that
+  lists the user's collections: tick one to import the item straight into it, or to
+  add an imported item to it or take it out; "Nueva colección" creates one.
 
 ### Fixed
 

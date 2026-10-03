@@ -94,12 +94,20 @@ const stats = computed(() => {
             variant="ghost"
             size="sm"
           />
-          <ImportButton
-            :imported="status.kanji.value.has(kanji.literal)"
-            :loading="status.isBusyKanji(kanji.literal)"
-            @import="status.addKanji(kanji.literal)"
-            @remove="status.removeKanji(kanji.literal)"
-          />
+          <UFieldGroup>
+            <ImportButton
+              :imported="status.kanji.value.has(kanji.literal)"
+              :loading="status.isBusyKanji(kanji.literal)"
+              @import="status.addKanji(kanji.literal)"
+              @remove="status.removeKanji(kanji.literal)"
+            />
+            <CollectionMenuButton
+              kind="kanji"
+              :practice-id="status.kanji.value.get(kanji.literal)"
+              :loading="status.isBusyKanji(kanji.literal)"
+              @import="status.addKanji(kanji.literal, $event)"
+            />
+          </UFieldGroup>
         </div>
       </header>
 

@@ -92,12 +92,24 @@ button, title and actions).
 | Route | Screen |
 |---|---|
 | `/` | Home: the three sections |
-| `/dictionary?q=&page=` | Search; `shodoukan-ui` cards with an icon-only `ImportButton` over each card's corner (beside the card's link, not inside it): import, or remove on hover/focus with `ConfirmModal`; status from `GET /library/imported` (`useImportStatus()`) |
-| `/dictionary/entries/:id`, `/dictionary/kanji/:literal` | Dictionary details (senses, examples, kanji; readings, stroke order, words using the kanji), with a labelled `ImportButton` and, once imported, a link to the library copy. The entry page's kanji have the corner `ImportButton` too, plus "import the missing ones" (`addKanjiList`, one notification) |
+| `/dictionary?q=&page=` | Search; `shodoukan-ui` cards with an icon-only split button over each card's corner (beside the card's link, not inside it): `ImportButton` (import, or remove on hover/focus with `ConfirmModal`) and `CollectionMenuButton` (see below), in a `UFieldGroup`; status from `GET /library/imported` (`useImportStatus()`) |
+| `/dictionary/entries/:id`, `/dictionary/kanji/:literal` | Dictionary details (senses, examples, kanji; readings, stroke order, words using the kanji), with the split button (labelled `ImportButton`) and, once imported, a link to the library copy. The entry page's kanji have the corner split button too, plus "import the missing ones" (`addKanjiList`, one notification) |
 | `/library?tab=&active=&page=` | The library: words / kanji tabs, active filter, paging |
 | `/library/entries/:id`, `/library/kanji/:id` | **Shared detail page** for the library and collections: only the senses with a meaning in the chosen language (`sensesIn`); `MeaningList` (dictionary meanings only toggle; own meanings add / edit / delete), switches for spellings, readings and examples (a kanji's readings are `ReadingChips`: chips that toggle on click, hidden ones faded and struck through), `NotesEditor` (general and per sense, saved on blur), active, `ItemCollections`, removal. The kanji page puts its data under the kanji, the readings beside it and the stroke order (animation at 128 px + `KanjiStrokeGrid` at `4.5rem`) below, then the meanings |
 | `/collections?tab=` | Collections of words / kanji: create and edit (`CollectionFormModal`), delete (`ConfirmModal`) |
 | `/collections/:kind/:id` | A collection's items with paging; add from the library (`LibraryPickerModal`), remove; items open the detail page with `?collection=<id>` for the back link (`useBackLink()`) |
+
+**Importing into a collection** (`CollectionMenuButton`): the folder half of the split
+button opens a `UPopover` with the user's collections of that kind as checkboxes,
+ticked where the item is, and "Nueva colección" (`CollectionFormModal`). They load when
+the popover opens, not once per result. For an item that isn't imported yet, ticking one
+emits `import` and the page calls `useImportStatus().addEntry(id, collection)` (or
+`addKanji`), a single `POST /library/...` with `collection_ids`, so the import and the
+collection never get out of step
+([decisions](decisions.md#importing-into-collections-is-one-request)). For an imported
+item it adds or removes it with the collection endpoints. The loading and add/remove
+logic is `useItemCollections(kind, itemId)`, shared with `ItemCollections` on the
+library detail page.
 
 The detail is a page, not a modal: it has its own URL, the back button works, and it
 has room for editing. List state (tab, filter, page, query) lives in the URL for the
@@ -108,6 +120,7 @@ same reason.
 `tests/unit/` runs in happy-dom: the API client (token, 401), `safeReturnPath`, the
 service functions. `tests/components/` runs in the Nuxt environment
 (`// @vitest-environment nuxt`, `mountSuspended`): the sign-in middleware,
-`MeaningList`, `NotesEditor`, `CollectionFormModal`. They replace `useAuth` with
+`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton` (popovers
+and tooltips need the `UApp` wrapper; their content is portalled to the body). They replace `useAuth` with
 `tests/fakes.ts` (`mockNuxtImport`), because the real middleware would redirect to
 Keycloak while the test app starts.
