@@ -13,7 +13,7 @@ import {
   setEntryPartEnabled,
   setSenseNotes,
 } from '~/services/library'
-import { entryHeadword, entryReading } from '~/utils/practice-text'
+import { entryHeadword, entryReading, sensesIn } from '~/utils/practice-text'
 import { japaneseSentence, translatedSentence } from '~/utils/sentences'
 
 // A word of the library and its customisation. The same page opens from the
@@ -34,6 +34,9 @@ const { item: entry, status, saving, save } = useEditableItem<PracticeEntry>(
 )
 
 const languageLabel = computed(() => languages.find(l => l.value === lang.value)?.label ?? lang.value)
+
+// Only the senses with a meaning in the chosen language; the rest belong to other languages.
+const senses = computed(() => (entry.value ? sensesIn(entry.value, glossCode.value) : []))
 
 function meaningsOf(sense: PracticeEntry['senses'][number]) {
   return sense.glosses.filter(g => g.lang === glossCode.value)
@@ -106,7 +109,11 @@ async function remove() {
             <span class="text-xs text-dimmed">en {{ languageLabel }} · cámbialo en el menú lateral</span>
           </div>
 
-          <UCard v-for="(sense, i) in entry.senses" :key="sense.id" :ui="{ body: 'space-y-4' }">
+          <p v-if="!senses.length" class="text-sm text-muted">
+            Esta palabra no tiene significados en {{ languageLabel }}.
+          </p>
+
+          <UCard v-for="(sense, i) in senses" :key="sense.id" :ui="{ body: 'space-y-4' }">
             <div class="flex flex-wrap items-center gap-1.5">
               <span class="text-sm text-dimmed">{{ i + 1 }}.</span>
               <UBadge v-for="pos in sense.pos" :key="pos" :label="shortenPos(pos)" color="neutral" variant="subtle" size="sm" />

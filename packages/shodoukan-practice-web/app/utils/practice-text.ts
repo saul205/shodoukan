@@ -1,4 +1,4 @@
-import type { PracticeEntry, PracticeKanji } from '~/models/practice'
+import type { PracticeEntry, PracticeKanji, PracticeSense } from '~/models/practice'
 
 // How library items are named on cards and titles.
 
@@ -17,6 +17,15 @@ export function entryReading(entry: PracticeEntry): string {
 /** Enabled meanings of the entry in one language (ISO 639-2), first sense first. */
 export function entryMeanings(entry: PracticeEntry, glossLang: string): string[] {
   return entry.senses.flatMap(s => s.glosses.filter(g => g.enabled && g.lang === glossLang).map(g => g.text))
+}
+
+/**
+ * The entry's senses with at least one meaning in one language (ISO 639-2),
+ * enabled or not, imported or the user's own. Senses with meanings only in other
+ * languages belong to those languages: they show up when the user switches.
+ */
+export function sensesIn(entry: PracticeEntry, glossLang: string): PracticeSense[] {
+  return entry.senses.filter(s => s.glosses.some(g => g.lang === glossLang))
 }
 
 /** Enabled meanings of the kanji in one language (ISO 639-1). */
