@@ -83,6 +83,21 @@ export function useImportStatus() {
     })
   }
 
+  /** Import several kanji (e.g. those of a word) with a single notification. */
+  async function addKanjiList(literals: string[]) {
+    const pending = literals.filter(literal => !kanji.value.has(literal))
+    const results = await Promise.allSettled(
+      pending.map(literal => whileBusy(`kanji:${literal}`, async () => {
+        const copy = await importKanji(api, literal)
+        kanji.value = new Map(kanji.value).set(literal, copy.id)
+      })),
+    )
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+    const added = results.length - results.filter(r => r.status === 'rejected').length
+    if (added) notify.success(added === 1 ? 'Añadido a tu librería' : `${added} kanji añadidos a tu librería`)
+    if (failed) notify.failure(failed.reason, 'No se han podido importar todos')
+  }
+
   async function removeEntry(entryId: number) {
     const practiceId = entries.value.get(entryId)
     if (practiceId === undefined || !(await confirmRemoval('entry'))) return
@@ -126,6 +141,7 @@ export function useImportStatus() {
     refresh,
     addEntry,
     addKanji,
+    addKanjiList,
     removeEntry,
     removeKanji,
     isBusyEntry,

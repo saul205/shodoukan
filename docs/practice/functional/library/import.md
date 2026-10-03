@@ -13,7 +13,10 @@ page it's a labelled button. It's added to their library, ready to customise,
 group into collections and practise with.
 
 Entries and kanji are imported separately: importing a word doesn't import its kanji,
-and importing a kanji doesn't import words that use it.
+and importing a kanji doesn't import words that use it. A word's page lists its kanji
+with the same import button on each, so the user can pick the ones they want to study
+without leaving the word (兄 and 弟 from 兄弟, *kyoudai*). When more than one is missing,
+**Import the N missing** adds them all at once.
 
 ## What gets copied
 
