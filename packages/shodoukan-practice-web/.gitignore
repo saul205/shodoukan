@@ -1,0 +1,5 @@
+# Nuxt build output and generated types
+.nuxt/
+.output/
+.data/
+node_modules/

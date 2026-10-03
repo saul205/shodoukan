@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* Same fonts as the dictionary web: Inter for the UI, Noto Sans JP for Japanese. */
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-japanese: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+}
