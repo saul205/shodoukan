@@ -82,6 +82,15 @@ The port makes an HTTP adapter a drop-in replacement if the services need to be 
 The gateway returns domain entities, and an anti-corruption mapper keeps the
 dictionary's models out of the domain.
 
+## Romaji goes through a `KanaGateway` port
+
+Searching the library by reading needs romaji converted to kana and kana in both
+scripts. `shodoukan` already has those tools (the dictionary search uses them), so the
+practice app reuses them instead of keeping a second romaji table. Like the dictionary,
+they're reached through a port (`KanaGateway`, implemented by `ShodoukanKanaGateway`
+next to the dictionary gateway): the domain and use cases don't import `shodoukan`, and
+the converter can be faked in tests.
+
 ## Keycloak, with the API as a resource server
 
 Users sign in with Keycloak (OIDC). The API only verifies access tokens (RS256 against

@@ -15,6 +15,7 @@ from .dictionary_gateway import (
     DictionarySearchResult,
     DictionarySense,
 )
+from .kana_gateway import KanaForms, KanaGateway
 
 __all__ = [
     "DictionaryCrossReference",
@@ -30,4 +31,6 @@ __all__ = [
     "DictionaryReading",
     "DictionarySearchResult",
     "DictionarySense",
+    "KanaForms",
+    "KanaGateway",
 ]

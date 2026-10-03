@@ -76,3 +76,15 @@ The `Dictionary*` read models (`DictionaryEntry`, `DictionarySense`, `Dictionary
 `DictionaryKanji`, `DictionaryEntryPage`, `DictionarySearchResult`, ...) are defined
 with the port in `dictionary_gateway.py`. They're the practice app's own contract for
 showing dictionary data: frozen, with no practice state and no `shodoukan` types.
+
+## `KanaGateway`
+
+Turns what the user types into kana, for searching the library by reading
+(`kana_gateway.py`).
+
+| Method | Returns |
+|---|---|
+| `kana_forms(text)` | `KanaForms(hiragana, katakana)` when `text` is romaji (`taberu` → たべる / タベル) or kana (`パン` → ぱん / パン); `None` otherwise (English words with letters that aren't romaji, kanji, digits) |
+
+Both scripts because readings are stored in hiragana (kun-readings, most words) and
+katakana (on-readings, loanwords).

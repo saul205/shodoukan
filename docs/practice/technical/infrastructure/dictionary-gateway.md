@@ -75,6 +75,15 @@ These mirror `shodoukan-api`'s `/entries/{id}`, `/entries/{id}/kanji`, `/kanji/{
 and `/entries/by-kanji/{literal}`, except that an entry's kanji come back whole instead
 of as bare literals, so the page needs one request instead of one per kanji.
 
+## `ShodoukanKanaGateway`
+
+Implements `KanaGateway` with the `shodoukan` library's text tools: `is_romaji` /
+`to_hiragana` (Hepburn romaji, as in dictionary search) and `hiragana_to_katakana` /
+`katakana_to_hiragana`. The query is trimmed; kana-only text (including the long-vowel
+mark ー) keeps its spelling in both scripts. Anything else returns `None`. It lives here
+because it's the same in-process use of `shodoukan` behind a port as the dictionary
+([decisions](../decisions.md#romaji-goes-through-a-kanagateway-port)).
+
 ## Wiring
 
 `api/deps.py`:
@@ -89,6 +98,8 @@ of as bare literals, so the page needs one request instead of one per kanji.
 ## Tests
 
 - `infrastructure/test_shodoukan_mapper.py`: pure mapping, no database.
+- `infrastructure/test_shodoukan_kana_gateway.py`: romaji and kana in both scripts,
+  and text that isn't either.
 - `infrastructure/test_shodoukan_dictionary_gateway.py`: runs against a real
   dictionary SQLite built from the core library's test data (`tests/db_helpers.py`)
   through the `dictionary` fixture. See [testing](../testing.md).
