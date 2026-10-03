@@ -35,13 +35,6 @@ The nested snapshot is loaded eagerly with `selectinload`, one query per level
 (entry → readings, senses → glosses, examples → sentences), so lists don't trigger
 N+1 queries.
 
-## Listing the library
-
-`list_for_user` and `count_for_user` share one filter (`user_id`, plus `is_active` when
-`active` is given). The list loads the snapshot eagerly like every read and orders by
-`created_at DESC, id DESC`, so items imported at the same instant still have a stable
-order. The count is a `SELECT count(*)` that loads no snapshot.
-
 ## Searching the library
 
 `find` / `count` build one query (`_search`) shared by both, so the total always
@@ -116,8 +109,8 @@ Membership is read and written directly on the link tables:
 - `add_item` checks `item.user_id == collection.user_id`, skips the insert if the
   link exists, and stamps `added_at = utc_now()`.
 - `remove_item` deletes the link if present.
-- `list_by_collection` (on the item repositories) joins the link table, keeps active
-  items only, orders by `added_at, id`, and applies `LIMIT/OFFSET` in SQL.
+- A collection's items are read through the item repositories' `find` / `count` with
+  `InCollection` (see [Searching the library](#searching-the-library)).
 - `item_ids` returns `SELECT DISTINCT` item ids of active items across the given
   collections.
 - `list_for_item` joins the link table to return an item's collections by name.

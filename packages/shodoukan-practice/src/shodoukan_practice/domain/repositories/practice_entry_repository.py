@@ -1,4 +1,5 @@
-"""Port for the user's imported entries, including reads through a collection."""
+"""Port for the user's imported entries: loading, searching (also within a
+collection) and storing them."""
 
 from collections.abc import Iterable
 from typing import Protocol
@@ -33,30 +34,6 @@ class PracticeEntryRepository(Protocol):
         self, user_id: UUID, search: LibrarySearch, scope: SearchScope[EntryCollection]
     ) -> int:
         """How many items `find` pages through."""
-        ...
-
-    def list_for_user(
-        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
-    ) -> list[PracticeEntry]:
-        """The user's entries, most recently imported first, paginated.
-
-        `active` keeps only active (`True`) or inactive (`False`) ones; `None`
-        keeps all.
-        """
-        ...
-
-    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
-        """How many items `list_for_user` pages through."""
-        ...
-
-    def list_by_collection(
-        self, collection: EntryCollection, limit: int, offset: int
-    ) -> list[PracticeEntry]:
-        """Active entries in the collection, paginated in the database."""
-        ...
-
-    def count_by_collection(self, collection: EntryCollection) -> int:
-        """How many items `list_by_collection` pages through."""
         ...
 
     def get_by_source_entry_id(

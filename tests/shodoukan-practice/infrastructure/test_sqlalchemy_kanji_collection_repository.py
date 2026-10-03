@@ -8,11 +8,15 @@ from shodoukan_practice.domain.exceptions import (
     CollectionOwnershipError,
     EntityNotFoundError,
 )
+from shodoukan_practice.domain.searches import InCollection, LibrarySearch
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeKanjiRepository,
 )
+
+# Searches without text: they list the scope, like the library pages.
+ACTIVE = LibrarySearch(active=True)
 
 
 @pytest.fixture
@@ -94,7 +98,7 @@ def test_remove_item(
     assert repo.item_ids([collection]) == set()
 
 
-def test_list_by_collection_paginates_and_skips_inactive(
+def test_find_in_a_collection_paginates_and_can_skip_inactive(
     session: Session,
     repo: SqlAlchemyKanjiCollectionRepository,
     user: UserORM,
@@ -105,8 +109,14 @@ def test_list_by_collection_paginates_and_skips_inactive(
         repo.add_item(collection, item)
     item_repo = SqlAlchemyPracticeKanjiRepository(session)
 
-    first = item_repo.list_by_collection(collection, limit=1, offset=0)
-    rest = item_repo.list_by_collection(collection, limit=10, offset=1)
+    first = item_repo.find(user.id, ACTIVE, InCollection(collection), limit=1, offset=0)
+    rest = item_repo.find(
+        user.id,
+        LibrarySearch(active=True),
+        InCollection(collection),
+        limit=10,
+        offset=1,
+    )
 
     assert first == [items[0]]
     assert rest == [items[1]]

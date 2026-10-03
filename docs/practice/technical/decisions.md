@@ -14,7 +14,8 @@ There is one concept, `Collection`. Tagging an item is adding it to a collection
 ## Collections don't hold their members
 
 `Collection` is metadata only. Membership lives in link tables and goes through the
-repository (`add_item`, `list_by_collection`, `item_ids`), so listing cards paginates
+repository (`add_item`, `item_ids`; reading a collection's items is the item
+repositories' `find` with `InCollection`), so listing cards paginates
 and sorts in SQL, tagging is a single INSERT, and nothing loads a whole collection.
 
 ## Entry and kanji collections are subclasses

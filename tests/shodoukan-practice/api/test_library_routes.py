@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -271,3 +272,79 @@ def test_list_validates_and_requires_a_token(
     ).status_code == 422
     assert client.get("/library/entries").status_code == 401
     assert client.get("/library/kanji").status_code == 401
+
+
+def _source_ids(response_json: dict[str, Any]) -> list[int]:
+    return [item["source_entry_id"] for item in response_json["items"]]
+
+
+def test_list_entries_searches_readings_romaji_and_meanings(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    headers = bearer(make_token())
+    for entry_id in (1000001, 1000002):
+        client.post("/library/entries", json={"entry_id": entry_id}, headers=headers)
+
+    def search(**params: str) -> dict[str, Any]:
+        response = client.get("/library/entries", params=params, headers=headers)
+        assert response.status_code == 200
+        body: dict[str, Any] = response.json()
+        return body
+
+    assert _source_ids(search(q="taberu")) == [1000001]
+    assert _source_ids(search(q="みず")) == [1000002]
+    assert _source_ids(search(q="water", meaning_lang="eng")) == [1000002]
+    assert search(q="water", meaning_lang="spa")["total"] == 0
+    assert search(q="  ")["total"] == 2
+
+
+def test_list_entries_not_in_collection(
+    client: TestClient, make_token: TokenFactory, user: UserORM, other_user: UserORM
+) -> None:
+    headers = bearer(make_token())
+    first = client.post(
+        "/library/entries", json={"entry_id": 1000001}, headers=headers
+    ).json()
+    client.post("/library/entries", json={"entry_id": 1000002}, headers=headers)
+    collection = client.post(
+        "/collections/entries", json={"name": "verbs"}, headers=headers
+    ).json()
+    client.put(
+        f"/collections/entries/{collection['id']}/items/{first['id']}", headers=headers
+    )
+
+    listed = client.get(
+        "/library/entries",
+        params={"not_in_collection": collection["id"]},
+        headers=headers,
+    )
+
+    assert _source_ids(listed.json()) == [1000002]
+    theirs = client.get(
+        "/library/entries",
+        params={"not_in_collection": collection["id"]},
+        headers=bearer(make_token(str(other_user.id))),
+    )
+    assert theirs.status_code == 404
+
+
+def test_list_kanji_searches_meanings_in_a_language(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    headers = bearer(make_token())
+    client.post("/library/kanji", json={"literal": "食"}, headers=headers)
+
+    found = client.get(
+        "/library/kanji", params={"q": "eat", "meaning_lang": "en"}, headers=headers
+    ).json()
+
+    assert [item["literal"] for item in found["items"]] == ["食"]
+
+
+def test_search_text_is_limited(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    response = client.get(
+        "/library/entries", params={"q": "a" * 101}, headers=bearer(make_token())
+    )
+    assert response.status_code == 422

@@ -144,6 +144,25 @@ def test_kanji_items(client: TestClient, headers: dict[str, str]) -> None:
     assert [item["literal"] for item in listed["items"]] == ["食"]
 
 
+def test_items_can_be_searched(client: TestClient, headers: dict[str, str]) -> None:
+    collection = _create(client, headers)
+    eat = _import_entry(client, headers, 1000001)
+    water = _import_entry(client, headers, 1000002)
+    _import_entry(client, headers, 1000003)  # in the library, not the collection
+    items = f"/collections/entries/{collection['id']}/items"
+    for entry_id in (eat, water):
+        client.put(f"{items}/{entry_id}", headers=headers)
+
+    found = client.get(items, params={"q": "水"}, headers=headers).json()
+    by_meaning = client.get(
+        items, params={"q": "thank", "meaning_lang": "eng"}, headers=headers
+    ).json()
+
+    assert [item["id"] for item in found["items"]] == [water]
+    assert found["total"] == 1
+    assert by_meaning["total"] == 0  # ありがとう isn't in the collection
+
+
 def test_unknown_item_is_404(client: TestClient, headers: dict[str, str]) -> None:
     collection = _create(client, headers)
     response = client.put(

@@ -93,58 +93,6 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         query = self._search(query, user_id, search, scope, ordered=False)
         return self._session.scalar(query) or 0
 
-    def list_for_user(
-        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
-    ) -> list[PracticeEntry]:
-        query = (
-            self._select()
-            .where(*self._user_filter(user_id, active))
-            .order_by(PracticeEntryORM.created_at.desc(), PracticeEntryORM.id.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-        return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
-
-    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
-        query = select(func.count()).where(*self._user_filter(user_id, active))
-        return self._session.scalar(query.select_from(PracticeEntryORM)) or 0
-
-    def list_by_collection(
-        self, collection: EntryCollection, limit: int, offset: int
-    ) -> list[PracticeEntry]:
-        query = (
-            self._select()
-            .join(
-                entry_collection_items,
-                entry_collection_items.c.entry_id == PracticeEntryORM.id,
-            )
-            .where(
-                entry_collection_items.c.collection_id == collection.id,
-                PracticeEntryORM.user_id == collection.user_id,
-                PracticeEntryORM.is_active.is_(True),
-            )
-            .order_by(entry_collection_items.c.added_at, PracticeEntryORM.id)
-            .limit(limit)
-            .offset(offset)
-        )
-        return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
-
-    def count_by_collection(self, collection: EntryCollection) -> int:
-        query = (
-            select(func.count())
-            .select_from(PracticeEntryORM)
-            .join(
-                entry_collection_items,
-                entry_collection_items.c.entry_id == PracticeEntryORM.id,
-            )
-            .where(
-                entry_collection_items.c.collection_id == collection.id,
-                PracticeEntryORM.user_id == collection.user_id,
-                PracticeEntryORM.is_active.is_(True),
-            )
-        )
-        return self._session.scalar(query) or 0
-
     def get_by_source_entry_id(
         self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:

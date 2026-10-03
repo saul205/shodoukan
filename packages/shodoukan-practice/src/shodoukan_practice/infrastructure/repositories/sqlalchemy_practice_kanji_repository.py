@@ -91,58 +91,6 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
         query = self._search(query, user_id, search, scope, ordered=False)
         return self._session.scalar(query) or 0
 
-    def list_for_user(
-        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
-    ) -> list[PracticeKanji]:
-        query = (
-            self._select()
-            .where(*self._user_filter(user_id, active))
-            .order_by(PracticeKanjiORM.created_at.desc(), PracticeKanjiORM.id.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-        return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
-
-    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
-        query = select(func.count()).where(*self._user_filter(user_id, active))
-        return self._session.scalar(query.select_from(PracticeKanjiORM)) or 0
-
-    def list_by_collection(
-        self, collection: KanjiCollection, limit: int, offset: int
-    ) -> list[PracticeKanji]:
-        query = (
-            self._select()
-            .join(
-                kanji_collection_items,
-                kanji_collection_items.c.kanji_id == PracticeKanjiORM.id,
-            )
-            .where(
-                kanji_collection_items.c.collection_id == collection.id,
-                PracticeKanjiORM.user_id == collection.user_id,
-                PracticeKanjiORM.is_active.is_(True),
-            )
-            .order_by(kanji_collection_items.c.added_at, PracticeKanjiORM.id)
-            .limit(limit)
-            .offset(offset)
-        )
-        return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
-
-    def count_by_collection(self, collection: KanjiCollection) -> int:
-        query = (
-            select(func.count())
-            .select_from(PracticeKanjiORM)
-            .join(
-                kanji_collection_items,
-                kanji_collection_items.c.kanji_id == PracticeKanjiORM.id,
-            )
-            .where(
-                kanji_collection_items.c.collection_id == collection.id,
-                PracticeKanjiORM.user_id == collection.user_id,
-                PracticeKanjiORM.is_active.is_(True),
-            )
-        )
-        return self._session.scalar(query) or 0
-
     def get_by_literal(self, literal: str, user_id: UUID) -> PracticeKanji | None:
         query = self._select().where(
             PracticeKanjiORM.literal == literal, PracticeKanjiORM.user_id == user_id

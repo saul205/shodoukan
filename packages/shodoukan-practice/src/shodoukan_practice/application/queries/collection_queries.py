@@ -5,17 +5,12 @@ from uuid import UUID
 from ...domain.entities import (
     EntryCollection,
     KanjiCollection,
-    PracticeEntry,
-    PracticeKanji,
 )
 from ...domain.exceptions import EntityNotFoundError
 from ...domain.repositories import (
     EntryCollectionRepository,
     KanjiCollectionRepository,
-    PracticeEntryRepository,
-    PracticeKanjiRepository,
 )
-from .library_queries import LibraryPage
 
 
 class ListEntryCollections:
@@ -62,45 +57,3 @@ class GetKanjiCollection:
         if collection is None:
             raise EntityNotFoundError(f"kanji collection {collection_id} not found")
         return collection
-
-
-class ListEntryCollectionItems:
-    """A page of the active entries in a collection, in the order they were added."""
-
-    def __init__(
-        self, collections: EntryCollectionRepository, entries: PracticeEntryRepository
-    ) -> None:
-        self._get = GetEntryCollection(collections)
-        self._entries = entries
-
-    def execute(
-        self, user_id: UUID, collection_id: int, limit: int = 20, offset: int = 0
-    ) -> LibraryPage[PracticeEntry]:
-        collection = self._get.execute(user_id, collection_id)
-        return LibraryPage(
-            items=self._entries.list_by_collection(collection, limit, offset),
-            total=self._entries.count_by_collection(collection),
-            limit=limit,
-            offset=offset,
-        )
-
-
-class ListKanjiCollectionItems:
-    """A page of the active kanji in a collection, in the order they were added."""
-
-    def __init__(
-        self, collections: KanjiCollectionRepository, kanji: PracticeKanjiRepository
-    ) -> None:
-        self._get = GetKanjiCollection(collections)
-        self._kanji = kanji
-
-    def execute(
-        self, user_id: UUID, collection_id: int, limit: int = 20, offset: int = 0
-    ) -> LibraryPage[PracticeKanji]:
-        collection = self._get.execute(user_id, collection_id)
-        return LibraryPage(
-            items=self._kanji.list_by_collection(collection, limit, offset),
-            total=self._kanji.count_by_collection(collection),
-            limit=limit,
-            offset=offset,
-        )

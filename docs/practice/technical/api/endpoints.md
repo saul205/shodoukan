@@ -12,24 +12,30 @@ app runs on port **8001** (`shodoukan-api` uses 8000):
 
 ## `GET /library/entries` and `GET /library/kanji`
 
-The current user's library, one kind per route
-([`ListLibraryEntries` / `ListLibraryKanji`](../application/use-cases.md#listlibraryentriesentriesexecuteuser_id-limit-offset-activenone)).
-It's what the UI shows to pick items for a collection: each item's `id` is what
+The current user's library, one kind per route, listed or searched
+([`SearchEntries` / `SearchKanji`](../application/use-cases.md#queries-querieslibrary_search_queriespy)).
+It's also what the UI shows to pick items for a collection: each item's `id` is what
 [`PUT /collections/.../items/{id}`](#collections) takes.
 
 | Parameter | Type | Default | Notes |
 |---|---|---|---|
+| `q` | string, ≤ 100 | none | Search by spelling or reading (kanji, kana, or romaji converted to kana) and by meaning; hidden readings and meanings count. Blank lists everything |
+| `meaning_lang` | string, ≤ 8 | any | Language of the meanings to search, as stored: ISO 639-2 for entries (`eng`), ISO 639-1 for kanji (`en`) |
+| `active` | bool | all | `true` only active items, `false` only deactivated ones |
+| `not_in_collection` | int | none | Leave out the items of this collection of the user's (the picker's "what can still be added") |
 | `limit` | int, 1–100 | `20` | Items per page |
 | `offset` | int, ≥ 0 | `0` | Items to skip |
-| `active` | bool | all | `true` only active items, `false` only deactivated ones |
 
 | Status | When | Body |
 |---|---|---|
 | `200` | Always, for a valid token | `PracticeEntryPageResponse` / `PracticeKanjiPageResponse` |
 | `401` | Missing or invalid token | `{"detail": ...}` |
-| `422` | Out-of-range `limit` or `offset` | validation errors |
+| `404` | `not_in_collection` isn't one of the user's collections | `{"detail": ...}` |
+| `422` | Out-of-range `limit` or `offset`, `q` over 100 characters | validation errors |
 
-Items are ordered most recently imported first. The page has the same shape as the
+Without `q`, items are ordered most recently imported first. With it, best match
+first (a spelling, reading or meaning equal to the query; then one starting with it,
+or a meaning with a word that does; then one containing it), then newest first. The page has the same shape as the
 dictionary search's entry page, with `total` counting every matching item:
 
 ```json
@@ -238,7 +244,7 @@ same as a missing one.
 | `GET` | `/collections/entries/{collection_id}` | `GetEntryCollection` | `200` `CollectionResponse` |
 | `PUT` | `/collections/entries/{collection_id}` | `UpdateEntryCollection` | `200` `CollectionResponse` |
 | `DELETE` | `/collections/entries/{collection_id}` | `DeleteEntryCollection` | `204` (the entries stay in the library) |
-| `GET` | `/collections/entries/{collection_id}/items` | `ListEntryCollectionItems` | `200` `PracticeEntryPageResponse` (`items`, `total`, `limit`, `offset`) |
+| `GET` | `/collections/entries/{collection_id}/items` | `SearchEntries` (`in_collection`) | `200` `PracticeEntryPageResponse` (`items`, `total`, `limit`, `offset`) |
 | `PUT` | `/collections/entries/{collection_id}/items/{entry_id}` | `AddEntryToCollection` | `204`, idempotent |
 | `DELETE` | `/collections/entries/{collection_id}/items/{entry_id}` | `RemoveEntryFromCollection` | `204`, idempotent |
 
@@ -258,7 +264,8 @@ replaces both fields, so an omitted `description` clears it. `CollectionResponse
 
 `GET .../items` takes `limit` (1–100, default `20`) and `offset` (≥ 0, default `0`) and
 returns a page of the active items in the order they were added, with the `total` of
-active items, the same shape as `GET /library/entries`.
+active items, the same shape as `GET /library/entries`. `q` and `meaning_lang` search
+within the collection exactly as in [the library](#get-libraryentries-and-get-librarykanji).
 
 | Status | When |
 |---|---|

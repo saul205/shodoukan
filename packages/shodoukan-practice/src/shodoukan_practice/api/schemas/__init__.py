@@ -24,6 +24,7 @@ from .library_schemas import (
     PracticeKanjiPageResponse,
     PracticeKanjiResponse,
 )
+from .library_search_schemas import MeaningLang, NotInCollection, SearchText
 from .user_schemas import UserResponse
 
 __all__ = [
@@ -40,13 +41,16 @@ __all__ = [
     "ImportStatusResponse",
     "ImportedEntryResponse",
     "ImportedKanjiResponse",
+    "MeaningLang",
     "MeaningTextRequest",
     "NewGlossRequest",
     "NewKanjiMeaningRequest",
+    "NotInCollection",
     "NotesRequest",
     "PracticeEntryPageResponse",
     "PracticeEntryResponse",
     "PracticeKanjiPageResponse",
     "PracticeKanjiResponse",
+    "SearchText",
     "UserResponse",
 ]

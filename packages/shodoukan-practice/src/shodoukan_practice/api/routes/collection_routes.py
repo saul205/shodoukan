@@ -23,10 +23,10 @@ from ...application.commands import (
 from ...application.queries import (
     GetEntryCollection,
     GetKanjiCollection,
-    ListEntryCollectionItems,
     ListEntryCollections,
-    ListKanjiCollectionItems,
     ListKanjiCollections,
+    SearchEntries,
+    SearchKanji,
 )
 from ..deps import (
     CurrentUserDep,
@@ -39,20 +39,22 @@ from ..deps import (
     get_delete_kanji_collection,
     get_get_entry_collection,
     get_get_kanji_collection,
-    get_list_entry_collection_items,
     get_list_entry_collections,
-    get_list_kanji_collection_items,
     get_list_kanji_collections,
     get_remove_entry_from_collection,
     get_remove_kanji_from_collection,
+    get_search_entries,
+    get_search_kanji,
     get_update_entry_collection,
     get_update_kanji_collection,
 )
 from ..schemas import (
     CollectionRequest,
     CollectionResponse,
+    MeaningLang,
     PracticeEntryPageResponse,
     PracticeKanjiPageResponse,
+    SearchText,
 )
 
 _UNAUTHORIZED: dict[int | str, dict[str, Any]] = {
@@ -173,14 +175,24 @@ def list_entry_collection_items(
     collection_id: int,
     user: CurrentUserDep,
     session: SessionDep,
-    use_case: Annotated[
-        ListEntryCollectionItems, Depends(get_list_entry_collection_items)
-    ],
+    use_case: Annotated[SearchEntries, Depends(get_search_entries)],
+    q: SearchText = None,
+    meaning_lang: MeaningLang = None,
     limit: Limit = 20,
     offset: Offset = 0,
 ) -> PracticeEntryPageResponse:
-    """A page of the collection's active entries, in the order they were added."""
-    page = use_case.execute(user.id, collection_id, limit, offset)
+    """A page of the collection's active entries, in the order they were added.
+
+    With `q`, only the matching ones, best match first.
+    """
+    page = use_case.execute(
+        user.id,
+        text=q,
+        meaning_lang=meaning_lang,
+        in_collection=collection_id,
+        limit=limit,
+        offset=offset,
+    )
     session.commit()
     return PracticeEntryPageResponse.model_validate(page)
 
@@ -312,14 +324,24 @@ def list_kanji_collection_items(
     collection_id: int,
     user: CurrentUserDep,
     session: SessionDep,
-    use_case: Annotated[
-        ListKanjiCollectionItems, Depends(get_list_kanji_collection_items)
-    ],
+    use_case: Annotated[SearchKanji, Depends(get_search_kanji)],
+    q: SearchText = None,
+    meaning_lang: MeaningLang = None,
     limit: Limit = 20,
     offset: Offset = 0,
 ) -> PracticeKanjiPageResponse:
-    """A page of the collection's active kanji, in the order they were added."""
-    page = use_case.execute(user.id, collection_id, limit, offset)
+    """A page of the collection's active kanji, in the order they were added.
+
+    With `q`, only the matching ones, best match first.
+    """
+    page = use_case.execute(
+        user.id,
+        text=q,
+        meaning_lang=meaning_lang,
+        in_collection=collection_id,
+        limit=limit,
+        offset=offset,
+    )
     session.commit()
     return PracticeKanjiPageResponse.model_validate(page)
 

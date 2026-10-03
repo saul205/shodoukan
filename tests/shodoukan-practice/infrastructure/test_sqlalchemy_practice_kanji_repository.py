@@ -9,6 +9,7 @@ from shodoukan_practice.domain.entities import KanjiCollection, PracticeReadingI
 from shodoukan_practice.domain.exceptions import EntityNotFoundError
 from shodoukan_practice.domain.gateways import KanaForms
 from shodoukan_practice.domain.searches import (
+    InCollection,
     LibrarySearch,
     NotInCollection,
     SearchScope,
@@ -19,6 +20,12 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeKanjiRepository,
 )
+
+# Searches without text: they list the scope, like the library pages.
+EVERYTHING = LibrarySearch()
+ACTIVE = LibrarySearch(active=True)
+INACTIVE = LibrarySearch(active=False)
+LIBRARY = WholeLibrary()
 
 
 @pytest.fixture
@@ -119,7 +126,7 @@ def test_practice_ids_by_literal_lists_only_the_users_imports(
     assert found == {"食": mine.id}
 
 
-def test_list_for_user_is_newest_first_and_paginated(
+def test_find_without_text_is_newest_first_and_paginated(
     repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, other_user: UserORM
 ) -> None:
     old = repo.add(make_kanji(user.id, "一"))
@@ -129,30 +136,32 @@ def test_list_for_user_is_newest_first_and_paginated(
     same_time_later_id = repo.add(make_kanji(user.id, "三"))
     repo.add(make_kanji(other_user.id, "一"))
 
-    assert repo.list_for_user(user.id, limit=10, offset=0) == [
+    assert repo.find(user.id, EVERYTHING, LIBRARY, limit=10, offset=0) == [
         new,
         same_time_later_id,
         old,
     ]
-    assert repo.list_for_user(user.id, limit=1, offset=1) == [same_time_later_id]
-    assert repo.count_for_user(user.id) == 3
+    assert repo.find(user.id, EVERYTHING, LIBRARY, limit=1, offset=1) == [
+        same_time_later_id
+    ]
+    assert repo.count(user.id, EVERYTHING, LIBRARY) == 3
 
 
-def test_list_for_user_filters_by_active(
+def test_find_without_text_filters_by_active(
     repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
 ) -> None:
     active = repo.add(make_kanji(user.id, "一"))
     inactive = repo.add(make_kanji(user.id, "二", is_active=False))
 
-    assert repo.list_for_user(user.id, 10, 0, active=True) == [active]
-    assert repo.list_for_user(user.id, 10, 0, active=False) == [inactive]
-    assert repo.count_for_user(user.id, active=False) == 1
+    assert repo.find(user.id, ACTIVE, LIBRARY, 10, 0) == [active]
+    assert repo.find(user.id, INACTIVE, LIBRARY, 10, 0) == [inactive]
+    assert repo.count(user.id, INACTIVE, LIBRARY) == 1
 
 
-def test_count_for_user_without_items_is_zero(
+def test_count_without_items_is_zero(
     repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
 ) -> None:
-    assert repo.count_for_user(user.id) == 0
+    assert repo.count(user.id, EVERYTHING, LIBRARY) == 0
 
 
 def test_delete_removes_the_item_and_its_links(
@@ -181,7 +190,7 @@ def test_delete_of_another_users_item_fails(
     assert repo.get(item.id, user.id) is not None
 
 
-def test_count_by_collection_counts_active_items(
+def test_count_in_a_collection_can_keep_only_active_items(
     repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, session: Session
 ) -> None:
     collections = SqlAlchemyKanjiCollectionRepository(session)
@@ -191,7 +200,8 @@ def test_count_by_collection_counts_active_items(
         collection, repo.add(make_kanji(user.id, "二", is_active=False))
     )
 
-    assert repo.count_by_collection(collection) == 1
+    assert repo.count(user.id, ACTIVE, InCollection(collection)) == 1
+    assert repo.count(user.id, EVERYTHING, InCollection(collection)) == 2
 
 
 # --- Search (find / count) ----------------------------------------------------
