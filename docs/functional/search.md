@@ -52,7 +52,9 @@ Results are ordered so the most useful words appear first:
    (水 isn't penalised for its other senses).
 
 A romaji search such as `kami` looks up both the reading (かみ) and the meaning, and
-shows them in one list ranked the same way. The number of results and the pages cover
+shows them in one list ranked the same way. A word found both ways is ranked by its
+reading, so words whose English definition is just their name in romaji (水ようかん,
+"mizu yōkan") don't jump ahead of more common words that start with the same reading. The number of results and the pages cover
 every match: paging through shows each word once.
 
 ---

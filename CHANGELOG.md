@@ -22,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan:** Meaning matches are decayed by the position of the matched sense only
   (`/ log2(position + 2)`) instead of by the number of senses, so common words with many
   meanings (水) are no longer pushed down.
+- **shodoukan:** In romaji searches, a word found both by reading and by meaning is
+  ranked by its reading. Words whose definition is their own romaji (水ようかん, "mizu
+  yōkan") no longer rank above common words starting with the same reading (湖, 水着 for
+  `mizu`); translations found only by meaning (同じ for `same`) keep their rank.
 - **shodoukan-ui:** The debug bar shows the new `score` as the sort value, with `tier`
   and `relevance`.
 

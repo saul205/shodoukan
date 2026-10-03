@@ -11,6 +11,7 @@ from sqlalchemy import (
     text,
     union_all,
 )
+from sqlalchemy import literal as sql_literal
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, selectinload
 
@@ -57,6 +58,10 @@ def _load_options():
         ),
     ]
 
+
+# Which branch a match comes from; an entry found both ways uses its reading row.
+_SOURCE_READING = 0
+_SOURCE_GLOSS = 1
 
 # Per-match details carried through the union for debug mode.
 _DETAIL_COLUMNS = (
@@ -151,8 +156,10 @@ class EntryRepository:
 
         Every match gets `score = match_tier * TIER_WEIGHT + popularity` (see
         `scoring.py`), so reading and gloss matches share one order. An entry
-        found both ways counts once, with its best score. Ordering, pagination
-        and the total are done in SQL over all matches.
+        found both ways counts once and is ranked by its reading match: a gloss
+        that matches the same romaji as the entry's own reading ("mizu yōkan"
+        for みずようかん) is a transliteration, not a translation. Ordering,
+        pagination and the total are done in SQL over all matches.
         """
         branches = []
         if reading_query:
@@ -163,12 +170,14 @@ class EntryRepository:
             return Page(items=[], total=0, limit=limit, offset=offset)
 
         hits = union_all(*branches).subquery("hits")
-        # SQLite: bare columns next to MAX() come from the row with the max, so
-        # an entry matched both ways keeps the details of its best match.
+        # SQLite: bare columns next to MIN() come from the row with the min, so
+        # an entry matched both ways takes the score and details of its reading
+        # match (source 0).
         best = (
             select(
                 hits.c.id,
-                func.max(hits.c.score).label("score"),
+                func.min(hits.c.source).label("source"),
+                hits.c.score,
                 *[hits.c[name] for name in _DETAIL_COLUMNS],
             )
             .group_by(hits.c.id)
@@ -203,13 +212,17 @@ class EntryRepository:
             ReadingORM.text == query,
             ReadingORM.text.like(prefix),
         )
-        exact = func.max(or_(KanjiReadingORM.kanji == query, ReadingORM.text == query))
+        # An entry without kanji spellings compares NULL on the outer join.
+        exact = func.coalesce(
+            func.max(or_(KanjiReadingORM.kanji == query, ReadingORM.text == query)), 0
+        )
         jlpt_bonus = func.coalesce(func.max(EntryORM.jlpt), 0) * JLPT_WEIGHT
         popularity = EntryORM.freq_score + jlpt_bonus
         tier = case((exact == 1, TIER_READING_EXACT), else_=TIER_READING_PREFIX)
         return (
             select(
                 EntryORM.id.label("id"),
+                sql_literal(_SOURCE_READING).label("source"),
                 (tier * TIER_WEIGHT + popularity).label("score"),
                 tier.label("match_tier"),
                 null().label("fts_rank"),
@@ -274,6 +287,7 @@ class EntryRepository:
         )
         return select(
             ranked.c.id,
+            sql_literal(_SOURCE_GLOSS).label("source"),
             (tier * TIER_WEIGHT + ranked.c.composite).label("score"),
             tier.label("match_tier"),
             ranked.c.fts_rank,

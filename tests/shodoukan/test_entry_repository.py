@@ -569,7 +569,8 @@ def test_search_pages_partition_the_results(conn, engine):
     assert len(set(paged_ids)) == 10
 
 
-def test_search_counts_an_entry_matched_both_ways_once(conn, engine):
+def test_search_counts_an_entry_matched_both_ways_once(conn, engine, monkeypatch):
+    monkeypatch.setenv("SHODOUKAN_DEBUG", "1")
     repo = EntryRepository(engine)
 
     # 1000001 is たべる and has the gloss "to eat".
@@ -577,6 +578,34 @@ def test_search_counts_an_entry_matched_both_ways_once(conn, engine):
 
     assert [e.id for e in page.items].count(1000001) == 1
     assert page.total == len({e.id for e in page.items})
+    # ...ranked by its reading match
+    score = next(e.score for e in page.items if e.id == 1000001)
+    assert (score.exact_match, score.fts_rank) == (True, None)
+
+
+def test_romaji_gloss_of_its_own_reading_ranks_as_the_reading(
+    conn, engine, monkeypatch
+):
+    # 水ようかん: reading みずようかん, gloss "mizu yokan" (its own reading in
+    # romaji), not popular. 湖: popular prefix reading. 水絵-like transliterations
+    # shouldn't jump over it, but a real translation found only by gloss keeps
+    # its gloss tier.
+    _add_entry(conn, 9990101, "みずようかん", [["mizu yokan"]], freq=0)
+    _add_entry(conn, 9990102, "みずうみ", [["lake"]], freq=520, jlpt=4)
+    _add_entry(conn, 9990103, "べつ", [["mizu"]], freq=0)
+    conn.commit()
+    monkeypatch.setenv("SHODOUKAN_DEBUG", "1")
+
+    page = EntryRepository(engine).search(
+        reading_query="みず", gloss_query="mizu", limit=20
+    )
+
+    ids = [e.id for e in page.items]
+    assert ids.index(9990102) < ids.index(9990101)
+    by_id = {e.id: e.score for e in page.items}
+    assert by_id[9990101].match_tier == 2  # prefix reading, not a tier-3 gloss
+    assert by_id[9990101].exact_match is False
+    assert by_id[9990103].match_tier == 3  # found only by gloss
 
 
 def test_search_past_the_end_still_reports_the_total(conn, engine):

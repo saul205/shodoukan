@@ -101,12 +101,20 @@ position counts, not how many senses the entry has, so a common word with many s
 
 ```
 reading matches  ┐
-                 ├─ UNION ALL ─ GROUP BY id (best score) ─ ORDER BY ─ LIMIT/OFFSET
+                 ├─ UNION ALL ─ GROUP BY id (reading row) ─ ORDER BY ─ LIMIT/OFFSET
 gloss matches    ┘                                          + COUNT(*) OVER ()
 ```
 
-- An entry found both ways counts once, with its best score (SQLite takes the other
-  columns of a `MAX()` group from the row with the max).
+- An entry found both ways counts once and is **ranked by its reading match** (each row
+  carries `source`, 0 = reading, 1 = gloss; SQLite takes the other columns of a `MIN()`
+  group from the row with the min). Only romaji searches run both branches, and there a
+  gloss that matches the same romaji as the entry's own reading is a transliteration,
+  not a translation: JMdict uses the romaji as the gloss for untranslatable terms
+  (`mizu yōkan` for 水ようかん, `kami-sama` for 神様). Ranked as glosses they'd be the
+  best gloss matches of the query (tier 3), above every prefix reading. Entries found
+  only by gloss keep their gloss tier, because romaji can't be told apart from English
+  or Spanish: for `same` (also さめ) the translation 同じ is still a tier-3 match, ahead
+  of 鮫. Capping all gloss matches in romaji searches was rejected for that reason.
 - Order: `score DESC`, then the raw bm25 rank (reading matches first), then `id`, so
   the order is total and stable.
 - The total is `COUNT(*) OVER ()` over all matches; when the page is past the end, a

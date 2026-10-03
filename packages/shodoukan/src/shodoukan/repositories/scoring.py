@@ -32,6 +32,9 @@ TIER_READING_PREFIX = 2
 GLOSS_TIER_3_RELEVANCE = 0.9
 GLOSS_TIER_2_RELEVANCE = 0.5
 
+# An entry found both by reading and by gloss (romaji searches) is ranked by its
+# reading match: such glosses are usually the romaji of the reading itself.
+
 # Weight applied to entry position when ranking related kanji.
 # gap(pos 0 → pos 3) = 75 000 > max k_score spread (~50 000),
 # so a kanji from entry 0 always beats any kanji from entries 1-3.
