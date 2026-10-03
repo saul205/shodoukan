@@ -8,7 +8,7 @@ ignore = [
 ]
 
 [lint.isort]
-known-first-party = ["shodoukan", "shodoukan_api", "shodoukan_practice"]
+known-first-party = ["shodoukan", "shodoukan_api"]
 
 [format]
 quote-style = "double"

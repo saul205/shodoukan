@@ -18,13 +18,11 @@ Package for building applications on top of the dictionary.
 from shodoukan import Dictionary
 
 with Dictionary() as d:
-    results = d.search_entries("日本語", limit=10)   # kanji / kana
-    results = d.search_entries("taberu")             # romaji → hiragana
-    results = d.search_entries("comer", lang="es")   # multilingual gloss
-    kanji   = d.get_kanji("日")
+    results = d.search_entries("日本語", limit=10)
+    kanji = d.get_kanji("日")
 ```
 
-Supports lookup by kanji, kana, Hepburn romaji, or gloss in any JMDict language. Each `Entry` includes its JLPT level (`jlpt: int | None`). See [packages/shodoukan/](packages/shodoukan/) for the full API.
+Supports lookup by reading (kana), kanji, or English meaning. See [packages/shodoukan/](packages/shodoukan/) for the full API.
 
 ### `shodoukan-api` — REST API
 
@@ -40,32 +38,11 @@ FastAPI application that exposes the library over HTTP. See [packages/shodoukan-
 | GET | `/kanji/search` | Search kanji |
 | GET | `/kanji/{literal}` | Get kanji by literal |
 
-Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` for pagination.
-
 Interactive docs available at `/docs` when the server is running.
-
-### `shodoukan-practice` — Practice app *(in progress)*
-
-Backend for studying with the dictionary: each user imports entries and kanji into a
-personal library, customises them, and groups them into collections (which double as
-tags) to practise with. Built so far: the domain, PostgreSQL persistence, sign-in
-through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
-(`GET /dictionary/search`), and importing entries and kanji (`POST /library/entries`,
-`POST /library/kanji`), and grouping them into collections (`/collections/entries`,
-`/collections/kanji`). See the [practice app documentation](docs/practice/README.md).
 
 ### Web interface *(planned)*
 
 Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
-
----
-
-## Documentation
-
-- [Documentation index](docs/index.md): functional and technical docs for search, the
-  API and the web interface.
-- [Practice app](docs/practice/README.md): [functional](docs/practice/functional/README.md)
-  and [technical](docs/practice/technical/README.md) documentation.
 
 ---
 
@@ -84,27 +61,32 @@ The database is downloaded automatically during the image build. The API will be
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `API_PORT` | `8000` | Port to expose the API on |
-| `SHODOUKAN_DEBUG` | `0` | Set to `1` to include score breakdown in search responses |
-| `CORS_ORIGINS` | `*` | Comma-separated list of allowed origins. Use `*` in development; set to your domain in production (e.g. `https://shodoukan.onrender.com`). |
 
 ---
 
-## Deployment (Render)
+## Deployment (Fly.io)
 
-Every push to `main` that passes CI is deployed automatically to Render.
+Every push to `main` that passes CI is deployed automatically to Fly.io.
 
 ### First-time setup
 
-1. Create a new **Web Service** on [Render](https://render.com) pointing to this repository.
-2. Set the build command to `docker build` (Render detects the Dockerfile automatically).
-3. Add the following environment variables in the Render dashboard:
+1. Install the [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) and log in:
+   ```bash
+   fly auth login
+   ```
 
-| Variable | Value |
-|----------|-------|
-| `CORS_ORIGINS` | Your frontend domain, e.g. `https://shodoukan.onrender.com` |
-| `SHODOUKAN_DEBUG` | `0` |
+2. Create the app (only once):
+   ```bash
+   fly apps create shodoukan-api
+   ```
 
-After that, every push to `main` triggers a new deploy.
+3. Add `FLY_API_TOKEN` to your GitHub repository secrets:
+   ```bash
+   fly tokens create deploy -x 999999h
+   ```
+   Copy the token and add it at **Settings → Secrets → Actions → New repository secret**.
+
+After that, every push to `main` triggers a build on Fly's infrastructure and a zero-downtime rolling deploy.
 
 ---
 
@@ -115,37 +97,8 @@ After that, every push to `main` triggers a new deploy.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev] -e packages/shodoukan-practice[dev]
+pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev]
 shodoukan-setup  # download the database
-```
-
-### Practice database (PostgreSQL)
-
-`shodoukan-practice` stores user data in PostgreSQL. Copy the "Practice database"
-block from `.env.example` into your `.env.dev` (with your own password), then:
-
-```bash
-docker compose up -d practice-db          # local Postgres on 127.0.0.1:5432
-set -a; . ./.env.dev; set +a              # export PRACTICE_DATABASE_URL
-alembic -c packages/shodoukan-practice/alembic.ini upgrade head
-```
-
-### Practice API and sign-in (Keycloak)
-
-```bash
-cp .env.keycloak.example .env.keycloak    # Keycloak and its own database; set passwords
-docker compose up -d keycloak             # http://localhost:8080 (starts keycloak-db too)
-set -a; . ./.env.dev; set +a              # AUTH_ISSUER, AUTH_AUDIENCE, PRACTICE_DATABASE_URL
-uvicorn shodoukan_practice.api.app:app --port 8001 --reload
-```
-
-Open <http://localhost:8001/docs> and click **Authorize** to sign in (local user
-`dev` / `dev`). See the [authentication docs](docs/practice/technical/api/authentication.md).
-
-After changing an ORM model, create a migration and review it:
-
-```bash
-alembic -c packages/shodoukan-practice/alembic.ini revision --autogenerate -m "Describe the change"
 ```
 
 ### Running locally
@@ -165,14 +118,6 @@ shodoukan-api
 ```bash
 pytest tests/shodoukan
 pytest tests/shodoukan-api
-pytest tests/shodoukan-practice
-```
-
-### Lint and type check
-
-```bash
-ruff check . && ruff format --check .
-mypy  # config in mypy.ini; strict for shodoukan-practice
 ```
 
 ### CLI

@@ -61,10 +61,6 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# SQLite databases (downloaded artifacts)
-*.sqlite
-*.sqlite3-journal
-
 # Flask stuff:
 instance/
 .webassets-cache
@@ -153,9 +149,6 @@ activemq-data/
 
 # Environments
 .env
-.env.dev
-.env.prod
-.env.keycloak
 .envrc
 .venv
 env/
@@ -202,21 +195,19 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
+#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
 #   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#   and can be added to the global gitignore or merged into this file. However, if you prefer,
+#   and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #   you could uncomment the following to ignore the entire vscode folder
-.vscode/
+# .vscode/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
 # Ruff stuff:
 .ruff_cache/
 
-# Claude Code: local settings stay private; shared rules and skills are tracked
-.claude/*
-!.claude/rules/
-!.claude/skills/
+# Claude Code
+CLAUDE.md
 
 # PyPI configuration file
 .pypirc
@@ -228,8 +219,3 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-
-**.notes
-
-# Node / pnpm workspace
-node_modules/
