@@ -42,6 +42,30 @@ N+1 queries.
 `created_at DESC, id DESC`, so items imported at the same instant still have a stable
 order. The count is a `SELECT count(*)` that loads no snapshot.
 
+## Searching the library
+
+`find` / `count` build one query (`_search`) shared by both, so the total always
+matches the pages:
+
+1. The user's items, with `is_active` when the search has `active`.
+2. The scope: `InCollection` joins the link table and orders by `added_at, id`;
+   `NotInCollection` adds `NOT EXISTS` on the link table; the whole library orders by
+   `created_at DESC, id DESC`.
+3. With text, a `matches` subquery of `(item_id, tier)` is joined and `tier DESC` goes
+   first in the order. It's a `UNION ALL` of one SELECT per place a query can match,
+   each already scoped to the user, grouped by item with `MAX(tier)`
+   (`sqlalchemy_library_search.py`):
+   - entries: spellings and readings against the needles (`text_match`), glosses
+     against the text (`meaning_match`, in `meaning_lang` when given);
+   - kanji: the literal (`EXACT` when it's the query, `PREFIX` when the query contains
+     it: 兄弟 finds 兄 and 弟), readings without the okurigana dot and affix dash
+     (`た.べる` → `たべる`), and meanings.
+
+Comparisons use `lower()` and `LIKE` with `autoescape`, so `%` and `_` in the query
+are literal. It's portable SQL (SQLite in tests, PostgreSQL in production). There's no
+text index: the query is bounded by `user_id` and the per-item indexes; see
+[decisions](../decisions.md#library-search-is-sql-over-the-normalized-snapshot).
+
 ## `update(entity)`
 
 1. Load the stored row by id. If it doesn't exist or its `user_id` differs from the

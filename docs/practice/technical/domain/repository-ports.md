@@ -35,6 +35,8 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 |---|---|
 | `get(id, user_id)` | the item or `None` |
 | `get_many(ids, user_id)` | the user's items among `ids`, ordered by id |
+| `find(user_id, search, scope, limit, offset)` | the user's items matching a [`LibrarySearch`](#library-search-domainsearches) within a scope, best match first, then the scope's order; paginated. Without text, only the scope and `active` filter |
+| `count(user_id, search, scope)` | how many items `find` pages through |
 | `list_for_user(user_id, limit, offset, active=None)` | the user's items, most recently imported first (`created_at`, then `id`, descending), paginated; `active` keeps only active or inactive ones, `None` keeps all |
 | `count_for_user(user_id, active=None)` | how many items `list_for_user` pages through |
 | `list_by_collection(collection, limit, offset)` | active items in the collection, in the order they were added, paginated |
@@ -45,6 +47,27 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 | `add_if_absent(item)` | `(stored item, created)`: stores it unless the user already has it, and is safe against a concurrent import of the same item |
 | `update(item)` | the stored item. Replaces the whole snapshot: nested parts with an id are updated, those without one are inserted, missing ones are deleted |
 | `delete(item)` | removes it from the library with its nested parts and collection links; `EntityNotFoundError` if it isn't stored for its user |
+
+## Library search (`domain/searches/`)
+
+The values `find` / `count` take. Built by the search use cases from what the user
+typed; run by the item repositories.
+
+- `LibrarySearch(text, kana, meaning_lang, active)`: `text` trimmed and lower-cased
+  (`None` = no text filter); `kana` its `KanaForms` when it reads as romaji or kana;
+  `meaning_lang` as the items store it (`eng` for entry glosses, `en` for kanji;
+  `None` = any); `active` as in the library filter. `needles` are the forms looked for
+  in spellings and readings (the text and its kana forms, without repeats).
+- `MatchTier`: `EXACT` (3) a spelling, reading or meaning is the query; `PREFIX` (2) a
+  spelling or reading starts with it, or a word of a meaning does; `CONTAINS` (1)
+  anywhere. A better tier always ranks first.
+- Scopes, generic over the collection type so entry and kanji ones can't mix:
+  `WholeLibrary()` (most recently imported first), `InCollection(collection)` (its
+  items, in the order they were added), `NotInCollection(collection)` (the library
+  minus its items, for adding to it).
+
+Readings and meanings match whether they're enabled or not: hiding is for practice,
+and the user still needs to find the item to manage it.
 
 ## Collection repositories
 

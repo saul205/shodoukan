@@ -5,12 +5,35 @@ from typing import Protocol
 from uuid import UUID
 
 from ..entities import KanjiCollection, PracticeKanji
+from ..searches import LibrarySearch, SearchScope
 
 
 class PracticeKanjiRepository(Protocol):
     def get(self, kanji_id: int, user_id: UUID) -> PracticeKanji | None: ...
 
     def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeKanji]: ...
+
+    def find(
+        self,
+        user_id: UUID,
+        search: LibrarySearch,
+        scope: SearchScope[KanjiCollection],
+        limit: int,
+        offset: int,
+    ) -> list[PracticeKanji]:
+        """The user's items that match `search` within `scope`, paginated.
+
+        Best match first (`MatchTier`), then the scope's own order: most
+        recently imported first in the library, the order they were added
+        in a collection. Without text, only the scope and `active` filter.
+        """
+        ...
+
+    def count(
+        self, user_id: UUID, search: LibrarySearch, scope: SearchScope[KanjiCollection]
+    ) -> int:
+        """How many items `find` pages through."""
+        ...
 
     def list_for_user(
         self, user_id: UUID, limit: int, offset: int, active: bool | None = None

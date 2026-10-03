@@ -91,6 +91,41 @@ they're reached through a port (`KanaGateway`, implemented by `ShodoukanKanaGate
 next to the dictionary gateway): the domain and use cases don't import `shodoukan`, and
 the converter can be faked in tests.
 
+## Library search is one module over the item repositories
+
+The library, a collection and the "add to collection" picker all search the same items
+with a different scope. The search is one module at the logical level:
+`domain/searches/` holds what a search is (`LibrarySearch`, `MatchTier`, scopes) and
+the search use cases share the normalization, collection ownership, active rule and
+paging. The item repositories run it (`find` / `count` with a scope), replacing their
+list methods.
+
+- **A collection's items are read from the item repositories**, not the collection
+  repositories. The result is `PracticeEntry` / `PracticeKanji` aggregates, which those
+  repositories already load and map; a collection is metadata plus links (see "Collections
+  don't hold their members"). Reading them from the collection side would make that
+  repository know about readings and glosses and duplicate the hydration.
+- **Repositories, not separate finders.** The backend conventions put listing,
+  ordering and paging in repositories. A finder would return the same aggregates from
+  the same tables with the same mappers: two ports per aggregate for no real
+  difference. Worth revisiting if lists start returning a lighter read model instead
+  of aggregates, or the search moves to another engine (an external index, a replica):
+  use cases depend only on the port, so the change stays in infrastructure and wiring.
+- **No specification pattern.** Match tiers are named constants and the SQL applies
+  them; with one engine, a rule interpreter adds nothing.
+
+## Library search is SQL over the normalized snapshot
+
+Every reading, gloss and meaning already has its own row, so searching is SQL with
+`LIKE` over those tables, scoped to the user. Considered:
+
+- **PostgreSQL full-text search:** its stemming and word splitting are made for
+  European languages and don't help with Japanese.
+- **An external engine (Meilisearch, Elasticsearch):** a second store to keep in sync
+  for a per-user library of hundreds to a few thousand items.
+- **A trigram index (`pg_trgm`):** the next step if `LIKE '%…%'` gets slow; it speeds
+  up the same queries without changing them or the API.
+
 ## Keycloak, with the API as a resource server
 
 Users sign in with Keycloak (OIDC). The API only verifies access tokens (RS256 against

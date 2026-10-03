@@ -5,12 +5,35 @@ from typing import Protocol
 from uuid import UUID
 
 from ..entities import EntryCollection, PracticeEntry
+from ..searches import LibrarySearch, SearchScope
 
 
 class PracticeEntryRepository(Protocol):
     def get(self, entry_id: int, user_id: UUID) -> PracticeEntry | None: ...
 
     def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeEntry]: ...
+
+    def find(
+        self,
+        user_id: UUID,
+        search: LibrarySearch,
+        scope: SearchScope[EntryCollection],
+        limit: int,
+        offset: int,
+    ) -> list[PracticeEntry]:
+        """The user's items that match `search` within `scope`, paginated.
+
+        Best match first (`MatchTier`), then the scope's own order: most
+        recently imported first in the library, the order they were added
+        in a collection. Without text, only the scope and `active` filter.
+        """
+        ...
+
+    def count(
+        self, user_id: UUID, search: LibrarySearch, scope: SearchScope[EntryCollection]
+    ) -> int:
+        """How many items `find` pages through."""
+        ...
 
     def list_for_user(
         self, user_id: UUID, limit: int, offset: int, active: bool | None = None

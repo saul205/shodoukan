@@ -102,6 +102,89 @@ def make_kanji(
     )
 
 
+def make_word(
+    user_id: UUID,
+    source_entry_id: int,
+    spelling: str | None,
+    reading: str,
+    meanings: list[tuple[str, str]],
+    *,
+    created_at: datetime = NOW,
+    is_active: bool = True,
+) -> PracticeEntry:
+    """An entry with one spelling (or none), one reading and one sense.
+
+    `meanings` are `(text, lang)` pairs, e.g. `[("to eat", "eng")]`.
+    """
+    return PracticeEntry(
+        id=None,
+        user_id=user_id,
+        source_entry_id=source_entry_id,
+        kanji_readings=(
+            [PracticeKanjiReading(id=None, kanji=spelling, info=[])] if spelling else []
+        ),
+        readings=[
+            PracticeReading(
+                id=None,
+                text=reading,
+                no_kanji=spelling is None,
+                info=[],
+                restricted_to=[],
+            )
+        ],
+        senses=[
+            PracticeSense(
+                id=None,
+                pos=["n"],
+                misc=[],
+                dialects=[],
+                info=[],
+                glosses=[
+                    PracticeGloss(id=None, text=text, lang=lang, type=None)
+                    for text, lang in meanings
+                ],
+                examples=[],
+            )
+        ],
+        jlpt=None,
+        is_common=False,
+        is_active=is_active,
+        created_at=created_at,
+        updated_at=created_at,
+    )
+
+
+def make_kanji_with(
+    user_id: UUID,
+    literal: str,
+    *,
+    on: list[str] | None = None,
+    kun: list[str] | None = None,
+    meanings: list[tuple[str, str]] | None = None,
+    created_at: datetime = NOW,
+) -> PracticeKanji:
+    """A kanji with the given readings and `(text, lang)` meanings."""
+    return PracticeKanji(
+        id=None,
+        user_id=user_id,
+        literal=literal,
+        grade=None,
+        stroke_count=1,
+        freq=None,
+        jlpt=None,
+        on_readings=[PracticeReadingItem(id=None, text=text) for text in on or []],
+        kun_readings=[PracticeReadingItem(id=None, text=text) for text in kun or []],
+        nanori=[],
+        meanings=[
+            PracticeKanjiMeaning(id=None, text=text, lang=lang)
+            for text, lang in meanings or []
+        ],
+        is_active=True,
+        created_at=created_at,
+        updated_at=created_at,
+    )
+
+
 def make_entry_collection(user_id: UUID, name: str = "verbs") -> EntryCollection:
     return EntryCollection(
         id=None, user_id=user_id, name=name, created_at=NOW, updated_at=NOW

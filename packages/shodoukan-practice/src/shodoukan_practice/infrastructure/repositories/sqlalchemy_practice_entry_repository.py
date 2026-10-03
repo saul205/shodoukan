@@ -1,20 +1,41 @@
 from collections.abc import Iterable
+from typing import Any, TypeVar
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, func, select
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    SQLColumnExpression,
+    Subquery,
+    exists,
+    func,
+    select,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from ...domain.entities import EntryCollection, PracticeEntry
 from ...domain.exceptions import EntityNotFoundError
 from ...domain.repositories import PracticeEntryRepository
+from ...domain.searches import (
+    InCollection,
+    LibrarySearch,
+    NotInCollection,
+    SearchScope,
+)
 from ..db.mappers import practice_entry_to_db, practice_entry_to_domain
 from ..db.orm import (
+    PracticeEntryKanjiReadingORM,
     PracticeEntryORM,
+    PracticeEntryReadingORM,
     PracticeExampleORM,
+    PracticeGlossORM,
     PracticeSenseORM,
     entry_collection_items,
 )
+from .sqlalchemy_library_search import best_matches, meaning_match, text_match
+
+Q = TypeVar("Q", bound=Select[Any])
 
 # Load the whole nested snapshot up front, one query per level (no N+1).
 _LOAD = (
@@ -49,6 +70,28 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
             .order_by(PracticeEntryORM.id)
         )
         return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
+
+    def find(
+        self,
+        user_id: UUID,
+        search: LibrarySearch,
+        scope: SearchScope[EntryCollection],
+        limit: int,
+        offset: int,
+    ) -> list[PracticeEntry]:
+        query = self._search(self._select(), user_id, search, scope, ordered=True)
+        rows = self._session.scalars(query.limit(limit).offset(offset))
+        return [practice_entry_to_domain(row) for row in rows]
+
+    def count(
+        self,
+        user_id: UUID,
+        search: LibrarySearch,
+        scope: SearchScope[EntryCollection],
+    ) -> int:
+        query = select(func.count()).select_from(PracticeEntryORM)
+        query = self._search(query, user_id, search, scope, ordered=False)
+        return self._session.scalar(query) or 0
 
     def list_for_user(
         self, user_id: UUID, limit: int, offset: int, active: bool | None = None
@@ -162,6 +205,77 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         if stored is None or stored.user_id != entry.user_id:
             raise EntityNotFoundError(f"entry {entry.id} not found")
         return stored
+
+    def _search(
+        self,
+        query: Q,
+        user_id: UUID,
+        search: LibrarySearch,
+        scope: SearchScope[EntryCollection],
+        *,
+        ordered: bool,
+    ) -> Q:
+        """`query` narrowed to the search and its scope, best match first."""
+        query = query.where(*self._user_filter(user_id, search.active))
+        order: list[SQLColumnExpression[Any]] = [
+            PracticeEntryORM.created_at.desc(),
+            PracticeEntryORM.id.desc(),
+        ]
+        items = entry_collection_items
+        match scope:
+            case InCollection(collection=collection):
+                query = query.join(
+                    items, items.c.entry_id == PracticeEntryORM.id
+                ).where(items.c.collection_id == collection.id)
+                order = [items.c.added_at, PracticeEntryORM.id]
+            case NotInCollection(collection=collection):
+                query = query.where(
+                    ~exists().where(
+                        items.c.entry_id == PracticeEntryORM.id,
+                        items.c.collection_id == collection.id,
+                    )
+                )
+        if search.text:
+            matches = self._matches(user_id, search, search.text)
+            query = query.join(matches, matches.c.item_id == PracticeEntryORM.id)
+            order = [matches.c.tier.desc(), *order]
+        return query.order_by(*order) if ordered else query
+
+    @staticmethod
+    def _matches(user_id: UUID, search: LibrarySearch, text: str) -> Subquery:
+        """Each of the user's entries that matches, with its best tier."""
+        owned = PracticeEntryORM.user_id == user_id
+        spelling, spelling_tier = text_match(
+            PracticeEntryKanjiReadingORM.kanji, search.needles
+        )
+        reading, reading_tier = text_match(PracticeEntryReadingORM.text, search.needles)
+        meaning, meaning_tier = meaning_match(PracticeGlossORM.text, text)
+        meaning_conditions = [meaning]
+        if search.meaning_lang:
+            meaning_conditions.append(PracticeGlossORM.lang == search.meaning_lang)
+        return best_matches(
+            [
+                select(
+                    PracticeEntryKanjiReadingORM.entry_id.label("item_id"),
+                    spelling_tier.label("tier"),
+                )
+                .join(PracticeEntryORM)
+                .where(owned, spelling),
+                select(
+                    PracticeEntryReadingORM.entry_id.label("item_id"),
+                    reading_tier.label("tier"),
+                )
+                .join(PracticeEntryORM)
+                .where(owned, reading),
+                select(
+                    PracticeSenseORM.entry_id.label("item_id"),
+                    meaning_tier.label("tier"),
+                )
+                .join(PracticeGlossORM)
+                .join(PracticeEntryORM)
+                .where(owned, *meaning_conditions),
+            ]
+        )
 
     @staticmethod
     def _user_filter(user_id: UUID, active: bool | None) -> list[ColumnElement[bool]]:

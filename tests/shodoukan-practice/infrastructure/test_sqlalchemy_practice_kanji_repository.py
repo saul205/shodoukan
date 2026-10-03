@@ -1,11 +1,19 @@
 from datetime import timedelta
+from typing import Any
 
 import pytest
-from factories import NOW, make_kanji, make_kanji_collection
+from factories import NOW, make_kanji, make_kanji_collection, make_kanji_with
 from sqlalchemy.orm import Session
 
-from shodoukan_practice.domain.entities import PracticeReadingItem
+from shodoukan_practice.domain.entities import KanjiCollection, PracticeReadingItem
 from shodoukan_practice.domain.exceptions import EntityNotFoundError
+from shodoukan_practice.domain.gateways import KanaForms
+from shodoukan_practice.domain.searches import (
+    LibrarySearch,
+    NotInCollection,
+    SearchScope,
+    WholeLibrary,
+)
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
@@ -184,3 +192,72 @@ def test_count_by_collection_counts_active_items(
     )
 
     assert repo.count_by_collection(collection) == 1
+
+
+# --- Search (find / count) ----------------------------------------------------
+
+
+def _search(text: str, *kana: str, **filters: Any) -> LibrarySearch:
+    """A search for `text`; `kana` are its hiragana and katakana forms."""
+    forms = KanaForms(*kana) if kana else None
+    return LibrarySearch(text=text, kana=forms, **filters)
+
+
+def _found(
+    repo: SqlAlchemyPracticeKanjiRepository,
+    user: UserORM,
+    search: LibrarySearch,
+    scope: SearchScope[KanjiCollection] | None = None,
+) -> list[str]:
+    """Literals of the kanji found, in order; checks `count` agrees."""
+    scope = scope or WholeLibrary()
+    found = repo.find(user.id, search, scope, limit=50, offset=0)
+    assert repo.count(user.id, search, scope) == len(found)
+    return [kanji.literal for kanji in found]
+
+
+def test_find_by_literal_and_by_a_word_containing_it(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
+) -> None:
+    repo.add(make_kanji_with(user.id, "兄", meanings=[("elder brother", "en")]))
+    repo.add(make_kanji_with(user.id, "弟", created_at=NOW + timedelta(days=1)))
+    repo.add(make_kanji_with(user.id, "水"))
+
+    assert _found(repo, user, _search("兄")) == ["兄"]
+    # 兄弟 (kyoudai) contains both.
+    assert _found(repo, user, _search("兄弟")) == ["弟", "兄"]
+
+
+def test_find_by_reading_without_okurigana_dot_and_in_katakana(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
+) -> None:
+    repo.add(make_kanji_with(user.id, "食", on=["ショク"], kun=["た.べる"]))
+    repo.add(make_kanji_with(user.id, "会", on=["カイ"], kun=["あ.う"]))
+    repo.add(make_kanji_with(user.id, "合", kun=["-あ.う"]))
+
+    assert _found(repo, user, _search("taberu", "たべる", "タベル")) == ["食"]
+    assert _found(repo, user, _search("kai", "かい", "カイ")) == ["会"]
+    # Exact for both, so newest-first (same date: higher id first).
+    assert _found(repo, user, _search("au", "あう", "アウ")) == ["合", "会"]
+
+
+def test_find_ranks_exact_meaning_before_word_start(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
+) -> None:
+    repo.add(make_kanji_with(user.id, "偶", meanings=[("same kind", "en")]))
+    repo.add(make_kanji_with(user.id, "同", meanings=[("same", "en"), ("igual", "es")]))
+
+    assert _found(repo, user, _search("same", meaning_lang="en")) == ["同", "偶"]
+    assert _found(repo, user, _search("igual", meaning_lang="en")) == []
+    assert _found(repo, user, _search("igual", meaning_lang="es")) == ["同"]
+
+
+def test_find_out_of_a_collection(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, session: Session
+) -> None:
+    collections = SqlAlchemyKanjiCollectionRepository(session)
+    collection = collections.add(make_kanji_collection(user.id))
+    collections.add_item(collection, repo.add(make_kanji_with(user.id, "兄")))
+    repo.add(make_kanji_with(user.id, "弟"))
+
+    assert _found(repo, user, _search("兄弟"), NotInCollection(collection)) == ["弟"]
