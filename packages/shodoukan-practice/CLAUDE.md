@@ -13,7 +13,8 @@ Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy reposi
 the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`),
 sign-in through Keycloak (users auto-created on first request, `GET /users/me`), importing an entry or kanji (`POST /library/entries`, `POST /library/kanji`), and public
 dictionary search (`GET /dictionary/search`, same `Dictionary.search` as shodoukan-api),
-the import status of search results (`GET /library/imported`), and collections
+the import status of search results (`GET /library/imported`), listing the library
+(`GET /library/entries`, `GET /library/kanji`, paged with a total), and collections
 (`/collections/entries`, `/collections/kanji`: CRUD plus adding, removing and paging
 items). The practice and dictionary apps are standalone: never call shodoukan-api from
 here. Not built yet: customisation endpoints, exercises.
@@ -40,7 +41,8 @@ here. Not built yet: customisation endpoints, exercises.
 - `application/commands/collection_commands.py` / `queries/collection_queries.py`:
   collection use cases, one class per use case and kind (`CreateEntryCollection`,
   `AddKanjiToCollection`, `ListEntryCollectionItems`, ...).
-- `application/queries/library_queries.py`: `GetImportStatus`;
+- `application/queries/library_queries.py`: `GetImportStatus`, `ListLibraryEntries`,
+  `ListLibraryKanji` (return `LibraryPage(items, total, limit, offset)`);
   `queries/dictionary_queries.py`: `SearchDictionary`.
 - Dictionary read models (`DictionaryEntry`, `DictionarySearchResult`, ...) live with
   the port in `domain/gateways/dictionary_gateway.py`.

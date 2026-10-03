@@ -19,6 +19,8 @@ page per use case.
 
 - [Importing into the library](library/import.md): add a dictionary word or kanji to
   your library.
+- [Browsing the library](library/browse.md): see every imported word and kanji, and
+  pick items for collections.
 
 ## Collections
 
@@ -30,7 +32,7 @@ page per use case.
 These features will get their folder once their use cases are agreed:
 
 - `exercises/`: practising with one or more collections.
-- More `library/` pages: browsing and customising imported items.
+- More `library/` pages: customising imported items.
 
 Until then, the [technical documentation](../technical/README.md) describes the model
 that is already built.
