@@ -69,6 +69,12 @@ def test_search_routes_romaji(dictionary):
     assert any(e.id == 1000001 for e in result.entries.items)
 
 
+def test_search_romaji_finds_kanji_by_on_reading(dictionary):
+    # "sui" → すい, matched against the katakana on-reading スイ.
+    result = dictionary.search("sui")
+    assert any(k.literal == "水" for k in result.kanji)
+
+
 def test_get_kanji_for_entry(dictionary):
     links = dictionary.get_kanji_for_entry(1000001)
     assert any(lk.literal == "食" for lk in links)

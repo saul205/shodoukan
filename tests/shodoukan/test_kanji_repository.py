@@ -31,6 +31,25 @@ def test_search_by_on_reading(engine):
     assert any(k.literal == "水" for k in page.items)
 
 
+def test_search_by_on_reading_in_hiragana(engine):
+    # KANJIDIC2 stores on-readings in katakana (スイ); kana input is hiragana.
+    repo = KanjiRepository(engine)
+    page = repo.search(query="すい", grade=None, jlpt=None, limit=20, offset=0)
+    assert [k.literal for k in page.items] == ["水"]
+
+
+def test_search_by_on_reading_prefix_in_hiragana(engine):
+    repo = KanjiRepository(engine)
+    page = repo.search(query="しょ", grade=None, jlpt=None, limit=20, offset=0)
+    assert [k.literal for k in page.items] == ["食"]
+
+
+def test_search_by_kun_reading_in_katakana(engine):
+    repo = KanjiRepository(engine)
+    page = repo.search(query="ミズ", grade=None, jlpt=None, limit=20, offset=0)
+    assert [k.literal for k in page.items] == ["水"]
+
+
 def test_search_by_kun_reading(engine):
     repo = KanjiRepository(engine)
     page = repo.search(query="みず", grade=None, jlpt=None, limit=20, offset=0)

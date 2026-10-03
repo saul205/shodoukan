@@ -10,27 +10,37 @@ from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import kanji_to_domain
 from shodoukan.repositories.scoring import FTS_KANJI_WEIGHT, kanji_score
 from shodoukan.utils.detect import contains_kana, contains_kanji
+from shodoukan.utils.kana import hiragana_to_katakana, katakana_to_hiragana
 from shodoukan.utils.lang import meaning_lang
 
 
+# KANJIDIC2 writes on-readings in katakana and kun-readings in hiragana, so the
+# query is bound twice: :q_on in katakana and :q_kun in hiragana.
 _READING_SQL = (
-    "EXISTS (SELECT 1 FROM json_each(kanji.on_readings) WHERE value = :q)"
-    " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings) WHERE value = :q)"
+    "EXISTS (SELECT 1 FROM json_each(kanji.on_readings) WHERE value = :q_on)"
+    " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings) WHERE value = :q_kun)"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings)"
-    " WHERE REPLACE(value, '.', '') = :q)"
+    " WHERE REPLACE(value, '.', '') = :q_kun)"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.on_readings)"
-    " WHERE value LIKE :q || '%')"
+    " WHERE value LIKE :q_on || '%')"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings)"
-    " WHERE value LIKE :q || '.' || '%')"
+    " WHERE value LIKE :q_kun || '.' || '%')"
 )
 
 # Evaluates to 1 for exact reading matches, 0 for prefix-only matches.
 _READING_EXACT_SQL = (
-    "EXISTS (SELECT 1 FROM json_each(kanji.on_readings) WHERE value = :q)"
-    " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings) WHERE value = :q)"
+    "EXISTS (SELECT 1 FROM json_each(kanji.on_readings) WHERE value = :q_on)"
+    " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings) WHERE value = :q_kun)"
     " OR EXISTS (SELECT 1 FROM json_each(kanji.kun_readings)"
-    " WHERE REPLACE(value, '.', '') = :q)"
+    " WHERE REPLACE(value, '.', '') = :q_kun)"
 )
+
+
+def _reading_params(query: str) -> dict[str, str]:
+    return {
+        "q_on": hiragana_to_katakana(query),
+        "q_kun": katakana_to_hiragana(query),
+    }
 
 
 def _with_meanings():
@@ -104,12 +114,13 @@ class KanjiRepository:
     def _search_by_reading(
         self, query: str, grade: int | None, jlpt: int | None, limit: int, offset: int
     ) -> Page[Kanji]:
+        params = _reading_params(query)
         where_clause = and_(
-            text(_READING_SQL).bindparams(q=query),
+            text(_READING_SQL).bindparams(**params),
             *self._grade_jlpt_conds(grade, jlpt),
         )
         exact_case = case(
-            (text(_READING_EXACT_SQL).bindparams(q=query), 1), else_=0
+            (text(_READING_EXACT_SQL).bindparams(**params), 1), else_=0
         )
         with Session(self._engine) as session:
             total = session.execute(
