@@ -16,6 +16,7 @@ Environment variables, the local PostgreSQL, and how the app connects.
 | `CORS_ORIGINS` | API | Comma-separated browser origins allowed to call the API; default `http://localhost:3001` (the practice frontend). Shared with `shodoukan-api`, so a value covering both apps lists both origins. |
 | `AUTH_SWAGGER_CLIENT_ID` | API docs | Optional. Client the Swagger UI signs in with; default `shodoukan-web`. |
 | `KEYCLOAK_PORT` | compose | Optional host port for Keycloak; default `8080`. Changing it also changes the issuer URL. |
+| `NUXT_PUBLIC_API_BASE`, `NUXT_PUBLIC_AUTH_ISSUER`, `NUXT_PUBLIC_AUTH_CLIENT_ID` | practice frontend | Optional; defaults match the local setup. See [frontend](../frontend.md#running). |
 | `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
 
 Real values live in the gitignored `.env.dev` (local) or the deployment's secret

@@ -209,3 +209,19 @@ document. Each maps to one domain method, so the rules (only own meanings change
 enforced where they live, the UI saves each toggle or note as the user makes it, and two
 tabs editing different parts don't overwrite each other. Every edit returns the whole
 item so the client doesn't have to merge.
+
+## The practice frontend is a Nuxt 4 SPA with Nuxt UI
+
+`shodoukan-practice-web` is built with Nuxt UI 4, which needs Nuxt 4, while the
+dictionary web stays on Nuxt 3. Nuxt UI gives the dashboard layout (collapsible
+sidebar, panels), forms, overlays and toasts ready-made and accessible, with an official
+Claude Code skill for its conventions. The dictionary cards come from `shodoukan-ui`
+(built with Tailwind 3 into its own CSS), so the two Tailwind versions don't meet.
+
+It renders only in the browser (`ssr: false`): every screen needs the signed-in user's
+token, which lives in the browser, so the server would render nothing useful and would
+complicate the sign-in flow. Sign-in uses `oidc-client-ts`, written against the OpenID
+Connect standard like the API, so the identity provider can change by configuration.
+
+The item detail is a page shared by the library and collections, not a modal, so it has
+its own URL and the back button works.

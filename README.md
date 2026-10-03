@@ -58,6 +58,13 @@ through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
 
 Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
 
+### `shodoukan-practice-web` — Practice frontend *(in progress)*
+
+Nuxt 4 + Nuxt UI app for the practice API on <http://localhost:3001>: sign in with
+Keycloak, then search the dictionary and import, customise your library (meanings,
+notes, readings) and group it into collections. See the
+[frontend docs](docs/practice/technical/frontend.md).
+
 ---
 
 ## Documentation
@@ -141,6 +148,16 @@ uvicorn shodoukan_practice.api.app:app --port 8001 --reload
 
 Open <http://localhost:8001/docs> and click **Authorize** to sign in (local user
 `dev` / `dev`). See the [authentication docs](docs/practice/technical/api/authentication.md).
+
+### Practice frontend
+
+With the practice API and Keycloak running (above):
+
+```bash
+pnpm install
+pnpm --filter shodoukan-ui build               # shared components
+pnpm --filter shodoukan-practice-web dev       # http://localhost:3001 (sign in as dev / dev)
+```
 
 After changing an ORM model, create a migration and review it:
 
