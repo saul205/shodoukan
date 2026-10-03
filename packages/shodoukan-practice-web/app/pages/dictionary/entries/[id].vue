@@ -69,12 +69,23 @@ const senses = computed(() =>
             <UBadge v-if="data.entry.is_common" label="común" color="success" variant="soft" />
           </div>
         </div>
-        <ImportButton
-          :practice-id="status.entries.value.get(data.entry.id)"
-          :library-path="(practiceId: number) => `/library/entries/${practiceId}`"
-          :loading="status.isImportingEntry(data.entry.id)"
-          @import="status.addEntry(data.entry.id)"
-        />
+        <div class="flex items-center gap-2">
+          <UButton
+            v-if="status.entries.value.has(data.entry.id)"
+            :to="`/library/entries/${status.entries.value.get(data.entry.id)}`"
+            label="Abrir en tu librería"
+            icon="i-lucide-arrow-up-right"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+          />
+          <ImportButton
+            :imported="status.entries.value.has(data.entry.id)"
+            :loading="status.isBusyEntry(data.entry.id)"
+            @import="status.addEntry(data.entry.id)"
+            @remove="status.removeEntry(data.entry.id)"
+          />
+        </div>
       </header>
 
       <dl v-if="otherForms.length || otherReadings.length" class="flex flex-wrap gap-6 text-sm">

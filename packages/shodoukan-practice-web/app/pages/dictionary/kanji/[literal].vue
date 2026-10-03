@@ -84,12 +84,23 @@ const stats = computed(() => {
             </div>
           </dl>
         </div>
-        <ImportButton
-          :practice-id="status.kanji.value.get(kanji.literal)"
-          :library-path="(id: number) => `/library/kanji/${id}`"
-          :loading="status.isImportingKanji(kanji.literal)"
-          @import="status.addKanji(kanji.literal)"
-        />
+        <div class="flex items-center gap-2">
+          <UButton
+            v-if="status.kanji.value.has(kanji.literal)"
+            :to="`/library/kanji/${status.kanji.value.get(kanji.literal)}`"
+            label="Abrir en tu librería"
+            icon="i-lucide-arrow-up-right"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+          />
+          <ImportButton
+            :imported="status.kanji.value.has(kanji.literal)"
+            :loading="status.isBusyKanji(kanji.literal)"
+            @import="status.addKanji(kanji.literal)"
+            @remove="status.removeKanji(kanji.literal)"
+          />
+        </div>
       </header>
 
       <section class="space-y-2" aria-label="Lecturas">

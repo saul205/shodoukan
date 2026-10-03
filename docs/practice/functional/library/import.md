@@ -7,7 +7,9 @@ How a user adds a dictionary word or kanji to their personal practice library.
 ## What the user does
 
 While browsing the dictionary, the user clicks **Import** on an entry (a word such as
-食べる) or on a kanji (such as 食). It's added to their library, ready to customise,
+食べる) or on a kanji (such as 食). In the search results it's the **+** icon in the
+card's top-right corner (a tooltip says what it does); on a word's or kanji's detail
+page it's a labelled button. It's added to their library, ready to customise,
 group into collections and practise with.
 
 Entries and kanji are imported separately: importing a word doesn't import its kanji,
@@ -31,9 +33,17 @@ cross-references between words, and where an example sentence came from.
 ## Seeing what's already imported
 
 On the dictionary page, every result shows whether it's already in the user's
-library. Results already imported have their **Import** button disabled; the rest can
-be imported. Searching works the same for everyone, signed in or not; the import
-status is only shown to a signed-in user.
+library: imported results show a green **✓** ("In your library") instead of **+**.
+Searching works the same for everyone, signed in or not; the import status is only
+shown to a signed-in user.
+
+## Removing from the dictionary
+
+Hovering over (or tabbing to) the **✓** turns it into a red **remove** button. Clicking
+it asks for confirmation, because removing deletes the user's notes and own meanings
+and takes the item out of every collection, exactly like removing it from the library
+page. Once removed, the result shows **+** again and can be imported anew. On the
+detail pages, **Open in your library** next to the button goes to the library copy.
 
 ## Importing twice
 

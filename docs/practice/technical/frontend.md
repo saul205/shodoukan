@@ -92,8 +92,8 @@ button, title and actions).
 | Route | Screen |
 |---|---|
 | `/` | Home: the three sections |
-| `/dictionary?q=&page=` | Search; `shodoukan-ui` cards, import buttons with the status from `GET /library/imported` (`useImportStatus()`) |
-| `/dictionary/entries/:id`, `/dictionary/kanji/:literal` | Dictionary details (senses, examples, kanji; readings, stroke order, words using the kanji), with import |
+| `/dictionary?q=&page=` | Search; `shodoukan-ui` cards with an icon-only `ImportButton` over each card's corner (beside the card's link, not inside it): import, or remove on hover/focus with `ConfirmModal`; status from `GET /library/imported` (`useImportStatus()`) |
+| `/dictionary/entries/:id`, `/dictionary/kanji/:literal` | Dictionary details (senses, examples, kanji; readings, stroke order, words using the kanji), with a labelled `ImportButton` and, once imported, a link to the library copy |
 | `/library?tab=&active=&page=` | The library: words / kanji tabs, active filter, paging |
 | `/library/entries/:id`, `/library/kanji/:id` | **Shared detail page** for the library and collections: `MeaningList` (dictionary meanings only toggle; own meanings add / edit / delete), switches for spellings, readings and examples, `NotesEditor` (general and per sense, saved on blur), active, `ItemCollections`, removal |
 | `/collections?tab=` | Collections of words / kanji: create and edit (`CollectionFormModal`), delete (`ConfirmModal`) |

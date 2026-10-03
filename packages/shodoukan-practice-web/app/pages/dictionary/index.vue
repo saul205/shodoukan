@@ -88,7 +88,9 @@ function goToPage(next: number) {
 
       <div v-else-if="result" class="flex flex-col-reverse gap-6 md:flex-row md:items-start">
         <section v-if="result.kanji.length" class="flex flex-col gap-3 md:w-60 md:shrink-0" aria-label="Kanji">
-          <div v-for="k in result.kanji" :key="k.literal" class="flex flex-col gap-2">
+          <!-- The import button sits over the card's corner, beside the card's link
+               rather than inside it (no button inside a link). -->
+          <div v-for="k in result.kanji" :key="k.literal" class="relative flex">
             <KanjiCardCompact
               :kanji="k"
               :lang="lang"
@@ -96,18 +98,19 @@ function goToPage(next: number) {
               :href="`/dictionary/kanji/${k.literal}`"
             />
             <ImportButton
-              :practice-id="status.kanji.value.get(k.literal)"
-              :library-path="(id: number) => `/library/kanji/${id}`"
-              :loading="status.isImportingKanji(k.literal)"
-              class="self-center"
+              icon-only
+              :imported="status.kanji.value.has(k.literal)"
+              :loading="status.isBusyKanji(k.literal)"
+              class="absolute top-2 right-2"
               @import="status.addKanji(k.literal)"
+              @remove="status.removeKanji(k.literal)"
             />
           </div>
         </section>
 
         <section class="flex min-w-0 flex-1 flex-col gap-4" aria-label="Palabras">
           <p class="text-sm text-muted">{{ result.entries.total }} palabras</p>
-          <div v-for="entry in result.entries.items" :key="entry.id" class="flex flex-col gap-2">
+          <div v-for="entry in result.entries.items" :key="entry.id" class="relative">
             <EntryCard
               :entry="entry"
               :lang="lang"
@@ -116,11 +119,12 @@ function goToPage(next: number) {
               details-label="detalles →"
             />
             <ImportButton
-              :practice-id="status.entries.value.get(entry.id)"
-              :library-path="(id: number) => `/library/entries/${id}`"
-              :loading="status.isImportingEntry(entry.id)"
-              class="self-end"
+              icon-only
+              :imported="status.entries.value.has(entry.id)"
+              :loading="status.isBusyEntry(entry.id)"
+              class="absolute top-3 right-3"
               @import="status.addEntry(entry.id)"
+              @remove="status.removeEntry(entry.id)"
             />
           </div>
 

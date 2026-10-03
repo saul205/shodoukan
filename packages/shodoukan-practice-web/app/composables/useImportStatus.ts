@@ -1,18 +1,28 @@
-import { getImportStatus, importEntry, importKanji } from '~/services/library'
+import ConfirmModal from '~/components/ConfirmModal.vue'
+import {
+  getImportStatus,
+  importEntry,
+  importKanji,
+  removeLibraryEntry,
+  removeLibraryKanji,
+} from '~/services/library'
 
 /**
- * Which dictionary results are in the user's library, and importing the
- * rest. Ask with `refresh(entryIds, literals)` whenever the results change.
+ * Which dictionary results are in the user's library, importing the rest and
+ * removing imported ones. Ask with `refresh(entryIds, literals)` whenever the
+ * results change.
  */
 export function useImportStatus() {
   const api = useApi()
   const notify = useNotify()
+  const overlay = useOverlay()
 
   /** Dictionary entry id → practice entry id. */
   const entries = ref(new Map<number, number>())
   /** Kanji literal → practice kanji id. */
   const kanji = ref(new Map<string, number>())
-  const importing = ref(new Set<string>())
+  /** Results being imported or removed, as `entry:<id>` / `kanji:<literal>`. */
+  const busy = ref(new Set<string>())
 
   async function refresh(entryIds: number[], literals: string[]) {
     try {
@@ -25,44 +35,100 @@ export function useImportStatus() {
     }
   }
 
-  async function addEntry(entryId: number) {
-    const key = `entry:${entryId}`
-    importing.value = new Set(importing.value).add(key)
+  async function whileBusy(key: string, run: () => Promise<void>) {
+    busy.value = new Set(busy.value).add(key)
     try {
-      const copy = await importEntry(api, entryId)
-      entries.value = new Map(entries.value).set(entryId, copy.id)
-      notify.success('Añadida a tu librería')
-    }
-    catch (error) {
-      notify.failure(error, 'No se ha podido importar')
+      await run()
     }
     finally {
-      const next = new Set(importing.value)
+      const next = new Set(busy.value)
       next.delete(key)
-      importing.value = next
+      busy.value = next
     }
+  }
+
+  // Removing drops the user's notes and own meanings, as in the library pages.
+  async function confirmRemoval(what: 'entry' | 'kanji'): Promise<boolean> {
+    const again = what === 'entry' ? 'importarla' : 'importarlo'
+    return await overlay.create(ConfirmModal).open({
+      title: '¿Quitar de tu librería?',
+      description: `Se borran tus notas y significados propios, y sale de todas tus colecciones. Podrás volver a ${again} desde el diccionario.`,
+      confirmLabel: 'Quitar',
+    }).result
+  }
+
+  async function addEntry(entryId: number) {
+    await whileBusy(`entry:${entryId}`, async () => {
+      try {
+        const copy = await importEntry(api, entryId)
+        entries.value = new Map(entries.value).set(entryId, copy.id)
+        notify.success('Añadida a tu librería')
+      }
+      catch (error) {
+        notify.failure(error, 'No se ha podido importar')
+      }
+    })
   }
 
   async function addKanji(literal: string) {
-    const key = `kanji:${literal}`
-    importing.value = new Set(importing.value).add(key)
-    try {
-      const copy = await importKanji(api, literal)
-      kanji.value = new Map(kanji.value).set(literal, copy.id)
-      notify.success('Añadido a tu librería')
-    }
-    catch (error) {
-      notify.failure(error, 'No se ha podido importar')
-    }
-    finally {
-      const next = new Set(importing.value)
-      next.delete(key)
-      importing.value = next
-    }
+    await whileBusy(`kanji:${literal}`, async () => {
+      try {
+        const copy = await importKanji(api, literal)
+        kanji.value = new Map(kanji.value).set(literal, copy.id)
+        notify.success('Añadido a tu librería')
+      }
+      catch (error) {
+        notify.failure(error, 'No se ha podido importar')
+      }
+    })
   }
 
-  const isImportingEntry = (entryId: number) => importing.value.has(`entry:${entryId}`)
-  const isImportingKanji = (literal: string) => importing.value.has(`kanji:${literal}`)
+  async function removeEntry(entryId: number) {
+    const practiceId = entries.value.get(entryId)
+    if (practiceId === undefined || !(await confirmRemoval('entry'))) return
+    await whileBusy(`entry:${entryId}`, async () => {
+      try {
+        await removeLibraryEntry(api, practiceId)
+        const next = new Map(entries.value)
+        next.delete(entryId)
+        entries.value = next
+        notify.success('Quitada de tu librería')
+      }
+      catch (error) {
+        notify.failure(error, 'No se ha podido quitar')
+      }
+    })
+  }
 
-  return { entries, kanji, refresh, addEntry, addKanji, isImportingEntry, isImportingKanji }
+  async function removeKanji(literal: string) {
+    const practiceId = kanji.value.get(literal)
+    if (practiceId === undefined || !(await confirmRemoval('kanji'))) return
+    await whileBusy(`kanji:${literal}`, async () => {
+      try {
+        await removeLibraryKanji(api, practiceId)
+        const next = new Map(kanji.value)
+        next.delete(literal)
+        kanji.value = next
+        notify.success('Quitado de tu librería')
+      }
+      catch (error) {
+        notify.failure(error, 'No se ha podido quitar')
+      }
+    })
+  }
+
+  const isBusyEntry = (entryId: number) => busy.value.has(`entry:${entryId}`)
+  const isBusyKanji = (literal: string) => busy.value.has(`kanji:${literal}`)
+
+  return {
+    entries,
+    kanji,
+    refresh,
+    addEntry,
+    addKanji,
+    removeEntry,
+    removeKanji,
+    isBusyEntry,
+    isBusyKanji,
+  }
 }
