@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- **shodoukan:** Romaji searches report the right number of results and page through
+  all of them. They used to count only meaning matches (`taberu` said 0 results while
+  showing 2) and later pages skipped words, because the reading and meaning searches
+  were paginated separately and merged afterwards.
+
+### Changed
+
+- **shodoukan:** Entry search ranks every match with one score, `match_tier × 2000 +
+  popularity`, in a single query: reading matches by exact/prefix, meaning matches by
+  bm25 relative to the best match of the search. Japanese searches keep their order;
+  romaji searches interleave readings and meanings.
+- **shodoukan:** Meaning matches are decayed by the position of the matched sense only
+  (`/ log2(position + 2)`) instead of by the number of senses, so common words with many
+  meanings (水) are no longer pushed down.
+- **shodoukan-ui:** The debug bar shows the new `score` as the sort value, with `tier`
+  and `relevance`.
+
 ## [0.2.0] — 2026-05-21
 
 ### Added

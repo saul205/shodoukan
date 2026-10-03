@@ -69,6 +69,7 @@ If you add a new package or introduce a significant architectural decision, crea
 - `Entry.is_common` is pre-computed on the backend from `EntryORM.has_common` (DB column). The frontend reads it directly — **never derive it from priority tags**.
 - Debug mode: set `SHODOUKAN_DEBUG=1` in the API environment to include `ScoreBreakdown` in every entry response. See `packages/shodoukan/src/shodoukan/repositories/entry.py`.
 - Ranking uses `JLPT_WEIGHT = 100` (validated). Do not change without re-running ranking tests.
+- Entry search is one SQL query for reading and gloss matches, ranked by `score = match_tier × 2000 + popularity`, with gloss popularity decayed by the matched sense's position (`/ log2(pos + 2)`). See `docs/technical/search.md`.
 
 ## Development conventions
 

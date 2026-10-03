@@ -41,10 +41,19 @@ Related kanji characters appear alongside the entries. Each kanji card shows:
 
 Results are ordered so the most useful words appear first:
 
-1. **Exact matches** come before prefix matches (searching `食` returns `食` before `食べる`)
-2. **Common, high-frequency words** rank above rare ones
-3. **JLPT words** receive a bonus — N5 words (most common) rank higher than unlisted words
-4. For gloss searches, senses that appear **earlier in the entry** (primary meaning) rank higher than secondary meanings
+1. **How well the word matches comes first.** An exact match of the written form or
+   reading beats one that only starts with your search (searching `食` returns `食`
+   before `食べる`). For meanings, the closest definitions (short ones like "water"
+   rather than "suspension of water supply") come first.
+2. **Within an equally good match, common, high-frequency words** rank above rare ones.
+3. **JLPT words** receive a bonus — N5 words (most common) rank higher than unlisted words.
+4. For meaning searches, a match in a word's **first meaning** counts most; later
+   meanings count less and less. Having many meanings doesn't push a word down
+   (水 isn't penalised for its other senses).
+
+A romaji search such as `kami` looks up both the reading (かみ) and the meaning, and
+shows them in one list ranked the same way. The number of results and the pages cover
+every match: paging through shows each word once.
 
 ---
 
