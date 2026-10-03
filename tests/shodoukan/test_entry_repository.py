@@ -161,7 +161,9 @@ def test_gloss_search_orders_by_priority(conn, engine):
     assert ids.index(9960002) < ids.index(9960001)  # ichi1 comes first
 
 
-def test_gloss_search_sense_count_damping(conn, engine):
+def test_gloss_search_total_senses_do_not_penalise(conn, engine, monkeypatch):
+    # Only the matched sense's position decays the score, not how many senses
+    # the entry has.
     # 9940001: ichi1, 9 senses, match in 1st sense (pos 0)
     conn.execute("INSERT INTO entries VALUES (9940001, NULL, 510, 1)")
     conn.execute(
@@ -203,11 +205,13 @@ def test_gloss_search_sense_count_damping(conn, engine):
     conn.execute("INSERT INTO sense_lang_index VALUES (?, 'eng', 0)", (sid2,))
     conn.commit()
 
+    monkeypatch.setenv("SHODOUKAN_DEBUG", "1")
     repo = EntryRepository(engine)
     page = repo.search_by_gloss("snack", limit=20, offset=0)
-    ids = [e.id for e in page.items]
-    # same priority and sense position — fewer total senses wins
-    assert ids.index(9940002) < ids.index(9940001)
+    scores = {e.id: e.score for e in page.items}
+    # same priority and sense position: same score, 9 senses or 1
+    assert scores[9940001].composite == scores[9940002].composite == 510
+    assert scores[9940001].score == scores[9940002].score
 
 
 def test_gloss_search_priority_beats_moderate_sense_penalty(conn, engine):
@@ -487,3 +491,160 @@ def test_gloss_search_sense_total_excludes_other_languages(conn, engine, monkeyp
     entry = next(e for e in page.items if e.id == 9910003)
     assert entry.score.total_senses == 2  # Spanish sense not counted
     assert entry.score.sense_pos == 0
+
+
+def test_gloss_search_sense_position_decays_logarithmically(conn, engine, monkeypatch):
+    # Same popularity; the match is in sense 1 for one entry and sense 3 for
+    # the other: popularity / log2(pos + 2) -> 1.0 and 0.5.
+    for entry_id, match_pos in ((9960001, 0), (9960002, 2)):
+        conn.execute(f"INSERT INTO entries VALUES ({entry_id}, NULL, 510, 1)")
+        for pos in range(3):
+            sid = conn.execute(
+                f"INSERT INTO senses(entry_id, pos) VALUES ({entry_id}, '[]')"
+            ).lastrowid
+            text = "to nibble" if pos == match_pos else f"other meaning {pos}"
+            conn.execute(
+                "INSERT INTO glosses(sense_id, text, lang) VALUES (?, ?, 'eng')",
+                (sid, text),
+            )
+            conn.execute(
+                "INSERT INTO sense_lang_index VALUES (?, 'eng', ?)", (sid, pos)
+            )
+        conn.execute(f"INSERT INTO entry_sense_counts VALUES ({entry_id}, 'eng', 3)")
+    conn.commit()
+
+    monkeypatch.setenv("SHODOUKAN_DEBUG", "1")
+    page = EntryRepository(engine).search_by_gloss("nibble", limit=20, offset=0)
+
+    assert [e.id for e in page.items] == [9960001, 9960002]
+    first, third = (e.score for e in page.items)
+    assert (first.sense_pos, first.composite) == (0, 510)
+    assert (third.sense_pos, third.composite) == (2, 255)
+
+
+# --- Unified search: one score, one query, exact pagination ---
+
+
+def _add_entry(conn, entry_id, reading, senses, freq=0, jlpt=None):
+    """Insert an entry with a kana reading and English glosses per sense."""
+    conn.execute(
+        "INSERT INTO entries VALUES (?, ?, ?, 0)", (entry_id, jlpt, freq)
+    )
+    conn.execute(
+        "INSERT INTO readings(entry_id, text) VALUES (?, ?)", (entry_id, reading)
+    )
+    for pos, glosses in enumerate(senses):
+        sid = conn.execute(
+            "INSERT INTO senses(entry_id, pos) VALUES (?, '[]')", (entry_id,)
+        ).lastrowid
+        for gloss in glosses:
+            conn.execute(
+                "INSERT INTO glosses(sense_id, text, lang) VALUES (?, ?, 'eng')",
+                (sid, gloss),
+            )
+        conn.execute("INSERT INTO sense_lang_index VALUES (?, 'eng', ?)", (sid, pos))
+    conn.execute(
+        "INSERT INTO entry_sense_counts VALUES (?, 'eng', ?)", (entry_id, len(senses))
+    )
+
+
+def test_search_pages_partition_the_results(conn, engine):
+    # Readings starting with ぽぽ and glosses with "popo": two kinds of match.
+    for i in range(5):
+        _add_entry(conn, 9970000 + i, f"ぽぽ{i}", [["something"]], freq=10 * i)
+        _add_entry(conn, 9970100 + i, f"べつ{i}", [[f"popo kind {i}"]], freq=10 * i)
+    conn.commit()
+    repo = EntryRepository(engine)
+
+    full = repo.search(reading_query="ぽぽ", gloss_query="popo", limit=100)
+    pages = [
+        repo.search(reading_query="ぽぽ", gloss_query="popo", limit=3, offset=offset)
+        for offset in (0, 3, 6, 9)
+    ]
+
+    assert full.total == 10
+    assert all(page.total == 10 for page in pages)
+    paged_ids = [e.id for page in pages for e in page.items]
+    assert paged_ids == [e.id for e in full.items]
+    assert len(set(paged_ids)) == 10
+
+
+def test_search_counts_an_entry_matched_both_ways_once(conn, engine):
+    repo = EntryRepository(engine)
+
+    # 1000001 is たべる and has the gloss "to eat".
+    page = repo.search(reading_query="たべる", gloss_query="eat", limit=20)
+
+    assert [e.id for e in page.items].count(1000001) == 1
+    assert page.total == len({e.id for e in page.items})
+
+
+def test_search_past_the_end_still_reports_the_total(conn, engine):
+    page = EntryRepository(engine).search(reading_query="たべる", limit=20, offset=50)
+    assert page.items == []
+    assert page.total == 1
+
+
+def test_search_without_queries_is_empty(conn, engine):
+    page = EntryRepository(engine).search()
+    assert (page.items, page.total) == ([], 0)
+
+
+def test_best_gloss_match_beats_a_more_popular_weak_one(conn, engine, monkeypatch):
+    _add_entry(conn, 9980001, "しまうま", [["zebra"]], freq=0)
+    _add_entry(
+        conn,
+        9980002,
+        "ほか",
+        [["a large striped animal of the savannah somewhat like a zebra"]],
+        freq=540,
+        jlpt=5,
+    )
+    conn.commit()
+    monkeypatch.setenv("SHODOUKAN_DEBUG", "1")
+
+    page = EntryRepository(engine).search_by_gloss("zebra", limit=20)
+
+    assert [e.id for e in page.items] == [9980001, 9980002]
+    best, weak = (e.score for e in page.items)
+    assert (best.match_tier, best.relevance) == (3, 1.0)
+    assert weak.match_tier < 3
+
+
+def test_exact_reading_beats_a_more_popular_prefix(conn, engine, monkeypatch):
+    _add_entry(conn, 9980101, "ふぉお", [["rare"]], freq=0)
+    _add_entry(conn, 9980102, "ふぉおく", [["fork"]], freq=540, jlpt=5)
+    conn.commit()
+    monkeypatch.setenv("SHODOUKAN_DEBUG", "1")
+
+    page = EntryRepository(engine).search_by_japanese("ふぉお", 20, 0)
+
+    assert [e.id for e in page.items] == [9980101, 9980102]
+    assert [e.score.match_tier for e in page.items] == [3, 2]
+    assert page.items[0].score.score == 3 * 2000 + 0
+
+
+def test_equal_scores_are_ordered_by_id(conn, engine):
+    for entry_id in (9990003, 9990001, 9990002):
+        _add_entry(conn, entry_id, "ぴよ", [["chirp"]], freq=100)
+    conn.commit()
+
+    page = EntryRepository(engine).search_by_japanese("ぴよ", 20, 0)
+
+    assert [e.id for e in page.items] == [9990001, 9990002, 9990003]
+
+
+def test_unified_score_breakdown_in_debug(conn, engine, monkeypatch):
+    monkeypatch.setenv("SHODOUKAN_DEBUG", "1")
+
+    page = EntryRepository(engine).search(
+        reading_query="たべる", gloss_query="water", limit=20
+    )
+
+    by_id = {e.id: e.score for e in page.items}
+    reading, gloss = by_id[1000001], by_id[1000002]
+    assert (reading.match_tier, reading.exact_match) == (3, True)
+    assert reading.fts_rank is None
+    assert reading.score == 3 * 2000 + reading.freq + reading.jlpt_bonus
+    assert gloss.fts_rank is not None and gloss.relevance == 1.0
+    assert gloss.score == gloss.match_tier * 2000 + gloss.composite

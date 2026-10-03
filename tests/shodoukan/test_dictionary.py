@@ -56,6 +56,14 @@ def test_search_entries_romaji_falls_back_to_english(dictionary):
     assert any(e.id == 1000002 for e in page.items)
 
 
+def test_search_romaji_total_counts_every_match(dictionary):
+    # "taberu" matches the reading たべる and no English gloss: the total is
+    # the number of distinct matches, not the gloss matches only.
+    result = dictionary.search("taberu")
+    assert result.entries.total == len(result.entries.items) == 1
+    assert dictionary.search_entries("taberu").total == 1
+
+
 def test_search_routes_romaji(dictionary):
     result = dictionary.search("taberu")
     assert any(e.id == 1000001 for e in result.entries.items)

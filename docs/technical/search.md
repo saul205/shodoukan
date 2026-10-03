@@ -15,12 +15,12 @@ The two results are never cross-pollinated: kanji are not derived from entry res
 
 Queries are classified in this order:
 
-| Condition | Entry method | Kanji method |
+| Condition | Entry search | Kanji method |
 |-----------|-------------|--------------|
-| `is_kanji_only(query)` — every character is a CJK ideograph | `search_by_japanese` | Direct literal lookup for each character |
-| `is_japanese(query)` — contains any kanji or kana | `search_by_japanese` | `search` → reading path |
-| `is_romaji(query)` — ASCII letters/apostrophes/hyphens only | `search_by_japanese(hiragana)` | `search(hiragana)` → reading path |
-| Fallback (other language gloss) | `search_by_gloss` | `search` → meaning path |
+| `is_kanji_only(query)` — every character is a CJK ideograph | reading matches | Direct literal lookup for each character |
+| `is_japanese(query)` — contains any kanji or kana | reading matches | `search` → reading path |
+| `is_romaji(query)` — ASCII letters/apostrophes/hyphens only | reading matches (as hiragana) **and** gloss matches (as typed), ranked together | `search(hiragana)` → reading path |
+| Fallback (other language gloss) | gloss matches | `search` → meaning path |
 
 Romaji is converted to hiragana via Hepburn mapping before use. If conversion fails (e.g. "water" contains non-romaji characters) the query falls through to the gloss path.
 
@@ -28,37 +28,93 @@ Romaji is converted to hiragana via Hepburn mapping before use. If conversion fa
 
 ## Entry Search
 
-### Japanese / romaji → `search_by_japanese`
+Every entry search is one SQL query: `EntryRepository.search(reading_query, gloss_query,
+lang, limit, offset)` (code: `repositories/entry.py`, constants: `repositories/scoring.py`).
+`search_by_japanese` and `search_by_gloss` call it with one branch. Each matching entry
+gets a **score in a unit shared by both kinds of match**, so reading and gloss matches
+can be ranked, counted and paginated together.
 
-Matches entries where any **kanji reading starts with** the query or any **kana reading equals or starts with** the query. The match condition is:
+```
+score      = match_tier × TIER_WEIGHT + popularity          TIER_WEIGHT = 2000
+popularity = freq_score + coalesce(jlpt, 0) × JLPT_WEIGHT   JLPT_WEIGHT = 100
+```
+
+`freq_score` is 0–560 and the JLPT bonus 0–500, so popularity stays below ~1100 <
+`TIER_WEIGHT`: **a better tier always wins**, and popularity orders entries within a
+tier.
+
+### Reading matches
+
+Entries whose spelling or reading equals or starts with the query:
 
 ```
 kanji_reading == query  OR  kanji_reading LIKE query%
 OR reading == query     OR  reading LIKE query%
 ```
 
-**Scoring:**
+| Tier | When |
+|---|---|
+| 3 | a spelling or reading **equals** the query |
+| 2 | one only **starts with** it |
+
+Popularity is used as is. This keeps the earlier order: exact matches first, then by
+popularity.
+
+### Gloss matches
+
+SQLite FTS5 on `glosses`, in the requested language. The phrase is tried first; if it
+matches nothing in that language, a prefix match is used. (The check starts from the
+FTS index in a materialized CTE: joined with `LIMIT 1`, SQLite would scan every gloss
+of the language.)
+
+**Tier — bm25 relative to the best match of the query.** Gloss matches are rarely
+exact ("eat" vs the gloss "to eat"), so the match quality comes from FTS5's bm25 rank,
+which already favours short glosses. An entry's rank is that of its best matching
+gloss, and
+
 ```
-score = freq_score + coalesce(jlpt, 0) * JLPT_WEIGHT   (JLPT_WEIGHT = 100)
+relevance = rank / best_rank_of_the_query      (ranks are negative: 1 = the best match)
 ```
 
-Results are ordered: exact matches (full kanji or kana reading equals query) first, then by score descending.
+| Tier | When |
+|---|---|
+| 3 | relevance ≥ 0.9 (`GLOSS_TIER_3_RELEVANCE`) |
+| 2 | relevance ≥ 0.5 (`GLOSS_TIER_2_RELEVANCE`) |
+| 1 | weaker |
 
-### Gloss / other language → `search_by_gloss`
+Relevance is relative to the query: the best gloss match is tier 3 even when it's a
+weak match overall.
 
-Uses SQLite FTS5 on the `glosses` table. Tries an exact phrase match first; falls back to prefix matching if no results.
+**Popularity — decayed by the matched sense's position (composite):**
 
-**Scoring (composite):**
 ```
-composite = (freq_score + jlpt_pts) * (total_senses - sense_pos)
-            / (total_senses * (0.9 + 0.1 * total_senses))
+composite = (freq_score + jlpt_pts) / log2(sense_pos + 2)
 ```
 
-- `jlpt_pts = coalesce(jlpt, 0) * JLPT_WEIGHT`
-- `sense_pos` = zero-based position of the matched sense in the entry's sense list for this language (earlier = more primary)
-- `total_senses` = total number of senses the entry has in this language
+`sense_pos` is the zero-based position of the matched sense among the entry's senses in
+that language (sense 1 → ×1.00, 2 → ×0.63, 3 → ×0.50, 5 → ×0.39, 9 → ×0.30). Only the
+position counts, not how many senses the entry has, so a common word with many senses
+(水) isn't penalised for a match in its first sense. `log2` is an SQLite math function;
+`db/connection.py` registers a Python one when the SQLite build lacks it.
 
-Results are ordered: FTS rank (best match) first, then composite score descending within the same rank tier.
+### Combining, ordering and pagination
+
+```
+reading matches  ┐
+                 ├─ UNION ALL ─ GROUP BY id (best score) ─ ORDER BY ─ LIMIT/OFFSET
+gloss matches    ┘                                          + COUNT(*) OVER ()
+```
+
+- An entry found both ways counts once, with its best score (SQLite takes the other
+  columns of a `MAX()` group from the row with the max).
+- Order: `score DESC`, then the raw bm25 rank (reading matches first), then `id`, so
+  the order is total and stable.
+- The total is `COUNT(*) OVER ()` over all matches; when the page is past the end, a
+  separate count. Pages partition the results: no entry is skipped or repeated.
+
+Before this, a romaji search ran both searches with their own `LIMIT/OFFSET`, merged
+the pages in Python and reported the gloss total only (`taberu` → total 0 with 2
+results), so later pages dropped entries.
 
 ---
 

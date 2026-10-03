@@ -66,6 +66,9 @@ class KanjiReading(BaseModel):
 
 
 class ScoreBreakdown(BaseModel):
+    score: float | None = None  # match_tier * TIER_WEIGHT + popularity; sort key
+    match_tier: int | None = None
+    relevance: float | None = None  # gloss: this entry's bm25 / the best bm25 (0-1]
     freq: int | None = None
     jlpt_bonus: int | None = None
     exact_match: bool | None = None
