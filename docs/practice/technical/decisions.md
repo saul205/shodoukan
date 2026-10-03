@@ -225,3 +225,14 @@ Connect standard like the API, so the identity provider can change by configurat
 
 The item detail is a page shared by the library and collections, not a modal, so it has
 its own URL and the back button works.
+
+## Importing into collections is one request
+
+The dictionary lets the user pick a collection for an item that isn't imported yet.
+`POST /library/entries` and `/library/kanji` take optional `collection_ids` instead of
+the frontend chaining the import and `PUT /collections/.../items/...`: two requests can
+fail halfway and leave the item imported but outside the collection the user chose.
+One request runs in one transaction, checks the collections before importing (an
+unknown one imports nothing), and stays idempotent, so a retry is safe. Every client
+gets that guarantee without repeating the logic. Adding an already-imported item to a
+collection keeps using the collection endpoints.

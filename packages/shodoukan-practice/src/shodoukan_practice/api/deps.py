@@ -161,14 +161,22 @@ def get_import_entry(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> ImportEntry:
-    return ImportEntry(dictionary, SqlAlchemyPracticeEntryRepository(session))
+    return ImportEntry(
+        dictionary,
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
 
 
 def get_import_kanji(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> ImportKanji:
-    return ImportKanji(dictionary, SqlAlchemyPracticeKanjiRepository(session))
+    return ImportKanji(
+        dictionary,
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
 
 
 def get_search_dictionary(

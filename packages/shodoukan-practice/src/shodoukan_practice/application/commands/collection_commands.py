@@ -21,24 +21,7 @@ from ...domain.repositories import (
     PracticeEntryRepository,
     PracticeKanjiRepository,
 )
-
-
-def _entry_collection(
-    collections: EntryCollectionRepository, collection_id: int, user_id: UUID
-) -> EntryCollection:
-    collection = collections.get(collection_id, user_id)
-    if collection is None:
-        raise EntityNotFoundError(f"entry collection {collection_id} not found")
-    return collection
-
-
-def _kanji_collection(
-    collections: KanjiCollectionRepository, collection_id: int, user_id: UUID
-) -> KanjiCollection:
-    collection = collections.get(collection_id, user_id)
-    if collection is None:
-        raise EntityNotFoundError(f"kanji collection {collection_id} not found")
-    return collection
+from .collection_lookups import entry_collection, kanji_collection
 
 
 def _entry(
@@ -117,7 +100,7 @@ class UpdateEntryCollection:
         name: str,
         description: str | None,
     ) -> EntryCollection:
-        collection = _entry_collection(self._collections, collection_id, user_id)
+        collection = entry_collection(self._collections, collection_id, user_id)
         collection.rename(name)
         collection.describe(description)
         return self._collections.update(collection)
@@ -136,7 +119,7 @@ class UpdateKanjiCollection:
         name: str,
         description: str | None,
     ) -> KanjiCollection:
-        collection = _kanji_collection(self._collections, collection_id, user_id)
+        collection = kanji_collection(self._collections, collection_id, user_id)
         collection.rename(name)
         collection.describe(description)
         return self._collections.update(collection)
@@ -152,7 +135,7 @@ class DeleteEntryCollection:
         self._collections = collections
 
     def execute(self, user_id: UUID, collection_id: int) -> None:
-        collection = _entry_collection(self._collections, collection_id, user_id)
+        collection = entry_collection(self._collections, collection_id, user_id)
         self._collections.delete(collection)
 
 
@@ -163,7 +146,7 @@ class DeleteKanjiCollection:
         self._collections = collections
 
     def execute(self, user_id: UUID, collection_id: int) -> None:
-        collection = _kanji_collection(self._collections, collection_id, user_id)
+        collection = kanji_collection(self._collections, collection_id, user_id)
         self._collections.delete(collection)
 
 
@@ -180,7 +163,7 @@ class AddEntryToCollection:
         self._entries = entries
 
     def execute(self, user_id: UUID, collection_id: int, entry_id: int) -> None:
-        collection = _entry_collection(self._collections, collection_id, user_id)
+        collection = entry_collection(self._collections, collection_id, user_id)
         self._collections.add_item(collection, _entry(self._entries, entry_id, user_id))
 
 
@@ -194,7 +177,7 @@ class AddKanjiToCollection:
         self._kanji = kanji
 
     def execute(self, user_id: UUID, collection_id: int, kanji_id: int) -> None:
-        collection = _kanji_collection(self._collections, collection_id, user_id)
+        collection = kanji_collection(self._collections, collection_id, user_id)
         self._collections.add_item(collection, _kanji(self._kanji, kanji_id, user_id))
 
 
@@ -208,7 +191,7 @@ class RemoveEntryFromCollection:
         self._entries = entries
 
     def execute(self, user_id: UUID, collection_id: int, entry_id: int) -> None:
-        collection = _entry_collection(self._collections, collection_id, user_id)
+        collection = entry_collection(self._collections, collection_id, user_id)
         self._collections.remove_item(
             collection, _entry(self._entries, entry_id, user_id)
         )
@@ -224,7 +207,7 @@ class RemoveKanjiFromCollection:
         self._kanji = kanji
 
     def execute(self, user_id: UUID, collection_id: int, kanji_id: int) -> None:
-        collection = _kanji_collection(self._collections, collection_id, user_id)
+        collection = kanji_collection(self._collections, collection_id, user_id)
         self._collections.remove_item(
             collection, _kanji(self._kanji, kanji_id, user_id)
         )

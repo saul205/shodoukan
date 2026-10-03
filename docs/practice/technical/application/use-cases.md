@@ -11,24 +11,34 @@ commit: the caller (the API route) owns the transaction. See
 
 ## Commands (`commands/library_commands.py`)
 
-### `ImportEntry(dictionary, entries).execute(user_id, source_entry_id)`
+### `ImportEntry(dictionary, entries, collections).execute(user_id, source_entry_id, collection_ids=())`
 
-Copies dictionary entry `source_entry_id` into the user's library.
+Copies dictionary entry `source_entry_id` into the user's library and, optionally,
+into some of the user's entry collections.
 
-1. If the user already has it (`entries.get_by_source_entry_id`), return it with
-   `created=False`. Nothing is written, and the dictionary isn't read.
-2. Otherwise ask the [dictionary gateway](../infrastructure/dictionary-gateway.md) for
+1. Look up every collection in `collection_ids` (duplicates ignored) scoped to the
+   user. A missing one, or another user's, raises `EntityNotFoundError` before
+   anything is read or written, so a failed request imports nothing.
+2. If the user already has the entry (`entries.get_by_source_entry_id`), take it with
+   `created=False`. The dictionary isn't read.
+3. Otherwise ask the [dictionary gateway](../infrastructure/dictionary-gateway.md) for
    a fresh snapshot. If there's none, raise `DictionaryItemNotFoundError`.
-3. Store it with `entries.add_if_absent`. If a concurrent request stored the same item
+4. Store it with `entries.add_if_absent`. If a concurrent request stored the same item
    in between, that copy is returned with `created=False`. See
    [repositories](../infrastructure/repositories.md#add_if_absent).
+5. Add the item to each collection (`collections.add_item`, idempotent). This also
+   happens when the item was already imported.
 
-Returns `ImportResult[PracticeEntry]` (`item`, `created`).
+Returns `ImportResult[PracticeEntry]` (`item`, `created`). Why collections are part
+of the import: [decisions](../decisions.md#importing-into-collections-is-one-request).
 
-### `ImportKanji(dictionary, kanji).execute(user_id, literal)`
+### `ImportKanji(dictionary, kanji, collections).execute(user_id, literal, collection_ids=())`
 
 Same flow for kanji, keyed by `literal` (`kanji.get_by_literal`,
-`dictionary.new_practice_kanji`).
+`dictionary.new_practice_kanji`), with kanji collections.
+
+The collection lookups (`entry_collection`, `kanji_collection`) live in
+`commands/collection_lookups.py`, shared with the collection commands below.
 
 ## Commands (`commands/collection_commands.py`)
 

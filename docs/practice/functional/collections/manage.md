@@ -33,8 +33,10 @@ There are two kinds, and they never mix:
   Items the user has deactivated are hidden from the collection but stay in it, and
   reappear when reactivated.
 
-Only items already in the library can be added: to put a dictionary word in a
-collection, import it first ([importing](../library/import.md)).
+Only items in the library can be in a collection. A dictionary word that isn't
+imported yet can be put in a collection directly: it's imported and added in one go,
+and if the collection can't be used nothing is imported
+([importing](../library/import.md)).
 
 ## Names
 

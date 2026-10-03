@@ -271,3 +271,71 @@ def test_list_validates_and_requires_a_token(
     ).status_code == 422
     assert client.get("/library/entries").status_code == 401
     assert client.get("/library/kanji").status_code == 401
+
+
+def test_import_entry_into_collections(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    headers = bearer(make_token())
+    verbs = client.post(
+        "/collections/entries", json={"name": "verbs"}, headers=headers
+    ).json()
+
+    response = client.post(
+        "/library/entries",
+        json={"entry_id": 1000001, "collection_ids": [verbs["id"]]},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    tags = client.get(
+        f"/library/entries/{response.json()['id']}/collections", headers=headers
+    ).json()
+    assert [c["name"] for c in tags] == ["verbs"]
+
+
+def test_import_into_another_users_collection_is_404_and_imports_nothing(
+    client: TestClient, make_token: TokenFactory, user: UserORM, session: Session
+) -> None:
+    stranger = bearer(make_token(subject=str(uuid4())))
+    theirs = client.post(
+        "/collections/entries", json={"name": "verbs"}, headers=stranger
+    ).json()
+
+    response = client.post(
+        "/library/entries",
+        json={"entry_id": 1000001, "collection_ids": [theirs["id"]]},
+        headers=bearer(make_token()),
+    )
+
+    assert response.status_code == 404
+    entries = SqlAlchemyPracticeEntryRepository(session)
+    assert entries.get_by_source_entry_id(1000001, user.id) is None
+
+
+def test_import_kanji_into_a_collection(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    headers = bearer(make_token())
+    n5 = client.post("/collections/kanji", json={"name": "N5"}, headers=headers).json()
+
+    response = client.post(
+        "/library/kanji",
+        json={"literal": "食", "collection_ids": [n5["id"]]},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    items = client.get(f"/collections/kanji/{n5['id']}/items", headers=headers).json()
+    assert [k["literal"] for k in items["items"]] == ["食"]
+
+
+def test_import_limits_the_collections(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    response = client.post(
+        "/library/entries",
+        json={"entry_id": 1000001, "collection_ids": list(range(51))},
+        headers=bearer(make_token()),
+    )
+    assert response.status_code == 422

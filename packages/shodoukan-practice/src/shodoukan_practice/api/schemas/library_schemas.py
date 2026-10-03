@@ -15,13 +15,27 @@ from ...domain.entities import NOTES_MAX_LENGTH
 Origin = Literal["imported", "added"]
 
 
+# Collections to put the item in while importing it; a handful in practice.
+MAX_IMPORT_COLLECTIONS = 50
+
+
 class ImportEntryRequest(BaseModel):
     entry_id: int = Field(description="Dictionary entry id (shodoukan `Entry.id`).")
+    collection_ids: list[int] = Field(
+        default_factory=list,
+        max_length=MAX_IMPORT_COLLECTIONS,
+        description="Entry collections to put it in too (optional).",
+    )
 
 
 class ImportKanjiRequest(BaseModel):
     literal: str = Field(
         min_length=1, max_length=1, description="The kanji character, e.g. 食."
+    )
+    collection_ids: list[int] = Field(
+        default_factory=list,
+        max_length=MAX_IMPORT_COLLECTIONS,
+        description="Kanji collections to put it in too (optional).",
     )
 
 

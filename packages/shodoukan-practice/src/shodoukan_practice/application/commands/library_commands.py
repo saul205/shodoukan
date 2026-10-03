@@ -1,5 +1,6 @@
 """Use cases that add dictionary items to a user's practice library."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 from uuid import UUID
@@ -7,7 +8,13 @@ from uuid import UUID
 from ...domain.entities import PracticeEntry, PracticeKanji
 from ...domain.exceptions import DictionaryItemNotFoundError
 from ...domain.gateways import DictionaryGateway
-from ...domain.repositories import PracticeEntryRepository, PracticeKanjiRepository
+from ...domain.repositories import (
+    EntryCollectionRepository,
+    KanjiCollectionRepository,
+    PracticeEntryRepository,
+    PracticeKanjiRepository,
+)
+from .collection_lookups import entry_collection, kanji_collection
 
 T = TypeVar("T")
 
@@ -21,19 +28,40 @@ class ImportResult(Generic[T]):
 
 
 class ImportEntry:
-    """Copy a dictionary entry into the user's library.
+    """Copy a dictionary entry into the user's library, and into collections.
 
-    Idempotent: if the user already has the entry, that copy is returned and
-    nothing changes. Doesn't commit; the caller owns the transaction.
+    Idempotent: if the user already has the entry, that copy is returned
+    unchanged (it's still put in the given collections). The collections are
+    checked first, so an unknown one (`EntityNotFoundError`) imports nothing.
+    Doesn't commit; the caller owns the transaction.
     """
 
     def __init__(
-        self, dictionary: DictionaryGateway, entries: PracticeEntryRepository
+        self,
+        dictionary: DictionaryGateway,
+        entries: PracticeEntryRepository,
+        collections: EntryCollectionRepository,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
+        self._collections = collections
 
     def execute(
+        self,
+        user_id: UUID,
+        source_entry_id: int,
+        collection_ids: Sequence[int] = (),
+    ) -> ImportResult[PracticeEntry]:
+        targets = [
+            entry_collection(self._collections, collection_id, user_id)
+            for collection_id in dict.fromkeys(collection_ids)
+        ]
+        result = self._import(user_id, source_entry_id)
+        for collection in targets:
+            self._collections.add_item(collection, result.item)
+        return result
+
+    def _import(
         self, user_id: UUID, source_entry_id: int
     ) -> ImportResult[PracticeEntry]:
         existing = self._entries.get_by_source_entry_id(source_entry_id, user_id)
@@ -48,18 +76,34 @@ class ImportEntry:
 
 
 class ImportKanji:
-    """Copy a dictionary kanji into the user's library.
+    """Copy a dictionary kanji into the user's library, and into collections.
 
-    Idempotent, like `ImportEntry`. Doesn't commit.
+    Same rules as `ImportEntry`. Doesn't commit.
     """
 
     def __init__(
-        self, dictionary: DictionaryGateway, kanji: PracticeKanjiRepository
+        self,
+        dictionary: DictionaryGateway,
+        kanji: PracticeKanjiRepository,
+        collections: KanjiCollectionRepository,
     ) -> None:
         self._dictionary = dictionary
         self._kanji = kanji
+        self._collections = collections
 
-    def execute(self, user_id: UUID, literal: str) -> ImportResult[PracticeKanji]:
+    def execute(
+        self, user_id: UUID, literal: str, collection_ids: Sequence[int] = ()
+    ) -> ImportResult[PracticeKanji]:
+        targets = [
+            kanji_collection(self._collections, collection_id, user_id)
+            for collection_id in dict.fromkeys(collection_ids)
+        ]
+        result = self._import(user_id, literal)
+        for collection in targets:
+            self._collections.add_item(collection, result.item)
+        return result
+
+    def _import(self, user_id: UUID, literal: str) -> ImportResult[PracticeKanji]:
         existing = self._kanji.get_by_literal(literal, user_id)
         if existing is not None:
             return ImportResult(existing, created=False)

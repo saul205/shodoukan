@@ -136,7 +136,9 @@ _IMPORT_RESPONSES: dict[int | str, dict[str, str]] = {
     status.HTTP_200_OK: {"description": "Already in the library; returned as is."},
     status.HTTP_201_CREATED: {"description": "Imported into the library."},
     status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid token."},
-    status.HTTP_404_NOT_FOUND: {"description": "Not in the dictionary."},
+    status.HTTP_404_NOT_FOUND: {
+        "description": "Not in the dictionary, or no such collection for this user."
+    },
 }
 
 
@@ -153,8 +155,12 @@ def import_entry(
     session: SessionDep,
     use_case: Annotated[ImportEntry, Depends(get_import_entry)],
 ) -> PracticeEntryResponse:
-    """Copy a dictionary entry into the current user's library."""
-    result = use_case.execute(user.id, body.entry_id)
+    """Copy a dictionary entry into the current user's library.
+
+    With `collection_ids`, it's also put in those entry collections, in the
+    same transaction: an unknown collection fails with 404 and imports nothing.
+    """
+    result = use_case.execute(user.id, body.entry_id, body.collection_ids)
     session.commit()
     if not result.created:
         response.status_code = status.HTTP_200_OK
@@ -174,8 +180,11 @@ def import_kanji(
     session: SessionDep,
     use_case: Annotated[ImportKanji, Depends(get_import_kanji)],
 ) -> PracticeKanjiResponse:
-    """Copy a dictionary kanji into the current user's library."""
-    result = use_case.execute(user.id, body.literal)
+    """Copy a dictionary kanji into the current user's library.
+
+    `collection_ids` (kanji collections) work as for entries.
+    """
+    result = use_case.execute(user.id, body.literal, body.collection_ids)
     session.commit()
     if not result.created:
         response.status_code = status.HTTP_200_OK
