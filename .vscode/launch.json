@@ -15,6 +15,16 @@
       "justMyCode": false
     },
     {
+      "name": "Practice API",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["shodoukan_practice.api.app:app", "--port", "8001", "--reload"],
+      "envFile": "${workspaceFolder}/.env.dev",
+      "preLaunchTask": "practice: prepare",
+      "justMyCode": false
+    },
+    {
       "name": "Front",
       "type": "chrome",
       "request": "launch",

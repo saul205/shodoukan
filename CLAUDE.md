@@ -15,6 +15,7 @@ Japanese-English dictionary platform with three main deliverables:
 | Layer | Tool |
 |---|---|
 | Python library + API | FastAPI, SQLAlchemy, Pydantic |
+| Practice database | PostgreSQL, Alembic (tests on SQLite) |
 | Code style | PEP 8 |
 | Formatter | Ruff |
 | Frontend | Nuxt 3 (Vue 3, Composition API), Tailwind CSS, TypeScript |
@@ -25,12 +26,15 @@ Japanese-English dictionary platform with three main deliverables:
 
 ```
 packages/
-  shodoukan/        Python library (search, ORM, domain models)
-  shodoukan-api/    FastAPI routes, Dockerfile, docker-compose
-  shodoukan-web/    Nuxt 3 frontend (see FRONTEND.md for full reference)
+  shodoukan/           Python library (search, ORM, domain models)
+  shodoukan-api/       FastAPI routes, Dockerfile, docker-compose
+  shodoukan-practice/  Practice/exercises backend: users' imported entries/kanji and collections (domain, PostgreSQL persistence, dictionary gateway, import use cases and endpoints with Keycloak auth). Docs: `docs/practice/`
+  shodoukan-ui/        Shared Vue component library (EntryCard, KanjiCard, SearchBar, ...), own Tailwind build
+  shodoukan-web/       Nuxt 3 frontend (see FRONTEND.md for full reference)
 tests/
-  shodoukan/        Backend unit + integration tests
-  shodoukan-api/    API route tests
+  shodoukan/           Backend unit + integration tests
+  shodoukan-api/       API route tests
+  shodoukan-practice/  Practice backend tests (domain, application, infrastructure, api)
 ```
 
 The database pipeline lives in a separate repo (`shodoukan-db`). It downloads JMDict and KANJIDIC2, builds a SQLite database, and publishes it as a GitHub Release asset on a monthly schedule. The DB is consumed by the Python library and the API.
@@ -55,6 +59,8 @@ See `docs/index.md` for the full documentation index. Quick reference:
 | `docs/technical/api.md` | Full REST API reference: endpoints, schemas, priority tags |
 | `docs/technical/search.md` | Search architecture: query classification, pipelines, scoring formulas |
 | `docs/technical/frontend.md` | Frontend architecture, components, responsive layout, Tailwind conventions |
+| `docs/practice/README.md` | Practice app entry point: status and map of its docs |
+| `docs/practice/technical/README.md` | Practice app technical docs index, plus the "where to document what" table |
 
 If you add a new package or introduce a significant architectural decision, create or extend the appropriate doc file and add a row to this table.
 
@@ -63,3 +69,54 @@ If you add a new package or introduce a significant architectural decision, crea
 - `Entry.is_common` is pre-computed on the backend from `EntryORM.has_common` (DB column). The frontend reads it directly — **never derive it from priority tags**.
 - Debug mode: set `SHODOUKAN_DEBUG=1` in the API environment to include `ScoreBreakdown` in every entry response. See `packages/shodoukan/src/shodoukan/repositories/entry.py`.
 - Ranking uses `JLPT_WEIGHT = 100` (validated). Do not change without re-running ranking tests.
+
+## Development conventions
+
+- General Python backend conventions (how to layer, name, type, persist, test) are in
+  the `python-backend-clean-code` skill. The specifics of this repo are below and in
+  each package's own `CLAUDE.md` (`packages/shodoukan-practice/CLAUDE.md`).
+- Git, documentation, and changelog conventions (repo-wide, not just Python) are in
+  `.claude/rules/git-and-docs.md`.
+
+### Python tooling in this repo
+
+- **Ruff:** `ruff.toml` at the repo root (`line-length = 88`, rules
+  `E,W,F,I,UP,B,C4,SIM,RUF`). Add every new first-party package to
+  `[lint.isort] known-first-party`.
+- **mypy:** `mypy.ini` at the repo root, with the `pydantic.mypy` plugin. Run `mypy`
+  from the root; it checks the paths under `files` (today `shodoukan-practice` and its
+  tests, `strict = True`). The developer also runs it through the VS Code mypy
+  extension (`.vscode/settings.json` points it at `mypy.ini` and `.venv`). CI runs it
+  too.
+- **Checks before a change is done:** `ruff check`, `ruff format`, `mypy`, and the
+  package's tests. Existing Ruff findings in `shodoukan` / `shodoukan-api` predate this
+  and aren't part of CI.
+- All backend packages are synchronous today; agree with the developer before
+  introducing async.
+
+### Legacy packages (don't retrofit)
+
+`packages/shodoukan` (core library) and `packages/shodoukan-api` predate the layering
+and naming conventions. They're pragmatic, read-only and not under mypy. Follow the
+conventions in new code only; don't rename or restructure these packages wholesale.
+
+- Core layout: `models/entry.py` (domain models), `db/orm.py` (ORM),
+  `repositories/mapper.py` (`entry_to_domain`, read-only mappers), concrete
+  repositories with no interface.
+- API wiring example: `packages/shodoukan-api/src/shodoukan_api/deps.py`
+  (`dictionary_dep`).
+- Tests: `tests/db_helpers.py` (schema + seed data) and `tests/shodoukan/conftest.py`
+  (`conn` fixture on `sqlite3.connect(":memory:")`, `engine` via
+  `open_test_connection` with `StaticPool`). Example: `tests/shodoukan/test_entry_repository.py`.
+
+### shodoukan-practice
+
+Follows the skill's conventions fully. Its specifics (layout, database, migrations,
+tests, docs) are in `packages/shodoukan-practice/CLAUDE.md`.
+
+**Its docs are written on the fly:** any change that adds or alters architecture,
+entities, ports, schema, migrations, config or conventions updates the matching page
+under `docs/practice/technical/` in the same commit. The "where to document what" table
+in `docs/practice/technical/README.md` maps code areas to pages; non-obvious choices
+get an entry in `decisions.md`. Functional docs (`docs/practice/functional/<feature>/`)
+are added once a feature's use cases are defined.

@@ -23,3 +23,13 @@ For developers building, extending, or debugging the platform.
 | [technical/api.md](technical/api.md) | Full REST API reference: all endpoints, parameters, response schemas |
 | [technical/search.md](technical/search.md) | Search architecture: query classification, entry/kanji pipelines, scoring formulas |
 | [technical/frontend.md](technical/frontend.md) | Frontend architecture: components, responsive layout conventions, Tailwind patterns, debug mode |
+
+## Practice app
+
+The practice app (`shodoukan-practice`) has its own documentation tree.
+
+| Doc | Description |
+|---|---|
+| [practice/README.md](practice/README.md) | Overview, status, and links to everything below |
+| [practice/functional/README.md](practice/functional/README.md) | What the app does, per feature (written as use cases are defined) |
+| [practice/technical/README.md](practice/technical/README.md) | Architecture, domain, persistence, dates, configuration, testing, design decisions |

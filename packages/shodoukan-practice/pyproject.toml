@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shodoukan-practice"
+version = "0.1.0"
+description = "Práctica y ejercicios interactivos sobre el diccionario shodoukan"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "shodoukan>=0.2.0",
+    "pydantic>=2.0",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "sqlalchemy>=2.0",
+    "python-dotenv>=1.0",
+    "pyjwt[crypto]>=2.8",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+shodoukan-practice = "shodoukan_practice.api.app:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shodoukan_practice"]
+
+[tool.pytest.ini_options]
+testpaths = ["../../tests/shodoukan-practice"]
