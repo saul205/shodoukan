@@ -75,4 +75,20 @@ describe('EntryCard', () => {
     expect(wrapper.text()).toContain('freq: 10')
     expect(wrapper.text()).toContain('sort: 15')
   })
+
+  it('uses the unified score as the sort value, with tier and relevance', () => {
+    const withScore: Entry = {
+      ...entry,
+      score: {
+        score: 6743, match_tier: 3, relevance: 0.95,
+        freq: 540, jlpt_bonus: 500, exact_match: null,
+        fts_rank: -4.6, sense_pos: 0, total_senses: 5, composite: 743,
+      },
+    }
+    const wrapper = mount(EntryCard, { props: { entry: withScore, lang: 'en' } })
+    expect(wrapper.text()).toContain('sort: 6743')
+    expect(wrapper.text()).toContain('tier: 3')
+    expect(wrapper.text()).toContain('relevance: 0.95')
+  })
 })
+
