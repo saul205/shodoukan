@@ -1,61 +1,24 @@
 <script setup lang="ts">
-import type { Collection, ItemKind } from '~/models/practice'
-import { addToCollection, listCollections, removeFromCollection } from '~/services/collections'
-import { getEntryCollections, getKanjiCollections } from '~/services/library'
+import type { ItemKind } from '~/models/practice'
 
 // The collections (tags) a library item is in, with adding and removing.
 const props = defineProps<{ kind: ItemKind; itemId: number }>()
 
-const api = useApi()
-const notify = useNotify()
+const { all, mine, busy, load, add, remove } = useItemCollections(() => props.kind, () => props.itemId)
 
-const { data, refresh } = useAsyncData(
-  () => `item-collections-${props.kind}-${props.itemId}`,
-  async () => {
-    const [mine, all] = await Promise.all([
-      props.kind === 'entries' ? getEntryCollections(api, props.itemId) : getKanjiCollections(api, props.itemId),
-      listCollections(api, props.kind),
-    ])
-    return { mine, all }
-  },
-)
+watch(() => [props.kind, props.itemId], load, { immediate: true })
 
 const available = computed(() => {
-  const inside = new Set(data.value?.mine.map(c => c.id))
-  return (data.value?.all ?? []).filter(c => !inside.has(c.id)).map(c => ({ label: c.name, value: c.id }))
+  const inside = new Set(mine.value.map(c => c.id))
+  return (all.value ?? []).filter(c => !inside.has(c.id)).map(c => ({ label: c.name, value: c }))
 })
-
-const busy = ref(false)
-
-async function add(collectionId: number | undefined) {
-  if (collectionId === undefined) return
-  await run(() => addToCollection(api, props.kind, collectionId, props.itemId))
-}
-
-async function remove(collection: Collection) {
-  await run(() => removeFromCollection(api, props.kind, collection.id, props.itemId))
-}
-
-async function run(action: () => Promise<void>) {
-  busy.value = true
-  try {
-    await action()
-    await refresh()
-  }
-  catch (error) {
-    notify.failure(error)
-  }
-  finally {
-    busy.value = false
-  }
-}
 </script>
 
 <template>
   <div class="space-y-3">
-    <div v-if="data?.mine.length" class="flex flex-wrap gap-2">
+    <div v-if="mine.length" class="flex flex-wrap gap-2">
       <UBadge
-        v-for="collection in data.mine"
+        v-for="collection in mine"
         :key="collection.id"
         color="primary"
         variant="soft"
@@ -85,9 +48,9 @@ async function run(action: () => Promise<void>) {
       icon="i-lucide-folder-plus"
       class="w-full"
       :disabled="busy"
-      @update:model-value="add"
+      @update:model-value="collection => collection && add(collection)"
     />
-    <p v-else-if="data && !data.all.length" class="text-sm text-muted">
+    <p v-else-if="all && !all.length" class="text-sm text-muted">
       Aún no tienes colecciones. <ULink to="/collections" class="text-primary">Crea una</ULink>.
     </p>
   </div>
