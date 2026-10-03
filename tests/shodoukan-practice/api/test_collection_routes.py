@@ -120,14 +120,16 @@ def test_add_list_and_remove_items(client: TestClient, headers: dict[str, str]) 
         assert response.status_code == 204
 
     listed = client.get(items, headers=headers).json()
-    assert [item["id"] for item in listed] == [first, second]
+    assert [item["id"] for item in listed["items"]] == [first, second]
+    assert (listed["total"], listed["limit"], listed["offset"]) == (2, 20, 0)
     page = client.get(items, params={"limit": 1, "offset": 1}, headers=headers)
-    assert [item["id"] for item in page.json()] == [second]
+    assert [item["id"] for item in page.json()["items"]] == [second]
 
     for _ in range(2):
         response = client.delete(f"{items}/{first}", headers=headers)
         assert response.status_code == 204
-    assert [i["id"] for i in client.get(items, headers=headers).json()] == [second]
+    left = client.get(items, headers=headers).json()["items"]
+    assert [i["id"] for i in left] == [second]
 
 
 def test_kanji_items(client: TestClient, headers: dict[str, str]) -> None:
@@ -139,7 +141,7 @@ def test_kanji_items(client: TestClient, headers: dict[str, str]) -> None:
 
     assert added.status_code == 204
     listed = client.get(items, headers=headers).json()
-    assert [item["literal"] for item in listed] == ["食"]
+    assert [item["literal"] for item in listed["items"]] == ["食"]
 
 
 def test_unknown_item_is_404(client: TestClient, headers: dict[str, str]) -> None:

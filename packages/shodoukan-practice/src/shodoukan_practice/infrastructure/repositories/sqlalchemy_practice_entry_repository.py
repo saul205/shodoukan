@@ -86,6 +86,22 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         )
         return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
 
+    def count_by_collection(self, collection: EntryCollection) -> int:
+        query = (
+            select(func.count())
+            .select_from(PracticeEntryORM)
+            .join(
+                entry_collection_items,
+                entry_collection_items.c.entry_id == PracticeEntryORM.id,
+            )
+            .where(
+                entry_collection_items.c.collection_id == collection.id,
+                PracticeEntryORM.user_id == collection.user_id,
+                PracticeEntryORM.is_active.is_(True),
+            )
+        )
+        return self._session.scalar(query) or 0
+
     def get_by_source_entry_id(
         self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:
@@ -131,12 +147,21 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         Nested items with an id are updated, items without one are inserted
         and stored items missing from `entry` are deleted.
         """
-        stored = self._session.get(PracticeEntryORM, entry.id) if entry.id else None
-        if stored is None or stored.user_id != entry.user_id:
-            raise EntityNotFoundError(f"entry {entry.id} not found")
+        self._require_row(entry)
         row = self._session.merge(practice_entry_to_db(entry))
         self._session.flush()
         return practice_entry_to_domain(row)
+
+    def delete(self, entry: PracticeEntry) -> None:
+        """Delete the row; its nested rows and collection links cascade."""
+        self._session.delete(self._require_row(entry))
+        self._session.flush()
+
+    def _require_row(self, entry: PracticeEntry) -> PracticeEntryORM:
+        stored = self._session.get(PracticeEntryORM, entry.id) if entry.id else None
+        if stored is None or stored.user_id != entry.user_id:
+            raise EntityNotFoundError(f"entry {entry.id} not found")
+        return stored
 
     @staticmethod
     def _user_filter(user_id: UUID, active: bool | None) -> list[ColumnElement[bool]]:

@@ -32,6 +32,10 @@ class PracticeEntryRepository(Protocol):
         """Active entries in the collection, paginated in the database."""
         ...
 
+    def count_by_collection(self, collection: EntryCollection) -> int:
+        """How many items `list_by_collection` pages through."""
+        ...
+
     def get_by_source_entry_id(
         self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:
@@ -58,3 +62,10 @@ class PracticeEntryRepository(Protocol):
         ...
 
     def update(self, entry: PracticeEntry) -> PracticeEntry: ...
+
+    def delete(self, entry: PracticeEntry) -> None:
+        """Remove it from the library, with its collection links.
+
+        Raises `EntityNotFoundError` if it isn't stored for its user.
+        """
+        ...

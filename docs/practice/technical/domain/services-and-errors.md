@@ -26,6 +26,7 @@ repository (`item_ids`), not here.
 | `CollectionKindMismatchError` | `ValueError` | Entry and kanji collections are combined |
 | `EntityNotFoundError` | `LookupError` | An update/delete targets something that doesn't exist or belongs to another user |
 | `CollectionNameTakenError` | `ValueError` | A collection is added or renamed to a name the user already has for that kind (HTTP `409`) |
+| `OriginalDataError` | `ValueError` | An imported (dictionary) meaning is edited or removed; it can only be disabled (HTTP `409`) |
 | `DictionaryItemNotFoundError` | `LookupError` | An import asks for an entry or kanji the dictionary doesn't have (HTTP `404`) |
 
 ## Clock (`domain/clock.py`)

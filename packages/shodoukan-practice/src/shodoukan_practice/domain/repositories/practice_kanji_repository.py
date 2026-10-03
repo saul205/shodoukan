@@ -32,6 +32,10 @@ class PracticeKanjiRepository(Protocol):
         """Active kanji in the collection, paginated in the database."""
         ...
 
+    def count_by_collection(self, collection: KanjiCollection) -> int:
+        """How many items `list_by_collection` pages through."""
+        ...
+
     def get_by_literal(self, literal: str, user_id: UUID) -> PracticeKanji | None:
         """The user's copy of kanji `literal`, if imported."""
         ...
@@ -56,3 +60,10 @@ class PracticeKanjiRepository(Protocol):
         ...
 
     def update(self, kanji: PracticeKanji) -> PracticeKanji: ...
+
+    def delete(self, kanji: PracticeKanji) -> None:
+        """Remove it from the library, with its collection links.
+
+        Raises `EntityNotFoundError` if it isn't stored for its user.
+        """
+        ...

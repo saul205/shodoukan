@@ -55,6 +55,13 @@ order. The count is a `SELECT count(*)` that loads no snapshot.
 `updated_at` is whatever the entity carries: the domain bumps it with `touch()` (see
 [entities](../domain/entities.md#timestamps-and-touch)).
 
+## `delete(item)`
+
+Checks the row belongs to the item's user (else `EntityNotFoundError`, like `update`)
+and deletes it. Nested rows go through the ORM cascade, and the database's
+`ON DELETE CASCADE` removes the collection links, so the collections stay and just lose
+the item.
+
 ## `add_if_absent`
 
 Used by imports and by `EnsureUser` (users, keyed by their primary key, the provider's UUID). It inserts inside a **savepoint** (`session.begin_nested()`). If the
@@ -70,6 +77,13 @@ Collection `add` and `update` flush inside a **savepoint**; on an `IntegrityErro
 look for another collection of the user with that name and, if there is one, raise
 `CollectionNameTakenError` (anything else is re-raised). Only the savepoint is rolled
 back, so the session stays usable. Why: [decisions](../decisions.md#collection-name-clashes-come-from-the-unique-constraint).
+
+## Customising an item
+
+Edits go through `update`: the use case loads the item, the domain changes it, and
+`merge` writes the whole snapshot. A meaning added by the user has no id, so it's
+inserted; one removed from the list is deleted (`delete-orphan`). The response carries
+the new ids.
 
 ## Collection membership
 

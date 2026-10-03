@@ -8,12 +8,15 @@ from ..domain.exceptions import (
     CollectionNameTakenError,
     DictionaryItemNotFoundError,
     EntityNotFoundError,
+    OriginalDataError,
 )
 from .routes import (
     dictionary_router,
     entry_collection_router,
     kanji_collection_router,
     library_router,
+    practice_entry_router,
+    practice_kanji_router,
     user_router,
 )
 
@@ -42,6 +45,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(dictionary_router)
     app.include_router(library_router)
+    app.include_router(practice_entry_router)
+    app.include_router(practice_kanji_router)
     app.include_router(user_router)
     app.include_router(entry_collection_router)
     app.include_router(kanji_collection_router)
@@ -50,6 +55,8 @@ def create_app() -> FastAPI:
     # or item is "not found" too.
     app.add_exception_handler(EntityNotFoundError, _not_found)
     app.add_exception_handler(CollectionNameTakenError, _conflict)
+    # Dictionary data in the library can only be disabled, not changed.
+    app.add_exception_handler(OriginalDataError, _conflict)
     return app
 
 

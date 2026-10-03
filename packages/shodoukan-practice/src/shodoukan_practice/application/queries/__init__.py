@@ -17,8 +17,12 @@ from .dictionary_queries import (
 )
 from .library_queries import (
     GetImportStatus,
+    GetLibraryEntry,
+    GetLibraryKanji,
     ImportStatus,
     LibraryPage,
+    ListCollectionsOfEntry,
+    ListCollectionsOfKanji,
     ListLibraryEntries,
     ListLibraryKanji,
 )
@@ -29,8 +33,12 @@ __all__ = [
     "GetEntryCollection",
     "GetImportStatus",
     "GetKanjiCollection",
+    "GetLibraryEntry",
+    "GetLibraryKanji",
     "ImportStatus",
     "LibraryPage",
+    "ListCollectionsOfEntry",
+    "ListCollectionsOfKanji",
     "ListEntriesForKanji",
     "ListEntryCollectionItems",
     "ListEntryCollections",

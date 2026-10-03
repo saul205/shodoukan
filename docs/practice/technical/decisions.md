@@ -190,3 +190,22 @@ client always has both, and the use case stays typed (`name: str`,
 `description: str | None`) without a sentinel to tell "not sent" from "cleared". The
 cost: an omitted `description` clears it. If collections gain more fields, revisit
 with a `PATCH`.
+
+## Dictionary data in the library is only ever disabled
+
+The library copy is the user's, but its dictionary data (readings, spellings, examples
+and imported meanings) is never edited or deleted: the user disables what they don't
+want. Only meanings they added themselves can be edited and removed. This keeps the
+original always recoverable (re-enable it), keeps an "imported" item meaning the same
+thing as the dictionary, and lets a future re-sync with the dictionary tell the
+user's additions apart. Readings can't be added for now: it's rarely needed and would
+need an `origin` column on the reading tables.
+
+## One endpoint per customisation
+
+Each edit of a library item is its own small request (`PUT .../notes`,
+`PUT .../{part}/{id}/enabled`, `POST .../glosses`, ...) instead of a `PATCH` of the whole
+document. Each maps to one domain method, so the rules (only own meanings change) are
+enforced where they live, the UI saves each toggle or note as the user makes it, and two
+tabs editing different parts don't overwrite each other. Every edit returns the whole
+item so the client doesn't have to merge.

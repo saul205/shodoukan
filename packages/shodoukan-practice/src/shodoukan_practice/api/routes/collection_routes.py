@@ -51,8 +51,8 @@ from ..deps import (
 from ..schemas import (
     CollectionRequest,
     CollectionResponse,
-    PracticeEntryResponse,
-    PracticeKanjiResponse,
+    PracticeEntryPageResponse,
+    PracticeKanjiPageResponse,
 )
 
 _UNAUTHORIZED: dict[int | str, dict[str, Any]] = {
@@ -166,7 +166,7 @@ def delete_entry_collection(
 
 @entry_router.get(
     "/{collection_id}/items",
-    response_model=list[PracticeEntryResponse],
+    response_model=PracticeEntryPageResponse,
     responses=_NOT_FOUND,
 )
 def list_entry_collection_items(
@@ -178,11 +178,11 @@ def list_entry_collection_items(
     ],
     limit: Limit = 20,
     offset: Offset = 0,
-) -> list[PracticeEntryResponse]:
+) -> PracticeEntryPageResponse:
     """A page of the collection's active entries, in the order they were added."""
-    items = use_case.execute(user.id, collection_id, limit, offset)
+    page = use_case.execute(user.id, collection_id, limit, offset)
     session.commit()
-    return [PracticeEntryResponse.model_validate(item) for item in items]
+    return PracticeEntryPageResponse.model_validate(page)
 
 
 @entry_router.put(
@@ -305,7 +305,7 @@ def delete_kanji_collection(
 
 @kanji_router.get(
     "/{collection_id}/items",
-    response_model=list[PracticeKanjiResponse],
+    response_model=PracticeKanjiPageResponse,
     responses=_NOT_FOUND,
 )
 def list_kanji_collection_items(
@@ -317,11 +317,11 @@ def list_kanji_collection_items(
     ],
     limit: Limit = 20,
     offset: Offset = 0,
-) -> list[PracticeKanjiResponse]:
+) -> PracticeKanjiPageResponse:
     """A page of the collection's active kanji, in the order they were added."""
-    items = use_case.execute(user.id, collection_id, limit, offset)
+    page = use_case.execute(user.id, collection_id, limit, offset)
     session.commit()
-    return [PracticeKanjiResponse.model_validate(item) for item in items]
+    return PracticeKanjiPageResponse.model_validate(page)
 
 
 @kanji_router.put(

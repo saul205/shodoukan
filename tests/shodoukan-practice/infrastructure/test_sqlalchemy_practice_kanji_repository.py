@@ -1,13 +1,14 @@
 from datetime import timedelta
 
 import pytest
-from factories import NOW, make_kanji
+from factories import NOW, make_kanji, make_kanji_collection
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.domain.entities import PracticeReadingItem
 from shodoukan_practice.domain.exceptions import EntityNotFoundError
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
+    SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeKanjiRepository,
 )
 
@@ -144,3 +145,42 @@ def test_count_for_user_without_items_is_zero(
     repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
 ) -> None:
     assert repo.count_for_user(user.id) == 0
+
+
+def test_delete_removes_the_item_and_its_links(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, session: Session
+) -> None:
+    collections = SqlAlchemyKanjiCollectionRepository(session)
+    collection = collections.add(make_kanji_collection(user.id))
+    item = repo.add(make_kanji(user.id))
+    collections.add_item(collection, item)
+    assert item.id is not None
+
+    repo.delete(item)
+
+    assert repo.get(item.id, user.id) is None
+    assert collections.item_ids([collection]) == set()
+    assert collections.get(collection.id or 0, user.id) == collection
+
+
+def test_delete_of_another_users_item_fails(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, other_user: UserORM
+) -> None:
+    item = repo.add(make_kanji(user.id))
+    with pytest.raises(EntityNotFoundError):
+        repo.delete(item.model_copy(update={"user_id": other_user.id}))
+    assert item.id is not None
+    assert repo.get(item.id, user.id) is not None
+
+
+def test_count_by_collection_counts_active_items(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, session: Session
+) -> None:
+    collections = SqlAlchemyKanjiCollectionRepository(session)
+    collection = collections.add(make_kanji_collection(user.id))
+    collections.add_item(collection, repo.add(make_kanji(user.id, "一")))
+    collections.add_item(
+        collection, repo.add(make_kanji(user.id, "二", is_active=False))
+    )
+
+    assert repo.count_by_collection(collection) == 1

@@ -76,8 +76,9 @@ def test_list_items_pages_through_active_entries(
 
     query = ListEntryCollectionItems(collections, entries)
 
-    assert query.execute(user.id, verbs.id, limit=1) == [first]
-    assert query.execute(user.id, verbs.id, limit=10, offset=1) == [second]
+    first_page = query.execute(user.id, verbs.id, limit=1)
+    assert (first_page.items, first_page.total) == ([first], 2)  # inactive skipped
+    assert query.execute(user.id, verbs.id, limit=10, offset=1).items == [second]
 
 
 def test_list_items_of_another_users_collection_is_not_found(
@@ -108,8 +109,7 @@ def test_kanji_queries(
 
     assert ListKanjiCollections(kanji_collections).execute(user.id) == [n5]
     assert GetKanjiCollection(kanji_collections).execute(user.id, n5.id) == n5
-    assert ListKanjiCollectionItems(kanji_collections, kanji).execute(
-        user.id, n5.id
-    ) == [item]
+    page = ListKanjiCollectionItems(kanji_collections, kanji).execute(user.id, n5.id)
+    assert (page.items, page.total) == ([item], 1)
     with pytest.raises(EntityNotFoundError):
         GetKanjiCollection(kanji_collections).execute(user.id, n5.id + 1)

@@ -6,9 +6,11 @@ serialize as ISO 8601 with offset (`...Z`).
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+from ...domain.entities import NOTES_MAX_LENGTH
 
 Origin = Literal["imported", "added"]
 
@@ -21,6 +23,45 @@ class ImportKanjiRequest(BaseModel):
     literal: str = Field(
         min_length=1, max_length=1, description="The kanji character, e.g. 食."
     )
+
+
+MeaningText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
+]
+
+
+class ActiveRequest(BaseModel):
+    active: bool
+
+
+class EnabledRequest(BaseModel):
+    enabled: bool
+
+
+class NotesRequest(BaseModel):
+    notes: str | None = Field(
+        max_length=NOTES_MAX_LENGTH, description="Blank or null removes the note."
+    )
+
+
+class NewGlossRequest(BaseModel):
+    text: MeaningText
+    lang: str = Field(
+        pattern="^[a-z]{3}$",
+        description="ISO 639-2, like the entry's glosses (e.g. `eng`, `spa`).",
+    )
+
+
+class NewKanjiMeaningRequest(BaseModel):
+    text: MeaningText
+    lang: str = Field(
+        pattern="^[a-z]{2}$",
+        description="ISO 639-1, like the kanji's meanings (e.g. `en`, `es`).",
+    )
+
+
+class MeaningTextRequest(BaseModel):
+    text: MeaningText
 
 
 class _Response(BaseModel):
@@ -57,6 +98,7 @@ class SenseResponse(_Response):
     info: list[str]
     glosses: list[GlossResponse]
     examples: list[ExampleResponse]
+    notes: str | None
 
 
 class ReadingResponse(_Response):
@@ -84,6 +126,7 @@ class PracticeEntryResponse(_Response):
     jlpt: int | None
     is_common: bool
     is_active: bool
+    notes: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -121,6 +164,7 @@ class PracticeKanjiResponse(_Response):
     nanori: list[ReadingItemResponse]
     meanings: list[KanjiMeaningResponse]
     is_active: bool
+    notes: str | None
     created_at: datetime
     updated_at: datetime
 

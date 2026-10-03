@@ -15,6 +15,7 @@ from ...domain.repositories import (
     PracticeEntryRepository,
     PracticeKanjiRepository,
 )
+from .library_queries import LibraryPage
 
 
 class ListEntryCollections:
@@ -74,9 +75,14 @@ class ListEntryCollectionItems:
 
     def execute(
         self, user_id: UUID, collection_id: int, limit: int = 20, offset: int = 0
-    ) -> list[PracticeEntry]:
+    ) -> LibraryPage[PracticeEntry]:
         collection = self._get.execute(user_id, collection_id)
-        return self._entries.list_by_collection(collection, limit, offset)
+        return LibraryPage(
+            items=self._entries.list_by_collection(collection, limit, offset),
+            total=self._entries.count_by_collection(collection),
+            limit=limit,
+            offset=offset,
+        )
 
 
 class ListKanjiCollectionItems:
@@ -90,6 +96,11 @@ class ListKanjiCollectionItems:
 
     def execute(
         self, user_id: UUID, collection_id: int, limit: int = 20, offset: int = 0
-    ) -> list[PracticeKanji]:
+    ) -> LibraryPage[PracticeKanji]:
         collection = self._get.execute(user_id, collection_id)
-        return self._kanji.list_by_collection(collection, limit, offset)
+        return LibraryPage(
+            items=self._kanji.list_by_collection(collection, limit, offset),
+            total=self._kanji.count_by_collection(collection),
+            limit=limit,
+            offset=offset,
+        )

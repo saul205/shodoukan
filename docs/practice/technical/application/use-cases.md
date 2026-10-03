@@ -63,6 +63,24 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
+## Commands (`commands/practice_entry_commands.py`, `commands/practice_kanji_commands.py`)
+
+Customising an item of the library. Each one loads the user's item with `get(id,
+user_id)` (`EntityNotFoundError` if it isn't theirs), calls one
+[domain method](../domain/entities.md#customisation-rules), stores it with `update`
+and returns the stored item, with ids for anything new.
+
+| Entry | Kanji | Does |
+|---|---|---|
+| `SetEntryActive` | `SetKanjiActive` | `activate()` / `deactivate()` |
+| `SetEntryNotes` | `SetKanjiNotes` | the general note |
+| `SetSenseNotes` | — | a sense's note |
+| `SetEntryPartEnabled` | `SetKanjiPartEnabled` | enable or disable one nested item |
+| `AddEntryGloss` | `AddKanjiMeaning` | add a meaning of the user's own |
+| `EditEntryGloss` | `EditKanjiMeaning` | change an own meaning's text (`OriginalDataError` for imported ones) |
+| `RemoveEntryGloss` | `RemoveKanjiMeaning` | remove an own meaning (`OriginalDataError` for imported ones) |
+| `RemoveEntryFromLibrary` | `RemoveKanjiFromLibrary` | `delete(item)`: the copy and its collection links go; returns nothing |
+
 ## Commands (`commands/user_commands.py`)
 
 ### `EnsureUser(users).execute(user_id, username)`
@@ -110,6 +128,15 @@ are ignored, and an empty input skips the query. It uses the repositories' light
 lookups (`practice_ids_by_source_entry_id`, `practice_ids_by_literal`), which read two
 columns and load no snapshots.
 
+### `GetLibraryEntry(entries).execute(user_id, entry_id)` / `GetLibraryKanji(kanji)`
+
+One item of the user's library for its detail page; `EntityNotFoundError` if it isn't
+theirs.
+
+### `ListCollectionsOfEntry(entries, collections).execute(user_id, entry_id)` / `ListCollectionsOfKanji`
+
+The collections (tags) the item is in, by name (`list_for_item`).
+
 ### `ListLibraryEntries(entries).execute(user_id, limit, offset, active=None)`
 
 A page of the user's imported entries, most recently imported first, as
@@ -130,6 +157,6 @@ One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
 
 ### `ListEntryCollectionItems(collections, entries).execute(user_id, collection_id, limit, offset)`
 
-A page of the collection's **active** items, in the order they were added
-(`list_by_collection`). `EntityNotFoundError` if the collection isn't the user's.
+A `LibraryPage` of the collection's **active** items, in the order they were added
+(`list_by_collection`), with their `total` (`count_by_collection`). `EntityNotFoundError` if the collection isn't the user's.
 `ListKanjiCollectionItems(collections, kanji)` likewise.
