@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -40,6 +40,22 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
             .order_by(PracticeKanjiORM.id)
         )
         return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
+
+    def list_for_user(
+        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
+    ) -> list[PracticeKanji]:
+        query = (
+            self._select()
+            .where(*self._user_filter(user_id, active))
+            .order_by(PracticeKanjiORM.created_at.desc(), PracticeKanjiORM.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
+
+    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
+        query = select(func.count()).where(*self._user_filter(user_id, active))
+        return self._session.scalar(query.select_from(PracticeKanjiORM)) or 0
 
     def list_by_collection(
         self, collection: KanjiCollection, limit: int, offset: int
@@ -109,6 +125,13 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
         row = self._session.merge(practice_kanji_to_db(kanji))
         self._session.flush()
         return practice_kanji_to_domain(row)
+
+    @staticmethod
+    def _user_filter(user_id: UUID, active: bool | None) -> list[ColumnElement[bool]]:
+        conditions = [PracticeKanjiORM.user_id == user_id]
+        if active is not None:
+            conditions.append(PracticeKanjiORM.is_active.is_(active))
+        return conditions
 
     def _select(self) -> Select[tuple[PracticeKanjiORM]]:
         return select(PracticeKanjiORM).options(*_LOAD)

@@ -8,7 +8,9 @@ from .library_schemas import (
     ImportEntryRequest,
     ImportKanjiRequest,
     ImportStatusResponse,
+    PracticeEntryPageResponse,
     PracticeEntryResponse,
+    PracticeKanjiPageResponse,
     PracticeKanjiResponse,
 )
 from .user_schemas import UserResponse
@@ -22,7 +24,9 @@ __all__ = [
     "ImportStatusResponse",
     "ImportedEntryResponse",
     "ImportedKanjiResponse",
+    "PracticeEntryPageResponse",
     "PracticeEntryResponse",
+    "PracticeKanjiPageResponse",
     "PracticeKanjiResponse",
     "UserResponse",
 ]

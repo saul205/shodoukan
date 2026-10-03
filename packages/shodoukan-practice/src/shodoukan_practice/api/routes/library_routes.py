@@ -1,4 +1,4 @@
-"""The user's practice library: importing dictionary entries and kanji."""
+"""The user's practice library: browsing it and importing entries and kanji."""
 
 from typing import Annotated
 
@@ -6,13 +6,15 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import StringConstraints
 
 from ...application.commands import ImportEntry, ImportKanji
-from ...application.queries import GetImportStatus
+from ...application.queries import GetImportStatus, ListLibraryEntries, ListLibraryKanji
 from ..deps import (
     CurrentUserDep,
     SessionDep,
     get_import_entry,
     get_import_kanji,
     get_import_status,
+    get_list_library_entries,
+    get_list_library_kanji,
 )
 from ..schemas import (
     ImportedEntryResponse,
@@ -20,7 +22,9 @@ from ..schemas import (
     ImportEntryRequest,
     ImportKanjiRequest,
     ImportStatusResponse,
+    PracticeEntryPageResponse,
     PracticeEntryResponse,
+    PracticeKanjiPageResponse,
     PracticeKanjiResponse,
 )
 
@@ -76,6 +80,56 @@ def get_imported(
             for literal, practice_id in result.kanji.items()
         ],
     )
+
+
+_LIST_RESPONSES: dict[int | str, dict[str, str]] = {
+    status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid token."}
+}
+Limit = Annotated[int, Query(ge=1, le=100)]
+Offset = Annotated[int, Query(ge=0)]
+Active = Annotated[
+    bool | None,
+    Query(
+        description="Only active (`true`) or inactive (`false`) items; all if omitted."
+    ),
+]
+
+
+@router.get(
+    "/entries", response_model=PracticeEntryPageResponse, responses=_LIST_RESPONSES
+)
+def list_entries(
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[ListLibraryEntries, Depends(get_list_library_entries)],
+    limit: Limit = 20,
+    offset: Offset = 0,
+    active: Active = None,
+) -> PracticeEntryPageResponse:
+    """The current user's imported entries, most recently imported first.
+
+    Each `id` is what the collection endpoints take to add the entry.
+    """
+    page = use_case.execute(user.id, limit, offset, active)
+    session.commit()  # persists the user if this request created it
+    return PracticeEntryPageResponse.model_validate(page)
+
+
+@router.get(
+    "/kanji", response_model=PracticeKanjiPageResponse, responses=_LIST_RESPONSES
+)
+def list_kanji(
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[ListLibraryKanji, Depends(get_list_library_kanji)],
+    limit: Limit = 20,
+    offset: Offset = 0,
+    active: Active = None,
+) -> PracticeKanjiPageResponse:
+    """The current user's imported kanji, most recently imported first."""
+    page = use_case.execute(user.id, limit, offset, active)
+    session.commit()
+    return PracticeKanjiPageResponse.model_validate(page)
 
 
 _IMPORT_RESPONSES: dict[int | str, dict[str, str]] = {

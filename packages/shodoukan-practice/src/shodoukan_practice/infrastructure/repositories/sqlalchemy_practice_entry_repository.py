@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -49,6 +49,22 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
             .order_by(PracticeEntryORM.id)
         )
         return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
+
+    def list_for_user(
+        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
+    ) -> list[PracticeEntry]:
+        query = (
+            self._select()
+            .where(*self._user_filter(user_id, active))
+            .order_by(PracticeEntryORM.created_at.desc(), PracticeEntryORM.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
+
+    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
+        query = select(func.count()).where(*self._user_filter(user_id, active))
+        return self._session.scalar(query.select_from(PracticeEntryORM)) or 0
 
     def list_by_collection(
         self, collection: EntryCollection, limit: int, offset: int
@@ -121,6 +137,13 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         row = self._session.merge(practice_entry_to_db(entry))
         self._session.flush()
         return practice_entry_to_domain(row)
+
+    @staticmethod
+    def _user_filter(user_id: UUID, active: bool | None) -> list[ColumnElement[bool]]:
+        conditions = [PracticeEntryORM.user_id == user_id]
+        if active is not None:
+            conditions.append(PracticeEntryORM.is_active.is_(active))
+        return conditions
 
     def _select(self) -> Select[tuple[PracticeEntryORM]]:
         return select(PracticeEntryORM).options(*_LOAD)

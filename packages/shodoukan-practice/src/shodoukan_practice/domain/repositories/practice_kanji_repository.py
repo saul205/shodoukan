@@ -12,6 +12,20 @@ class PracticeKanjiRepository(Protocol):
 
     def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeKanji]: ...
 
+    def list_for_user(
+        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
+    ) -> list[PracticeKanji]:
+        """The user's kanji, most recently imported first, paginated.
+
+        `active` keeps only active (`True`) or inactive (`False`) ones; `None`
+        keeps all.
+        """
+        ...
+
+    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
+        """How many items `list_for_user` pages through."""
+        ...
+
     def list_by_collection(
         self, collection: KanjiCollection, limit: int, offset: int
     ) -> list[PracticeKanji]:

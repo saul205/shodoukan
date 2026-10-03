@@ -94,6 +94,14 @@ are ignored, and an empty input skips the query. It uses the repositories' light
 lookups (`practice_ids_by_source_entry_id`, `practice_ids_by_literal`), which read two
 columns and load no snapshots.
 
+### `ListLibraryEntries(entries).execute(user_id, limit, offset, active=None)`
+
+A page of the user's imported entries, most recently imported first, as
+`LibraryPage[PracticeEntry]` (`items`, `total`, `limit`, `offset`). Inactive entries
+are included unless `active` is given, so the library page can show and reactivate
+them. It's what the UI lists to pick items for a collection.
+`ListLibraryKanji(kanji)` likewise.
+
 ## Queries (`queries/collection_queries.py`)
 
 ### `ListEntryCollections(collections).execute(user_id)`

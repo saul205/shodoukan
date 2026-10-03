@@ -35,6 +35,13 @@ The nested snapshot is loaded eagerly with `selectinload`, one query per level
 (entry → readings, senses → glosses, examples → sentences), so lists don't trigger
 N+1 queries.
 
+## Listing the library
+
+`list_for_user` and `count_for_user` share one filter (`user_id`, plus `is_active` when
+`active` is given). The list loads the snapshot eagerly like every read and orders by
+`created_at DESC, id DESC`, so items imported at the same instant still have a stable
+order. The count is a `SELECT count(*)` that loads no snapshot.
+
 ## `update(entity)`
 
 1. Load the stored row by id. If it doesn't exist or its `user_id` differs from the

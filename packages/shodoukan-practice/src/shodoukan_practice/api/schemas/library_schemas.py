@@ -88,6 +88,13 @@ class PracticeEntryResponse(_Response):
     updated_at: datetime
 
 
+class PracticeEntryPageResponse(_Response):
+    items: list[PracticeEntryResponse]
+    total: int  # items matching the request, across every page
+    limit: int
+    offset: int
+
+
 class ReadingItemResponse(_Response):
     id: int
     text: str
@@ -116,6 +123,13 @@ class PracticeKanjiResponse(_Response):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class PracticeKanjiPageResponse(_Response):
+    items: list[PracticeKanjiResponse]
+    total: int  # items matching the request, across every page
+    limit: int
+    offset: int
 
 
 class ImportedEntryResponse(BaseModel):

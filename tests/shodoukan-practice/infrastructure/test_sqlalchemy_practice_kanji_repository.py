@@ -1,5 +1,7 @@
+from datetime import timedelta
+
 import pytest
-from factories import make_kanji
+from factories import NOW, make_kanji
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.domain.entities import PracticeReadingItem
@@ -106,3 +108,39 @@ def test_practice_ids_by_literal_lists_only_the_users_imports(
     found = repo.practice_ids_by_literal(["食", "水", "龘"], user.id)
 
     assert found == {"食": mine.id}
+
+
+def test_list_for_user_is_newest_first_and_paginated(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, other_user: UserORM
+) -> None:
+    old = repo.add(make_kanji(user.id, "一"))
+    new = repo.add(
+        make_kanji(user.id, "二").model_copy(update={"created_at": NOW + timedelta(1)})
+    )
+    same_time_later_id = repo.add(make_kanji(user.id, "三"))
+    repo.add(make_kanji(other_user.id, "一"))
+
+    assert repo.list_for_user(user.id, limit=10, offset=0) == [
+        new,
+        same_time_later_id,
+        old,
+    ]
+    assert repo.list_for_user(user.id, limit=1, offset=1) == [same_time_later_id]
+    assert repo.count_for_user(user.id) == 3
+
+
+def test_list_for_user_filters_by_active(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
+) -> None:
+    active = repo.add(make_kanji(user.id, "一"))
+    inactive = repo.add(make_kanji(user.id, "二", is_active=False))
+
+    assert repo.list_for_user(user.id, 10, 0, active=True) == [active]
+    assert repo.list_for_user(user.id, 10, 0, active=False) == [inactive]
+    assert repo.count_for_user(user.id, active=False) == 1
+
+
+def test_count_for_user_without_items_is_zero(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM
+) -> None:
+    assert repo.count_for_user(user.id) == 0

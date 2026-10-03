@@ -10,6 +10,32 @@ Every endpoint except `GET /dictionary/search` requires a bearer token; see
 app runs on port **8001** (`shodoukan-api` uses 8000):
 `uvicorn shodoukan_practice.api.app:app --port 8001` or `shodoukan-practice`.
 
+## `GET /library/entries` and `GET /library/kanji`
+
+The current user's library, one kind per route
+([`ListLibraryEntries` / `ListLibraryKanji`](../application/use-cases.md#listlibraryentriesentriesexecuteuser_id-limit-offset-activenone)).
+It's what the UI shows to pick items for a collection: each item's `id` is what
+[`PUT /collections/.../items/{id}`](#collections) takes.
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | int, 1–100 | `20` | Items per page |
+| `offset` | int, ≥ 0 | `0` | Items to skip |
+| `active` | bool | all | `true` only active items, `false` only deactivated ones |
+
+| Status | When | Body |
+|---|---|---|
+| `200` | Always, for a valid token | `PracticeEntryPageResponse` / `PracticeKanjiPageResponse` |
+| `401` | Missing or invalid token | `{"detail": ...}` |
+| `422` | Out-of-range `limit` or `offset` | validation errors |
+
+Items are ordered most recently imported first. The page has the same shape as the
+dictionary search's entry page, with `total` counting every matching item:
+
+```json
+{ "items": [{ "id": 7, "source_entry_id": 1358280, ... }], "total": 42, "limit": 20, "offset": 0 }
+```
+
 ## `POST /library/entries`
 
 Imports a dictionary entry into the current user's library
@@ -214,7 +240,7 @@ committed is rolled back when the session closes.
 | `_oauth2` | the OAuth2 (authorization code) security scheme: extracts the bearer token and documents the Keycloak login for Swagger |
 | `get_current_user` | the `User` behind the bearer token, created on first use (`EnsureUser`) |
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
-| `get_import_entry` / `get_import_kanji` / `get_import_status` | use cases with SQLAlchemy repositories on the request's session |
+| `get_import_entry` / `get_import_kanji` / `get_import_status` / `get_list_library_entries` / `get_list_library_kanji` | use cases with SQLAlchemy repositories on the request's session |
 | `get_<use case>` for collections (`get_create_entry_collection`, `get_add_kanji_to_collection`, ...) | one factory per collection use case, with the collection and item repositories on the request's session |
 | `get_search_dictionary` | `SearchDictionary` over the dictionary gateway (no session, no user) |
 

@@ -39,6 +39,8 @@ from ..application.queries import (
     ListEntryCollections,
     ListKanjiCollectionItems,
     ListKanjiCollections,
+    ListLibraryEntries,
+    ListLibraryKanji,
     SearchDictionary,
 )
 from ..domain.entities import User
@@ -157,6 +159,14 @@ def get_import_status(session: SessionDep) -> GetImportStatus:
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
     )
+
+
+def get_list_library_entries(session: SessionDep) -> ListLibraryEntries:
+    return ListLibraryEntries(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_list_library_kanji(session: SessionDep) -> ListLibraryKanji:
+    return ListLibraryKanji(SqlAlchemyPracticeKanjiRepository(session))
 
 
 # --- Collections ---

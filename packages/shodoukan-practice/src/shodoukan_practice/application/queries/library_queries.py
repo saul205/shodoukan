@@ -2,9 +2,23 @@
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Generic, TypeVar
 from uuid import UUID
 
+from ...domain.entities import PracticeEntry, PracticeKanji
 from ...domain.repositories import PracticeEntryRepository, PracticeKanjiRepository
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class LibraryPage(Generic[T]):
+    """A page of the user's library, and how many items there are in total."""
+
+    items: list[T]
+    total: int
+    limit: int
+    offset: int
 
 
 @dataclass(frozen=True)
@@ -43,4 +57,50 @@ class GetImportStatus:
             kanji=self._kanji.practice_ids_by_literal(kanji_literals, user_id)
             if kanji_literals
             else {},
+        )
+
+
+class ListLibraryEntries:
+    """The user's imported entries, most recently imported first.
+
+    Inactive entries are included unless `active` says otherwise, so the
+    library page can show and reactivate them.
+    """
+
+    def __init__(self, entries: PracticeEntryRepository) -> None:
+        self._entries = entries
+
+    def execute(
+        self,
+        user_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+        active: bool | None = None,
+    ) -> LibraryPage[PracticeEntry]:
+        return LibraryPage(
+            items=self._entries.list_for_user(user_id, limit, offset, active),
+            total=self._entries.count_for_user(user_id, active),
+            limit=limit,
+            offset=offset,
+        )
+
+
+class ListLibraryKanji:
+    """The user's imported kanji, like `ListLibraryEntries`."""
+
+    def __init__(self, kanji: PracticeKanjiRepository) -> None:
+        self._kanji = kanji
+
+    def execute(
+        self,
+        user_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+        active: bool | None = None,
+    ) -> LibraryPage[PracticeKanji]:
+        return LibraryPage(
+            items=self._kanji.list_for_user(user_id, limit, offset, active),
+            total=self._kanji.count_for_user(user_id, active),
+            limit=limit,
+            offset=offset,
         )

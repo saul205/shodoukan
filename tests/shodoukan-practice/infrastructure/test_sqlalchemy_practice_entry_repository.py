@@ -1,5 +1,7 @@
+from datetime import timedelta
+
 import pytest
-from factories import make_entry
+from factories import NOW, make_entry
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.domain.entities import PracticeGloss
@@ -118,3 +120,39 @@ def test_practice_ids_by_source_entry_id_lists_only_the_users_imports(
     found = repo.practice_ids_by_source_entry_id([1000001, 1000002, 999], user.id)
 
     assert found == {1000001: mine.id}
+
+
+def test_list_for_user_is_newest_first_and_paginated(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM, other_user: UserORM
+) -> None:
+    old = repo.add(make_entry(user.id, 1))
+    new = repo.add(
+        make_entry(user.id, 2).model_copy(update={"created_at": NOW + timedelta(1)})
+    )
+    same_time_later_id = repo.add(make_entry(user.id, 3))
+    repo.add(make_entry(other_user.id, 1))
+
+    assert repo.list_for_user(user.id, limit=10, offset=0) == [
+        new,
+        same_time_later_id,
+        old,
+    ]
+    assert repo.list_for_user(user.id, limit=1, offset=1) == [same_time_later_id]
+    assert repo.count_for_user(user.id) == 3
+
+
+def test_list_for_user_filters_by_active(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM
+) -> None:
+    active = repo.add(make_entry(user.id, 1))
+    inactive = repo.add(make_entry(user.id, 2, is_active=False))
+
+    assert repo.list_for_user(user.id, 10, 0, active=True) == [active]
+    assert repo.list_for_user(user.id, 10, 0, active=False) == [inactive]
+    assert repo.count_for_user(user.id, active=False) == 1
+
+
+def test_count_for_user_without_items_is_zero(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM
+) -> None:
+    assert repo.count_for_user(user.id) == 0
