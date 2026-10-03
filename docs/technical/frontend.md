@@ -104,10 +104,11 @@ Set `SHODOUKAN_DEBUG=1` in the API environment. Each `Entry` in the response wil
 
 `EntryCard` renders a debug bar at the bottom when `entry.score` is non-null:
 
-- `sort: <value>` — the **effective sort key** (highlighted in amber), derived as:
-  - Gloss search: `composite`
-  - Japanese search: `freq + jlpt_bonus`
-- Followed by all non-null individual fields: `freq`, `jlpt_bonus`, `exact_match`, `fts_rank`, `sense_pos`, `total_senses`, `composite`
+- `sort: <value>` — the **effective sort key** (highlighted in amber): the API's
+  `score` (`match_tier × 2000 + popularity`, see [search architecture](search.md#entry-search)).
+  With an older API that doesn't send `score` it falls back to `composite` (gloss) or
+  `freq + jlpt_bonus` (Japanese).
+- Followed by all non-null individual fields: `tier`, `relevance`, `freq`, `jlpt_bonus`, `exact_match`, `fts_rank`, `sense_pos`, `total_senses`, `composite`
 
 ---
 

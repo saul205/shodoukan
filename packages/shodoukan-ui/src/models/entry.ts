@@ -56,6 +56,11 @@ export interface KanjiReading {
 }
 
 export interface ScoreBreakdown {
+  /** The sort key: match_tier × 2000 + popularity. Absent from older APIs. */
+  score?: number | null
+  match_tier?: number | null
+  /** Gloss matches: bm25 relative to the query's best match (0-1]. */
+  relevance?: number | null
   freq: number | null
   jlpt_bonus: number | null
   exact_match: boolean | null

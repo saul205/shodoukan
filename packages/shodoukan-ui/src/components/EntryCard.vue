@@ -44,7 +44,8 @@ const debugFields = computed(() => {
   const s = props.entry.score
   if (!s) return null
 
-  const sortValue = s.composite ?? (
+  // `score` is the API's sort key; older APIs only sent its parts.
+  const sortValue = s.score ?? s.composite ?? (
     s.freq !== null && s.jlpt_bonus !== null ? s.freq + s.jlpt_bonus : null
   )
 
@@ -56,6 +57,8 @@ const debugFields = computed(() => {
     if (s[key] !== null && s[key] !== undefined)
       fields.push({ key: label, value: String(s[key]) })
   }
+  add('match_tier', 'tier')
+  add('relevance', 'relevance')
   add('freq', 'freq')
   add('jlpt_bonus', 'jlpt_bonus')
   add('exact_match', 'exact_match')

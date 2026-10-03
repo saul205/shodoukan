@@ -222,6 +222,9 @@ Returns a single kanji by its character.
 
 ```json
 {
+  "score": 7010,
+  "match_tier": 3,
+  "relevance": null,
   "freq": 510,
   "jlpt_bonus": 500,
   "exact_match": true,
@@ -232,7 +235,11 @@ Returns a single kanji by its character.
 }
 ```
 
-Japanese search populates `freq`, `jlpt_bonus`, `exact_match`. Gloss search populates `freq`, `jlpt_bonus`, `fts_rank`, `sense_pos`, `total_senses`, `composite`. The effective sort key is `composite` (gloss) or `freq + jlpt_bonus` (Japanese).
+**`score`** is the sort key, `match_tier × 2000 + popularity`, for every search (see
+[search architecture](search.md#entry-search)). Reading matches also populate
+`freq`, `jlpt_bonus` and `exact_match`. Gloss matches populate `relevance` (bm25 relative
+to the best match of the query), `fts_rank`, `freq`, `jlpt_bonus`, `sense_pos`,
+`total_senses` and `composite` (popularity decayed by sense position).
 
 ### `EntryKanjiLink`
 
