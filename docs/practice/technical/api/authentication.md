@@ -74,10 +74,11 @@ re-import it after editing the file.
 
 | Client | Type | Use |
 |---|---|---|
-| `shodoukan-web` | public, authorization code + PKCE (S256) | the frontend (`http://localhost:3000/*`) and the Swagger UI (`http://localhost:8001/docs/oauth2-redirect`) |
+| `shodoukan-web` | public, authorization code + PKCE (S256) | the dictionary frontend (`http://localhost:3000/*`) and the Swagger UI (`http://localhost:8001/docs/oauth2-redirect`) |
+| `shodoukan-practice-web` | public, authorization code + PKCE (S256) | the practice frontend (`http://localhost:3001/*`, post-logout redirect too); see [frontend](../frontend.md#sign-in) |
 | `shodoukan-dev-cli` | public, password grant | **local development only**: scripts and smoke tests (`curl -d grant_type=password ...`). Never enable it in a real realm. |
 
-Both clients have an **audience mapper** adding `shodoukan-practice` to the access
+All clients have an **audience mapper** adding `shodoukan-practice` to the access
 token's `aud`, so `AUTH_AUDIENCE=shodoukan-practice` rejects tokens issued for other
 purposes. Clients keep Keycloak's default scopes: `basic` provides `sub` and
 `profile` provides `preferred_username`. Don't add a `clientScopes` list to the realm

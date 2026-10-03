@@ -35,11 +35,12 @@ def create_app() -> FastAPI:
             "scopes": "openid profile",
         },
     )
-    # The frontend calls this API from the browser with an Authorization
-    # header, so it needs CORS (same variable as shodoukan-api).
+    # The practice frontend (port 3001) calls this API from the browser with
+    # an Authorization header, so it needs CORS (same variable as
+    # shodoukan-api).
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3001").split(","),
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )

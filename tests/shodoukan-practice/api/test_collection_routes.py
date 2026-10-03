@@ -189,7 +189,7 @@ def test_cors_allows_delete(client: TestClient) -> None:
     response = client.options(
         "/collections/entries/1",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "http://localhost:3001",
             "Access-Control-Request-Method": "DELETE",
             "Access-Control-Request-Headers": "Authorization",
         },

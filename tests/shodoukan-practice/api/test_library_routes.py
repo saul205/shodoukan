@@ -175,14 +175,14 @@ def test_cors_allows_the_frontend(client: TestClient) -> None:
     response = client.options(
         "/library/imported",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "http://localhost:3001",
             "Access-Control-Request-Method": "GET",
             "Access-Control-Request-Headers": "Authorization",
         },
     )
 
     assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3001"
 
 
 def test_list_entries_is_newest_first_with_a_total(
