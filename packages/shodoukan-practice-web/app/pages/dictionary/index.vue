@@ -87,7 +87,9 @@ function goToPage(next: number) {
       />
 
       <div v-else-if="result" class="flex flex-col-reverse gap-6 md:flex-row md:items-start">
-        <section v-if="result.kanji.length" class="flex flex-col gap-3 md:w-60 md:shrink-0" aria-label="Kanji">
+        <section v-if="result.kanji.length" class="flex flex-col gap-4 md:w-60 md:shrink-0" aria-label="Kanji">
+          <!-- The API returns the kanji list unpaged (at most 10): this is how many are shown. -->
+          <p class="text-sm text-muted">{{ result.kanji.length }} kanji</p>
           <!-- The import button sits over the card's corner, beside the card's link
                rather than inside it (no button inside a link). -->
           <div v-for="k in result.kanji" :key="k.literal" class="relative flex">
