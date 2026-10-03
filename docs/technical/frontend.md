@@ -63,8 +63,8 @@ labels as props. `NavBar` and `PageContainer` stay in `shodoukan-web`.
 | `EntryCard.vue` | Full dictionary entry: headword, reading, JLPT/common tags, senses, optional debug bar. Props: `entry`, `lang`, `linkComponent` (`'a'` or e.g. `NuxtLink`), `detailsHref` (default `/entry/{id}`), `detailsLabel`. |
 | `KanjiCard.vue` | Detailed kanji view (readings, meanings, stroke count, grade). |
 | `KanjiCardCompact.vue` | Compact card (`min-w-[14rem] flex-1`) used in the results kanji column. Props: `kanji`, `lang`, `linkComponent`, `href` (default `/kanji/{literal}`). |
-| `KanjiStrokeAnimator.vue` | Animated stroke order (hanzi-writer, loaded on demand; wrap in `<ClientOnly>`). Labels: `playLabel`, `playingLabel`. |
-| `KanjiStrokeGrid.vue` | One frame per stroke (hanzi-writer data). Labels: `loadingLabel`, `unavailableLabel`. |
+| `KanjiStrokeAnimator.vue` | Animated stroke order (hanzi-writer, loaded on demand; wrap in `<ClientOnly>`). Labels: `playLabel`, `playingLabel`. `size`: drawing size in px (default 160). |
+| `KanjiStrokeGrid.vue` | One frame per stroke (hanzi-writer data). Labels: `loadingLabel`, `unavailableLabel`. `cellSize`: smallest frame width, CSS length (default `6rem`); frames grow up to twice it. Sizes are inline styles, since Tailwind 3 can't build classes from a prop. |
 
 ### EntryCard internal layout
 
