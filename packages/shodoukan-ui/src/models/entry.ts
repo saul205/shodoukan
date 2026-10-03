@@ -1,5 +1,9 @@
+// Ids, priority tags, example provenance and debug scores are optional: the
+// dictionary API (shodoukan-api) sends them, the practice API's dictionary
+// read models don't, and both render with the same components.
+
 export interface Gloss {
-  id: number
+  id?: number
   text: string
   type: string | null
   lang: string
@@ -8,7 +12,7 @@ export interface Gloss {
 export interface CrossReference {
   reference: string
   reading: string | null
-  sense_idx: number | null
+  sense_idx?: number | null
 }
 
 export interface ExampleSentence {
@@ -17,15 +21,15 @@ export interface ExampleSentence {
 }
 
 export interface Example {
-  id: number
-  source_name: string
-  source_id: string | null
+  id?: number
+  source_name?: string
+  source_id?: string | null
   text: string
   sentences: ExampleSentence[]
 }
 
 export interface Sense {
-  id: number
+  id?: number
   pos: string[]
   misc: string[]
   dialects: string[]
@@ -36,18 +40,18 @@ export interface Sense {
 }
 
 export interface Reading {
-  id: number
+  id?: number
   text: string
   no_kanji: boolean
-  priority: string[]
+  priority?: string[]
   info: string[]
   restricted_to: string[]
 }
 
 export interface KanjiReading {
-  id: number
+  id?: number
   kanji: string
-  priority: string[]
+  priority?: string[]
   info: string[]
 }
 
@@ -68,7 +72,7 @@ export interface Entry {
   senses: Sense[]
   jlpt: number | null
   is_common: boolean
-  score: ScoreBreakdown | null
+  score?: ScoreBreakdown | null
 }
 
 export interface EntryKanjiLink {

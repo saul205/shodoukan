@@ -1,5 +1,13 @@
 <script setup lang="ts">
-const props = defineProps<{ literal: string }>()
+import { onMounted, ref } from 'vue'
+
+const props = withDefaults(
+  defineProps<{ literal: string; unavailableLabel?: string; loadingLabel?: string }>(),
+  {
+    unavailableLabel: 'Stroke order not available.',
+    loadingLabel: 'Loading stroke order…',
+  },
+)
 
 interface CharData {
   strokes: string[]
@@ -53,10 +61,10 @@ onMounted(async () => {
   </div>
 
   <p v-else-if="failed" class="text-sm text-zinc-600">
-    Stroke order not available.
+    {{ unavailableLabel }}
   </p>
 
   <p v-else class="animate-pulse text-sm text-zinc-600">
-    Loading stroke order…
+    {{ loadingLabel }}
   </p>
 </template>

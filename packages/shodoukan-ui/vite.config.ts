@@ -12,7 +12,9 @@ export default defineConfig({
       fileName: "shodoukan-ui",
     },
     rollupOptions: {
-      external: ["vue"],
+      // hanzi-writer is loaded on demand by the stroke components; the
+      // app bundles it, so the library doesn't.
+      external: ["vue", "hanzi-writer"],
       output: {
         globals: { vue: "Vue" },
       },

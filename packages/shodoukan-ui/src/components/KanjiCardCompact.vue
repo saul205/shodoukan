@@ -3,8 +3,14 @@ import { computed, type Component } from 'vue'
 import type { Kanji } from '../models/kanji'
 
 const props = withDefaults(
-  defineProps<{ kanji: Kanji; lang: string; linkComponent?: Component | string }>(),
-  { linkComponent: 'a' },
+  defineProps<{
+    kanji: Kanji
+    lang: string
+    linkComponent?: Component | string
+    /** Where the card links to; defaults to `/kanji/{literal}`. */
+    href?: string
+  }>(),
+  { linkComponent: 'a', href: undefined },
 )
 
 const meanings = computed(() =>
@@ -15,7 +21,7 @@ const meanings = computed(() =>
 )
 
 const linkProps = computed(() => {
-  const href = `/kanji/${props.kanji.literal}`
+  const href = props.href ?? `/kanji/${props.kanji.literal}`
   return props.linkComponent === 'a' ? { href } : { to: href }
 })
 </script>

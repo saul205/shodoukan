@@ -1,5 +1,10 @@
 <script setup lang="ts">
-const props = defineProps<{ literal: string }>()
+import { onMounted, ref } from 'vue'
+
+const props = withDefaults(
+  defineProps<{ literal: string; playLabel?: string; playingLabel?: string }>(),
+  { playLabel: 'Play', playingLabel: 'Playing…' },
+)
 
 const container = ref<HTMLDivElement | null>(null)
 const animating = ref(false)
@@ -46,7 +51,7 @@ function play() {
       class="rounded bg-indigo-600/30 px-3 py-1 text-xs font-medium text-indigo-300 transition hover:bg-indigo-600/50 disabled:opacity-40"
       @click="play"
     >
-      {{ animating ? 'Playing…' : 'Play' }}
+      {{ animating ? playingLabel : playLabel }}
     </button>
   </div>
 </template>

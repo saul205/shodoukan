@@ -50,13 +50,21 @@ main (w-[80%] viewport width, centred)
 
 ## Components
 
-| File | Purpose |
+The shared components, models and services live in the **`shodoukan-ui`** library
+(`packages/shodoukan-ui`, a pnpm workspace package built with Vite in library mode;
+build it before running an app: `pnpm --filter shodoukan-ui build`). They're shared with
+the practice frontend (`shodoukan-practice-web`), so they take their link targets and
+labels as props. `NavBar` and `PageContainer` stay in `shodoukan-web`.
+
+| Component (`shodoukan-ui`) | Purpose |
 |---|---|
 | `SearchBar.vue` | Controlled input + language selector + submit button. Props: `modelValue` (query), `lang`. Emits: `update:modelValue`, `update:lang`, `search`. Uses `LanguageSelector` internally. |
 | `LanguageSelector.vue` | `<select>` bound to `SUPPORTED_LANGUAGES` from `models/kanji.ts`. Used inside `SearchBar`. |
-| `EntryCard.vue` | Full dictionary entry: headword, reading, JLPT/common tags, senses, optional debug bar. |
+| `EntryCard.vue` | Full dictionary entry: headword, reading, JLPT/common tags, senses, optional debug bar. Props: `entry`, `lang`, `linkComponent` (`'a'` or e.g. `NuxtLink`), `detailsHref` (default `/entry/{id}`), `detailsLabel`. |
 | `KanjiCard.vue` | Detailed kanji view (readings, meanings, stroke count, grade). |
-| `KanjiCardCompact.vue` | Compact card (`min-w-[14rem] flex-1`) used in the results kanji column. |
+| `KanjiCardCompact.vue` | Compact card (`min-w-[14rem] flex-1`) used in the results kanji column. Props: `kanji`, `lang`, `linkComponent`, `href` (default `/kanji/{literal}`). |
+| `KanjiStrokeAnimator.vue` | Animated stroke order (hanzi-writer, loaded on demand; wrap in `<ClientOnly>`). Labels: `playLabel`, `playingLabel`. |
+| `KanjiStrokeGrid.vue` | One frame per stroke (hanzi-writer data). Labels: `loadingLabel`, `unavailableLabel`. |
 
 ### EntryCard internal layout
 
@@ -72,7 +80,10 @@ Tags and senses share a `flex flex-wrap` row:
 
 - `Entry` — mirrors the Python `Entry` Pydantic model. Key fields:
   - `is_common: boolean` — pre-computed on the backend from `EntryORM.has_common`. **Do not re-derive from priority tags.**
-  - `score: ScoreBreakdown | null` — present only when the API runs with `SHODOUKAN_DEBUG=1`
+  - `score?: ScoreBreakdown | null` — present only when the API runs with `SHODOUKAN_DEBUG=1`
+  - Nested `id`s, `priority` tags and example provenance are optional: `shodoukan-api`
+    sends them, the practice API's dictionary read models don't. Components key by
+    index when there's no id.
 - `ScoreBreakdown` — mirrors `shodoukan.models.entry.ScoreBreakdown`
 
 ### `models/kanji.ts`

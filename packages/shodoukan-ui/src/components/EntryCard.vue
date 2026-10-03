@@ -5,8 +5,15 @@ import { glossLang } from '../models/kanji'
 import { shortenPos } from '../utils/pos'
 
 const props = withDefaults(
-  defineProps<{ entry: Entry; lang: string; linkComponent?: Component | string }>(),
-  { linkComponent: 'a' },
+  defineProps<{
+    entry: Entry
+    lang: string
+    linkComponent?: Component | string
+    /** Where "details" goes; defaults to `/entry/{id}`. */
+    detailsHref?: string
+    detailsLabel?: string
+  }>(),
+  { linkComponent: 'a', detailsHref: undefined, detailsLabel: 'details →' },
 )
 
 const langCode = computed(() => glossLang(props.lang))
@@ -29,7 +36,7 @@ const jlptLabel = computed(() => (props.entry.jlpt ? `N${props.entry.jlpt}` : nu
 const hasTags = computed(() => !!(jlptLabel.value || isCommon.value))
 
 const detailsLinkProps = computed(() => {
-  const href = `/entry/${props.entry.id}`
+  const href = props.detailsHref ?? `/entry/${props.entry.id}`
   return props.linkComponent === 'a' ? { href } : { to: href }
 })
 
@@ -102,7 +109,7 @@ function notesFor(sense: Sense): string[] {
       <ol class="flex flex-col gap-2.5 [flex:100] min-w-fit">
         <li
           v-for="(sense, i) in filteredSenses"
-          :key="sense.id"
+          :key="sense.id ?? i"
           class="flex flex-col gap-0.5 text-sm"
         >
           <div class="flex flex-wrap items-center gap-1">
@@ -127,7 +134,7 @@ function notesFor(sense: Sense): string[] {
         :is="linkComponent"
         v-bind="detailsLinkProps"
         class="text-xs text-zinc-500 transition hover:text-zinc-300"
-      >details →</component>
+      >{{ detailsLabel }}</component>
     </div>
 
     <div
