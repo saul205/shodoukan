@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
   ssr: false,
   devtools: { enabled: false },
-  css: ['shodoukan-ui/style.css', '~/assets/css/main.css'],
+  css: ['~/assets/css/main.css'],
   devServer: { port: 3001 },
   // Overridable with NUXT_PUBLIC_API_BASE, NUXT_PUBLIC_AUTH_ISSUER, NUXT_PUBLIC_AUTH_CLIENT_ID.
   runtimeConfig: {

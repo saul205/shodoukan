@@ -20,6 +20,12 @@ from [`shodoukan-ui`](../../technical/frontend.md#components).
 It's a **client-only SPA** (`ssr: false`) on port **3001**. Why Nuxt 4 and no SSR:
 [decisions](decisions.md#the-practice-frontend-is-a-nuxt-4-spa-with-nuxt-ui).
 
+`shodoukan-ui`'s stylesheet is imported in `app/assets/css/main.css` into
+`@layer components`, not through `css` in `nuxt.config.ts`. The library is built with
+Tailwind 3, whose utilities aren't in a cascade layer, and unlayered CSS beats every
+layer: its `.px-3` overrode Nuxt UI's `ps-*`, so input icons covered the text. In
+`components` it still beats Tailwind's reset but this app's utilities win.
+
 ## Running
 
 ```bash
