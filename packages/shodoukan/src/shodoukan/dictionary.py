@@ -120,19 +120,14 @@ class Dictionary:
                 limit=limit,
                 offset=offset,
             )
-            jp_kanji = self._kanji.search(
-                hiragana, grade=None, jlpt=None, limit=_KANJI_SIDE_LIMIT, offset=0
+            # Kanji by reading and by meaning, ranked by kind of match first.
+            kanji = self._kanji.search_ranked(
+                reading_query=hiragana,
+                meaning_query=query,
+                lang=lang,
+                limit=_KANJI_SIDE_LIMIT,
+                offset=0,
             ).items
-            gloss_kanji = self._kanji.search(
-                query, grade=None, jlpt=None, lang=lang,
-                limit=_KANJI_SIDE_LIMIT, offset=0,
-            ).items
-            seen_lit = {k.literal for k in jp_kanji}
-            kanji = sorted(
-                jp_kanji + [k for k in gloss_kanji if k.literal not in seen_lit],
-                key=kanji_score_value,
-                reverse=True,
-            )[:_KANJI_SIDE_LIMIT]
         else:
             entries = self._entries.search_by_gloss(
                 query, lang=lang, limit=limit, offset=offset

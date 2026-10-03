@@ -134,3 +134,24 @@ def test_context_manager(tmp_path, conn):
     with patch("shodoukan.dictionary.download"):
         with Dictionary(db_path=db_file, auto_download=False) as d:
             assert d.get_kanji("水") is not None
+
+
+def test_search_romaji_ranks_kanji_by_match_tier(conn, tmp_path):
+    # 図 is more popular than 合, but only its meaning "audacious" starts
+    # with "au"; 合 is read あう.
+    conn.execute(
+        "INSERT INTO kanji(literal, stroke_count, freq, jlpt, kun_readings)"
+        " VALUES ('合', 6, 41, 3, '[\"あ.う\"]'), ('図', 7, 539, 4, '[]')"
+    )
+    conn.execute(
+        "INSERT INTO kanji_meanings(literal, text, lang)"
+        " VALUES ('合', 'fit', 'en'), ('図', 'audacious', 'en')"
+    )
+    conn.commit()
+    db_file = tmp_path / "ranked.sqlite"
+    backup = sqlite3.connect(str(db_file))
+    conn.backup(backup)
+    backup.close()
+
+    with Dictionary(db_path=db_file, auto_download=False) as d:
+        assert [k.literal for k in d.search("au").kanji] == ["合", "図"]

@@ -3,7 +3,6 @@ from sqlalchemy import func
 from shodoukan.models.kanji import Kanji
 
 JLPT_WEIGHT = 100
-FTS_KANJI_WEIGHT = 1000
 
 # --- Entry search score -------------------------------------------------------
 #
@@ -34,6 +33,27 @@ GLOSS_TIER_2_RELEVANCE = 0.5
 
 # An entry found both by reading and by gloss (romaji searches) is ranked by its
 # reading match: such glosses are usually the romaji of the reading itself.
+
+# --- Kanji search score -------------------------------------------------------
+#
+#   score = tier * KANJI_TIER_WEIGHT + kanji_score
+#
+# Same idea as entries, in the kanji_score unit (about -100 000 to 60 000):
+# KANJI_TIER_WEIGHT is above that spread, so a better tier always wins. Romaji
+# searches run both reading and meaning matches; a meaning that only shares a
+# word prefix with the query ("au" → "audacious") must not outrank a kanji
+# read exactly as the query (合, あ.う).
+KANJI_TIER_WEIGHT = 1_000_000
+
+# Reading: a reading equals the query, or starts with it.
+KANJI_TIER_READING_EXACT = 3
+KANJI_TIER_READING_PREFIX = 2
+
+# Meaning (FTS): a meaning equals the query ("same"), contains it as a phrase
+# ("the same"), or only a word starts with it (fallback when no phrase matches).
+KANJI_TIER_MEANING_EXACT = 3
+KANJI_TIER_MEANING_PHRASE = 2
+KANJI_TIER_MEANING_PREFIX = 1
 
 # Weight applied to entry position when ranking related kanji.
 # gap(pos 0 → pos 3) = 75 000 > max k_score spread (~50 000),
