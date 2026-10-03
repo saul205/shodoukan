@@ -26,12 +26,15 @@ There are two kinds, and they never mix:
 - **Rename** a collection or change its description.
 - **Delete** a collection. Its words or kanji stay in the library; only the grouping
   goes away.
-- **Add** an item from their library to a collection, and **remove** it. Adding
-  something that's already there, or removing something that isn't, changes nothing,
-  so a double click or a retry is safe.
-- **Browse** a collection's items, page by page, in the order they were added.
-  Items the user has deactivated are hidden from the collection but stay in it, and
-  reappear when reactivated.
+- **Add** items from their library to a collection, and **remove** them. The window
+  for adding lists only what isn't in the collection yet, with the same search as the
+  library ([searching](../library/browse.md#searching)); the user can search several
+  times and add everything they ticked at once. Adding something that's already
+  there, or removing something that isn't, changes nothing, so a double click or a
+  retry is safe.
+- **Browse** a collection's items, page by page, in the order they were added, and
+  **search** within them, best match first. Items the user has deactivated are hidden
+  from the collection but stay in it, and reappear when reactivated.
 
 Only items already in the library can be added: to put a dictionary word in a
 collection, import it first ([importing](../library/import.md)).

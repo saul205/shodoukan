@@ -11,8 +11,8 @@ import {
   removeFromCollection,
 } from '~/services/collections'
 
-// One collection and its items. Items open the library's detail page, which
-// links back here.
+// One collection and its items, with a search (best match first; ?q= in the
+// URL). Items open the library's detail page, which links back here.
 
 definePageMeta({
   validate: route => ['entries', 'kanji'].includes(String(route.params.kind)),
@@ -25,12 +25,17 @@ const router = useRouter()
 const api = useApi()
 const notify = useNotify()
 const overlay = useOverlay()
+const { lang, glossCode } = useMeaningLang()
 
 const kind = computed(() => route.params.kind as ItemKind)
 const id = computed(() => Number(route.params.id))
 const page = computed<number>({
   get: () => Math.max(1, Number(route.query.page) || 1),
-  set: value => router.push({ query: { page: value } }),
+  set: value => router.push({ query: { ...route.query, page: value } }),
+})
+const search = computed<string>({
+  get: () => (typeof route.query.q === 'string' ? route.query.q : ''),
+  set: value => router.replace({ query: { ...route.query, q: value || undefined, page: undefined } }),
 })
 
 const { data: collection, error: collectionError, refresh: refreshCollection } = useAsyncData(
@@ -40,14 +45,19 @@ const { data: collection, error: collectionError, refresh: refreshCollection } =
 )
 
 const { data: items, status, refresh: refreshItems } = useAsyncData(
-  () => `collection-items-${kind.value}-${id.value}-${page.value}`,
+  () => `collection-items-${kind.value}-${id.value}`,
   async () => {
-    const query = { limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }
+    const query = {
+      limit: PAGE_SIZE,
+      offset: (page.value - 1) * PAGE_SIZE,
+      q: search.value || undefined,
+      meaning_lang: search.value ? (kind.value === 'entries' ? glossCode.value : lang.value) : undefined,
+    }
     return kind.value === 'entries'
       ? { kind: 'entries' as const, page: await listCollectionEntries(api, id.value, query) }
       : { kind: 'kanji' as const, page: await listCollectionKanji(api, id.value, query) }
   },
-  { watch: [kind, id, page] },
+  { watch: [kind, id, page, search, lang] },
 )
 
 const backToLibrary = computed(() => ({ path: '/collections', query: kind.value === 'kanji' ? { tab: 'kanji' } : {} }))
@@ -127,14 +137,23 @@ async function remove() {
     <div v-else class="space-y-5">
       <div v-if="collection" class="space-y-1">
         <p class="text-sm text-muted">
-          Colección de {{ kind === 'entries' ? 'palabras' : 'kanji' }}<template v-if="items"> · {{ items.page.total }} activos</template>
+          Colección de {{ kind === 'entries' ? 'palabras' : 'kanji' }}<template v-if="items"> · {{ items.page.total }} {{ search ? 'encontrados' : 'activos' }}</template>
         </p>
         <p v-if="collection.description" class="text-toned">{{ collection.description }}</p>
       </div>
 
+      <LibrarySearchInput v-model="search" class="w-full sm:max-w-sm" />
+
       <div v-if="status === 'pending' && !items" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <USkeleton v-for="i in 6" :key="i" class="h-32" />
       </div>
+
+      <UEmpty
+        v-else-if="items && !items.page.items.length && search"
+        icon="i-lucide-search-x"
+        :title="`Sin resultados para «${search}» en esta colección`"
+        description="Prueba con otra forma de escribirlo, en kana o romaji, o con un significado."
+      />
 
       <UEmpty
         v-else-if="items && !items.page.items.length"
