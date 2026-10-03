@@ -88,3 +88,7 @@ them on `http://localhost`, while scripted HTTP clients have to forward them by 
 `.github/workflows/ci.yml` installs the package, runs `mypy` and
 `pytest tests/shodoukan-practice`, then runs the migrations against a throwaway
 `postgres:16-alpine` service: `upgrade head`, `check`, `downgrade base`, `upgrade head`.
+
+A separate `frontend` job installs the pnpm workspace (`--frozen-lockfile`), builds and
+tests `shodoukan-ui`, and runs the practice frontend's Vitest suite and `nuxt
+typecheck`. See [frontend](frontend.md#tests).
