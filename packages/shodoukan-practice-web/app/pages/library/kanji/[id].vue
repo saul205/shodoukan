@@ -127,16 +127,12 @@ async function remove() {
 
         <section aria-labelledby="readings" class="space-y-3">
           <h2 id="readings" class="text-sm font-semibold uppercase tracking-wide text-muted">Lecturas</h2>
-          <div v-for="group in readingGroups" :key="group.label" class="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <span class="w-20 text-xs uppercase tracking-wide text-dimmed">{{ group.label }}</span>
-            <USwitch
-              v-for="reading in group.items"
-              :key="reading.id"
-              :model-value="reading.enabled"
+          <div v-for="group in readingGroups" :key="group.label" class="flex items-start gap-3">
+            <span class="w-20 shrink-0 pt-1.5 text-xs uppercase tracking-wide text-dimmed">{{ group.label }}</span>
+            <ReadingChips
+              :readings="group.items"
               :disabled="saving"
-              :label="reading.text"
-              :ui="{ label: 'font-japanese' }"
-              @update:model-value="enabled => save(() => setKanjiPartEnabled(api, id, 'readings', reading.id, enabled))"
+              @toggle="(readingId, enabled) => save(() => setKanjiPartEnabled(api, id, 'readings', readingId, enabled))"
             />
           </div>
         </section>
