@@ -1,2 +1,3 @@
 -e packages/shodoukan[dev]
 -e packages/shodoukan-api[dev]
+-e packages/shodoukan-practice[dev]

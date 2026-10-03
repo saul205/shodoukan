@@ -3,5 +3,7 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "mypy-type-checker.importStrategy": "fromEnvironment",
+    "mypy-type-checker.args": ["--config-file=mypy.ini"]
 }

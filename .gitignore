@@ -155,6 +155,7 @@ activemq-data/
 .env
 .env.dev
 .env.prod
+.env.keycloak
 .envrc
 .venv
 env/
@@ -212,8 +213,10 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
-# Claude Code
-.claude
+# Claude Code: local settings stay private; shared rules and skills are tracked
+.claude/*
+!.claude/rules/
+!.claude/skills/
 
 # PyPI configuration file
 .pypirc

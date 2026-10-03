@@ -44,9 +44,28 @@ Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` 
 
 Interactive docs available at `/docs` when the server is running.
 
+### `shodoukan-practice` — Practice app *(in progress)*
+
+Backend for studying with the dictionary: each user imports entries and kanji into a
+personal library, customises them, and groups them into collections (which double as
+tags) to practise with. Built so far: the domain, PostgreSQL persistence, sign-in
+through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
+(`GET /dictionary/search`), and importing entries and kanji (`POST /library/entries`,
+`POST /library/kanji`), and grouping them into collections (`/collections/entries`,
+`/collections/kanji`). See the [practice app documentation](docs/practice/README.md).
+
 ### Web interface *(planned)*
 
 Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
+
+---
+
+## Documentation
+
+- [Documentation index](docs/index.md): functional and technical docs for search, the
+  API and the web interface.
+- [Practice app](docs/practice/README.md): [functional](docs/practice/functional/README.md)
+  and [technical](docs/practice/technical/README.md) documentation.
 
 ---
 
@@ -96,8 +115,37 @@ After that, every push to `main` triggers a new deploy.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev]
+pip install -e packages/shodoukan[dev] -e packages/shodoukan-api[dev] -e packages/shodoukan-practice[dev]
 shodoukan-setup  # download the database
+```
+
+### Practice database (PostgreSQL)
+
+`shodoukan-practice` stores user data in PostgreSQL. Copy the "Practice database"
+block from `.env.example` into your `.env.dev` (with your own password), then:
+
+```bash
+docker compose up -d practice-db          # local Postgres on 127.0.0.1:5432
+set -a; . ./.env.dev; set +a              # export PRACTICE_DATABASE_URL
+alembic -c packages/shodoukan-practice/alembic.ini upgrade head
+```
+
+### Practice API and sign-in (Keycloak)
+
+```bash
+cp .env.keycloak.example .env.keycloak    # Keycloak and its own database; set passwords
+docker compose up -d keycloak             # http://localhost:8080 (starts keycloak-db too)
+set -a; . ./.env.dev; set +a              # AUTH_ISSUER, AUTH_AUDIENCE, PRACTICE_DATABASE_URL
+uvicorn shodoukan_practice.api.app:app --port 8001 --reload
+```
+
+Open <http://localhost:8001/docs> and click **Authorize** to sign in (local user
+`dev` / `dev`). See the [authentication docs](docs/practice/technical/api/authentication.md).
+
+After changing an ORM model, create a migration and review it:
+
+```bash
+alembic -c packages/shodoukan-practice/alembic.ini revision --autogenerate -m "Describe the change"
 ```
 
 ### Running locally
@@ -117,6 +165,14 @@ shodoukan-api
 ```bash
 pytest tests/shodoukan
 pytest tests/shodoukan-api
+pytest tests/shodoukan-practice
+```
+
+### Lint and type check
+
+```bash
+ruff check . && ruff format --check .
+mypy  # config in mypy.ini; strict for shodoukan-practice
 ```
 
 ### CLI
