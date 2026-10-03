@@ -72,7 +72,7 @@ async function remove() {
       <UButton
         :to="`/dictionary/entries/${entry.source_entry_id}`"
         icon="i-lucide-book-open"
-        label="En el diccionario"
+        label="Abrir en el diccionario"
         color="neutral"
         variant="ghost"
         class="hidden sm:inline-flex"
