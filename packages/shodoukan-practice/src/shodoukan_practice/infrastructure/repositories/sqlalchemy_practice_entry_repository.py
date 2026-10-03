@@ -145,5 +145,5 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
             conditions.append(PracticeEntryORM.is_active.is_(active))
         return conditions
 
-    def _select(self) -> Select[tuple[PracticeEntryORM]]:
+    def _select(self) -> Select[PracticeEntryORM]:
         return select(PracticeEntryORM).options(*_LOAD)

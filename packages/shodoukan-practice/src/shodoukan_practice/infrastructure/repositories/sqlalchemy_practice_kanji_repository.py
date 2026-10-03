@@ -133,5 +133,5 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
             conditions.append(PracticeKanjiORM.is_active.is_(active))
         return conditions
 
-    def _select(self) -> Select[tuple[PracticeKanjiORM]]:
+    def _select(self) -> Select[PracticeKanjiORM]:
         return select(PracticeKanjiORM).options(*_LOAD)
