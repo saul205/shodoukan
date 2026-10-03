@@ -57,6 +57,22 @@ reading, so words whose English definition is just their name in romaji (水よ�
 "mizu yōkan") don't jump ahead of more common words that start with the same reading. The number of results and the pages cover
 every match: paging through shows each word once.
 
+### Kanji order
+
+Kanji follow the same idea: the kind of match first, then how common the kanji is.
+
+1. A reading equal to the search, or a meaning equal to it (`au` → 合, read あう;
+   `same` → 同, meaning "same").
+2. A reading that starts with the search, or a meaning that contains it (`same` → 偶,
+   "the same kind").
+3. A meaning where only a word starts with the search (`au` → 図, "audacious"). These
+   only fill the list after every better match.
+
+A romaji search can match kanji both ways, since `same` may be English or さめ: 同
+(same) and 鮫 (shark, さめ) are equally good matches and the more common one comes
+first. Both on-readings and kun-readings are searched, whether you type romaji,
+hiragana or katakana (`kai` → 会, 海, 回).
+
 ---
 
 ## Language support

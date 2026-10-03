@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   all of them. They used to count only meaning matches (`taberu` said 0 results while
   showing 2) and later pages skipped words, because the reading and meaning searches
   were paginated separately and merged afterwards.
+- **shodoukan:** Kanji are found by their on-readings. These are stored in katakana and
+  were compared with the hiragana of the search, so `kai` didn't list 会, 海 or 回.
 
 ### Changed
 
@@ -26,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ranked by its reading. Words whose definition is their own romaji (水ようかん, "mizu
   yōkan") no longer rank above common words starting with the same reading (湖, 水着 for
   `mizu`); translations found only by meaning (同じ for `same`) keep their rank.
+- **shodoukan:** Kanji searches rank by the kind of match first, then by popularity: an
+  exact reading or meaning, then a reading prefix or a meaning that contains the search,
+  then meanings that only start with it. `au` now lists 合 and 遇 (あう) instead of 図
+  ("audacious") and 秋 ("autumn"); `same` still lists both 同 and 鮫 (さめ).
 - **shodoukan-ui:** The debug bar shows the new `score` as the sort value, with `tier`
   and `relevance`.
 

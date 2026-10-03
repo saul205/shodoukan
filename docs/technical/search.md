@@ -18,9 +18,9 @@ Queries are classified in this order:
 | Condition | Entry search | Kanji method |
 |-----------|-------------|--------------|
 | `is_kanji_only(query)` — every character is a CJK ideograph | reading matches | Direct literal lookup for each character |
-| `is_japanese(query)` — contains any kanji or kana | reading matches | `search` → reading path |
-| `is_romaji(query)` — ASCII letters/apostrophes/hyphens only | reading matches (as hiragana) **and** gloss matches (as typed), ranked together | `search(hiragana)` → reading path |
-| Fallback (other language gloss) | gloss matches | `search` → meaning path |
+| `is_japanese(query)` — contains any kanji or kana | reading matches | `search` → reading matches (ranked search) |
+| `is_romaji(query)` — ASCII letters/apostrophes/hyphens only | reading matches (as hiragana) **and** gloss matches (as typed), ranked together | `search_ranked` — reading matches (as hiragana) **and** meaning matches (as typed), ranked together |
+| Fallback (other language gloss) | gloss matches | `search` → meaning matches |
 
 Romaji is converted to hiragana via Hepburn mapping before use. If conversion fails (e.g. "water" contains non-romaji characters) the query falls through to the gloss path.
 
@@ -132,24 +132,52 @@ results), so later pages dropped entries.
 
 Each character in the query is looked up individually in the `kanji` table. Results are sorted by kanji score (see below) and returned as a flat list.
 
-### Reading path (Japanese / romaji queries)
+### Ranked search (kana, romaji and meaning queries)
 
-Searches `on_readings` and `kun_readings` JSON columns. The match condition covers:
+Every other kanji search is one SQL query: `KanjiRepository.search_ranked(reading_query,
+meaning_query, grade, jlpt, lang, limit, offset)` (code: `repositories/kanji.py`,
+constants: `repositories/scoring.py`). Kana queries run the reading branch, meaning
+queries the meaning branch, and romaji queries both (reading as hiragana, meaning as
+typed). It mirrors the entry search:
 
-- Exact on-reading match (`value = query`)
-- Exact kun-reading match (`value = query`)
-- On-reading prefix match (`value LIKE query%`)
-- Kun-reading with okurigana prefix (`value LIKE query.%`)
+```
+score = tier × KANJI_TIER_WEIGHT + kanji_score     KANJI_TIER_WEIGHT = 1 000 000
+```
 
-**Ordering:** exact matches first, then kanji score descending.
+`kanji_score` (below) spans roughly −100 000 to 60 000, so **a better tier always
+wins** and popularity orders kanji within a tier.
 
-Note: kun-readings are stored with an okurigana separator dot (e.g. `た.べる`). Searching `たべる` will not match `た.べる` through the exact or prefix paths; it matches only if the pre-dot stem equals the query.
+| Tier | Reading match | Meaning match |
+|---|---|---|
+| 3 | a reading **equals** the query | a meaning **equals** the query (case-insensitive) |
+| 2 | a reading **starts with** the query | a meaning contains the query as an FTS phrase |
+| 1 | — | only a word **prefix** matches (fallback) |
 
-### Meaning path (gloss / other language)
+**Reading matches** look at the `on_readings` and `kun_readings` JSON columns.
+KANJIDIC2 writes on-readings in **katakana** (`カイ`) and kun-readings in hiragana
+(`あ.う`), so the query is bound twice: converted to katakana for on-readings and to
+hiragana for kun-readings (`utils/kana.py`). A kun-reading equals the query with or
+without its okurigana dot (`あ.う` = `あう`); its prefix match is on the stem
+(`value LIKE query.%`).
 
-Uses SQLite FTS5 on the `kanji_meanings` table (filtered by language). Tries exact phrase then prefix fallback.
+**Meaning matches** use FTS5 on `kanji_meanings` in the requested language: the phrase
+first and, when it matches nothing (with the grade/JLPT filters applied), word
+prefixes. Prefix-only matches are tier 1 because they share only a few letters with the
+query: `au*` finds "audacious" (図) and "autumn" (秋), which must not outrank 合
+(あ.う) for `au`. bm25 isn't used: kanji meanings are a word or two, so "equals the
+query" is the useful signal.
 
-**Ordering:** best FTS rank across all meanings for that kanji (`min(rank)`) first, then kanji score descending.
+**Combining:** `UNION ALL` of the branches, `GROUP BY literal` keeping the best score
+(a kanji found both ways counts once), `ORDER BY score DESC, literal`, then
+`LIMIT/OFFSET` with `COUNT(*) OVER ()` as the total.
+
+Meaning matches keep their tier in romaji searches for the same reason as entries:
+romaji can't be told apart from English. `same` finds 同 ("same") and 鮫 (さめ) at
+tier 3, ordered by popularity, and 偶 ("the same kind") at tier 2.
+
+Before this, a romaji search ran the reading and meaning searches separately and
+sorted the merged list by `kanji_score` only, so `au` listed 図 and 秋 above 合 and 遇.
+The meaning path ranked by `kanji_score + bm25 × 1000` (`FTS_KANJI_WEIGHT`, removed).
 
 ---
 
@@ -167,4 +195,4 @@ kanji_score = jlpt * 10_000
 | `grade` | Lower = better (more basic) | 1–6 elementary, 8 secondary, 9–10 jinmeiyo. `11 - grade` inverts so grade 1 scores highest; NULL = 0 pts |
 | `freq` | Lower = better | Frequency rank 1–2500 (1 = most common). NULL penalised as 99 999 |
 
-This formula is applied both in SQL (for repository-level ordering) and in Python via `kanji_score_value(k: Kanji)` (for in-memory sorting of the literal-only path).
+This formula is applied both in SQL (for repository-level ordering, and as the popularity part of the ranked search) and in Python via `kanji_score_value(k: Kanji)` (for in-memory sorting of the literal-only path).
