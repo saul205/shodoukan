@@ -1,6 +1,17 @@
 import os
 
-from sqlalchemy import and_, desc, distinct, func, or_, select, text
+from sqlalchemy import (
+    and_,
+    case,
+    desc,
+    func,
+    null,
+    or_,
+    select,
+    text,
+    union_all,
+)
+from sqlalchemy import literal as sql_literal
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, selectinload
 
@@ -20,7 +31,15 @@ from shodoukan.db.orm import (
 from shodoukan.models.entry import Entry, EntryKanjiLink, Page, ScoreBreakdown
 from shodoukan.repositories.fts import fts_prefix_query, fts_query
 from shodoukan.repositories.mapper import entry_to_domain
-from shodoukan.repositories.scoring import JLPT_WEIGHT, kanji_score
+from shodoukan.repositories.scoring import (
+    GLOSS_TIER_2_RELEVANCE,
+    GLOSS_TIER_3_RELEVANCE,
+    JLPT_WEIGHT,
+    TIER_READING_EXACT,
+    TIER_READING_PREFIX,
+    TIER_WEIGHT,
+    kanji_score,
+)
 from shodoukan.utils.lang import gloss_lang
 
 
@@ -40,6 +59,68 @@ def _load_options():
     ]
 
 
+# Which branch a match comes from; an entry found both ways uses its reading row.
+_SOURCE_READING = 0
+_SOURCE_GLOSS = 1
+
+# Per-match details carried through the union for debug mode.
+_DETAIL_COLUMNS = (
+    "match_tier",
+    "fts_rank",
+    "relevance",
+    "freq",
+    "jlpt_bonus",
+    "exact_match",
+    "composite",
+    "sense_pos",
+    "total_senses",
+)
+
+
+def _gloss_join(stmt, fts_q: str, lang: str):
+    """`stmt` over entries with a gloss in `lang` matching the FTS query."""
+    code = gloss_lang(lang)
+    return (
+        stmt.select_from(EntryORM)
+        .join(EntryORM.senses)
+        .join(SenseORM.glosses)
+        .join(fts.glosses_fts, fts.glosses_fts.c.rowid == GlossORM.id)
+        .join(
+            EntrySenseLangCountORM,
+            and_(
+                EntrySenseLangCountORM.entry_id == EntryORM.id,
+                EntrySenseLangCountORM.lang == code,
+            ),
+        )
+        .join(
+            SenseLangIndexORM,
+            and_(
+                SenseLangIndexORM.sense_id == SenseORM.id,
+                SenseLangIndexORM.lang == code,
+            ),
+        )
+        .where(
+            text("glosses_fts MATCH :fts_q").bindparams(fts_q=fts_q),
+            GlossORM.lang == code,
+        )
+    )
+
+
+def _breakdown(row) -> ScoreBreakdown:
+    return ScoreBreakdown(
+        score=row.score,
+        match_tier=row.match_tier,
+        relevance=row.relevance,
+        freq=row.freq,
+        jlpt_bonus=row.jlpt_bonus,
+        exact_match=None if row.exact_match is None else bool(row.exact_match),
+        fts_rank=row.fts_rank,
+        composite=row.composite,
+        sense_pos=row.sense_pos,
+        total_senses=row.total_senses,
+    )
+
+
 class EntryRepository:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
@@ -54,6 +135,76 @@ class EntryRepository:
         return entry_to_domain(e) if e else None
 
     def search_by_japanese(self, query: str, limit: int, offset: int) -> Page[Entry]:
+        """Entries whose spelling or reading equals or starts with `query`."""
+        return self.search(reading_query=query, limit=limit, offset=offset)
+
+    def search_by_gloss(
+        self, query: str, lang: str = "en", limit: int = 20, offset: int = 0
+    ) -> Page[Entry]:
+        """Entries with a gloss in `lang` matching `query` (FTS)."""
+        return self.search(gloss_query=query, lang=lang, limit=limit, offset=offset)
+
+    def search(
+        self,
+        reading_query: str | None = None,
+        gloss_query: str | None = None,
+        lang: str = "en",
+        limit: int = 20,
+        offset: int = 0,
+    ) -> Page[Entry]:
+        """One ranked search over reading matches, gloss matches, or both.
+
+        Every match gets `score = match_tier * TIER_WEIGHT + popularity` (see
+        `scoring.py`), so reading and gloss matches share one order. An entry
+        found both ways counts once and is ranked by its reading match: a gloss
+        that matches the same romaji as the entry's own reading ("mizu yōkan"
+        for みずようかん) is a transliteration, not a translation. Ordering,
+        pagination and the total are done in SQL over all matches.
+        """
+        branches = []
+        if reading_query:
+            branches.append(self._reading_matches(reading_query))
+        if gloss_query:
+            branches.append(self._gloss_matches(gloss_query, lang))
+        if not branches:
+            return Page(items=[], total=0, limit=limit, offset=offset)
+
+        hits = union_all(*branches).subquery("hits")
+        # SQLite: bare columns next to MIN() come from the row with the min, so
+        # an entry matched both ways takes the score and details of its reading
+        # match (source 0).
+        best = (
+            select(
+                hits.c.id,
+                func.min(hits.c.source).label("source"),
+                hits.c.score,
+                *[hits.c[name] for name in _DETAIL_COLUMNS],
+            )
+            .group_by(hits.c.id)
+            .subquery("best")
+        )
+        page_stmt = (
+            select(best, func.count().over().label("total"))
+            .order_by(
+                desc(best.c.score), best.c.fts_rank.asc().nulls_first(), best.c.id
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+
+        with Session(self._engine) as session:
+            rows = session.execute(page_stmt).all()
+            if rows:
+                total = rows[0].total
+            else:
+                total = session.execute(select(func.count()).select_from(best)).scalar()
+            scores = {r.id: _breakdown(r) for r in rows} if _debug_mode() else None
+            items = self._hydrate(session, [r.id for r in rows], scores=scores)
+
+        return Page(items=items, total=total or 0, limit=limit, offset=offset)
+
+    def _reading_matches(self, query: str):
+        """Entries whose spelling or reading equals (tier 3) or starts with (2)."""
         prefix = query + "%"
         cond = or_(
             KanjiReadingORM.kanji == query,
@@ -61,150 +212,111 @@ class EntryRepository:
             ReadingORM.text == query,
             ReadingORM.text.like(prefix),
         )
-        exact = or_(
-            KanjiReadingORM.kanji == query,
-            ReadingORM.text == query,
+        # An entry without kanji spellings compares NULL on the outer join.
+        exact = func.coalesce(
+            func.max(or_(KanjiReadingORM.kanji == query, ReadingORM.text == query)), 0
         )
-        _freq_j = EntryORM.freq_score
-        _jlpt_j = func.coalesce(func.max(EntryORM.jlpt), 0) * JLPT_WEIGHT
-        priority = (_freq_j + _jlpt_j).label("priority")
-
-        def base(s):
-            return (
-                s.select_from(EntryORM)
-                .outerjoin(EntryORM.kanji_readings)
-                .outerjoin(EntryORM.readings)
-                .where(cond)
+        jlpt_bonus = func.coalesce(func.max(EntryORM.jlpt), 0) * JLPT_WEIGHT
+        popularity = EntryORM.freq_score + jlpt_bonus
+        tier = case((exact == 1, TIER_READING_EXACT), else_=TIER_READING_PREFIX)
+        return (
+            select(
+                EntryORM.id.label("id"),
+                sql_literal(_SOURCE_READING).label("source"),
+                (tier * TIER_WEIGHT + popularity).label("score"),
+                tier.label("match_tier"),
+                null().label("fts_rank"),
+                null().label("relevance"),
+                EntryORM.freq_score.label("freq"),
+                jlpt_bonus.label("jlpt_bonus"),
+                exact.label("exact_match"),
+                null().label("composite"),
+                null().label("sense_pos"),
+                null().label("total_senses"),
             )
+            .select_from(EntryORM)
+            .outerjoin(EntryORM.kanji_readings)
+            .outerjoin(EntryORM.readings)
+            .where(cond)
+            .group_by(EntryORM.id)
+        )
 
+    def _gloss_matches(self, query: str, lang: str):
+        """Entries with a matching gloss; tier from bm25 relative to the best.
+
+        Tries the phrase first and falls back to a prefix match when the
+        phrase matches nothing.
+        """
+        fts_q = fts_query(query)
+        if not self._gloss_phrase_exists(fts_q, lang):
+            fts_q = fts_prefix_query(query)
+
+        jlpt_bonus = func.coalesce(EntryORM.jlpt, 0) * JLPT_WEIGHT
+        total_senses = EntrySenseLangCountORM.count
+        sense_pos = func.min(SenseLangIndexORM.lang_sense_index)
+        # Decay by the matched sense's position only (see scoring.py).
+        composite = (EntryORM.freq_score + jlpt_bonus) / func.log2(sense_pos + 2)
+        per_entry = (
+            _gloss_join(
+                select(
+                    EntryORM.id.label("id"),
+                    composite.label("composite"),
+                    func.min(text("rank")).label("fts_rank"),
+                    EntryORM.freq_score.label("freq"),
+                    jlpt_bonus.label("jlpt_bonus"),
+                    sense_pos.label("sense_pos"),
+                    total_senses.label("total_senses"),
+                ),
+                fts_q,
+                lang,
+            )
+            .group_by(EntryORM.id)
+            .subquery("gloss_per_entry")
+        )
+        ranked = select(
+            per_entry,
+            func.min(per_entry.c.fts_rank).over().label("best_rank"),
+        ).subquery("gloss_ranked")
+        # bm25 ranks are negative (lower is better) and best_rank is the lowest:
+        # rank / best_rank is 1 for the best match and smaller for weaker ones.
+        relevance = func.coalesce(ranked.c.fts_rank / ranked.c.best_rank, 1.0)
+        tier = case(
+            (relevance >= GLOSS_TIER_3_RELEVANCE, 3),
+            (relevance >= GLOSS_TIER_2_RELEVANCE, 2),
+            else_=1,
+        )
+        return select(
+            ranked.c.id,
+            sql_literal(_SOURCE_GLOSS).label("source"),
+            (tier * TIER_WEIGHT + ranked.c.composite).label("score"),
+            tier.label("match_tier"),
+            ranked.c.fts_rank,
+            relevance.label("relevance"),
+            ranked.c.freq,
+            ranked.c.jlpt_bonus,
+            null().label("exact_match"),
+            ranked.c.composite,
+            ranked.c.sense_pos,
+            ranked.c.total_senses,
+        )
+
+    def _gloss_phrase_exists(self, fts_q: str, lang: str) -> bool:
+        # Start from the FTS match (materialized): joined with LIMIT 1, SQLite
+        # would scan every gloss of the language and probe FTS for each.
+        hits = (
+            select(fts.glosses_fts.c.rowid.label("gloss_id"))
+            .where(text("glosses_fts MATCH :fts_q").bindparams(fts_q=fts_q))
+            .cte("fts_hits")
+            .prefix_with("MATERIALIZED")
+        )
+        stmt = (
+            select(GlossORM.id)
+            .join(hits, hits.c.gloss_id == GlossORM.id)
+            .where(GlossORM.lang == gloss_lang(lang))
+            .limit(1)
+        )
         with Session(self._engine) as session:
-            total = session.execute(
-                base(select(func.count(distinct(EntryORM.id))))
-            ).scalar() or 0
-            debug = _debug_mode()
-            cols = [EntryORM.id, func.max(exact).label("exact_match"), priority]
-            if debug:
-                cols += [_freq_j.label("debug_freq"), _jlpt_j.label("debug_jlpt")]
-            rows = session.execute(
-                base(select(*cols))
-                .group_by(EntryORM.id)
-                .order_by(desc("exact_match"), desc("priority"))
-                .limit(limit)
-                .offset(offset)
-            ).all()
-            entry_ids = [r.id for r in rows]
-            scores = None
-            if debug:
-                scores = {
-                    r.id: ScoreBreakdown(
-                        freq=r.debug_freq,
-                        jlpt_bonus=r.debug_jlpt,
-                        exact_match=bool(r.exact_match),
-                    )
-                    for r in rows
-                }
-            items = self._hydrate(session, entry_ids, scores=scores)
-
-        return Page(items=items, total=total, limit=limit, offset=offset)
-
-    def search_by_gloss(
-        self, query: str, lang: str = "en", limit: int = 20, offset: int = 0
-    ) -> Page[Entry]:
-        _freq = EntryORM.freq_score
-        _jlpt_pts = func.coalesce(EntryORM.jlpt, 0) * JLPT_WEIGHT
-        _total = EntrySenseLangCountORM.count
-        _pos = func.min(SenseLangIndexORM.lang_sense_index)
-        composite = (
-            (_freq + _jlpt_pts)
-            * (_total - _pos)
-            / (_total * (0.9 + 0.1 * _total))
-        ).label("composite")
-
-        debug = _debug_mode()
-
-        def _build(fts_q: str):
-            fts_where = and_(
-                text("glosses_fts MATCH :fts_q").bindparams(fts_q=fts_q),
-                GlossORM.lang == gloss_lang(lang),
-            )
-
-            def base(s):
-                return (
-                    s.select_from(EntryORM)
-                    .join(EntryORM.senses)
-                    .join(SenseORM.glosses)
-                    .join(fts.glosses_fts, fts.glosses_fts.c.rowid == GlossORM.id)
-                    .join(
-                        EntrySenseLangCountORM,
-                        and_(
-                            EntrySenseLangCountORM.entry_id == EntryORM.id,
-                            EntrySenseLangCountORM.lang == gloss_lang(lang),
-                        ),
-                    )
-                    .join(
-                        SenseLangIndexORM,
-                        and_(
-                            SenseLangIndexORM.sense_id == SenseORM.id,
-                            SenseLangIndexORM.lang == gloss_lang(lang),
-                        ),
-                    )
-                    .where(fts_where)
-                )
-
-            extra = []
-            if debug:
-                extra = [
-                    EntryORM.freq_score.label("debug_freq"),
-                    _jlpt_pts.label("debug_jlpt"),
-                    _pos.label("debug_sense_pos"),
-                    EntrySenseLangCountORM.count.label("debug_total_senses"),
-                ]
-
-            return (
-                base(
-                    select(
-                        EntryORM.id,
-                        composite,
-                        func.min(text("rank")).label("fts_rank"),
-                        *extra,
-                    )
-                )
-                .group_by(EntryORM.id)
-                .order_by(text("fts_rank"), desc("composite"))
-                .limit(limit)
-                .offset(offset),
-                base(select(func.count(distinct(EntryORM.id)))),
-            )
-
-        def _extract(rows):
-            ids = [r.id for r in rows]
-            if not debug:
-                return ids, None
-            return ids, {
-                r.id: ScoreBreakdown(
-                    freq=r.debug_freq,
-                    jlpt_bonus=r.debug_jlpt,
-                    fts_rank=r.fts_rank,
-                    composite=r.composite,
-                    sense_pos=r.debug_sense_pos,
-                    total_senses=r.debug_total_senses,
-                )
-                for r in rows
-            }
-
-        with Session(self._engine) as session:
-            id_stmt, count_stmt = _build(fts_query(query))
-            rows = session.execute(id_stmt).all()
-            entry_ids, scores = _extract(rows)
-            total = session.execute(count_stmt).scalar() or 0
-            if not entry_ids:
-                id_stmt, count_stmt = _build(fts_prefix_query(query))
-                rows = session.execute(id_stmt).all()
-                entry_ids, scores = _extract(rows)
-                total = session.execute(count_stmt).scalar() or 0
-            items = self._hydrate(session, list(entry_ids), scores=scores)
-
-        return Page(items=items, total=total, limit=limit, offset=offset)
+            return session.execute(stmt).first() is not None
 
     def get_kanji_literals_for_entries(self, entry_ids: list[int]) -> list[str]:
         if not entry_ids:
