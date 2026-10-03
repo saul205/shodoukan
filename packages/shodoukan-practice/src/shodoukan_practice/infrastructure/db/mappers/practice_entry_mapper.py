@@ -59,6 +59,7 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
         jlpt=row.jlpt,
         is_common=row.is_common,
         is_active=row.is_active,
+        notes=row.notes,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -67,6 +68,7 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
 def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
     return PracticeSense(
         id=row.id,
+        notes=row.notes,
         pos=row.pos,
         misc=row.misc,
         dialects=row.dialects,
@@ -125,6 +127,7 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
         jlpt=entity.jlpt,
         is_common=entity.is_common,
         is_active=entity.is_active,
+        notes=entity.notes,
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     )
@@ -134,6 +137,7 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
     return PracticeSenseORM(
         id=entity.id,
         position=position,
+        notes=entity.notes,
         pos=entity.pos,
         misc=entity.misc,
         dialects=entity.dialects,

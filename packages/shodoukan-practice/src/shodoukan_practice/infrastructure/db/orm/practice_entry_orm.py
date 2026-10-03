@@ -9,7 +9,15 @@ from __future__ import annotations
 import datetime
 import uuid
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, UniqueConstraint, true
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    true,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_orm import (
@@ -34,6 +42,7 @@ class PracticeEntryORM(Base):
     jlpt: Mapped[int | None]
     is_common: Mapped[bool]
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
+    notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime.datetime] = created_at_column()
     updated_at: Mapped[datetime.datetime] = updated_at_column()
 
@@ -86,6 +95,7 @@ class PracticeSenseORM(Base):
     misc: Mapped[list[str]] = mapped_column(JSON)
     dialects: Mapped[list[str]] = mapped_column(JSON)
     info: Mapped[list[str]] = mapped_column(JSON)
+    notes: Mapped[str | None] = mapped_column(Text)
 
     glosses: Mapped[list[PracticeGlossORM]] = children("PracticeGlossORM.position")
     examples: Mapped[list[PracticeExampleORM]] = children("PracticeExampleORM.position")

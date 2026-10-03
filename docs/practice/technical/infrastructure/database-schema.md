@@ -12,14 +12,14 @@ The models that define these tables are described in
 | Table | Parent | Constraints and notes |
 |---|---|---|
 | `users` | — | `id` **`uuid`**: the identity provider's user id (token `sub`), not generated here; `username` (display name, up to 255 characters, not unique) |
-| `practice_entries` | `users` | `UNIQUE(user_id, source_entry_id)` |
+| `practice_entries` | `users` | `UNIQUE(user_id, source_entry_id)`, `notes` text (nullable) |
 | `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled` |
 | `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled` |
-| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON |
+| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable) |
 | `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')` |
 | `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK) |
 | `practice_example_sentences` | `practice_examples` | `position`, `lang`, `text` |
-| `practice_kanji` | `users` | `UNIQUE(user_id, literal)` |
+| `practice_kanji` | `users` | `UNIQUE(user_id, literal)`, `notes` text (nullable) |
 | `practice_kanji_reading_items` | `practice_kanji` | `kind` with `CHECK kind IN ('on','kun','nanori')`, `position`, `enabled` |
 | `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK) |
 | `entry_collections` | `users` | `UNIQUE(user_id, name)` |
@@ -46,6 +46,8 @@ native `uuid` on PostgreSQL and `CHAR(32)` on SQLite. Aggregate tables
 
 - **Order.** Nested lists keep their order in a `position` column (0-based).
 - **Lists of strings** are `JSON` columns (portable; not `JSONB`).
+- **User notes** are nullable `TEXT` with no length limit in the database; the domain
+  caps them at 2000 characters and stores a blank note as `NULL`.
 - **Dates** are `timestamp without time zone` holding UTC, with no database default.
   See [dates and time zones](../cross-cutting/dates-and-time-zones.md).
 - **Other defaults** (`enabled`, `is_active` → true, `origin` → `'imported'`) are set

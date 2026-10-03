@@ -4,6 +4,7 @@ from .collection_entity import (
     EntryCollection,
     KanjiCollection,
 )
+from .notes_value import NOTES_MAX_LENGTH, Notes
 from .practice_entry_entity import (
     PracticeEntry,
     PracticeExample,
@@ -23,9 +24,11 @@ from .user_entity import User
 
 __all__ = [
     "COLLECTION_NAME_MAX_LENGTH",
+    "NOTES_MAX_LENGTH",
     "Collection",
     "EntryCollection",
     "KanjiCollection",
+    "Notes",
     "PracticeEntry",
     "PracticeExample",
     "PracticeExampleSentence",

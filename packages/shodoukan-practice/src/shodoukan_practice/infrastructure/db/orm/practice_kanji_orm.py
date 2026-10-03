@@ -8,7 +8,7 @@ from __future__ import annotations
 import datetime
 import uuid
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, true
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_orm import (
@@ -37,6 +37,7 @@ class PracticeKanjiORM(Base):
     freq: Mapped[int | None]
     jlpt: Mapped[int | None]
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
+    notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime.datetime] = created_at_column()
     updated_at: Mapped[datetime.datetime] = updated_at_column()
 

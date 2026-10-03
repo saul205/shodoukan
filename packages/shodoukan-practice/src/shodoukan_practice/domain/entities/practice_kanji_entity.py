@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from .notes_value import Notes
 from .timestamped_entity import TimestampedEntity
 
 
@@ -43,6 +44,7 @@ class PracticeKanji(TimestampedEntity):
     nanori: list[PracticeReadingItem]
     meanings: list[PracticeKanjiMeaning]
     is_active: bool = True
+    notes: Notes = None
 
     def activate(self) -> None:
         if not self.is_active:

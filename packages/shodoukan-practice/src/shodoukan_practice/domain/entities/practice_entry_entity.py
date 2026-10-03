@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from .notes_value import Notes
 from .timestamped_entity import TimestampedEntity
 
 
@@ -40,6 +41,7 @@ class PracticeSense(BaseModel):
     info: list[str]
     glosses: list[PracticeGloss]
     examples: list[PracticeExample]
+    notes: Notes = None
 
 
 class PracticeReading(BaseModel):
@@ -74,6 +76,7 @@ class PracticeEntry(TimestampedEntity):
     jlpt: int | None
     is_common: bool
     is_active: bool = True
+    notes: Notes = None
 
     def activate(self) -> None:
         if not self.is_active:
