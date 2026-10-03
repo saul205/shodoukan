@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { KanjiStrokeAnimator } from 'shodoukan-ui'
+import { KanjiStrokeAnimator, KanjiStrokeGrid } from 'shodoukan-ui'
 import ConfirmModal from '~/components/ConfirmModal.vue'
 import type { PracticeKanji, PracticeReadingItem } from '~/models/practice'
 import {
@@ -90,9 +90,12 @@ async function remove() {
 
     <div v-else class="grid gap-8 lg:grid-cols-3">
       <div class="space-y-8 lg:col-span-2">
-        <header class="flex flex-wrap items-center gap-6">
+        <!-- Kanji with its data below and its readings beside it, then the stroke
+             order across; one column on phones (kanji, data, readings, strokes). -->
+        <div class="grid gap-x-8 gap-y-6 sm:grid-cols-[auto_1fr]">
           <span class="font-japanese text-8xl leading-none font-bold text-highlighted">{{ kanji.literal }}</span>
-          <dl class="flex flex-wrap gap-4 text-sm">
+
+          <dl class="grid grid-cols-2 content-start gap-x-4 gap-y-2 text-sm">
             <div>
               <dt class="text-xs uppercase tracking-wide text-dimmed">Trazos</dt>
               <dd class="text-toned">{{ kanji.stroke_count }}</dd>
@@ -106,7 +109,41 @@ async function remove() {
               <dd class="text-toned">N{{ kanji.jlpt }}</dd>
             </div>
           </dl>
-        </header>
+
+          <section aria-labelledby="readings" class="space-y-3 sm:col-start-2 sm:row-span-2 sm:row-start-1">
+            <h2 id="readings" class="text-sm font-semibold uppercase tracking-wide text-muted">Lecturas</h2>
+            <div v-for="group in readingGroups" :key="group.label" class="flex items-start gap-3">
+              <span class="w-20 shrink-0 pt-1.5 text-xs uppercase tracking-wide text-dimmed">{{ group.label }}</span>
+              <ReadingChips
+                :readings="group.items"
+                :disabled="saving"
+                @toggle="(readingId, enabled) => save(() => setKanjiPartEnabled(api, id, 'readings', readingId, enabled))"
+              />
+            </div>
+          </section>
+
+          <section aria-labelledby="strokes" class="space-y-3 sm:col-span-2">
+            <h2 id="strokes" class="text-sm font-semibold uppercase tracking-wide text-muted">Orden de trazos</h2>
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+              <KanjiStrokeAnimator
+                :key="kanji.literal"
+                :literal="kanji.literal"
+                :size="128"
+                play-label="Reproducir"
+                playing-label="Reproduciendo…"
+              />
+              <div class="flex-1">
+                <KanjiStrokeGrid
+                  :key="kanji.literal"
+                  :literal="kanji.literal"
+                  cell-size="4.5rem"
+                  loading-label="Cargando el orden de trazos…"
+                  unavailable-label="Orden de trazos no disponible."
+                />
+              </div>
+            </div>
+          </section>
+        </div>
 
         <section aria-labelledby="meanings" class="space-y-3">
           <div class="flex items-baseline justify-between gap-2">
@@ -123,23 +160,6 @@ async function remove() {
               @remove="meaningId => save(() => removeKanjiMeaning(api, id, meaningId))"
             />
           </UCard>
-        </section>
-
-        <section aria-labelledby="readings" class="space-y-3">
-          <h2 id="readings" class="text-sm font-semibold uppercase tracking-wide text-muted">Lecturas</h2>
-          <div v-for="group in readingGroups" :key="group.label" class="flex items-start gap-3">
-            <span class="w-20 shrink-0 pt-1.5 text-xs uppercase tracking-wide text-dimmed">{{ group.label }}</span>
-            <ReadingChips
-              :readings="group.items"
-              :disabled="saving"
-              @toggle="(readingId, enabled) => save(() => setKanjiPartEnabled(api, id, 'readings', readingId, enabled))"
-            />
-          </div>
-        </section>
-
-        <section aria-labelledby="strokes" class="space-y-3">
-          <h2 id="strokes" class="text-sm font-semibold uppercase tracking-wide text-muted">Orden de trazos</h2>
-          <KanjiStrokeAnimator :key="kanji.literal" :literal="kanji.literal" play-label="Reproducir" playing-label="Reproduciendo…" />
         </section>
       </div>
 
