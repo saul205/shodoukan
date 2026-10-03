@@ -11,7 +11,7 @@ exercises built from those collections.
 | Domain (entities, rules, repository ports) | Built |
 | Persistence (PostgreSQL, Alembic, mappers, repositories) | Built |
 | Dictionary integration (in-process `shodoukan` library) | Built |
-| Application use cases | Import an entry or kanji; browse the library; manage collections and their items |
+| Application use cases | Import an entry or kanji; browse and customise the library; manage collections and their items; dictionary entry and kanji details |
 | Sign-in (Keycloak, OAuth2 / OpenID Connect) | Built: local Keycloak with the `shodoukan` realm; practice users created on first request |
 | HTTP API | `GET /dictionary/search` (public), `GET /users/me`, `GET`/`POST /library/entries`, `GET`/`POST /library/kanji`, `GET /library/imported`, `/collections/entries` and `/collections/kanji` |
 | Exercises | Not designed |

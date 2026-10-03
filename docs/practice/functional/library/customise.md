@@ -1,0 +1,45 @@
+# Customising the Library
+
+[← Functional documentation](../README.md)
+
+How a user adapts a word or kanji in their library to the way they study it.
+
+## The detail page
+
+Opening an item of the library shows the user's copy: readings, meanings, examples,
+notes, and the collections it's in. Everything below is saved as soon as the user
+makes the change.
+
+## What the user can change
+
+- **Hide what they don't need.** Any reading, spelling, meaning or example can be
+  disabled, and enabled again later. A disabled part stays visible on the detail page
+  (greyed out) but is left out when practising.
+- **Add their own meanings.** Words get them per meaning group (sense), kanji on the
+  kanji. The user's meanings are marked as their own, and they can edit or delete them.
+- **Write notes.** A general note on the word or kanji, and for words one note per
+  meaning group. Notes are free text up to 2000 characters; emptying a note removes it.
+- **Deactivate the item.** It stays in the library and in its collections, but isn't
+  practised until it's activated again.
+- **Remove it from the library.** The copy, its notes and customisations are deleted,
+  and it leaves every collection. The dictionary entry is untouched and can be imported
+  again (as a fresh copy).
+
+## What the user can't change
+
+The dictionary's own data is never edited or deleted: readings, spellings, examples
+and the dictionary's meanings can only be disabled. That way nothing original is ever
+lost, and re-enabling it is always possible. Adding readings of their own isn't
+possible yet.
+
+## When it doesn't work
+
+| Situation | Result |
+|---|---|
+| Not signed in, or the session expired | Rejected; the user must sign in again |
+| The item isn't in the user's library | Rejected as not found |
+| Editing or deleting one of the dictionary's meanings | Rejected; it can only be disabled |
+| An empty meaning, or a note over 2000 characters | Rejected as invalid |
+
+Technical details: [use cases](../../technical/application/use-cases.md) and
+[endpoints](../../technical/api/endpoints.md#library-items-detail-and-customisation).
