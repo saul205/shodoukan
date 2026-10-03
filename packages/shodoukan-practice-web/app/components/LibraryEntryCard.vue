@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
 import type { PracticeEntry } from '~/models/practice'
 import { entryHeadword, entryMeanings, entryReading } from '~/utils/practice-text'
 
 // A word of the user's library, as a card that opens its detail page.
-const props = defineProps<{ entry: PracticeEntry; to: string }>()
+const props = defineProps<{ entry: PracticeEntry; to: RouteLocationRaw }>()
 
 const { glossCode } = useMeaningLang()
 

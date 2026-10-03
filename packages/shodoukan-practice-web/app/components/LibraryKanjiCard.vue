@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
 import type { PracticeKanji } from '~/models/practice'
 import { kanjiMeanings } from '~/utils/practice-text'
 
 // A kanji of the user's library, as a card that opens its detail page.
-const props = defineProps<{ kanji: PracticeKanji; to: string }>()
+const props = defineProps<{ kanji: PracticeKanji; to: RouteLocationRaw }>()
 
 const { lang } = useMeaningLang()
 
