@@ -1,0 +1,48 @@
+{
+  "name": "shodoukan-ui",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.11.1",
+  "main": "./dist/shodoukan-ui.js",
+  "module": "./dist/shodoukan-ui.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/shodoukan-ui.js"
+    },
+    "./style.css": "./dist/shodoukan-ui.css",
+    "./tailwind-preset": "./tailwind-preset.ts"
+  },
+  "files": [
+    "dist",
+    "tailwind-preset.ts"
+  ],
+  "scripts": {
+    "build": "vue-tsc --noEmit && vite build",
+    "dev": "vite build --watch",
+    "test": "vitest run --config tests/vitest.config.ts",
+    "test:watch": "vitest --config tests/vitest.config.ts",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.13"
+  },
+  "dependencies": {
+    "ofetch": "^1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5",
+    "@vue/test-utils": "^2",
+    "autoprefixer": "^10",
+    "jsdom": "^26",
+    "tailwindcss": "^3",
+    "typescript": "^5",
+    "vite": "^6",
+    "vite-plugin-dts": "^4",
+    "vitest": "^4.1.9",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2"
+  }
+}

@@ -5,4 +5,78 @@ services:
       dockerfile: packages/shodoukan-api/Dockerfile
     ports:
       - "${API_PORT:-8000}:8000"
+    env_file:
+      - .env.dev
     restart: unless-stopped
+
+  # PostgreSQL for shodoukan-practice. Credentials come from .env.dev
+  # (POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB, see .env.example).
+  practice-db:
+    image: postgres:16-alpine
+    env_file:
+      - .env.dev
+    ports:
+      - "127.0.0.1:${PRACTICE_DB_PORT:-5432}:5432"
+    volumes:
+      - practice-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Keycloak's own database: an empty Postgres where Keycloak creates its
+  # tables on first start. Independent of the practice API and its database;
+  # only reachable inside the compose network.
+  keycloak-db:
+    image: postgres:16-alpine
+    env_file:
+      - .env.keycloak  # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Identity provider for the practice API (OAuth2 / OpenID Connect). Imports
+  # the `shodoukan` realm on first start. Admin console: http://localhost:8080/admin
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    command: ["start-dev", "--import-realm"]
+    env_file:
+      - .env.keycloak  # KC_DB_* (from the POSTGRES_* above), KC_BOOTSTRAP_ADMIN_*
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-db
+      # Tokens are issued as http://localhost:8080/realms/shodoukan, the URL
+      # both the browser and the API on the host use.
+      KC_HOSTNAME: http://localhost:8080
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl: talk HTTP to the management port directly.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"UP"' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  practice-db-data:
+  keycloak-db-data:

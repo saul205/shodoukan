@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "env": {
+      "PATH": "${userHome}/.nvm/versions/node/v24.18.0/bin:${userHome}/.local/share/pnpm/bin:${env:PATH}"
+    }
+  },
+  "tasks": [
+    {
+      "label": "nuxt: dev",
+      "type": "shell",
+      "command": "pnpm dev",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/shodoukan-web"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "nuxt",
+        "pattern": { "regexp": ".", "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "NUXT",
+          "endsPattern": "Local:"
+        }
+      }
+    },
+    {
+      "label": "wait-for-api",
+      "type": "shell",
+      "command": "until curl -sf http://localhost:8000/docs > /dev/null; do sleep 0.5; done",
+      "presentation": { "reveal": "silent" }
+    },
+    {
+      "label": "nuxt: dev (after api)",
+      "dependsOn": ["wait-for-api", "nuxt: dev"],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "practice: services",
+      "detail": "Start practice-db and Keycloak (with keycloak-db), waiting until healthy",
+      "type": "shell",
+      "command": "docker compose up -d --wait practice-db keycloak",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent" },
+      "problemMatcher": []
+    },
+    {
+      "label": "practice: migrate",
+      "detail": "Apply the practice database migrations (alembic upgrade head)",
+      "type": "shell",
+      "command": "set -a; . ./.env.dev; set +a; ${workspaceFolder}/.venv/bin/alembic -c packages/shodoukan-practice/alembic.ini upgrade head",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent" },
+      "problemMatcher": []
+    },
+    {
+      "label": "practice: prepare",
+      "detail": "Services up, then migrations; run before launching the Practice API",
+      "dependsOn": ["practice: services", "practice: migrate"],
+      "dependsOrder": "sequence"
+    }
+  ]
+}

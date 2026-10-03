@@ -9,8 +9,9 @@ router = APIRouter()
 @router.get("", response_model=SearchResult)
 def search(
     q: str = Query(min_length=1),
+    lang: str = Query(default="en"),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     d: Dictionary = Depends(dictionary_dep),
 ) -> SearchResult:
-    return d.search(q, limit=limit, offset=offset)
+    return d.search(q, lang=lang, limit=limit, offset=offset)
