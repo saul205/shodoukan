@@ -1,7 +1,12 @@
 """Request/response models, one module per subject."""
 
 from .collection_schemas import CollectionRequest, CollectionResponse
-from .dictionary_schemas import DictionarySearchResponse
+from .dictionary_schemas import (
+    DictionaryEntryPageResponse,
+    DictionaryEntryResponse,
+    DictionaryKanjiResponse,
+    DictionarySearchResponse,
+)
 from .library_schemas import (
     ImportedEntryResponse,
     ImportedKanjiResponse,
@@ -18,6 +23,9 @@ from .user_schemas import UserResponse
 __all__ = [
     "CollectionRequest",
     "CollectionResponse",
+    "DictionaryEntryPageResponse",
+    "DictionaryEntryResponse",
+    "DictionaryKanjiResponse",
     "DictionarySearchResponse",
     "ImportEntryRequest",
     "ImportKanjiRequest",

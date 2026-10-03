@@ -54,3 +54,31 @@ def test_search_by_romaji_and_by_meaning(dictionary: Dictionary) -> None:
     assert 1000001 in [e.id for e in by_romaji.entries.items]
     assert [e.id for e in by_meaning.entries.items] == [1000002]
     assert "水" in [k.literal for k in by_meaning.kanji]
+
+
+def test_get_entry_and_kanji(dictionary: Dictionary) -> None:
+    gateway = ShodoukanDictionaryGateway(dictionary)
+
+    entry = gateway.get_entry(1000001)
+    kanji = gateway.get_kanji("食")
+
+    assert entry is not None
+    assert [r.text for r in entry.readings] == ["たべる"]
+    assert kanji is not None
+    assert [m.text for m in kanji.meanings] == ["eat", "food"]
+    assert gateway.get_entry(999) is None
+    assert gateway.get_kanji("龘") is None
+
+
+def test_entries_for_kanji(dictionary: Dictionary) -> None:
+    page = ShodoukanDictionaryGateway(dictionary).entries_for_kanji("食", 10, 0)
+
+    assert [e.id for e in page.items] == [1000001]
+    assert (page.total, page.limit, page.offset) == (1, 10, 0)
+
+
+def test_kanji_for_entry(dictionary: Dictionary) -> None:
+    gateway = ShodoukanDictionaryGateway(dictionary)
+
+    assert [k.literal for k in gateway.kanji_for_entry(1000001)] == ["食"]
+    assert gateway.kanji_for_entry(1000003) == []  # kana only

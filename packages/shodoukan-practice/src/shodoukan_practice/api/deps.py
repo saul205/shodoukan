@@ -32,13 +32,17 @@ from ..application.commands import (
     UpdateKanjiCollection,
 )
 from ..application.queries import (
+    GetDictionaryEntry,
+    GetDictionaryKanji,
     GetEntryCollection,
     GetImportStatus,
     GetKanjiCollection,
+    ListEntriesForKanji,
     ListEntryCollectionItems,
     ListEntryCollections,
     ListKanjiCollectionItems,
     ListKanjiCollections,
+    ListKanjiForEntry,
     ListLibraryEntries,
     ListLibraryKanji,
     SearchDictionary,
@@ -152,6 +156,25 @@ def get_search_dictionary(
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> SearchDictionary:
     return SearchDictionary(dictionary)
+
+
+DictionaryGatewayDep = Annotated[DictionaryGateway, Depends(get_dictionary_gateway)]
+
+
+def get_get_dictionary_entry(dictionary: DictionaryGatewayDep) -> GetDictionaryEntry:
+    return GetDictionaryEntry(dictionary)
+
+
+def get_get_dictionary_kanji(dictionary: DictionaryGatewayDep) -> GetDictionaryKanji:
+    return GetDictionaryKanji(dictionary)
+
+
+def get_list_entries_for_kanji(dictionary: DictionaryGatewayDep) -> ListEntriesForKanji:
+    return ListEntriesForKanji(dictionary)
+
+
+def get_list_kanji_for_entry(dictionary: DictionaryGatewayDep) -> ListKanjiForEntry:
+    return ListKanjiForEntry(dictionary)
 
 
 def get_import_status(session: SessionDep) -> GetImportStatus:

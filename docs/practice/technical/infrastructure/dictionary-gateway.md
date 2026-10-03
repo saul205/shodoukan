@@ -32,6 +32,10 @@ mean writing a new adapter; use cases wouldn't change.
 | `new_practice_entry(source_entry_id, user_id)` | `Dictionary.get_entry(id)` | a fresh `PracticeEntry`, or `None` |
 | `new_practice_kanji(literal, user_id)` | `Dictionary.get_kanji(literal)` | a fresh `PracticeKanji`, or `None` |
 | `search(query, lang, limit, offset)` | `Dictionary.search(...)` | `DictionarySearchResult` read models |
+| `get_entry(entry_id)` | `Dictionary.get_entry(id)` | a `DictionaryEntry`, or `None` |
+| `get_kanji(literal)` | `Dictionary.get_kanji(literal)` | a `DictionaryKanji`, or `None` |
+| `entries_for_kanji(literal, limit, offset)` | `Dictionary.get_entries_for_kanji(...)` | a `DictionaryEntryPage` of the words written with the kanji |
+| `kanji_for_entry(entry_id)` | `Dictionary.get_kanji_for_entry_related(id)` | the `DictionaryKanji` in the entry's spellings (empty for kana-only words) |
 
 "Fresh" means not stored yet: all ids are `None`, every part is enabled, and
 glosses, examples and meanings have `origin="imported"`. Both dictionary calls return
@@ -60,6 +64,16 @@ apps. `shodoukan_search_to_dictionary(result)` maps the results to the read mode
 which keep the entry `id` and kanji `literal` (what the import endpoints take), every
 language, cross-references (`sense_idx` becomes `sense_index`) and examples. Priority
 tags, nested row ids, example provenance and debug scores are dropped.
+
+## Details
+
+The entry and kanji detail pages read single items through `get_entry`, `get_kanji`,
+`entries_for_kanji` and `kanji_for_entry`. They map with the same functions as the
+search (`shodoukan_entry_to_dictionary`, `shodoukan_kanji_to_dictionary`,
+`shodoukan_entry_page_to_dictionary`), so a result looks the same wherever it's shown.
+These mirror `shodoukan-api`'s `/entries/{id}`, `/entries/{id}/kanji`, `/kanji/{literal}`
+and `/entries/by-kanji/{literal}`, except that an entry's kanji come back whole instead
+of as bare literals, so the page needs one request instead of one per kanji.
 
 ## Wiring
 

@@ -83,6 +83,22 @@ It returns the gateway's `DictionarySearchResult` read models. It needs no user:
 results are the same for everyone, and import status is
 [`GetImportStatus`](#getimportstatusentries-kanjiexecuteuser_id-source_entry_ids-literals).
 
+### `GetDictionaryEntry(dictionary).execute(entry_id)` / `GetDictionaryKanji(dictionary).execute(literal)`
+
+One entry or kanji for its detail page; `DictionaryItemNotFoundError` if the dictionary
+doesn't have it.
+
+### `ListEntriesForKanji(dictionary).execute(literal, limit, offset)`
+
+A `DictionaryEntryPage` of the words written with the kanji.
+`DictionaryItemNotFoundError` if the kanji doesn't exist, so a typo isn't shown as a
+kanji no word uses.
+
+### `ListKanjiForEntry(dictionary).execute(entry_id)`
+
+The kanji in the entry's spellings; `DictionaryItemNotFoundError` if the entry doesn't
+exist.
+
 ## Queries (`queries/library_queries.py`)
 
 ### `GetImportStatus(entries, kanji).execute(user_id, source_entry_ids, literals)`

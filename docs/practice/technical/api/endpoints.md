@@ -117,6 +117,22 @@ is what `POST /library/kanji` takes. Compared to `shodoukan-api`, the practice A
 omits priority tags, nested row ids, example provenance and debug scores, and cross
 references use `sense_index`.
 
+## Dictionary details
+
+Public, like the search. They feed the entry and kanji detail pages and return the same
+models as `GET /dictionary/search`
+([`GetDictionaryEntry`, `GetDictionaryKanji`, `ListEntriesForKanji`, `ListKanjiForEntry`](../application/use-cases.md#queries-queriesdictionary_queriespy)).
+
+| Method | Route | Response |
+|---|---|---|
+| `GET` | `/dictionary/entries/{entry_id}` | `DictionaryEntryResponse` |
+| `GET` | `/dictionary/entries/{entry_id}/kanji` | `list[DictionaryKanjiResponse]`: the kanji in its spellings, empty for kana-only words |
+| `GET` | `/dictionary/kanji/{literal}` | `DictionaryKanjiResponse` |
+| `GET` | `/dictionary/kanji/{literal}/entries?limit&offset` | `DictionaryEntryPageResponse` (`items`, `total`, `limit`, `offset`): the words written with the kanji, ranked |
+
+`404` when the entry or kanji isn't in the dictionary, `422` for a `literal` that isn't
+one character or an out-of-range `limit` (1–100, default `20`) / `offset` (≥ 0).
+
 ## `GET /library/imported`
 
 Which of a set of dictionary items the current user has already imported
@@ -242,7 +258,7 @@ committed is rolled back when the session closes.
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
 | `get_import_entry` / `get_import_kanji` / `get_import_status` / `get_list_library_entries` / `get_list_library_kanji` | use cases with SQLAlchemy repositories on the request's session |
 | `get_<use case>` for collections (`get_create_entry_collection`, `get_add_kanji_to_collection`, ...) | one factory per collection use case, with the collection and item repositories on the request's session |
-| `get_search_dictionary` | `SearchDictionary` over the dictionary gateway (no session, no user) |
+| `get_search_dictionary`, `get_get_dictionary_entry`, `get_get_dictionary_kanji`, `get_list_entries_for_kanji`, `get_list_kanji_for_entry` | dictionary use cases over the gateway (no session, no user) |
 
 Tests replace `get_session`, `get_dictionary_gateway` and `get_token_verifier` with
 `app.dependency_overrides`.

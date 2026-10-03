@@ -30,15 +30,16 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `infrastructure/test_sqlalchemy_*_repository.py` | Each repository through its port, including owner scoping and membership |
 | `infrastructure/test_migrations.py` | Migrations match the models; downgrade works |
 | `infrastructure/test_shodoukan_mapper.py` | Dictionary models → fresh practice entities, every language kept |
-| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary: snapshots, and search by Japanese, romaji and meaning |
+| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary: snapshots, search by Japanese, romaji and meaning, and entry/kanji details |
 | `application/test_library_commands.py` | Import use cases with real repositories and the real gateway: created, already imported, per-user copies, not found |
+| `application/test_dictionary_queries.py` | Dictionary detail queries: found, not found, words for a kanji, kanji of an entry |
 | `application/test_library_queries.py` | `GetImportStatus`: only the user's imports, empty input; `ListLibraryEntries` / `ListLibraryKanji`: page with total, `active` filter |
 | `application/test_collection_commands.py` | Collection commands: create, duplicate names, update and `updated_at`, delete keeps items, idempotent membership, other users' collections and items not found |
 | `application/test_collection_queries.py` | Listing and getting collections, paging a collection's active items, owner scoping |
 | `application/test_user_commands.py` | `EnsureUser`: existing identity, first request creates, no duplicates |
 | `api/test_library_routes.py` | The library endpoints through `TestClient`: listing (newest first, total, paging, `active`, owner scoping, ids usable in collections), import (201/200/404/422/401), import status (only the user's imports, limits, validation), user creation on first request, CORS preflight |
 | `api/test_collection_routes.py` | The collection endpoints: create/get/list/update/delete, name validation and `409`, items (add, list, page, remove), other users' collections `404`, `401`, CORS for `DELETE` |
-| `api/test_dictionary_routes.py` | `GET /dictionary/search`: public, the same shape as shodoukan-api, pagination, validation, and that results can be imported |
+| `api/test_dictionary_routes.py` | `GET /dictionary/search` and the detail routes: public, the same shape as shodoukan-api, pagination, validation, 404s, and that results can be imported |
 | `api/test_user_routes.py` | `GET /users/me`, and the OAuth2 login declared in the OpenAPI schema |
 | `api/test_auth.py` | `TokenVerifier`: identity, expiry, issuer, signature, audience, configuration |
 

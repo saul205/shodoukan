@@ -1,12 +1,12 @@
 """Port for reading the shodoukan dictionary.
 
-The dictionary is an external, read-only source. The gateway offers two
-things:
+The dictionary is an external, read-only source. The gateway offers:
 
 - **Snapshots for import:** fresh practice entities ready to be stored in a
   user's library (`new_practice_entry`, `new_practice_kanji`).
-- **Search:** dictionary results as read models (`Dictionary*` below), the
-  practice app's own contract for showing dictionary data. They're frozen,
+- **Search and details:** dictionary results, single entries and kanji as
+  read models (`Dictionary*` below), the practice app's own contract for
+  showing dictionary data. They're frozen,
   carry no practice state, and keep the domain independent of the
   dictionary's models.
 """
@@ -133,4 +133,22 @@ class DictionaryGateway(Protocol):
         `lang` (ISO 639-1) is the language meanings are matched in; results
         keep every language.
         """
+        ...
+
+    def get_entry(self, entry_id: int) -> DictionaryEntry | None:
+        """Dictionary entry `entry_id`, or `None`."""
+        ...
+
+    def get_kanji(self, literal: str) -> DictionaryKanji | None:
+        """Dictionary kanji `literal`, or `None`."""
+        ...
+
+    def entries_for_kanji(
+        self, literal: str, limit: int, offset: int
+    ) -> DictionaryEntryPage:
+        """A page of the entries written with kanji `literal`, ranked."""
+        ...
+
+    def kanji_for_entry(self, entry_id: int) -> list[DictionaryKanji]:
+        """The kanji in entry `entry_id`'s spellings; empty if it has none."""
         ...
