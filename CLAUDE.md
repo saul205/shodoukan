@@ -77,6 +77,9 @@ If you add a new package or introduce a significant architectural decision, crea
   each package's own `CLAUDE.md` (`packages/shodoukan-practice/CLAUDE.md`).
 - Git, documentation, and changelog conventions (repo-wide, not just Python) are in
   `.claude/rules/git-and-docs.md`.
+- Frontend work on `packages/shodoukan-practice-web` (Nuxt UI v4) loads the `nuxt-ui`
+  skill (`.claude/skills/nuxt-ui/`, the official Nuxt UI skill; update it with
+  `npx skills update nuxt-ui`, pinned in `skills-lock.json`).
 
 ### Python tooling in this repo
 
