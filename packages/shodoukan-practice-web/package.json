@@ -2,7 +2,6 @@
   "name": "shodoukan-practice-web",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.11.1",
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
@@ -14,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.139",
+    "@iconify-json/lucide": "^1.2.138",
     "@nuxt/ui": "^4.11.3",
     "nuxt": "^4.5.2",
     "ofetch": "^1.5.1",

@@ -2,7 +2,6 @@
   "name": "shodoukan-web",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.11.1",
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",

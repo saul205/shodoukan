@@ -30,6 +30,12 @@ pnpm --filter shodoukan-practice-web test
 pnpm --filter shodoukan-practice-web typecheck
 ```
 
+The workspace pins **pnpm 11** (`packageManager` in the root `package.json`; CI reads
+it too). pnpm 11 refuses packages published less than a day ago
+(`minimumReleaseAge`): if an install fails on a fresh release, use the previous
+version until it's a day old rather than relaxing the policy. Install scripts are off
+(`allowBuilds` in `pnpm-workspace.yaml`); approve one there only if it's needed.
+
 It needs the practice API on `:8001` and Keycloak on `:8080` (see
 [configuration](cross-cutting/configuration.md)). Defaults are in `nuxt.config.ts`
 (`runtimeConfig.public`) and can be overridden with environment variables:

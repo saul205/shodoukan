@@ -11,8 +11,8 @@ importers:
   packages/shodoukan-practice-web:
     dependencies:
       '@iconify-json/lucide':
-        specifier: ^1.2.139
-        version: 1.2.139
+        specifier: ^1.2.138
+        version: 1.2.138
       '@nuxt/ui':
         specifier: ^4.11.3
         version: 4.11.3(efd8cf44ff1758ba30c464595250b861)
@@ -820,11 +820,11 @@ packages:
   '@floating-ui/vue@1.1.11':
     resolution: {integrity: sha512-HzHKCNVxnGS35r9fCHBc3+uCnjw9IWIlCPL683cGgM9Kgj2BiAl8x1mS7vtvP6F9S/e/q4O6MApwSHj8hNLGfw==}
 
-  '@iconify-json/lucide@1.2.139':
-    resolution: {integrity: sha512-QRJrLcEC+O4cHCxd8Nzos2s6oI8+qUywJ/ww7EEEKTKNkWE5HOa89QlNk4gD3Ao0AbUh2ml1pkqcXKTg8XZgIw==}
+  '@iconify-json/lucide@1.2.138':
+    resolution: {integrity: sha512-+J5+/6HOZsN6sG5PGNxGLcB0UCJtKrH2TPTNeSeXukRzR1C9QRocHaFjLRhoc14zE+XS2ss1i7QWPfunKpYHaQ==}
 
-  '@iconify/collections@1.0.746':
-    resolution: {integrity: sha512-GAUF6rBpGQNDBmZlmt6yaWTpVMhHxKQUpXRA0tlfn7n7aVVigIzsPeDnmUeMQ/JnoPJQ2Tgop2B9l9V0Zcunlw==}
+  '@iconify/collections@1.0.745':
+    resolution: {integrity: sha512-/k7EhIyDd5PI8TxtMjyiM4FgHdxY0WZ+q2U41EAh1uBhn490IkHh1tCpKDOrVm4XtzS20Yn9dscxtbt+LHShgg==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -6683,11 +6683,11 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
-  '@iconify-json/lucide@1.2.139':
+  '@iconify-json/lucide@1.2.138':
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify/collections@1.0.746':
+  '@iconify/collections@1.0.745':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -7144,7 +7144,7 @@ snapshots:
 
   '@nuxt/icon@2.5.1(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.143.0)(rolldown@1.2.12)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.12)(rollup@4.63.4)(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.43(typescript@5.9.3))':
     dependencies:
-      '@iconify/collections': 1.0.746
+      '@iconify/collections': 1.0.745
       '@iconify/types': 2.0.0
       '@iconify/utils': 3.1.7
       '@iconify/vue': 5.0.3(vue@3.5.43(typescript@5.9.3))
