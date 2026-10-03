@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import LanguageSelector from './LanguageSelector.vue'
+
 defineProps<{ modelValue: string; lang: string }>()
 const emit = defineEmits<{
   'update:modelValue': [value: string]

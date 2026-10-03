@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SUPPORTED_LANGUAGES } from '~/models/kanji'
+import { SUPPORTED_LANGUAGES } from '../models/kanji'
 
 defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()

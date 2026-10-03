@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { search } from '~/services/search'
-import type { SearchResult } from '~/models/search'
+import { EntryCard, KanjiCardCompact, search, type SearchResult } from 'shodoukan-ui'
+import { NuxtLink } from '#components'
 
 definePageMeta({ layout: 'dictionary', keepalive: true })
 
@@ -58,6 +58,7 @@ watch([q, lang], doSearch, { immediate: true })
           :key="k.literal"
           :kanji="k"
           :lang="lang"
+          :link-component="NuxtLink"
         />
       </div>
 
@@ -67,6 +68,7 @@ watch([q, lang], doSearch, { immediate: true })
           :key="e.id"
           :entry="e"
           :lang="lang"
+          :link-component="NuxtLink"
         />
         <p
           v-if="!results.entries.items.length && !results.kanji.length"

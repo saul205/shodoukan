@@ -1,6 +1,6 @@
 import { $fetch } from 'ofetch'
-import type { Kanji } from '~/models/kanji'
-import type { Page } from '~/models/common'
+import type { Kanji } from '../models/kanji'
+import type { Page } from '../models/common'
 
 export interface KanjiSearchParams {
   q?: string

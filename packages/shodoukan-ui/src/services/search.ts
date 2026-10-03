@@ -1,5 +1,5 @@
 import { $fetch } from 'ofetch'
-import type { SearchResult } from '~/models/search'
+import type { SearchResult } from '../models/search'
 
 export async function search(
   q: string,

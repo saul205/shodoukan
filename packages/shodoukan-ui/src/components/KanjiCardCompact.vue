@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import type { Kanji } from '~/models/kanji'
+import { computed, type Component } from 'vue'
+import type { Kanji } from '../models/kanji'
 
-const props = defineProps<{ kanji: Kanji; lang: string }>()
+const props = withDefaults(
+  defineProps<{ kanji: Kanji; lang: string; linkComponent?: Component | string }>(),
+  { linkComponent: 'a' },
+)
 
 const meanings = computed(() =>
   props.kanji.meanings
@@ -10,12 +14,17 @@ const meanings = computed(() =>
     .join(', '),
 )
 
+const linkProps = computed(() => {
+  const href = `/kanji/${props.kanji.literal}`
+  return props.linkComponent === 'a' ? { href } : { to: href }
+})
 </script>
 
 <template>
-  <NuxtLink
-    :to="`/kanji/${kanji.literal}`"
-    class="flex min-w-[14rem] flex-1 flex-col items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-800/50 px-3 py-4 text-center transition hover:border-zinc-600 hover:bg-zinc-800"
+  <component
+    :is="linkComponent"
+    v-bind="linkProps"
+    class="flex min-w-56 flex-1 flex-col items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-800/50 px-3 py-4 text-center transition hover:border-zinc-600 hover:bg-zinc-800"
   >
     <span class="font-japanese text-4xl font-bold text-zinc-100">{{ kanji.literal }}</span>
 
@@ -35,5 +44,5 @@ const meanings = computed(() =>
     >
       N{{ kanji.jlpt }}
     </span>
-  </NuxtLink>
+  </component>
 </template>

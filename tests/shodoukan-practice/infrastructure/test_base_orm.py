@@ -20,7 +20,7 @@ def test_stores_naive_utc(session: Session) -> None:
     )
     session.flush()
 
-    raw = session.execute(
+    raw: object = session.execute(
         text("SELECT created_at FROM users WHERE username = 'kana'")
     ).scalar_one()
     assert str(raw).startswith("2026-07-01 10:00:00")

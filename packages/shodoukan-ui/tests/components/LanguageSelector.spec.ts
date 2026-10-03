@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import LanguageSelector from '../../components/LanguageSelector.vue'
-import { SUPPORTED_LANGUAGES } from '../../models/kanji'
+import LanguageSelector from '../../src/components/LanguageSelector.vue'
+import { SUPPORTED_LANGUAGES } from '../../src/models/kanji'
 
 describe('LanguageSelector', () => {
   it('renders all supported languages', () => {
