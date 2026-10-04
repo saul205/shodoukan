@@ -80,6 +80,12 @@ If you add a new package or introduce a significant architectural decision, crea
   each package's own `CLAUDE.md` (`packages/shodoukan-practice/CLAUDE.md`).
 - Git, documentation, and changelog conventions (repo-wide, not just Python) are in
   `.claude/rules/git-and-docs.md`.
+- Documentation subagents (`.claude/agents/`): `docs-explorer` (read-only) finds and
+  summarises what the docs say about an area before working on it; `docs-maintainer`
+  updates the docs, indexes and `CHANGELOG.md` to match a change (edits Markdown only,
+  never commits). `architecture-reviewer` (read-only) checks a backend plan before
+  coding, and the implemented change before the PR, against the clean architecture
+  rules and `decisions.md`; structural coherence only, not QA.
 - Frontend work on `packages/shodoukan-practice-web` (Nuxt UI v4) loads the `nuxt-ui`
   skill (`.claude/skills/nuxt-ui/`, the official Nuxt UI skill; update it with
   `npx skills update nuxt-ui`, pinned in `skills-lock.json`).
