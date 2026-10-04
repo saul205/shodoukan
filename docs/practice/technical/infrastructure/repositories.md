@@ -118,3 +118,34 @@ Membership is read and written directly on the link tables:
 
 The entry and kanji collection repositories are near-identical on purpose. There's no
 shared generic base until a third collection kind shows what to abstract.
+
+## Exercises
+
+`SqlAlchemyExerciseRepository` loads an exercise with both link tables
+(`selectinload`) and maps the one of its kind. The collection links are child rows of
+the exercise, so `update` replaces them through `merge` like any nested item: links
+with the same `(exercise_id, collection_id)` are updated (their `position`), new ones
+inserted, missing ones deleted. `update` and `delete` check that the stored exercise
+belongs to the same user (`EntityNotFoundError` otherwise). A deleted collection drops
+out of its exercises through the FK cascade, with no repository code.
+
+## Exercise sessions
+
+`SqlAlchemyExerciseSessionRepository` loads a session with its questions
+(`selectinload`); the mapper splits them into the active one (no answer) and the
+history. `add` inserts the session and its first question in one flush; `update`
+merges the session: answered questions are updated in place (they keep their ids), a
+new active question is inserted, and one dropped by `finish` is deleted
+(`delete-orphan`). `list_open` filters on `finished_at IS NULL` and locks the rows.
+`add` inserts in a savepoint and turns a violation of the one-open-session-per-user
+index into `SessionAlreadyOpenError`.
+Removing an item or an exercise sets the questions' and sessions' references to NULL
+in the database (`SET NULL`), with no repository code.
+
+Writes to a session are serialized. `get_for_update` reads it with
+`SELECT ... FOR UPDATE` on the session row, so a concurrent answer or finish waits for
+the first transaction and then reads what it stored (SQLite, used in tests, has no
+row locks). As a backstop, `UNIQUE(session_id, position)` on `exercise_questions`
+stops two writers from storing the same next question: `update` flushes in a
+savepoint and turns that violation into `QuestionNotActiveError`, re-raising any other
+`IntegrityError`.

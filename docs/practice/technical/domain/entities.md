@@ -16,6 +16,8 @@ All entities are Pydantic models. Aggregate roots inherit
 | `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id`, `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active`, `notes` |
 | `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description` |
+| `ExerciseSession` | `exercise_session_entity.py` | `user_id`, `exercise_id` (`None` once the exercise is deleted), `exercise_name`, `item_kind`, `meaning_lang`, `current` (the active question), `history` (the answered ones), `finished_at`; `created_at` is the start, `updated_at` the last activity |
+| `Exercise` → `EntryExercise`, `KanjiExercise` | `exercise_entity.py` | `user_id`, `name` (1–100, `EXERCISE_NAME_MAX_LENGTH`, not unique), `description`, `collection_ids`, `settings`; `item_kind` (`"entries"` / `"kanji"`) comes from the subclass |
 
 Everything is re-exported from `domain/entities/__init__.py`.
 
@@ -53,6 +55,64 @@ On top of the snapshot:
   only needs the grouping (e.g. exercises) works against the `Collection` base.
   Why subclasses: [decisions](../decisions.md#entry-and-kanji-collections-are-subclasses).
 
+## Exercises
+
+A saved exercise. The design (types, sessions, statistics) is in
+[exercises](../exercises.md); this is what's built.
+
+- **Subclasses by item kind.** `EntryExercise` studies the fields `writing`,
+  `reading`, `meaning` (`ENTRY_FIELDS`); `KanjiExercise` studies `literal`, `onyomi`,
+  `kunyomi`, `meaning` (`KANJI_FIELDS`). A model validator rejects settings that use a
+  field of the other kind, on construction and on `configure`.
+- **`settings: ExerciseSettings`**, for now only `ChoiceCardSettings`
+  (`type = "card.choice"`): `directions`, `back_fields`, `option_count` (2–8, default
+  4), `distractor_source` (`"collection"`). Frozen value objects; a
+  `question_count` stored by earlier versions is ignored. `ExerciseSettings` becomes a
+  union discriminated by `type` when a second exercise type is added; card types
+  share `CardSettings` (`directions`, `back_fields`).
+- **`Direction(prompt, answer)`**: the fields shown (at least one, no repeats) and the
+  field asked, which can't be one of them. An exercise needs at least one direction
+  and can't repeat one (the prompt's order doesn't count); back fields can't repeat.
+- **`collection_ids`**: the collections it draws from, in order. They're part of the
+  definition, so the entity holds them (unlike a collection's members). It can be
+  empty after its collections are deleted: the exercise stays but can't run. Why:
+  [decisions](../decisions.md#an-exercise-holds-its-collection-ids).
+
+## Exercise sessions
+
+An open-ended study session of an exercise: one active question (`current`) and the
+answered ones (`history`). Its questions are built by the
+[question service](services-and-errors.md#services-domainservices). Each
+`ExerciseQuestion` is a snapshot of the card, so the session reads the same after its
+items or its exercise change:
+
+- `item_id` (the item asked about; `None` once it leaves the library),
+  `prompt_fields`, `answer_field`;
+- `prompt` and `back`: `ShownField(field, values)`, what the front and the back show;
+- `options`: `ChoiceOption(text, item_id)`, with `correct_option` as an index;
+- `answer` (`OptionAnswer(type="option", option)`; `ExerciseAnswer` becomes a union
+  discriminated by `type` with the next exercise type), `is_correct`, `answered_at`,
+  `response_ms` (measured by the client). All `None` until answered.
+
+`ask` and `answer` raise `SessionFinishedError` on a finished **or idle** session,
+and change nothing then. Methods:
+
+- `ask(question)`: makes it the active question, positioned after the history;
+  `QuestionNotActiveError` if one is active already.
+- `answer(question_id, answer, response_ms)`: grades the active question and moves it
+  to the history. `question_id` must be the active one's (`QuestionNotActiveError`
+  otherwise: a double click, a stale tab); `InvalidAnswerError` for an option it
+  doesn't have.
+- `finish()`: the user closes it now; drops the active question; idempotent.
+- `close_at_last_activity()`: closes a session the user left (another one started,
+  or idle), with `finished_at = updated_at`. It drops the active question but
+  **doesn't `touch()`**: in a session `updated_at` is the last activity, and closing
+  a left session isn't activity. Idempotent.
+- `ended_at(now)`: `finished_at`, or the last activity if idle for more than
+  `IDLE_TIMEOUT` (30 minutes), or `None`. `close_if_idle(now)` makes that permanent
+  (closing isn't activity: `updated_at` stays).
+- `answered` and `score` count the history and its right answers.
+
 ## Timestamps and `touch()`
 
 `TimestampedEntity` (`timestamped_entity.py`):
@@ -64,7 +124,10 @@ On top of the snapshot:
   constructor (e.g. `rename("")` fails).
 
 **Rule: aggregates change only through their own methods, and every method that
-changes state calls `touch()`.** A call that changes nothing doesn't touch. Use cases
+changes state calls `touch()`.** A call that changes nothing doesn't touch. The one
+exception is closing an exercise session the user left
+(`ExerciseSession.close_at_last_activity`): there `updated_at` means the last
+activity, which closing must not move. Use cases
 call methods; they don't assign fields of a loaded aggregate.
 
 Current methods:
@@ -72,6 +135,8 @@ Current methods:
 | Aggregate | Methods |
 |---|---|
 | `Collection` | `rename(name)`, `describe(description)` |
+| `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
+| `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
 | `PracticeEntry` | `set_sense_notes(sense_id, notes)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)` |
 | `PracticeKanji` | `add_meaning(text, lang)`, `edit_meaning(meaning_id, text)`, `remove_meaning(meaning_id)` |

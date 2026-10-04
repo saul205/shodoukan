@@ -7,6 +7,15 @@ from .dictionary_schemas import (
     DictionaryKanjiResponse,
     DictionarySearchResponse,
 )
+from .exercise_schemas import ExerciseRequest, ExerciseResponse, NewExerciseRequest
+from .exercise_session_schemas import (
+    AnswerRequest,
+    AnswerResponse,
+    OptionResponse,
+    QuestionResponse,
+    SessionResponse,
+    StartSessionRequest,
+)
 from .library_schemas import (
     ActiveRequest,
     EnabledRequest,
@@ -29,6 +38,8 @@ from .user_schemas import UserResponse
 
 __all__ = [
     "ActiveRequest",
+    "AnswerRequest",
+    "AnswerResponse",
     "CollectionRequest",
     "CollectionResponse",
     "DictionaryEntryPageResponse",
@@ -36,6 +47,8 @@ __all__ = [
     "DictionaryKanjiResponse",
     "DictionarySearchResponse",
     "EnabledRequest",
+    "ExerciseRequest",
+    "ExerciseResponse",
     "ImportEntryRequest",
     "ImportKanjiRequest",
     "ImportStatusResponse",
@@ -43,14 +56,19 @@ __all__ = [
     "ImportedKanjiResponse",
     "MeaningLang",
     "MeaningTextRequest",
+    "NewExerciseRequest",
     "NewGlossRequest",
     "NewKanjiMeaningRequest",
     "NotInCollection",
     "NotesRequest",
+    "OptionResponse",
     "PracticeEntryPageResponse",
     "PracticeEntryResponse",
     "PracticeKanjiPageResponse",
     "PracticeKanjiResponse",
+    "QuestionResponse",
     "SearchText",
+    "SessionResponse",
+    "StartSessionRequest",
     "UserResponse",
 ]

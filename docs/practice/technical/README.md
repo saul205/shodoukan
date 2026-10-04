@@ -10,6 +10,7 @@ and why. Coding conventions (naming, typing, testing style) live in the backend 
 
 - [Architecture](architecture.md): layers, dependency rule, package map, status.
 - [Design decisions](decisions.md): why things are the way they are.
+- [Exercises](exercises.md): exercise types, fields and directions, distractor rule, sessions as statistics, phases.
 - Application
   - [Use cases](application/use-cases.md): what each command and query does.
 - API
@@ -40,6 +41,7 @@ the page to update:
 | When you change… | Update |
 |---|---|
 | A layer, a package folder, or what a layer may import | [architecture.md](architecture.md) |
+| The exercise design (types, settings, sessions, phases) | [exercises.md](exercises.md) |
 | A non-obvious design choice, or a reversed one | [decisions.md](decisions.md) (add an entry) |
 | `domain/entities/` | [domain/entities.md](domain/entities.md) |
 | `domain/repositories/`, `domain/gateways/` | [domain/repository-ports.md](domain/repository-ports.md) |

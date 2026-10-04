@@ -7,6 +7,8 @@ which come from different tables, can't be mixed up.
 """
 
 from .entry_collection_repository import EntryCollectionRepository
+from .exercise_repository import ExerciseRepository
+from .exercise_session_repository import ExerciseSessionRepository
 from .kanji_collection_repository import KanjiCollectionRepository
 from .practice_entry_repository import PracticeEntryRepository
 from .practice_kanji_repository import PracticeKanjiRepository
@@ -14,6 +16,8 @@ from .user_repository import UserRepository
 
 __all__ = [
     "EntryCollectionRepository",
+    "ExerciseRepository",
+    "ExerciseSessionRepository",
     "KanjiCollectionRepository",
     "PracticeEntryRepository",
     "PracticeKanjiRepository",

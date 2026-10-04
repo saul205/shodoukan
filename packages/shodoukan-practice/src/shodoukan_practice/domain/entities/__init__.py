@@ -4,6 +4,28 @@ from .collection_entity import (
     EntryCollection,
     KanjiCollection,
 )
+from .exercise_entity import (
+    ENTRY_FIELDS,
+    EXERCISE_NAME_MAX_LENGTH,
+    KANJI_FIELDS,
+    CardSettings,
+    ChoiceCardSettings,
+    Direction,
+    EntryExercise,
+    Exercise,
+    ExerciseSettings,
+    ItemKind,
+    KanjiExercise,
+    StudyField,
+)
+from .exercise_session_entity import (
+    ChoiceOption,
+    ExerciseAnswer,
+    ExerciseQuestion,
+    ExerciseSession,
+    OptionAnswer,
+    ShownField,
+)
 from .notes_value import NOTES_MAX_LENGTH, Notes
 from .practice_entry_entity import (
     EntryPart,
@@ -26,13 +48,29 @@ from .user_entity import User
 
 __all__ = [
     "COLLECTION_NAME_MAX_LENGTH",
+    "ENTRY_FIELDS",
+    "EXERCISE_NAME_MAX_LENGTH",
+    "KANJI_FIELDS",
     "NOTES_MAX_LENGTH",
+    "CardSettings",
+    "ChoiceCardSettings",
+    "ChoiceOption",
     "Collection",
+    "Direction",
     "EntryCollection",
+    "EntryExercise",
     "EntryPart",
+    "Exercise",
+    "ExerciseAnswer",
+    "ExerciseQuestion",
+    "ExerciseSession",
+    "ExerciseSettings",
+    "ItemKind",
     "KanjiCollection",
+    "KanjiExercise",
     "KanjiPart",
     "Notes",
+    "OptionAnswer",
     "PracticeEntry",
     "PracticeExample",
     "PracticeExampleSentence",
@@ -43,6 +81,8 @@ __all__ = [
     "PracticeReading",
     "PracticeReadingItem",
     "PracticeSense",
+    "ShownField",
+    "StudyField",
     "TimestampedEntity",
     "User",
 ]

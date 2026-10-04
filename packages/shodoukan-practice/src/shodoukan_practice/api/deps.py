@@ -21,13 +21,17 @@ from ..application.commands import (
     AddEntryToCollection,
     AddKanjiMeaning,
     AddKanjiToCollection,
+    AnswerExerciseQuestion,
     CreateEntryCollection,
+    CreateExercise,
     CreateKanjiCollection,
     DeleteEntryCollection,
+    DeleteExercise,
     DeleteKanjiCollection,
     EditEntryGloss,
     EditKanjiMeaning,
     EnsureUser,
+    FinishExerciseSession,
     ImportEntry,
     ImportKanji,
     RemoveEntryFromCollection,
@@ -43,13 +47,17 @@ from ..application.commands import (
     SetKanjiNotes,
     SetKanjiPartEnabled,
     SetSenseNotes,
+    StartExerciseSession,
     UpdateEntryCollection,
+    UpdateExercise,
     UpdateKanjiCollection,
 )
 from ..application.queries import (
     GetDictionaryEntry,
     GetDictionaryKanji,
     GetEntryCollection,
+    GetExercise,
+    GetExerciseSession,
     GetImportStatus,
     GetKanjiCollection,
     GetLibraryEntry,
@@ -58,6 +66,7 @@ from ..application.queries import (
     ListCollectionsOfKanji,
     ListEntriesForKanji,
     ListEntryCollections,
+    ListExercises,
     ListKanjiCollections,
     ListKanjiForEntry,
     SearchDictionary,
@@ -73,6 +82,8 @@ from ..infrastructure.dictionary import (
 )
 from ..infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
+    SqlAlchemyExerciseRepository,
+    SqlAlchemyExerciseSessionRepository,
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
@@ -389,6 +400,71 @@ def get_remove_kanji_from_collection(session: SessionDep) -> RemoveKanjiFromColl
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
     )
+
+
+# --- Exercises ---
+
+
+def get_list_exercises(session: SessionDep) -> ListExercises:
+    return ListExercises(SqlAlchemyExerciseRepository(session))
+
+
+def get_get_exercise(session: SessionDep) -> GetExercise:
+    return GetExercise(SqlAlchemyExerciseRepository(session))
+
+
+def get_create_exercise(session: SessionDep) -> CreateExercise:
+    return CreateExercise(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+def get_update_exercise(session: SessionDep) -> UpdateExercise:
+    return UpdateExercise(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+def get_delete_exercise(session: SessionDep) -> DeleteExercise:
+    return DeleteExercise(SqlAlchemyExerciseRepository(session))
+
+
+# --- Exercise sessions ---
+
+
+def get_start_exercise_session(session: SessionDep) -> StartExerciseSession:
+    return StartExerciseSession(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyExerciseSessionRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyUserRepository(session),
+    )
+
+
+def get_answer_exercise_question(session: SessionDep) -> AnswerExerciseQuestion:
+    return AnswerExerciseQuestion(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyExerciseSessionRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+    )
+
+
+def get_finish_exercise_session(session: SessionDep) -> FinishExerciseSession:
+    return FinishExerciseSession(SqlAlchemyExerciseSessionRepository(session))
+
+
+def get_get_exercise_session(session: SessionDep) -> GetExerciseSession:
+    return GetExerciseSession(SqlAlchemyExerciseSessionRepository(session))
 
 
 def _unauthorized(detail: str) -> HTTPException:

@@ -23,6 +23,9 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 
 ## `UserRepository`
 
+`lock(user_id)` locks the user's row for the transaction, to serialize changes that
+span several of their rows (starting an exercise session).
+
 | Method | Returns |
 |---|---|
 | `get(user_id)` | `User \| None` (`user_id` is the identity provider's user id, a UUID) |
@@ -79,6 +82,26 @@ and the user still needs to find the item to manage it.
 | `item_ids(collections)` | distinct ids of the **active** items across the collections |
 | `add(collection)` / `update(collection)` | the stored collection; `CollectionNameTakenError` if the user already has a collection of that kind with that name |
 | `delete(collection)` | removes the collection and its links; the items stay |
+
+## `ExerciseRepository`
+
+| Method | Returns / behavior |
+|---|---|
+| `get(id, user_id)` | the exercise (an `EntryExercise` or `KanjiExercise`) or `None` |
+| `list_for_user(user_id)` | the user's exercises, by name |
+| `add(exercise)` | the stored exercise, with its id |
+| `update(exercise)` | replaces its fields and collections; `EntityNotFoundError` if missing or another user's |
+| `delete(exercise)` | removes the exercise and its collection links; the collections stay |
+
+## `ExerciseSessionRepository`
+
+| Method | Returns / behavior |
+|---|---|
+| `get(id, user_id)` | the session with its active question and history, or `None` |
+| `get_for_update(id, user_id)` | `get`, locking the session until the transaction ends; used by the use cases that change it |
+| `list_open(user_id)` | the user's sessions with no `finished_at` (one at most, normally), locked for the transaction |
+| `add(session)` | the stored session; its questions get their ids; `SessionAlreadyOpenError` if the user has another open session |
+| `update(session)` | stores answers, the new active question and the state; a dropped active question is deleted; `EntityNotFoundError` if missing or another user's; `QuestionNotActiveError` if another request stored the next question first |
 
 ## `DictionaryGateway`
 

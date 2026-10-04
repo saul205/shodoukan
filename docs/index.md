@@ -33,3 +33,4 @@ The practice app (`shodoukan-practice`) has its own documentation tree.
 | [practice/README.md](practice/README.md) | Overview, status, and links to everything below |
 | [practice/functional/README.md](practice/functional/README.md) | What the app does, per feature (written as use cases are defined) |
 | [practice/technical/README.md](practice/technical/README.md) | Architecture, domain, persistence, dates, configuration, testing, design decisions |
+| [practice/technical/exercises.md](practice/technical/exercises.md) | Exercises design: types, fields and directions, distractor rule, sessions and statistics, phases |

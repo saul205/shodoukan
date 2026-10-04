@@ -29,11 +29,7 @@ page per use case.
 - [Managing collections](collections/manage.md): group words and kanji from the
   library, and use collections as tags.
 
-## Not defined yet
+## Exercises
 
-These features will get their folder once their use cases are agreed:
-
-- `exercises/`: practising with one or more collections.
-
-Until then, the [technical documentation](../technical/README.md) describes the model
-that is already built.
+- [Exercises](exercises/README.md): practise a collection with choice cards (and,
+  later, other kinds), choosing what is studied; sessions kept for review.

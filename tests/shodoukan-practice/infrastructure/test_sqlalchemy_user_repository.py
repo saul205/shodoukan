@@ -4,6 +4,7 @@ from factories import NOW
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.domain.entities import User
+from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import SqlAlchemyUserRepository
 
 
@@ -39,3 +40,8 @@ def test_usernames_needn_t_be_unique(session: Session) -> None:
     repo.add(User(id=uuid4(), username="kana"))
     repo.add(User(id=uuid4(), username="kana"))
     session.flush()
+
+
+def test_lock_takes_the_users_row(session: Session, user: UserORM) -> None:
+    # SQLite has no row locks: this checks the query runs; PostgreSQL locks.
+    SqlAlchemyUserRepository(session).lock(user.id)
