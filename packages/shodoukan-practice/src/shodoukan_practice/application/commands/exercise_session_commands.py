@@ -125,7 +125,7 @@ class StartExerciseSession:
         first = build_next_question(cards, exercise.settings, [], self._rng)
 
         for previous in self._sessions.list_open(user_id, exercise_id):
-            previous.finish(at=previous.updated_at)
+            previous.close_at_last_activity()
             self._sessions.update(previous)
 
         session = ExerciseSession(

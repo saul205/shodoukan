@@ -212,7 +212,9 @@ def test_start_closes_the_open_sessions_of_the_exercise(
 
     closed = sessions.get(first.id, user.id)
     assert closed is not None
-    assert closed.finished_at == first.updated_at  # at its last activity
+    # Closed at its last activity, which stays what it was.
+    assert closed.finished_at == first.updated_at
+    assert closed.updated_at == first.updated_at
     assert closed.current is None
     assert [s.id for s in sessions.list_open(user.id, exercise.id)] == [second.id]
 

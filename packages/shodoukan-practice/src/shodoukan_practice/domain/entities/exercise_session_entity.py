@@ -156,23 +156,30 @@ class ExerciseSession(TimestampedEntity):
         self.touch()
         return question
 
-    def finish(self, at: datetime | None = None) -> None:
-        """Close the session; the active question, never answered, is dropped.
-        Closing a closed session changes nothing."""
+    def finish(self) -> None:
+        """The user closes the session now; the active question, never
+        answered, is dropped. Closing a closed session changes nothing."""
         if self.is_finished:
             return
         self.current = None
-        self.finished_at = at or utc_now()
+        self.finished_at = utc_now()
         self.touch()
+
+    def close_at_last_activity(self) -> None:
+        """Close a session the user left: it ends at its last activity, and
+        closing it isn't activity, so `updated_at` stays (unlike `touch()`
+        elsewhere). The active question is dropped. A closed session stays as
+        it is."""
+        if self.is_finished:
+            return
+        self.current = None
+        self.finished_at = self.updated_at
 
     def close_if_idle(self, now: datetime) -> bool:
         """Close it at its last activity if it's been idle too long."""
-        ended = self.ended_at(now)
-        if ended is None or self.is_finished:
+        if self.is_finished or self.ended_at(now) is None:
             return False
-        updated_at = self.updated_at
-        self.finish(at=ended)
-        self.updated_at = updated_at  # closing an idle session isn't activity
+        self.close_at_last_activity()
         return True
 
     @property

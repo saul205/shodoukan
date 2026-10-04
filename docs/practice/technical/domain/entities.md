@@ -102,7 +102,11 @@ Methods (all raise `SessionFinishedError` on a finished session):
   to the history. `question_id` must be the active one's (`QuestionNotActiveError`
   otherwise: a double click, a stale tab); `InvalidAnswerError` for an option it
   doesn't have.
-- `finish(at=None)`: closes it and drops the active question; idempotent.
+- `finish()`: the user closes it now; drops the active question; idempotent.
+- `close_at_last_activity()`: closes a session the user left (another one started,
+  or idle), with `finished_at = updated_at`. It drops the active question but
+  **doesn't `touch()`**: in a session `updated_at` is the last activity, and closing
+  a left session isn't activity. Idempotent.
 - `ended_at(now)`: `finished_at`, or the last activity if idle for more than
   `IDLE_TIMEOUT` (30 minutes), or `None`. `close_if_idle(now)` makes that permanent
   (closing isn't activity: `updated_at` stays).
@@ -119,7 +123,10 @@ Methods (all raise `SessionFinishedError` on a finished session):
   constructor (e.g. `rename("")` fails).
 
 **Rule: aggregates change only through their own methods, and every method that
-changes state calls `touch()`.** A call that changes nothing doesn't touch. Use cases
+changes state calls `touch()`.** A call that changes nothing doesn't touch. The one
+exception is closing an exercise session the user left
+(`ExerciseSession.close_at_last_activity`): there `updated_at` means the last
+activity, which closing must not move. Use cases
 call methods; they don't assign fields of a loaded aggregate.
 
 Current methods:
@@ -127,7 +134,7 @@ Current methods:
 | Aggregate | Methods |
 |---|---|
 | `Collection` | `rename(name)`, `describe(description)` |
-| `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish(at)`, `close_if_idle(now)` |
+| `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
 | `PracticeEntry` | `set_sense_notes(sense_id, notes)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)` |

@@ -88,6 +88,18 @@ def test_finish_drops_the_active_question() -> None:
     assert session.finished_at == finished_at
 
 
+def test_close_at_last_activity_keeps_the_last_activity() -> None:
+    session = make_session(USER_ID)  # last activity: NOW
+
+    session.close_at_last_activity()
+
+    assert session.finished_at == NOW
+    assert session.updated_at == NOW  # closing a left session isn't activity
+    assert session.current is None
+    session.close_at_last_activity()  # again: nothing changes
+    assert session.finished_at == NOW
+
+
 def test_a_finished_session_takes_no_answers() -> None:
     session = make_session(USER_ID)
     session.finish()
