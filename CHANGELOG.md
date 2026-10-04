@@ -36,9 +36,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi
   before on'yomi everywhere (`KanjiCard` and the kanji pages), as the compact cards
   already did.
-- **shodoukan-practice-web:** On a library item's page, adding it to another collection
-  is an icon in the "Colecciones" header that opens a searchable list, instead of a
-  full-width selector.
+- **shodoukan-practice-web:** One collection picker for the dictionary and the library:
+  an icon with a searchable list where typing a new name creates the collection with
+  the item in it. In the dictionary it ticks the collections the item is in, to take it
+  out; on a library page (an icon in the "Colecciones" header, instead of a full-width
+  selector) it lists only the others.
 - **shodoukan:** Entry search ranks every match with one score, `match_tier × 2000 +
   popularity`, in a single query: reading matches by exact/prefix, meaning matches by
   bm25 relative to the best match of the search. Japanese searches keep their order;

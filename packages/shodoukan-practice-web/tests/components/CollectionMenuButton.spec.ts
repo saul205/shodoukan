@@ -1,7 +1,7 @@
 // @vitest-environment nuxt
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { flushPromises } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { UApp } from '#components'
 import CollectionMenuButton from '../../app/components/CollectionMenuButton.vue'
@@ -15,34 +15,45 @@ mockNuxtImport('useApi', () => () => api)
 const collection = (id: number, name: string) => ({ id, name, description: null, created_at: '', updated_at: '' })
 const verbos = collection(1, 'Verbos')
 const n5 = collection(2, 'N5')
+const cocina = collection(3, 'Cocina')
 
-// The user has "Verbos" and "N5"; library entry 7 is in "N5".
+// The user has "Verbos" and "N5"; library entry 7 is in "N5". Creating
+// "Cocina" answers with it.
 function fakeBackend() {
-  api.mockImplementation(async (url: string) => {
+  api.mockImplementation(async (url: string, options?: { method?: string }) => {
+    if (url === '/collections/entries' && options?.method === 'POST') return cocina
     if (url === '/collections/entries') return [verbos, n5]
     if (url === '/library/entries/7/collections') return [n5]
     return undefined
   })
 }
 
-// UTooltip and UPopover need what UApp gives the real app; the popover's
-// content is portalled to the body.
-async function mountOpen(props: Record<string, unknown>) {
+// UTooltip needs UApp; the menu is portalled to the body.
+async function openMenu(props: Record<string, unknown>) {
   const wrapper = await mountSuspended(defineComponent({
     render: () => h(UApp, null, { default: () => h(CollectionMenuButton, { kind: 'entries', ...props }) }),
   }), { attachTo: document.body })
-  await wrapper.find('button').trigger('click')
+  await wrapper.find('button[aria-label="Añadir a una colección"]').trigger('click')
   await flushPromises()
-  const checkbox = (name: string) => {
-    const label = [...document.body.querySelectorAll('label')].find(l => l.textContent?.trim() === name)
-    return document.getElementById(label!.htmlFor) as HTMLButtonElement
-  }
+  const option = (text: string) =>
+    [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(o => o.textContent?.includes(text))
   return {
-    checkbox,
+    option,
+    async pick(text: string) {
+      option(text)!.click()
+      await flushPromises()
+    },
+    async search(term: string) {
+      const input = document.body.querySelector<HTMLInputElement>('input')!
+      input.value = term
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      await flushPromises()
+    },
     emitted: () => wrapper.findComponent(CollectionMenuButton).emitted('import'),
   }
 }
 
+enableAutoUnmount(afterEach)
 beforeEach(() => {
   api.mockReset()
   document.body.innerHTML = ''
@@ -51,41 +62,43 @@ beforeEach(() => {
 
 describe('CollectionMenuButton', () => {
   it('ticks the collections an imported item is in', async () => {
-    const { checkbox } = await mountOpen({ practiceId: 7 })
+    const menu = await openMenu({ practiceId: 7 })
 
-    expect(checkbox('N5').getAttribute('aria-checked')).toBe('true')
-    expect(checkbox('Verbos').getAttribute('aria-checked')).toBe('false')
+    expect(menu.option('N5')!.getAttribute('aria-selected')).toBe('true')
+    expect(menu.option('Verbos')!.getAttribute('aria-selected')).toBe('false')
   })
 
-  it('asks to import an item that is not imported yet into the ticked collection', async () => {
-    const { checkbox, emitted } = await mountOpen({})
+  it('asks to import an item that is not imported yet into the picked collection', async () => {
+    const menu = await openMenu({})
 
     expect(api).not.toHaveBeenCalledWith('/library/entries/7/collections')
-    checkbox('Verbos').click()
-    await flushPromises()
+    await menu.pick('Verbos')
 
-    expect(emitted()).toEqual([[verbos]])
-    expect(api).not.toHaveBeenCalledWith('/collections/entries/1/items/7', expect.anything())
+    expect(menu.emitted()).toEqual([[verbos]])
+    expect(api).not.toHaveBeenCalledWith(expect.stringContaining('/items/'), expect.anything())
   })
 
   it('adds and removes an imported item', async () => {
-    const { checkbox, emitted } = await mountOpen({ practiceId: 7 })
+    const menu = await openMenu({ practiceId: 7 })
 
-    checkbox('Verbos').click()
-    await flushPromises()
-    checkbox('N5').click()
-    await flushPromises()
+    await menu.pick('Verbos')
+    await menu.pick('N5')
 
     expect(api).toHaveBeenCalledWith('/collections/entries/1/items/7', { method: 'PUT' })
     expect(api).toHaveBeenCalledWith('/collections/entries/2/items/7', { method: 'DELETE' })
-    expect(emitted()).toBeUndefined()
+    expect(menu.emitted()).toBeUndefined()
   })
 
-  it('says when there are no collections yet', async () => {
-    api.mockResolvedValue([])
-    await mountOpen({})
+  it('creates a collection and imports the item into it', async () => {
+    const menu = await openMenu({})
 
-    expect(document.body.textContent).toContain('Aún no tienes colecciones.')
-    expect(document.body.textContent).toContain('Nueva colección')
+    await menu.search('Cocina')
+    await menu.pick('Crear «Cocina»')
+
+    expect(api).toHaveBeenCalledWith('/collections/entries', {
+      method: 'POST',
+      body: { name: 'Cocina', description: null },
+    })
+    expect(menu.emitted()).toEqual([[cocina]])
   })
 })

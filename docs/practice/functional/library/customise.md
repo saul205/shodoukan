@@ -7,8 +7,9 @@ How a user adapts a word or kanji in their library to the way they study it.
 ## The detail page
 
 Opening an item of the library shows the user's copy: readings, meanings, examples,
-notes, and the collections it's in (the folder icon beside **Collections** adds it to
-another one, with a search over the user's collections). Everything below is saved as
+notes, and the collections it's in. The folder icon beside **Collections** adds it to
+another one: it searches the collections it isn't in yet, and typing a new name offers
+**Create "…"**, which creates the collection with the item in it. Everything below is saved as
 soon as the user makes the change.
 
 Meanings are shown in the language chosen in the side menu. A word only shows the

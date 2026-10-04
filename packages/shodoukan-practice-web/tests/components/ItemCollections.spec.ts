@@ -1,7 +1,7 @@
 // @vitest-environment nuxt
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { flushPromises } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { UApp } from '#components'
 import ItemCollections from '../../app/components/ItemCollections.vue'
@@ -15,10 +15,12 @@ mockNuxtImport('useApi', () => () => api)
 const collection = (id: number, name: string) => ({ id, name, description: null, created_at: '', updated_at: '' })
 const verbos = collection(1, 'Verbos')
 const n5 = collection(2, 'N5')
+const cocina = collection(3, 'Cocina')
 
-// Kanji 7 is in "N5"; the user also has "Verbos".
+// Kanji 7 is in `mine`; creating "Cocina" answers with it.
 function fakeBackend(all: unknown[], mine: unknown[]) {
-  api.mockImplementation(async (url: string) => {
+  api.mockImplementation(async (url: string, options?: { method?: string }) => {
+    if (url === '/collections/kanji' && options?.method === 'POST') return cocina
     if (url === '/collections/kanji') return all
     if (url === '/library/kanji/7/collections') return mine
     return undefined
@@ -34,6 +36,19 @@ async function mountSection() {
   return wrapper
 }
 
+async function createFromHeader(wrapper: Awaited<ReturnType<typeof mountSection>>, name: string) {
+  await wrapper.find('button[aria-label="Añadir a una colección"]').trigger('click')
+  await flushPromises()
+  const input = document.body.querySelector<HTMLInputElement>('input')!
+  input.value = name
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+  const create = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(o => o.textContent?.includes(`Crear «${name}»`))
+  create!.click()
+  await flushPromises()
+}
+
+enableAutoUnmount(afterEach)
 beforeEach(() => {
   api.mockReset()
   document.body.innerHTML = ''
@@ -62,19 +77,23 @@ describe('ItemCollections', () => {
     expect(api).toHaveBeenCalledWith('/collections/kanji/1/items/7', { method: 'PUT' })
   })
 
-  it('disables the icon when the item is in every collection', async () => {
+  it('creates a collection and adds the item even when it is in every other one', async () => {
     fakeBackend([n5], [n5])
     const wrapper = await mountSection()
 
-    const icon = wrapper.find('button[aria-label="Ya está en todas tus colecciones"]')
-    expect(icon.attributes('disabled')).toBeDefined()
+    await createFromHeader(wrapper, 'Cocina')
+
+    expect(api).toHaveBeenCalledWith('/collections/kanji', { method: 'POST', body: { name: 'Cocina', description: null } })
+    expect(api).toHaveBeenCalledWith('/collections/kanji/3/items/7', { method: 'PUT' })
   })
 
-  it('offers to create one when there are none', async () => {
+  it('lets the user create the first collection', async () => {
     fakeBackend([], [])
     const wrapper = await mountSection()
 
     expect(wrapper.text()).toContain('Aún no tienes colecciones.')
-    expect(wrapper.find('button[aria-label="Añadir a una colección"]').exists()).toBe(false)
+    await createFromHeader(wrapper, 'Cocina')
+
+    expect(api).toHaveBeenCalledWith('/collections/kanji/3/items/7', { method: 'PUT' })
   })
 })

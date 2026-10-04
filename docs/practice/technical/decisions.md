@@ -236,3 +236,21 @@ One request runs in one transaction, checks the collections before importing (an
 unknown one imports nothing), and stays idempotent, so a retry is safe. Every client
 gets that guarantee without repeating the logic. Adding an already-imported item to a
 collection keeps using the collection endpoints.
+
+## One collection picker, two modes
+
+The dictionary and the library each had their own "add to a collection" control (a
+popover with checkboxes, and a searchable select), and they had already drifted: one
+could create collections, the other could search. They're now one presentational
+component, `CollectionPicker` (a `USelectMenu`: search, `multiple` and `create-item`
+come with it), and the data lives in `useItemCollections`. Vue has no component
+inheritance, so the dictionary's version is a wrapper (`CollectionMenuButton`) that adds
+what only the dictionary needs: importing the item before adding it.
+
+The two modes differ on purpose. A dictionary card has nowhere else to show which
+collections an item is in, so its menu ticks them and lets the user untick. The library
+page already lists them as removable badges, so its menu shows only the others.
+
+Collections are created by typing a new name in the search, not with the form modal:
+it's one gesture and the item goes straight in. The description is left for the
+collections page.

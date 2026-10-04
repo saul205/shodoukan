@@ -35,19 +35,18 @@ cross-references between words, and where an example sentence came from.
 
 ## Importing straight into a collection
 
-Next to the import button there's a **folder** button. It opens a list of the user's
-collections of that kind (word collections for a word, kanji collections for a kanji),
-with a tick on the ones the item is in, like saving a song to a playlist:
+Next to the import button there's a **folder** button. It opens the user's collections
+of that kind (word collections for a word, kanji collections for a kanji) with a search
+box, and ticks the ones the item is in, like saving a song to a playlist:
 
-- If the item **isn't imported yet**, ticking a collection imports it and puts it in
+- If the item **isn't imported yet**, picking a collection imports it and puts it in
   that collection at once. If that can't be done (say the collection was just deleted
   elsewhere), nothing is imported, so the user never ends up with half of it.
-- If it's **already imported**, ticking adds it to the collection and unticking takes
+- If it's **already imported**, picking adds it to the collection and unticking takes
   it out; it stays in the library either way.
-- **New collection** creates one and puts the item in it (importing it first if needed).
-
-If the user has no collections of that kind yet, the list says so and offers **New
-collection**.
+- **Typing a name that doesn't exist** offers **Create "…"**: it creates that collection
+  and puts the item in it (importing it first if needed). Its description, if wanted, is
+  added later on the collections page.
 
 ## Seeing what's already imported
 
