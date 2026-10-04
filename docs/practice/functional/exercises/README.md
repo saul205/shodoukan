@@ -4,7 +4,7 @@
 
 How a user practises the words and kanji of their collections. Saving exercises and
 running sessions are built in the practice API; the screens to create and play them,
-and the history, come in the next phases (see the
+the history and the statistics, come in the next phases (see the
 [design](../../technical/exercises.md#phases)).
 
 ## What an exercise is
@@ -14,8 +14,8 @@ kind of exercise** it is, and **what is studied**. The user creates it once and 
 it as often as they like; each run is a **session**, and every session is kept so the
 user can look back at how it went.
 
-An exercise works on either words or kanji, never both, like collections. For now it
-uses one collection; several collections of the same kind will come later.
+An exercise works on either words or kanji, never both, like collections. It draws
+from one or more collections of that kind; an item in several of them counts once.
 
 ## Kinds of exercise
 
@@ -97,15 +97,23 @@ it and find the same card waiting. The card on screen when it ends isn't counted
 Each card is answered once: a second click on another option doesn't change the
 answer.
 
-## History (next phases)
+## History and statistics (next phases)
 
 Every session keeps each question as it was shown, the option picked and whether it
-was right, so the user can review past sessions and see which items they miss most.
-Editing or removing an item later doesn't change past sessions.
+was right. Editing or removing an item later doesn't change past sessions.
+
+- **Continue:** a session left open (the tab was closed) can be resumed from the
+  exercise list or the home page, as long as it isn't idle.
+- **History:** each exercise lists its past sessions (date, duration, questions
+  answered, accuracy), and any of them can be reviewed card by card, or only the
+  missed ones.
+- **Statistics:** for each exercise, its accuracy overall and per direction, and the
+  items missed most; a statistics page shows the same over all exercises, plus the
+  activity of the last days.
 
 ## Managing exercises
 
-- **Create** an exercise with a name, an optional description, a collection, the
+- **Create** an exercise with a name, an optional description, its collections, the
   directions, the back fields and the number of options.
 - **See** their exercises, sorted by name.
 - **Edit** any of it except whether it holds words or kanji.
