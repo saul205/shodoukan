@@ -14,6 +14,11 @@ Meanings are shown in the language chosen in the side menu. A word only shows th
 meaning groups (senses) that have a meaning in that language: the others belong to
 other languages and appear when the user switches to one of them.
 
+A kanji's page also lists a few **words that use it**, taken from the dictionary. Words
+already in the library are ticked and open the user's copy; the others open the
+dictionary. When there are more, a link goes to the dictionary's page for the kanji,
+which lists them all.
+
 ## What the user can change
 
 - **Hide what they don't need.** Any reading, spelling, meaning or example can be

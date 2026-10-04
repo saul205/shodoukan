@@ -186,6 +186,8 @@ async function remove() {
           <h2 id="collections" class="text-sm font-semibold uppercase tracking-wide text-muted">Colecciones</h2>
           <ItemCollections kind="kanji" :item-id="kanji.id" />
         </section>
+
+        <KanjiWords :literal="kanji.literal" />
       </aside>
     </div>
   </AppPanel>
