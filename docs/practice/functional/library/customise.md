@@ -14,6 +14,10 @@ Meanings are shown in the language chosen in the side menu. A word only shows th
 meaning groups (senses) that have a meaning in that language: the others belong to
 other languages and appear when the user switches to one of them.
 
+A word's page shows **its kanji** as on the dictionary, each one ready to import or to
+put in a collection from the card's corner, plus **Import the N missing** when more than
+one isn't in the library yet. A kanji already in the library opens the user's copy.
+
 A kanji's page also lists a few **words that use it**, taken from the dictionary. Words
 already in the library are ticked and open the user's copy; the others open the
 dictionary. When there are more, a link goes to the dictionary's page for the kanji,

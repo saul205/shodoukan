@@ -13,6 +13,7 @@ import {
   setEntryPartEnabled,
   setSenseNotes,
 } from '~/services/library'
+import { getDictionaryEntryKanji } from '~/services/dictionary'
 import { entryHeadword, entryReading, sensesIn } from '~/utils/practice-text'
 import { japaneseSentence, translatedSentence } from '~/utils/sentences'
 
@@ -34,6 +35,20 @@ const { item: entry, status, saving, save } = useEditableItem<PracticeEntry>(
 )
 
 const languageLabel = computed(() => languages.find(l => l.value === lang.value)?.label ?? lang.value)
+
+// The word's kanji come from the dictionary, with whether each one is imported.
+const kanjiStatus = useImportStatus()
+const sourceId = computed(() => entry.value?.source_entry_id)
+const { data: wordKanji } = useAsyncData(
+  () => `library-entry-kanji-${sourceId.value}`,
+  async () => {
+    if (sourceId.value === undefined) return null
+    const kanji = await getDictionaryEntryKanji(api, sourceId.value)
+    await kanjiStatus.refresh([], kanji.map(k => k.literal))
+    return kanji
+  },
+  { watch: [sourceId] },
+)
 
 // Only the senses with a meaning in the chosen language; the rest belong to other languages.
 const senses = computed(() => (entry.value ? sensesIn(entry.value, glossCode.value) : []))
@@ -159,6 +174,8 @@ async function remove() {
             />
           </UCard>
         </section>
+
+        <EntryKanjiList v-if="wordKanji" :kanji="wordKanji" :status="kanjiStatus" link-to="library" />
       </div>
 
       <aside class="space-y-6">
