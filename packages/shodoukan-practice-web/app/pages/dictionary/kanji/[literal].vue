@@ -37,8 +37,8 @@ const meanings = computed(() => kanji.value?.meanings.filter(m => m.lang === lan
 const readingGroups = computed(() => {
   if (!kanji.value) return []
   return [
-    { label: 'On\'yomi', readings: kanji.value.on_readings, search: (r: string) => r },
     { label: 'Kun\'yomi', readings: kanji.value.kun_readings, search: (r: string) => r.replace('.', '').replace('-', '') },
+    { label: 'On\'yomi', readings: kanji.value.on_readings, search: (r: string) => r },
     { label: 'Nanori', readings: kanji.value.nanori, search: (r: string) => r },
   ].filter(group => group.readings.length)
 })
