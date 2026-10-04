@@ -226,10 +226,7 @@ async function remove() {
           />
         </section>
 
-        <section aria-labelledby="collections" class="space-y-2">
-          <h2 id="collections" class="text-sm font-semibold uppercase tracking-wide text-muted">Colecciones</h2>
-          <ItemCollections kind="entries" :item-id="entry.id" />
-        </section>
+        <ItemCollections kind="entries" :item-id="entry.id" />
       </aside>
     </div>
   </AppPanel>

@@ -182,10 +182,7 @@ async function remove() {
           @save="notes => save(() => setKanjiNotes(api, id, notes))"
         />
 
-        <section aria-labelledby="collections" class="space-y-2">
-          <h2 id="collections" class="text-sm font-semibold uppercase tracking-wide text-muted">Colecciones</h2>
-          <ItemCollections kind="kanji" :item-id="kanji.id" />
-        </section>
+        <ItemCollections kind="kanji" :item-id="kanji.id" />
 
         <KanjiWords :literal="kanji.literal" />
       </aside>
