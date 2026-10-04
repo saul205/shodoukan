@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-practice-web:** The dictionary's kanji page shows the meanings larger,
+  filling the height of the kanji, with its strokes, grade and the rest below them.
 - **shodoukan:** Entry search ranks every match with one score, `match_tier × 2000 +
   popularity`, in a single query: reading matches by exact/prefix, meaning matches by
   bm25 relative to the best match of the search. Japanese searches keep their order;

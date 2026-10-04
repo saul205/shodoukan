@@ -73,10 +73,11 @@ const stats = computed(() => {
     />
 
     <div v-else class="space-y-8">
+      <!-- The meanings grow to fill the kanji's height, with the data at its base. -->
       <header class="flex flex-wrap items-start gap-6">
         <span class="font-japanese text-8xl leading-none font-bold text-highlighted">{{ kanji.literal }}</span>
-        <div class="min-w-0 flex-1 space-y-3">
-          <p class="text-lg text-default">{{ meanings.join(' · ') || 'Sin significados en este idioma.' }}</p>
+        <div class="flex min-w-0 flex-1 flex-col justify-between gap-3 self-stretch">
+          <p class="text-2xl leading-snug text-highlighted sm:text-3xl">{{ meanings.join(' · ') || 'Sin significados en este idioma.' }}</p>
           <dl class="flex flex-wrap gap-4 text-sm">
             <div v-for="stat in stats" :key="stat.label">
               <dt class="text-xs uppercase tracking-wide text-dimmed">{{ stat.label }}</dt>
