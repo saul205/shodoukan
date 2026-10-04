@@ -42,5 +42,4 @@ def test_settings_are_stored_as_plain_json() -> None:
         "back_fields": ["reading"],
         "option_count": 4,
         "distractor_source": "collection",
-        "question_count": 10,
     }

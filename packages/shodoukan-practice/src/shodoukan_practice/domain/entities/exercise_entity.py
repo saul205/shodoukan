@@ -88,8 +88,6 @@ class ChoiceCardSettings(CardSettings):
     option_count: int = Field(default=4, ge=2, le=8)
     # Where wrong options come from; "library" is planned.
     distractor_source: Literal["collection"] = "collection"
-    # Questions per session; None asks every eligible item once.
-    question_count: int | None = Field(default=10, ge=1, le=200)
 
 
 # The settings of every exercise type. With a second type this becomes

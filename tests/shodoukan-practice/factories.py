@@ -3,11 +3,15 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
+    ChoiceOption,
     Direction,
     EntryCollection,
     EntryExercise,
+    ExerciseQuestion,
+    ExerciseSession,
     KanjiCollection,
     KanjiExercise,
     PracticeEntry,
@@ -20,6 +24,7 @@ from shodoukan_practice.domain.entities import (
     PracticeReading,
     PracticeReadingItem,
     PracticeSense,
+    ShownField,
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -253,4 +258,51 @@ def make_kanji_exercise(
         ),
         created_at=NOW,
         updated_at=NOW,
+    )
+
+
+def make_question(
+    position: int, item_id: int | None = None, question_id: int | None = None
+) -> ExerciseQuestion:
+    """Literal → kun'yomi for 食; option 0 is right."""
+    return ExerciseQuestion(
+        id=question_id,
+        position=position,
+        item_id=item_id,
+        prompt_fields=("literal",),
+        answer_field="kunyomi",
+        prompt=(ShownField(field="literal", values=("食",)),),
+        options=(
+            ChoiceOption(text="た.べる", item_id=item_id),
+            ChoiceOption(text="みず", item_id=None),
+            ChoiceOption(text="やま", item_id=None),
+        ),
+        correct_option=0,
+        back=(
+            ShownField(field="literal", values=("食",)),
+            ShownField(field="kunyomi", values=("た.べる", "く.う")),
+        ),
+    )
+
+
+def make_session(
+    user_id: UUID,
+    exercise_id: int | None = None,
+    item_id: int | None = None,
+    *,
+    question_id: int | None = 1,
+) -> ExerciseSession:
+    """A kanji session started now (sessions go idle), with an active question
+    (id `question_id`, None as if not stored yet) and no history."""
+    now = utc_now()
+    return ExerciseSession(
+        id=None,
+        user_id=user_id,
+        exercise_id=exercise_id,
+        exercise_name="N5 kanji",
+        item_kind="kanji",
+        meaning_lang="en",
+        current=make_question(0, item_id, question_id),
+        created_at=now,
+        updated_at=now,
     )

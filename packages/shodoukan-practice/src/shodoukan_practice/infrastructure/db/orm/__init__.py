@@ -11,6 +11,7 @@ from .exercise_orm import (
     ExerciseKanjiCollectionORM,
     ExerciseORM,
 )
+from .exercise_session_orm import ExerciseQuestionORM, ExerciseSessionORM
 from .kanji_collection_orm import KanjiCollectionORM, kanji_collection_items
 from .practice_entry_orm import (
     PracticeEntryKanjiReadingORM,
@@ -34,6 +35,8 @@ __all__ = [
     "ExerciseEntryCollectionORM",
     "ExerciseKanjiCollectionORM",
     "ExerciseORM",
+    "ExerciseQuestionORM",
+    "ExerciseSessionORM",
     "KanjiCollectionORM",
     "PracticeEntryKanjiReadingORM",
     "PracticeEntryORM",

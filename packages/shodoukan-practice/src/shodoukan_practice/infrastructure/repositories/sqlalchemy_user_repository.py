@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,12 @@ class SqlAlchemyUserRepository(UserRepository):
     def get(self, user_id: UUID) -> User | None:
         row = self._session.get(UserORM, user_id)
         return user_to_domain(row) if row else None
+
+    def lock(self, user_id: UUID) -> None:
+        """`SELECT ... FOR UPDATE` on the user's row; SQLite ignores it."""
+        self._session.execute(
+            select(UserORM.id).where(UserORM.id == user_id).with_for_update()
+        )
 
     def add_if_absent(self, user: User) -> tuple[User, bool]:
         row = user_to_db(user)

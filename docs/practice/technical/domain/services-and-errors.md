@@ -18,6 +18,30 @@ Checks that collections can be merged into one pool (e.g. for an exercise):
 An empty list is combinable. The union of their members is computed by the
 repository (`item_ids`), not here.
 
+### `study_field_service`: reading what an exercise studies
+
+`entry_card(entry, fields, meaning_lang)` / `kanji_card(kanji, fields, meaning_lang)`
+build a `StudyCard`: the item's id and, for each field, its enabled values as
+`FieldValue(text, keys)`. `meaning_lang` is the language as the items store it (`eng`
+for glosses, `en` for kanji meanings). Keys are what values are compared by:
+`kana_key` (katakana as hiragana, no `.` or `-`) and `gloss_key` (lower-case, no
+"to ", no parentheses), one key per gloss of a meaning. `StudyCard.answers(field)`
+is what can be asked or offered: only the first value of a word's `writing` and
+`reading` (`first_only`), every value otherwise. Details:
+[exercises](../exercises.md#reading-a-field-from-an-item).
+
+### `choice_question_service.build_next_question(cards, settings, history, rng)`
+
+Builds a session's next choice-card question from the pool's cards and the session's
+history, with the injected `random.Random`. The item comes from missed items due for
+review (after `REVIEW_GAP` questions, never two reviews in a row), then the deck (each
+item once per round), then any other; never the last one again
+([details](../exercises.md#which-item-comes-next)). Directions are tried in random
+order, and distractors are picked so that **none is a valid answer**
+([the rule](../exercises.md#the-rule)). Raises `ExercisePoolTooSmallError` if fewer
+than `MIN_POOL_SIZE` (2) items can be asked about (`ensure_enough_items`), or no
+question can be built. `eligible_items` lists the items some direction can ask.
+
 ## Exceptions (`domain/exceptions.py`)
 
 | Exception | Base | Raised when |
@@ -28,6 +52,11 @@ repository (`item_ids`), not here.
 | `CollectionNameTakenError` | `ValueError` | A collection is added or renamed to a name the user already has for that kind (HTTP `409`) |
 | `OriginalDataError` | `ValueError` | An imported (dictionary) meaning is edited or removed; it can only be disabled (HTTP `409`) |
 | `DictionaryItemNotFoundError` | `LookupError` | An import asks for an entry or kanji the dictionary doesn't have (HTTP `404`) |
+| `ExercisePoolTooSmallError` | `ValueError` | An exercise's collections don't have enough usable items for a session (HTTP `422`) |
+| `QuestionNotActiveError` | `ValueError` | An answer to a question that isn't the session's active one, or a question asked while another is active (HTTP `409`) |
+| `SessionAlreadyOpenError` | `ValueError` | A session is stored while the user has another open one; a user studies one at a time (HTTP `409`) |
+| `SessionFinishedError` | `ValueError` | An answer or question on a finished (or idle) session (HTTP `409`) |
+| `InvalidAnswerError` | `ValueError` | An answer doesn't fit its question, e.g. an option it doesn't have (HTTP `422`) |
 
 ## Clock (`domain/clock.py`)
 

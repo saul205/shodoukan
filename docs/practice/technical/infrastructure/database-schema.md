@@ -28,19 +28,24 @@ The models that define these tables are described in
 | `kanji_collection_items` | link table | PK `(collection_id, kanji_id)`, index on `kanji_id`, `added_at` |
 | `exercises` | `users` | `item_kind` with `CHECK item_kind IN ('entries','kanji')`, `settings` JSON, `name` (not unique), `description` |
 | `exercise_entry_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `entry_collections`, index on `collection_id`, `position` |
+| `exercise_sessions` | `users` | partial unique index `uq_exercise_sessions_user_id_open` on `user_id` `WHERE finished_at IS NULL` (one open session per user); `exercise_id` → `exercises` (`SET NULL`), `exercise_name`, `item_kind` (CHECK), `meaning_lang`, `finished_at` (nullable) |
+| `exercise_questions` | `exercise_sessions` | `position`, `UNIQUE(session_id, position)`; `entry_id` → `practice_entries` / `kanji_id` → `practice_kanji`, both `SET NULL`, `CHECK entry_id IS NULL OR kanji_id IS NULL`; `prompt_fields`, `prompt`, `options`, `back`, `answer` JSON; `correct_option`, `is_correct`, `answered_at`, `response_ms` |
 | `exercise_kanji_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `kanji_collections`, index on `collection_id`, `position` |
 
 Every table except `users` and the link tables has an integer `id` primary key.
 `users.id` is a UUID, and so is every `user_id` foreign key (`practice_entries`,
 `practice_kanji`, `entry_collections`, `kanji_collections`, `exercises`). SQLAlchemy's `Uuid` type is
 native `uuid` on PostgreSQL and `CHAR(32)` on SQLite. Aggregate tables
-(`users`, `practice_entries`, `practice_kanji`, `*_collections`, `exercises`) have
+(`users`, `practice_entries`, `practice_kanji`, `*_collections`, `exercises`,
+`exercise_sessions`) have
 `created_at` and `updated_at`. The exercise link tables have no `id`: their primary key
 is the pair of foreign keys.
 
 ## Cascades
 
-- Every foreign key uses `ON DELETE CASCADE`.
+- Every foreign key uses `ON DELETE CASCADE`, except the ones that keep exercise
+  history: `exercise_sessions.exercise_id` and `exercise_questions.entry_id` /
+  `kanji_id` are `SET NULL`, so sessions outlive their exercise and items.
 - Deleting a user removes their whole library, their collections and all links.
 - Deleting an entry or kanji removes its nested rows and its links; the collections
   stay.
@@ -52,6 +57,8 @@ is the pair of foreign keys.
 
 - **Order.** Nested lists keep their order in a `position` column (0-based).
 - **Lists of strings** are `JSON` columns (portable; not `JSONB`).
+- **Session answers** are SQL `NULL` until given (`JSON(none_as_null=True)`), so
+  statistics can filter on them.
 - **Exercise settings** are one `JSON` column, read and written whole and validated by
   the domain (see [exercises](../exercises.md#storage)).
 - **User notes** are nullable `TEXT` with no length limit in the database; the domain

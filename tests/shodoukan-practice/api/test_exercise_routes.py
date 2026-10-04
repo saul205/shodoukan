@@ -70,7 +70,6 @@ def test_create_and_get(client: TestClient, headers: dict[str, str]) -> None:
         **WORD_SETTINGS,
         "option_count": 4,
         "distractor_source": "collection",
-        "question_count": 10,
     }
     assert created["created_at"].endswith("Z")
     assert "user_id" not in created
@@ -185,7 +184,6 @@ def test_update_replaces_but_keeps_the_kind(
         "type": "card.choice",
         "directions": [{"prompt": ["reading"], "answer": "meaning"}],
         "option_count": 6,
-        "question_count": None,
     }
 
     response = client.put(
@@ -206,7 +204,6 @@ def test_update_replaces_but_keeps_the_kind(
     assert updated["description"] is None
     assert updated["collection_ids"] == [nouns, verbs]
     assert updated["settings"]["option_count"] == 6
-    assert updated["settings"]["question_count"] is None
     assert updated["settings"]["back_fields"] == []
 
 

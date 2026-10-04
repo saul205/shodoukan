@@ -348,3 +348,88 @@ by one without "to " or parentheses). Shared on'yomi, homophones and synonyms ar
 common, and an option that is "wrong" but actually right would teach the wrong thing
 and spoil statistics. A question with fewer options is preferred over an ambiguous
 one. Details: [exercises](exercises.md#distractors-a-wrong-option-must-never-be-right).
+
+## A word is asked by its usual form
+
+A word's other spellings and readings are mostly variants (ヤマ for やま, がわ for かわ,
+聴く for 聞く). Asking or offering one at random made odd forms the "right" answer,
+so only the first enabled spelling and reading of a word are asked, offered and shown
+on the card front; the back shows them all, and all are still compared for
+ambiguity. The dictionary lists the usual form first, and disabling it in the library
+picks the next. A kanji's readings are different things to learn, so any enabled one
+can be asked.
+
+## Session solutions are hidden until answered
+
+Questions are sent when the session starts, so the client can show them without a
+request per card. Their solution (the item, the right option, the back, the options'
+items) is left out of the response until the question is answered: the right option
+would otherwise be one look at the network tab away, and an option's item id would
+give it away. Grading happens on the server either way.
+
+## Sessions are open-ended, with one active question
+
+This **replaces** sessions of a fixed number of questions built when they start
+(`question_count` is gone). A session lasts as long as the user studies: it has one
+active question, and answering it moves it to the history and asks the next one,
+which is returned with the grade (one request per card). The next question is built
+from the history, so nothing else has to be stored to avoid repeats, and items added
+or deactivated mid-session count straight away. The active question is stored, not
+kept in memory, so a reload shows the same card and the answer is graded against the
+options really shown. Only that question is ever sent unanswered, still without its
+solution (see "Session solutions are hidden until answered").
+
+## The next item: a deck, plus missed items coming back
+
+Each round deals every item once in random order, so nothing is left out and nothing
+repeats too soon. An item answered wrong comes back after a few questions
+(`REVIEW_GAP`), but reviews never come two in a row: in a run on real data where
+most answers were wrong, misses alone took every turn and most items were never
+asked. Spaced repetition across sessions is a later step that can reuse the history.
+
+## Sessions close explicitly or when idle
+
+The client finishes a session when the user leaves it, but browsers don't reliably
+report a closed tab. So a session also ends when another one of the same exercise
+starts, or after 30 minutes without activity, in both cases at its last activity, so
+its duration isn't inflated. An idle session is reported as finished when read (no
+write) and closed for good the next time it's used. The unanswered active question of
+a finished session is dropped: it says nothing about what the user knows.
+
+## An idle session isn't closed by an answer
+
+This **replaces** "closed for good the next time it's used" in "Sessions close
+explicitly or when idle". Answering an idle session closed it and then refused the
+answer, but the refusal is an error, so the route never committed and the close was
+rolled back. Rather than commit on an error path, an idle session is simply not
+written there: `ask` and `answer` refuse it (`ended_at(now)`), and it's stored as
+finished, at its last activity, when the user finishes it or starts the exercise
+again. Abandoned sessions keep `finished_at` NULL either way, so "open" is defined by
+`finished_at` and the idle timeout together.
+
+## Answers to a session are serialized
+
+A double click sent two answers to the same question; both read the session before
+either stored it, so both succeeded, each asked a different next question, and one
+answer could silently overwrite the other. Answering and finishing now lock the
+session row (`SELECT ... FOR UPDATE`) for the transaction: the second request waits,
+then finds the question answered and gets `409`. `UNIQUE(session_id, position)` on
+the questions backs it up in the database, the same way collection names rely on
+their unique constraint rather than a check: a second writer can't store a question
+at a position that's taken.
+
+## One open session per user
+
+This **replaces** "one open session per exercise". A user studies one session at a
+time, so starting any exercise closes their open session, of whatever exercise, at its
+last activity. It also makes the locking cheap: there's at most one session per user
+to lock.
+
+Starting is serialized per user: it locks the user's row, then reads their open
+sessions locked (`list_open`), closes them and inserts the new one. Without the locks,
+a start racing an answer in another tab could save an old copy of the session and
+delete the question just answered, and two starts could leave two open sessions. A
+partial unique index (`user_id WHERE finished_at IS NULL`) backs the rule in the
+database; its migration first closed the extra open sessions left by the per-exercise
+rule. Answering and finishing lock only the session, never the user, so there's no
+lock-order deadlock.
