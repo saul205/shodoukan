@@ -7,12 +7,23 @@ How a user adapts a word or kanji in their library to the way they study it.
 ## The detail page
 
 Opening an item of the library shows the user's copy: readings, meanings, examples,
-notes, and the collections it's in. Everything below is saved as soon as the user
-makes the change.
+notes, and the collections it's in. The folder icon beside **Collections** adds it to
+another one: it searches the collections it isn't in yet, and typing a new name offers
+**Create "…"**, which creates the collection with the item in it. Everything below is saved as
+soon as the user makes the change.
 
 Meanings are shown in the language chosen in the side menu. A word only shows the
 meaning groups (senses) that have a meaning in that language: the others belong to
 other languages and appear when the user switches to one of them.
+
+A word's page shows **its kanji** as on the dictionary, each one ready to import or to
+put in a collection from the card's corner, plus **Import the N missing** when more than
+one isn't in the library yet. A kanji already in the library opens the user's copy.
+
+A kanji's page also lists a few **words that use it**, taken from the dictionary. Words
+already in the library are ticked and open the user's copy; the others open the
+dictionary. A link searches the dictionary for the kanji, which finds the words that
+start with it, as on Jisho.
 
 ## What the user can change
 

@@ -140,11 +140,11 @@ export interface SearchQuery extends PageQuery {
   q?: string
   /** Language of the meanings to search, as stored: "eng" for entries, "en" for kanji. */
   meaning_lang?: string
+  /** Only active (true) or inactive (false) items; all if undefined. */
+  active?: boolean
 }
 
 export interface LibraryQuery extends SearchQuery {
-  /** Only active (true) or inactive (false) items; all if undefined. */
-  active?: boolean
   /** Leave out this collection's items (what can still be added to it). */
   not_in_collection?: number
 }

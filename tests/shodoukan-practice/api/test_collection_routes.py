@@ -132,6 +132,28 @@ def test_add_list_and_remove_items(client: TestClient, headers: dict[str, str]) 
     assert [i["id"] for i in left] == [second]
 
 
+def test_items_can_be_filtered_by_active(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    collection = _create(client, headers)
+    active = _import_entry(client, headers, 1000001)
+    inactive = _import_entry(client, headers, 1000002)
+    items = f"/collections/entries/{collection['id']}/items"
+    for entry_id in (active, inactive):
+        client.put(f"{items}/{entry_id}", headers=headers)
+    client.put(
+        f"/library/entries/{inactive}/active", json={"active": False}, headers=headers
+    )
+
+    def ids(**params: str) -> list[int]:
+        body = client.get(items, params=params, headers=headers).json()
+        return [item["id"] for item in body["items"]]
+
+    assert ids() == [active, inactive]
+    assert ids(active="true") == [active]
+    assert ids(active="false") == [inactive]
+
+
 def test_kanji_items(client: TestClient, headers: dict[str, str]) -> None:
     collection = _create(client, headers, kind="kanji", name="N5")
     kanji = client.post("/library/kanji", json={"literal": "食"}, headers=headers)

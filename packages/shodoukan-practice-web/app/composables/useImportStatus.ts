@@ -1,4 +1,5 @@
 import ConfirmModal from '~/components/ConfirmModal.vue'
+import type { Collection } from '~/models/practice'
 import {
   getImportStatus,
   importEntry,
@@ -10,7 +11,8 @@ import {
 /**
  * Which dictionary results are in the user's library, importing the rest and
  * removing imported ones. Ask with `refresh(entryIds, literals)` whenever the
- * results change.
+ * results change. `addEntry` / `addKanji` can put the item in a collection in
+ * the same request (`into`).
  */
 export function useImportStatus() {
   const api = useApi()
@@ -57,12 +59,16 @@ export function useImportStatus() {
     }).result
   }
 
-  async function addEntry(entryId: number) {
+  // "Añadida a tu librería y a «Verbos»".
+  const added = (word: string, into?: Collection) =>
+    into ? `${word} a tu librería y a «${into.name}»` : `${word} a tu librería`
+
+  async function addEntry(entryId: number, into?: Collection) {
     await whileBusy(`entry:${entryId}`, async () => {
       try {
-        const copy = await importEntry(api, entryId)
+        const copy = await importEntry(api, entryId, into ? [into.id] : [])
         entries.value = new Map(entries.value).set(entryId, copy.id)
-        notify.success('Añadida a tu librería')
+        notify.success(added('Añadida', into))
       }
       catch (error) {
         notify.failure(error, 'No se ha podido importar')
@@ -70,12 +76,12 @@ export function useImportStatus() {
     })
   }
 
-  async function addKanji(literal: string) {
+  async function addKanji(literal: string, into?: Collection) {
     await whileBusy(`kanji:${literal}`, async () => {
       try {
-        const copy = await importKanji(api, literal)
+        const copy = await importKanji(api, literal, into ? [into.id] : [])
         kanji.value = new Map(kanji.value).set(literal, copy.id)
-        notify.success('Añadido a tu librería')
+        notify.success(added('Añadido', into))
       }
       catch (error) {
         notify.failure(error, 'No se ha podido importar')

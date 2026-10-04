@@ -36,12 +36,14 @@ describe('practice API services', () => {
   it('library edits use the documented routes', async () => {
     const { api, calls } = fakeApi()
     await importEntry(api, 1000001)
+    await importEntry(api, 1000002, [4])
     await setEntryPartEnabled(api, 3, 'kanji-readings', 7, false)
     await addGloss(api, 3, 5, 'to scoff', 'eng')
     await setKanjiNotes(api, 4, null)
 
     expect(calls).toEqual([
-      ['/library/entries', { method: 'POST', body: { entry_id: 1000001 } }],
+      ['/library/entries', { method: 'POST', body: { entry_id: 1000001, collection_ids: [] } }],
+      ['/library/entries', { method: 'POST', body: { entry_id: 1000002, collection_ids: [4] } }],
       ['/library/entries/3/kanji-readings/7/enabled', { method: 'PUT', body: { enabled: false } }],
       ['/library/entries/3/senses/5/glosses', { method: 'POST', body: { text: 'to scoff', lang: 'eng' } }],
       ['/library/kanji/4/notes', { method: 'PUT', body: { notes: null } }],
@@ -53,11 +55,13 @@ describe('practice API services', () => {
     await updateCollection(api, 'kanji', 2, { name: 'N5', description: null })
     await addToCollection(api, 'entries', 1, 9)
     await listCollectionEntries(api, 1, { limit: 10, offset: 10 })
+    await listCollectionEntries(api, 1, { active: false })
 
     expect(calls).toEqual([
       ['/collections/kanji/2', { method: 'PUT', body: { name: 'N5', description: null } }],
       ['/collections/entries/1/items/9', { method: 'PUT' }],
       ['/collections/entries/1/items', { query: { limit: 10, offset: 10 } }],
+      ['/collections/entries/1/items', { query: { active: false } }],
     ])
   })
 

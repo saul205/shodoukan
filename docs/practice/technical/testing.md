@@ -36,7 +36,7 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `application/test_library_commands.py` | Import use cases with real repositories and the real gateway: created, already imported, per-user copies, not found |
 | `application/test_dictionary_queries.py` | Dictionary detail queries: found, not found, words for a kanji, kanji of an entry |
 | `application/test_library_queries.py` | `GetImportStatus`: only the user's imports, empty input; getting items and their collections |
-| `application/test_library_search_queries.py` | `build_search` (normalizing, kana, blank text), `resolve_scope`, and `SearchEntries` / `SearchKanji`: library with total and `active`, romaji, a collection's active items, not in a collection, other users' collections not found |
+| `application/test_library_search_queries.py` | `build_search` (normalizing, kana, blank text), `resolve_scope`, and `SearchEntries` / `SearchKanji`: library with total and `active`, romaji, a collection's items filtered by `active`, not in a collection, other users' collections not found |
 | `application/test_collection_commands.py` | Collection commands: create, duplicate names, update and `updated_at`, delete keeps items, idempotent membership, other users' collections and items not found |
 | `application/test_collection_queries.py` | Listing and getting collections, owner scoping |
 | `application/test_practice_entry_commands.py`, `test_practice_kanji_commands.py` | Customisation use cases: notes, active, enabled, own meanings, dictionary meanings rejected, other users' items, removal from the library |

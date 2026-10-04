@@ -56,3 +56,19 @@ describe('useImportStatus().addKanjiList', () => {
     expect(status.isBusyKanji('姉')).toBe(false)
   })
 })
+
+describe('useImportStatus().addEntry', () => {
+  it('imports into a collection in the same request and names it', async () => {
+    const status = useImportStatus()
+    api.mockResolvedValue({ id: 7 })
+
+    await status.addEntry(1000001, { id: 4, name: 'Verbos', description: null, created_at: '', updated_at: '' })
+
+    expect(api).toHaveBeenCalledExactlyOnceWith('/library/entries', {
+      method: 'POST',
+      body: { entry_id: 1000001, collection_ids: [4] },
+    })
+    expect(status.entries.value.get(1000001)).toBe(7)
+    expect(notify.success).toHaveBeenCalledExactlyOnceWith('Añadida a tu librería y a «Verbos»')
+  })
+})

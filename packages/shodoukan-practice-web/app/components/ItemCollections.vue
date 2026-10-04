@@ -1,61 +1,37 @@
 <script setup lang="ts">
-import type { Collection, ItemKind } from '~/models/practice'
-import { addToCollection, listCollections, removeFromCollection } from '~/services/collections'
-import { getEntryCollections, getKanjiCollections } from '~/services/library'
+import type { ItemKind } from '~/models/practice'
 
-// The collections (tags) a library item is in, with adding and removing.
+// The "Colecciones" section of a library item: the collections (tags) it's in,
+// each removable, and a `CollectionPicker` in the header to add it to another
+// one or to a new one.
 const props = defineProps<{ kind: ItemKind; itemId: number }>()
 
-const api = useApi()
-const notify = useNotify()
+const { all, mine, busy, load, add, remove, create } = useItemCollections(() => props.kind, () => props.itemId)
 
-const { data, refresh } = useAsyncData(
-  () => `item-collections-${props.kind}-${props.itemId}`,
-  async () => {
-    const [mine, all] = await Promise.all([
-      props.kind === 'entries' ? getEntryCollections(api, props.itemId) : getKanjiCollections(api, props.itemId),
-      listCollections(api, props.kind),
-    ])
-    return { mine, all }
-  },
-)
+watch(() => [props.kind, props.itemId], load, { immediate: true })
 
-const available = computed(() => {
-  const inside = new Set(data.value?.mine.map(c => c.id))
-  return (data.value?.all ?? []).filter(c => !inside.has(c.id)).map(c => ({ label: c.name, value: c.id }))
-})
-
-const busy = ref(false)
-
-async function add(collectionId: number | undefined) {
-  if (collectionId === undefined) return
-  await run(() => addToCollection(api, props.kind, collectionId, props.itemId))
-}
-
-async function remove(collection: Collection) {
-  await run(() => removeFromCollection(api, props.kind, collection.id, props.itemId))
-}
-
-async function run(action: () => Promise<void>) {
-  busy.value = true
-  try {
-    await action()
-    await refresh()
-  }
-  catch (error) {
-    notify.failure(error)
-  }
-  finally {
-    busy.value = false
-  }
+async function createAndAdd(name: string) {
+  const created = await create(name)
+  if (created) await add(created)
 }
 </script>
 
 <template>
-  <div class="space-y-3">
-    <div v-if="data?.mine.length" class="flex flex-wrap gap-2">
+  <section aria-labelledby="collections" class="space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <h2 id="collections" class="text-sm font-semibold uppercase tracking-wide text-muted">Colecciones</h2>
+      <CollectionPicker
+        :collections="all"
+        :selected="mine"
+        :disabled="busy"
+        @add="add"
+        @create="createAndAdd"
+      />
+    </div>
+
+    <div v-if="mine.length" class="flex flex-wrap gap-2">
       <UBadge
-        v-for="collection in data.mine"
+        v-for="collection in mine"
         :key="collection.id"
         color="primary"
         variant="soft"
@@ -74,21 +50,7 @@ async function run(action: () => Promise<void>) {
         />
       </UBadge>
     </div>
-    <p v-else class="text-sm text-muted">No está en ninguna colección.</p>
-
-    <USelectMenu
-      v-if="available.length"
-      :items="available"
-      value-key="value"
-      :model-value="undefined"
-      placeholder="Añadir a una colección…"
-      icon="i-lucide-folder-plus"
-      class="w-full"
-      :disabled="busy"
-      @update:model-value="add"
-    />
-    <p v-else-if="data && !data.all.length" class="text-sm text-muted">
-      Aún no tienes colecciones. <ULink to="/collections" class="text-primary">Crea una</ULink>.
-    </p>
-  </div>
+    <p v-else-if="all?.length" class="text-sm text-muted">No está en ninguna colección.</p>
+    <p v-else-if="all" class="text-sm text-muted">Aún no tienes colecciones.</p>
+  </section>
 </template>

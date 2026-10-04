@@ -85,21 +85,26 @@ Why one endpoint per edit: [decisions](../decisions.md#one-endpoint-per-customis
 ## `POST /library/entries`
 
 Imports a dictionary entry into the current user's library
-([`ImportEntry`](../application/use-cases.md#importentrydictionary-entriesexecuteuser_id-source_entry_id)).
+([`ImportEntry`](../application/use-cases.md#importentrydictionary-entries-collectionsexecuteuser_id-source_entry_id-collection_ids)).
 
-Request body:
+Request body (`collection_ids` is optional):
 
 ```json
-{ "entry_id": 1358280 }
+{ "entry_id": 1358280, "collection_ids": [3, 7] }
 ```
+
+`collection_ids` (at most 50) are entry collections to put the entry in, in the same
+transaction: if any of them isn't the user's, the request fails with `404` and nothing
+is imported. They're added even when the entry was already in the library (`200`), so
+"import into a collection" is a single, retry-safe request.
 
 | Status | When | Body |
 |---|---|---|
 | `201` | Imported now | `PracticeEntryResponse` |
 | `200` | Already in the library | the existing `PracticeEntryResponse` |
 | `401` | See [authentication](authentication.md#errors) | `{"detail": ...}` |
-| `404` | Not in the dictionary | `{"detail": ...}` |
-| `422` | Invalid body | validation errors |
+| `404` | Not in the dictionary, or a collection isn't the user's | `{"detail": ...}` |
+| `422` | Invalid body (e.g. more than 50 `collection_ids`) | validation errors |
 
 `PracticeEntryResponse`: `id`, `source_entry_id`, `kanji_readings`, `readings`,
 `senses` (with `glosses` and `examples`), `jlpt`, `is_common`, `is_active`,
@@ -109,12 +114,13 @@ applicable, `origin`. `user_id` isn't exposed.
 ## `POST /library/kanji`
 
 Imports a dictionary kanji
-([`ImportKanji`](../application/use-cases.md#importkanjidictionary-kanjiexecuteuser_id-literal)).
+([`ImportKanji`](../application/use-cases.md#importkanjidictionary-kanji-collectionsexecuteuser_id-literal-collection_ids)).
 
-Request body (`literal` must be exactly one character):
+Request body (`literal` must be exactly one character; `collection_ids`, kanji
+collections, is optional and works as above):
 
 ```json
-{ "literal": "食" }
+{ "literal": "食", "collection_ids": [2] }
 ```
 
 Same status codes as above. `PracticeKanjiResponse`: `id`, `literal`, `grade`,
@@ -262,9 +268,10 @@ import), not dictionary ids.
 replaces both fields, so an omitted `description` clears it. `CollectionResponse`:
 `id`, `name`, `description`, `created_at`, `updated_at`.
 
-`GET .../items` takes `limit` (1–100, default `20`) and `offset` (≥ 0, default `0`) and
-returns a page of the active items in the order they were added, with the `total` of
-active items, the same shape as `GET /library/entries`. `q` and `meaning_lang` search
+`GET .../items` takes `limit` (1–100, default `20`), `offset` (≥ 0, default `0`) and
+`active` (`true` only active items, `false` only deactivated ones; all if omitted, as
+in the library) and returns a page of the items in the order they were added, with
+their `total`, the same shape as `GET /library/entries`. `q` and `meaning_lang` search
 within the collection exactly as in [the library](#get-libraryentries-and-get-librarykanji).
 
 | Status | When |

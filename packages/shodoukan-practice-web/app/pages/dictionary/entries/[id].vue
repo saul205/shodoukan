@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { KanjiCardCompact, shortenPos } from 'shodoukan-ui'
-import { NuxtLink } from '#components'
+import { shortenPos } from 'shodoukan-ui'
 import { getDictionaryEntry, getDictionaryEntryKanji } from '~/services/dictionary'
 import { japaneseSentence, translatedSentence } from '~/utils/sentences'
 
@@ -8,7 +7,7 @@ import { japaneseSentence, translatedSentence } from '~/utils/sentences'
 
 const route = useRoute()
 const api = useApi()
-const { lang, glossCode } = useMeaningLang()
+const { glossCode } = useMeaningLang()
 const status = useImportStatus()
 
 const id = computed(() => Number(route.params.id))
@@ -33,11 +32,6 @@ const headword = computed(() => {
 const reading = computed(() => (data.value?.entry.kanji_readings.length ? data.value.entry.readings[0]?.text : ''))
 const otherForms = computed(() => data.value?.entry.kanji_readings.slice(1).map(k => k.kanji) ?? [])
 const otherReadings = computed(() => data.value?.entry.readings.slice(1).map(r => r.text) ?? [])
-
-/** The word's kanji not yet in the library, for "import the missing ones". */
-const missingKanji = computed(() =>
-  (data.value?.kanji ?? []).map(k => k.literal).filter(literal => !status.kanji.value.has(literal)),
-)
 
 const senses = computed(() =>
   (data.value?.entry.senses ?? [])
@@ -84,12 +78,20 @@ const senses = computed(() =>
             variant="ghost"
             size="sm"
           />
-          <ImportButton
-            :imported="status.entries.value.has(data.entry.id)"
-            :loading="status.isBusyEntry(data.entry.id)"
-            @import="status.addEntry(data.entry.id)"
-            @remove="status.removeEntry(data.entry.id)"
-          />
+          <UFieldGroup>
+            <ImportButton
+              :imported="status.entries.value.has(data.entry.id)"
+              :loading="status.isBusyEntry(data.entry.id)"
+              @import="status.addEntry(data.entry.id)"
+              @remove="status.removeEntry(data.entry.id)"
+            />
+            <CollectionMenuButton
+              kind="entries"
+              :practice-id="status.entries.value.get(data.entry.id)"
+              :loading="status.isBusyEntry(data.entry.id)"
+              @import="status.addEntry(data.entry.id, $event)"
+            />
+          </UFieldGroup>
         </div>
       </header>
 
@@ -132,40 +134,7 @@ const senses = computed(() =>
         </ol>
       </section>
 
-      <section v-if="data.kanji.length" aria-labelledby="kanji">
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="kanji" class="text-sm font-semibold uppercase tracking-wide text-muted">Kanji</h2>
-          <UButton
-            v-if="missingKanji.length > 1"
-            :label="`Importar los ${missingKanji.length} que faltan`"
-            icon="i-lucide-plus"
-            variant="soft"
-            size="sm"
-            :loading="missingKanji.some(literal => status.isBusyKanji(literal))"
-            @click="status.addKanjiList(missingKanji)"
-          />
-        </div>
-        <!-- Same as the search results: the import button sits over each card's
-             corner, beside the card's link rather than inside it. -->
-        <div class="flex flex-wrap gap-3">
-          <div v-for="k in data.kanji" :key="k.literal" class="relative flex flex-1">
-            <KanjiCardCompact
-              :kanji="k"
-              :lang="lang"
-              :link-component="NuxtLink"
-              :href="`/dictionary/kanji/${k.literal}`"
-            />
-            <ImportButton
-              icon-only
-              :imported="status.kanji.value.has(k.literal)"
-              :loading="status.isBusyKanji(k.literal)"
-              class="absolute top-2 right-2"
-              @import="status.addKanji(k.literal)"
-              @remove="status.removeKanji(k.literal)"
-            />
-          </div>
-        </div>
-      </section>
+      <EntryKanjiList :kanji="data.kanji" :status="status" />
     </div>
   </AppPanel>
 </template>

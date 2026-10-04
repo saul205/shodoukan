@@ -33,9 +33,15 @@ def test_status_lists_only_imported_items(
     gateway = ShodoukanDictionaryGateway(dictionary)
     entries = SqlAlchemyPracticeEntryRepository(session)
     kanji = SqlAlchemyPracticeKanjiRepository(session)
-    entry = ImportEntry(gateway, entries).execute(user.id, 1000001).item
-    食 = ImportKanji(gateway, kanji).execute(user.id, "食").item
-    ImportEntry(gateway, entries).execute(other_user.id, 1000002)
+    import_entry = ImportEntry(
+        gateway, entries, SqlAlchemyEntryCollectionRepository(session)
+    )
+    import_kanji = ImportKanji(
+        gateway, kanji, SqlAlchemyKanjiCollectionRepository(session)
+    )
+    entry = import_entry.execute(user.id, 1000001).item
+    食 = import_kanji.execute(user.id, "食").item
+    import_entry.execute(other_user.id, 1000002)
 
     status = GetImportStatus(entries, kanji).execute(
         user.id, [1000001, 1000002, 1000001], ["食", "水"]

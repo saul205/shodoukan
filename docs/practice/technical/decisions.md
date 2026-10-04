@@ -97,9 +97,8 @@ the converter can be faked in tests.
 The library, a collection and the "add to collection" picker all search the same items
 with a different scope. The search is one module at the logical level:
 `domain/searches/` holds what a search is (`LibrarySearch`, `MatchTier`, scopes) and
-the search use cases share the normalization, collection ownership, active rule and
-paging. The item repositories run it (`find` / `count` with a scope), replacing their
-list methods.
+the search use cases share the normalization, collection ownership and paging. The
+item repositories run it (`find` / `count` with a scope), replacing their list methods.
 
 - **A collection's items are read from the item repositories**, not the collection
   repositories. The result is `PracticeEntry` / `PracticeKanji` aggregates, which those
@@ -270,3 +269,32 @@ Connect standard like the API, so the identity provider can change by configurat
 
 The item detail is a page shared by the library and collections, not a modal, so it has
 its own URL and the back button works.
+
+## Importing into collections is one request
+
+The dictionary lets the user pick a collection for an item that isn't imported yet.
+`POST /library/entries` and `/library/kanji` take optional `collection_ids` instead of
+the frontend chaining the import and `PUT /collections/.../items/...`: two requests can
+fail halfway and leave the item imported but outside the collection the user chose.
+One request runs in one transaction, checks the collections before importing (an
+unknown one imports nothing), and stays idempotent, so a retry is safe. Every client
+gets that guarantee without repeating the logic. Adding an already-imported item to a
+collection keeps using the collection endpoints.
+
+## One collection picker, two modes
+
+The dictionary and the library each had their own "add to a collection" control (a
+popover with checkboxes, and a searchable select), and they had already drifted: one
+could create collections, the other could search. They're now one presentational
+component, `CollectionPicker` (a `USelectMenu`: search, `multiple` and `create-item`
+come with it), and the data lives in `useItemCollections`. Vue has no component
+inheritance, so the dictionary's version is a wrapper (`CollectionMenuButton`) that adds
+what only the dictionary needs: importing the item before adding it.
+
+The two modes differ on purpose. A dictionary card has nowhere else to show which
+collections an item is in, so its menu ticks them and lets the user untick. The library
+page already lists them as removable badges, so its menu shows only the others.
+
+Collections are created by typing a new name in the search, not with the form modal:
+it's one gesture and the item goes straight in. The description is left for the
+collections page.

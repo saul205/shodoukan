@@ -98,7 +98,7 @@ def test_remove_item(
     assert repo.item_ids([collection]) == set()
 
 
-def test_find_in_a_collection_paginates_and_can_skip_inactive(
+def test_find_in_a_collection_paginates_and_filters_by_active(
     session: Session,
     repo: SqlAlchemyKanjiCollectionRepository,
     user: UserORM,
@@ -109,17 +109,14 @@ def test_find_in_a_collection_paginates_and_can_skip_inactive(
         repo.add_item(collection, item)
     item_repo = SqlAlchemyPracticeKanjiRepository(session)
 
-    first = item_repo.find(user.id, ACTIVE, InCollection(collection), limit=1, offset=0)
-    rest = item_repo.find(
-        user.id,
-        LibrarySearch(active=True),
-        InCollection(collection),
-        limit=10,
-        offset=1,
-    )
+    in_collection = InCollection(collection)
+    first = item_repo.find(user.id, ACTIVE, in_collection, limit=1, offset=0)
+    rest = item_repo.find(user.id, ACTIVE, in_collection, limit=10, offset=1)
+    every = item_repo.find(user.id, LibrarySearch(), in_collection, limit=10, offset=0)
 
     assert first == [items[0]]
     assert rest == [items[1]]
+    assert every == items
 
 
 def test_list_for_item_returns_its_collections(

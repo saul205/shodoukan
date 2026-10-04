@@ -3,7 +3,7 @@
 The library page, a collection and the "add to collection" picker all run
 the same search with a different scope. This module does what they share
 once: normalizing the query, loading the collection (and checking it's the
-user's), the active rule and paging. The item repositories run the search.
+user's) and paging. The item repositories run the search.
 """
 
 from collections.abc import Callable
@@ -74,17 +74,15 @@ def resolve_scope(
     return WholeLibrary()
 
 
-def _active_in(scope: SearchScope[C], active: bool | None) -> bool | None:
-    # A collection shows its active items only: inactive ones aren't practised.
-    return True if isinstance(scope, InCollection) else active
-
-
 class SearchEntries:
     """A page of the user's entries matching what they typed, within a scope.
 
-    - Whole library: inactive entries too, unless `active` says otherwise.
-    - `in_collection`: the collection's active entries.
+    - Whole library: every entry.
+    - `in_collection`: the collection's entries.
     - `not_in_collection`: the library minus the collection's entries.
+
+    Inactive entries are included unless `active` says otherwise, in every
+    scope, so the library and collection pages can show and reactivate them.
 
     Best match first; without text, the scope's own order.
     """
@@ -115,7 +113,7 @@ class SearchEntries:
             in_collection,
             not_in_collection,
         )
-        search = build_search(text, meaning_lang, _active_in(scope, active), self._kana)
+        search = build_search(text, meaning_lang, active, self._kana)
         return LibraryPage(
             items=self._entries.find(user_id, search, scope, limit, offset),
             total=self._entries.count(user_id, search, scope),
@@ -156,7 +154,7 @@ class SearchKanji:
             in_collection,
             not_in_collection,
         )
-        search = build_search(text, meaning_lang, _active_in(scope, active), self._kana)
+        search = build_search(text, meaning_lang, active, self._kana)
         return LibraryPage(
             items=self._kanji.find(user_id, search, scope, limit, offset),
             total=self._kanji.count(user_id, search, scope),

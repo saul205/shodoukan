@@ -71,6 +71,12 @@ _NAME_TAKEN: dict[int | str, dict[str, Any]] = {
 
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]
+Active = Annotated[
+    bool | None,
+    Query(
+        description="Only active (`true`) or inactive (`false`) items; all if omitted."
+    ),
+]
 
 entry_router = APIRouter(
     prefix="/collections/entries",
@@ -178,10 +184,11 @@ def list_entry_collection_items(
     use_case: Annotated[SearchEntries, Depends(get_search_entries)],
     q: SearchText = None,
     meaning_lang: MeaningLang = None,
+    active: Active = None,
     limit: Limit = 20,
     offset: Offset = 0,
 ) -> PracticeEntryPageResponse:
-    """A page of the collection's active entries, in the order they were added.
+    """A page of the collection's entries, in the order they were added.
 
     With `q`, only the matching ones, best match first.
     """
@@ -189,6 +196,7 @@ def list_entry_collection_items(
         user.id,
         text=q,
         meaning_lang=meaning_lang,
+        active=active,
         in_collection=collection_id,
         limit=limit,
         offset=offset,
@@ -327,10 +335,11 @@ def list_kanji_collection_items(
     use_case: Annotated[SearchKanji, Depends(get_search_kanji)],
     q: SearchText = None,
     meaning_lang: MeaningLang = None,
+    active: Active = None,
     limit: Limit = 20,
     offset: Offset = 0,
 ) -> PracticeKanjiPageResponse:
-    """A page of the collection's active kanji, in the order they were added.
+    """A page of the collection's kanji, in the order they were added.
 
     With `q`, only the matching ones, best match first.
     """
@@ -338,6 +347,7 @@ def list_kanji_collection_items(
         user.id,
         text=q,
         meaning_lang=meaning_lang,
+        active=active,
         in_collection=collection_id,
         limit=limit,
         offset=offset,

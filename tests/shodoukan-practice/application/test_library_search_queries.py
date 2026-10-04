@@ -118,7 +118,7 @@ def test_library_search_converts_romaji(
     ]
 
 
-def test_collection_shows_its_active_items_only(
+def test_collection_pages_through_its_items_and_filters_by_active(
     search_entries: SearchEntries,
     entries: SqlAlchemyPracticeEntryRepository,
     collections: SqlAlchemyEntryCollectionRepository,
@@ -126,20 +126,21 @@ def test_collection_shows_its_active_items_only(
 ) -> None:
     verbs = collections.add(make_entry_collection(user.id))
     first = entries.add(make_entry(user.id, 1))
-    second = entries.add(make_entry(user.id, 2))
-    inactive = entries.add(make_entry(user.id, 3, is_active=False))
+    inactive = entries.add(make_entry(user.id, 2, is_active=False))
+    third = entries.add(make_entry(user.id, 3))
     entries.add(make_entry(user.id, 4))  # not in the collection
-    for item in (first, second, inactive):
+    for item in (first, inactive, third):
         collections.add_item(verbs, item)
     assert verbs.id is not None
 
     page = search_entries.execute(user.id, in_collection=verbs.id, limit=1)
-    assert (page.items, page.total) == ([first], 2)
+    assert (page.items, page.total) == ([first], 3)
     rest = search_entries.execute(user.id, in_collection=verbs.id, offset=1)
-    assert rest.items == [second]
-    # Even when asked for inactive items: a collection shows the active ones.
+    assert rest.items == [inactive, third]
+    active = search_entries.execute(user.id, in_collection=verbs.id, active=True)
+    assert (active.items, active.total) == ([first, third], 2)
     asked = search_entries.execute(user.id, in_collection=verbs.id, active=False)
-    assert asked.total == 2
+    assert asked.items == [inactive]
 
 
 def test_not_in_collection_lists_what_can_still_be_added(
