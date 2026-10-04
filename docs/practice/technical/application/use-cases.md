@@ -147,13 +147,34 @@ theirs.
 
 The collections (tags) the item is in, by name (`list_for_item`).
 
-### `ListLibraryEntries(entries).execute(user_id, limit, offset, active=None)`
+## Queries (`queries/library_search_queries.py`)
 
-A page of the user's imported entries, most recently imported first, as
-`LibraryPage[PracticeEntry]` (`items`, `total`, `limit`, `offset`). Inactive entries
-are included unless `active` is given, so the library page can show and reactivate
-them. It's what the UI lists to pick items for a collection.
-`ListLibraryKanji(kanji)` likewise.
+Every list of library items is a search: the library page, a collection's items and
+the picker that adds items to a collection only differ in scope. See
+[decisions](../decisions.md#library-search-is-one-module-over-the-item-repositories).
+
+### `SearchEntries(entries, collections, kana).execute(user_id, text=None, meaning_lang=None, active=None, in_collection=None, not_in_collection=None, limit=20, offset=0)`
+
+A `LibraryPage[PracticeEntry]` (`items`, `total`, `limit`, `offset`) of the user's
+entries matching `text`, best match first; blank text lists the scope in its own order.
+
+| Scope | Items | Order without text |
+|---|---|---|
+| neither id | the library; inactive too unless `active` is given (the library page shows and reactivates them) | most recently imported first |
+| `in_collection` | the collection's items; inactive too unless `active` is given, as in the library (practice reads `item_ids`, which is active-only) | the order they were added |
+| `not_in_collection` | the library minus the collection's items: what the picker can still add | most recently imported first |
+
+The collection is loaded first (`GetEntryCollection`): `EntityNotFoundError` if it
+isn't the user's. Passing both ids is a `ValueError`. `SearchKanji(kanji, collections,
+kana)` likewise.
+
+Shared helpers:
+
+- `build_search(text, meaning_lang, active, kana)`: trims and lower-cases the text,
+  adds its kana forms through `KanaGateway` (romaji → kana, both scripts) and turns
+  blank text or language into `None`.
+- `resolve_scope(get_collection, in_collection, not_in_collection)`: the
+  `SearchScope` for the ids.
 
 ## Queries (`queries/collection_queries.py`)
 
@@ -165,11 +186,6 @@ The user's entry collections, ordered by name. `ListKanjiCollections` likewise.
 
 One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
 
-### `ListEntryCollectionItems(collections, entries).execute(user_id, collection_id, limit, offset, active=None)`
-
-A `LibraryPage` of the collection's items, in the order they were added
-(`list_by_collection`), with their `total` (`count_by_collection`). Like the library,
-inactive ones are included unless `active` is `True` (only active) or `False` (only
-inactive), so the collection page can show and reactivate them. `EntityNotFoundError`
-if the collection isn't the user's.
-`ListKanjiCollectionItems(collections, kanji)` likewise.
+A collection's items are listed (and searched) with
+[`SearchEntries` / `SearchKanji`](#queries-querieslibrary_search_queriespy) and
+`in_collection`.

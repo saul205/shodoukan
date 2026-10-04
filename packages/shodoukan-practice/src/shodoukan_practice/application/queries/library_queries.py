@@ -71,52 +71,6 @@ class GetImportStatus:
         )
 
 
-class ListLibraryEntries:
-    """The user's imported entries, most recently imported first.
-
-    Inactive entries are included unless `active` says otherwise, so the
-    library page can show and reactivate them.
-    """
-
-    def __init__(self, entries: PracticeEntryRepository) -> None:
-        self._entries = entries
-
-    def execute(
-        self,
-        user_id: UUID,
-        limit: int = 20,
-        offset: int = 0,
-        active: bool | None = None,
-    ) -> LibraryPage[PracticeEntry]:
-        return LibraryPage(
-            items=self._entries.list_for_user(user_id, limit, offset, active),
-            total=self._entries.count_for_user(user_id, active),
-            limit=limit,
-            offset=offset,
-        )
-
-
-class ListLibraryKanji:
-    """The user's imported kanji, like `ListLibraryEntries`."""
-
-    def __init__(self, kanji: PracticeKanjiRepository) -> None:
-        self._kanji = kanji
-
-    def execute(
-        self,
-        user_id: UUID,
-        limit: int = 20,
-        offset: int = 0,
-        active: bool | None = None,
-    ) -> LibraryPage[PracticeKanji]:
-        return LibraryPage(
-            items=self._kanji.list_for_user(user_id, limit, offset, active),
-            total=self._kanji.count_for_user(user_id, active),
-            limit=limit,
-            offset=offset,
-        )
-
-
 class GetLibraryEntry:
     """One entry of the user's library; `EntityNotFoundError` if it isn't theirs."""
 

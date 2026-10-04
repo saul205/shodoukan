@@ -3,9 +3,7 @@
 from .collection_queries import (
     GetEntryCollection,
     GetKanjiCollection,
-    ListEntryCollectionItems,
     ListEntryCollections,
-    ListKanjiCollectionItems,
     ListKanjiCollections,
 )
 from .dictionary_queries import (
@@ -23,8 +21,12 @@ from .library_queries import (
     LibraryPage,
     ListCollectionsOfEntry,
     ListCollectionsOfKanji,
-    ListLibraryEntries,
-    ListLibraryKanji,
+)
+from .library_search_queries import (
+    SearchEntries,
+    SearchKanji,
+    build_search,
+    resolve_scope,
 )
 
 __all__ = [
@@ -40,12 +42,12 @@ __all__ = [
     "ListCollectionsOfEntry",
     "ListCollectionsOfKanji",
     "ListEntriesForKanji",
-    "ListEntryCollectionItems",
     "ListEntryCollections",
-    "ListKanjiCollectionItems",
     "ListKanjiCollections",
     "ListKanjiForEntry",
-    "ListLibraryEntries",
-    "ListLibraryKanji",
     "SearchDictionary",
+    "SearchEntries",
+    "SearchKanji",
+    "build_search",
+    "resolve_scope",
 ]

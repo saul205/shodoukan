@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addToCollection, listCollectionEntries, updateCollection } from '../../app/services/collections'
+import { addToCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
 import { searchDictionary } from '../../app/services/dictionary'
 import {
   addGloss,
   getImportStatus,
   importEntry,
+  listLibraryEntries,
+  listLibraryKanji,
   setEntryPartEnabled,
   setKanjiNotes,
 } from '../../app/services/library'
@@ -60,6 +62,19 @@ describe('practice API services', () => {
       ['/collections/entries/1/items/9', { method: 'PUT' }],
       ['/collections/entries/1/items', { query: { limit: 10, offset: 10 } }],
       ['/collections/entries/1/items', { query: { active: false } }],
+    ])
+  })
+
+  it('library and collection lists send the search', async () => {
+    const { api, calls } = fakeApi()
+    await listLibraryEntries(api, { q: 'taberu', meaning_lang: 'eng', not_in_collection: 3, limit: 20, offset: 0 })
+    await listLibraryKanji(api, { q: '兄弟', active: true })
+    await listCollectionKanji(api, 4, { q: 'eat', meaning_lang: 'en' })
+
+    expect(calls).toEqual([
+      ['/library/entries', { query: { q: 'taberu', meaning_lang: 'eng', not_in_collection: 3, limit: 20, offset: 0 } }],
+      ['/library/kanji', { query: { q: '兄弟', active: true } }],
+      ['/collections/kanji/4/items', { query: { q: 'eat', meaning_lang: 'en' } }],
     ])
   })
 })

@@ -1,6 +1,5 @@
 import pytest
 from factories import (
-    make_entry,
     make_entry_collection,
     make_kanji,
     make_kanji_collection,
@@ -10,9 +9,7 @@ from sqlalchemy.orm import Session
 from shodoukan_practice.application.queries import (
     GetEntryCollection,
     GetKanjiCollection,
-    ListEntryCollectionItems,
     ListEntryCollections,
-    ListKanjiCollectionItems,
     ListKanjiCollections,
 )
 from shodoukan_practice.domain.exceptions import EntityNotFoundError
@@ -20,7 +17,6 @@ from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyKanjiCollectionRepository,
-    SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
 )
 
@@ -60,48 +56,6 @@ def test_get_another_users_collection_is_not_found(
         GetEntryCollection(collections).execute(other_user.id, verbs.id)
 
 
-def test_list_items_pages_through_entries_and_filters_by_active(
-    collections: SqlAlchemyEntryCollectionRepository,
-    session: Session,
-    user: UserORM,
-) -> None:
-    entries = SqlAlchemyPracticeEntryRepository(session)
-    verbs = collections.add(make_entry_collection(user.id))
-    first = entries.add(make_entry(user.id, 1))
-    inactive = entries.add(make_entry(user.id, 2, is_active=False))
-    third = entries.add(make_entry(user.id, 3))
-    for item in (first, inactive, third):
-        collections.add_item(verbs, item)
-    assert verbs.id is not None
-
-    query = ListEntryCollectionItems(collections, entries)
-
-    first_page = query.execute(user.id, verbs.id, limit=1)
-    assert (first_page.items, first_page.total) == ([first], 3)
-    assert query.execute(user.id, verbs.id, limit=10, offset=1).items == [
-        inactive,
-        third,
-    ]
-    active = query.execute(user.id, verbs.id, active=True)
-    assert (active.items, active.total) == ([first, third], 2)
-    assert query.execute(user.id, verbs.id, active=False).items == [inactive]
-
-
-def test_list_items_of_another_users_collection_is_not_found(
-    collections: SqlAlchemyEntryCollectionRepository,
-    session: Session,
-    user: UserORM,
-    other_user: UserORM,
-) -> None:
-    verbs = collections.add(make_entry_collection(user.id))
-    assert verbs.id is not None
-    query = ListEntryCollectionItems(
-        collections, SqlAlchemyPracticeEntryRepository(session)
-    )
-    with pytest.raises(EntityNotFoundError):
-        query.execute(other_user.id, verbs.id)
-
-
 def test_kanji_queries(
     kanji_collections: SqlAlchemyKanjiCollectionRepository,
     session: Session,
@@ -115,7 +69,5 @@ def test_kanji_queries(
 
     assert ListKanjiCollections(kanji_collections).execute(user.id) == [n5]
     assert GetKanjiCollection(kanji_collections).execute(user.id, n5.id) == n5
-    page = ListKanjiCollectionItems(kanji_collections, kanji).execute(user.id, n5.id)
-    assert (page.items, page.total) == ([item], 1)
     with pytest.raises(EntityNotFoundError):
         GetKanjiCollection(kanji_collections).execute(user.id, n5.id + 1)

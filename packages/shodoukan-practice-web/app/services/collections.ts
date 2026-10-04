@@ -3,7 +3,7 @@ import type {
   Collection,
   CollectionInput,
   ItemKind,
-  LibraryQuery,
+  SearchQuery,
   PracticeEntry,
   PracticeKanji,
 } from '../models/practice'
@@ -40,7 +40,7 @@ export function deleteCollection(api: ApiClient, kind: ItemKind, id: number): Pr
 export function listCollectionEntries(
   api: ApiClient,
   id: number,
-  query: LibraryQuery = {},
+  query: SearchQuery = {},
 ): Promise<Page<PracticeEntry>> {
   return api<Page<PracticeEntry>>(`/collections/entries/${id}/items`, { query })
 }
@@ -48,7 +48,7 @@ export function listCollectionEntries(
 export function listCollectionKanji(
   api: ApiClient,
   id: number,
-  query: LibraryQuery = {},
+  query: SearchQuery = {},
 ): Promise<Page<PracticeKanji>> {
   return api<Page<PracticeKanji>>(`/collections/kanji/${id}/items`, { query })
 }

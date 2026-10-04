@@ -6,15 +6,15 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import StringConstraints
 
 from ...application.commands import ImportEntry, ImportKanji
-from ...application.queries import GetImportStatus, ListLibraryEntries, ListLibraryKanji
+from ...application.queries import GetImportStatus, SearchEntries, SearchKanji
 from ..deps import (
     CurrentUserDep,
     SessionDep,
     get_import_entry,
     get_import_kanji,
     get_import_status,
-    get_list_library_entries,
-    get_list_library_kanji,
+    get_search_entries,
+    get_search_kanji,
 )
 from ..schemas import (
     ImportedEntryResponse,
@@ -22,10 +22,13 @@ from ..schemas import (
     ImportEntryRequest,
     ImportKanjiRequest,
     ImportStatusResponse,
+    MeaningLang,
+    NotInCollection,
     PracticeEntryPageResponse,
     PracticeEntryResponse,
     PracticeKanjiPageResponse,
     PracticeKanjiResponse,
+    SearchText,
 )
 
 router = APIRouter(prefix="/library", tags=["library"])
@@ -85,6 +88,12 @@ def get_imported(
 _LIST_RESPONSES: dict[int | str, dict[str, str]] = {
     status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid token."}
 }
+_SEARCH_RESPONSES: dict[int | str, dict[str, str]] = {
+    **_LIST_RESPONSES,
+    status.HTTP_404_NOT_FOUND: {
+        "description": "`not_in_collection` isn't one of the user's collections."
+    },
+}
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]
 Active = Annotated[
@@ -96,38 +105,64 @@ Active = Annotated[
 
 
 @router.get(
-    "/entries", response_model=PracticeEntryPageResponse, responses=_LIST_RESPONSES
+    "/entries", response_model=PracticeEntryPageResponse, responses=_SEARCH_RESPONSES
 )
 def list_entries(
     user: CurrentUserDep,
     session: SessionDep,
-    use_case: Annotated[ListLibraryEntries, Depends(get_list_library_entries)],
+    use_case: Annotated[SearchEntries, Depends(get_search_entries)],
+    q: SearchText = None,
+    meaning_lang: MeaningLang = None,
+    active: Active = None,
+    not_in_collection: NotInCollection = None,
     limit: Limit = 20,
     offset: Offset = 0,
-    active: Active = None,
 ) -> PracticeEntryPageResponse:
     """The current user's imported entries, most recently imported first.
 
-    Each `id` is what the collection endpoints take to add the entry.
+    With `q`, only the matching ones, best match first. Each `id` is what the
+    collection endpoints take to add the entry.
     """
-    page = use_case.execute(user.id, limit, offset, active)
+    page = use_case.execute(
+        user.id,
+        text=q,
+        meaning_lang=meaning_lang,
+        active=active,
+        not_in_collection=not_in_collection,
+        limit=limit,
+        offset=offset,
+    )
     session.commit()  # persists the user if this request created it
     return PracticeEntryPageResponse.model_validate(page)
 
 
 @router.get(
-    "/kanji", response_model=PracticeKanjiPageResponse, responses=_LIST_RESPONSES
+    "/kanji", response_model=PracticeKanjiPageResponse, responses=_SEARCH_RESPONSES
 )
 def list_kanji(
     user: CurrentUserDep,
     session: SessionDep,
-    use_case: Annotated[ListLibraryKanji, Depends(get_list_library_kanji)],
+    use_case: Annotated[SearchKanji, Depends(get_search_kanji)],
+    q: SearchText = None,
+    meaning_lang: MeaningLang = None,
+    active: Active = None,
+    not_in_collection: NotInCollection = None,
     limit: Limit = 20,
     offset: Offset = 0,
-    active: Active = None,
 ) -> PracticeKanjiPageResponse:
-    """The current user's imported kanji, most recently imported first."""
-    page = use_case.execute(user.id, limit, offset, active)
+    """The current user's imported kanji, most recently imported first.
+
+    With `q`, only the matching ones, best match first.
+    """
+    page = use_case.execute(
+        user.id,
+        text=q,
+        meaning_lang=meaning_lang,
+        active=active,
+        not_in_collection=not_in_collection,
+        limit=limit,
+        offset=offset,
+    )
     session.commit()
     return PracticeKanjiPageResponse.model_validate(page)
 

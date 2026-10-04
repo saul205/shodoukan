@@ -35,12 +35,29 @@ The nested snapshot is loaded eagerly with `selectinload`, one query per level
 (entry → readings, senses → glosses, examples → sentences), so lists don't trigger
 N+1 queries.
 
-## Listing the library
+## Searching the library
 
-`list_for_user` and `count_for_user` share one filter (`user_id`, plus `is_active` when
-`active` is given). The list loads the snapshot eagerly like every read and orders by
-`created_at DESC, id DESC`, so items imported at the same instant still have a stable
-order. The count is a `SELECT count(*)` that loads no snapshot.
+`find` / `count` build one query (`_search`) shared by both, so the total always
+matches the pages:
+
+1. The user's items, with `is_active` when the search has `active`.
+2. The scope: `InCollection` joins the link table and orders by `added_at, id`;
+   `NotInCollection` adds `NOT EXISTS` on the link table; the whole library orders by
+   `created_at DESC, id DESC`.
+3. With text, a `matches` subquery of `(item_id, tier)` is joined and `tier DESC` goes
+   first in the order. It's a `UNION ALL` of one SELECT per place a query can match,
+   each already scoped to the user, grouped by item with `MAX(tier)`
+   (`sqlalchemy_library_search.py`):
+   - entries: spellings and readings against the needles (`text_match`), glosses
+     against the text (`meaning_match`, in `meaning_lang` when given);
+   - kanji: the literal (`EXACT` when it's the query, `PREFIX` when the query contains
+     it: 兄弟 finds 兄 and 弟), readings without the okurigana dot and affix dash
+     (`た.べる` → `たべる`), and meanings.
+
+Comparisons use `lower()` and `LIKE` with `autoescape`, so `%` and `_` in the query
+are literal. It's portable SQL (SQLite in tests, PostgreSQL in production). There's no
+text index: the query is bounded by `user_id` and the per-item indexes; see
+[decisions](../decisions.md#library-search-is-sql-over-the-normalized-snapshot).
 
 ## `update(entity)`
 
@@ -92,8 +109,8 @@ Membership is read and written directly on the link tables:
 - `add_item` checks `item.user_id == collection.user_id`, skips the insert if the
   link exists, and stamps `added_at = utc_now()`.
 - `remove_item` deletes the link if present.
-- `list_by_collection` (on the item repositories) joins the link table, filters by
-  `active` when given, orders by `added_at, id`, and applies `LIMIT/OFFSET` in SQL.
+- A collection's items are read through the item repositories' `find` / `count` with
+  `InCollection` (see [Searching the library](#searching-the-library)).
 - `item_ids` returns `SELECT DISTINCT` item ids of active items across the given
   collections.
 - `list_for_item` joins the link table to return an item's collections by name.

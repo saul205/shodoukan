@@ -13,8 +13,9 @@ Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy reposi
 the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`),
 sign-in through Keycloak (users auto-created on first request, `GET /users/me`), importing an entry or kanji (`POST /library/entries`, `POST /library/kanji`), and public
 dictionary search (`GET /dictionary/search`, same `Dictionary.search` as shodoukan-api),
-the import status of search results (`GET /library/imported`), listing the library
-(`GET /library/entries`, `GET /library/kanji`, paged with a total), and collections
+the import status of search results (`GET /library/imported`), listing and searching
+the library (`GET /library/entries`, `GET /library/kanji`, paged with a total; `q`,
+`meaning_lang`, `not_in_collection`), and collections
 (`/collections/entries`, `/collections/kanji`: CRUD plus adding, removing and paging
 items), dictionary entry and kanji details (`/dictionary/entries/{id}`,
 `/dictionary/kanji/{literal}`, ...), and customising library items (notes, enabling
@@ -31,7 +32,9 @@ shodoukan-api from here. Not built yet: exercises.
     `user_entity.py`, `collection_entity.py`, and `timestamped_entity.py`
     (`TimestampedEntity` with `touch()`).
   - `repositories/`: Protocol ports.
-  - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port.
+  - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port;
+    `gateways/kana_gateway.py`: `KanaGateway` (romaji/kana → both kana scripts).
+  - `searches/library_search.py`: library search criteria, match tiers and scopes.
   - `services/collection_service.py`: `ensure_combinable`.
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
@@ -47,9 +50,13 @@ shodoukan-api from here. Not built yet: exercises.
   `api/routes/practice_entry_routes.py` / `practice_kanji_routes.py`.
 - `application/commands/collection_commands.py` / `queries/collection_queries.py`:
   collection use cases, one class per use case and kind (`CreateEntryCollection`,
-  `AddKanjiToCollection`, `ListEntryCollectionItems`, ...).
-- `application/queries/library_queries.py`: `GetImportStatus`, `ListLibraryEntries`,
-  `ListLibraryKanji` (return `LibraryPage(items, total, limit, offset)`);
+  `AddKanjiToCollection`, ...).
+- `application/queries/library_search_queries.py`: `SearchEntries`, `SearchKanji`
+  (every list of library items: the library, a collection's items, the picker; return
+  `LibraryPage(items, total, limit, offset)`), `build_search`, `resolve_scope`.
+  `domain/searches/library_search.py` holds what they run: `LibrarySearch`,
+  `MatchTier` and the scopes; the item repositories' `find` / `count` run it.
+- `application/queries/library_queries.py`: `GetImportStatus`, `LibraryPage`,
   `GetLibraryEntry`, `ListCollectionsOfEntry` (and kanji);
   `queries/dictionary_queries.py`: `SearchDictionary`, `GetDictionaryEntry`,
   `GetDictionaryKanji`, `ListEntriesForKanji`, `ListKanjiForEntry`.
@@ -60,7 +67,7 @@ shodoukan-api from here. Not built yet: exercises.
   commit), `routes/*_routes.py`, `schemas/*_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
 - `infrastructure/dictionary/`: `ShodoukanDictionaryGateway` and `shodoukan_mapper.py`
-  (the anti-corruption layer). Wired in `api/deps.py` (cached `Dictionary()`).
+  (the anti-corruption layer), and `ShodoukanKanaGateway`. Wired in `api/deps.py` (cached `Dictionary()`).
 
 ## Domain rules specific to this app
 

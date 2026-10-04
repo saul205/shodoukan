@@ -1,10 +1,12 @@
-"""Port for the user's imported entries, including reads through a collection."""
+"""Port for the user's imported entries: loading, searching (also within a
+collection) and storing them."""
 
 from collections.abc import Iterable
 from typing import Protocol
 from uuid import UUID
 
 from ..entities import EntryCollection, PracticeEntry
+from ..searches import LibrarySearch, SearchScope
 
 
 class PracticeEntryRepository(Protocol):
@@ -12,38 +14,26 @@ class PracticeEntryRepository(Protocol):
 
     def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeEntry]: ...
 
-    def list_for_user(
-        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
-    ) -> list[PracticeEntry]:
-        """The user's entries, most recently imported first, paginated.
-
-        `active` keeps only active (`True`) or inactive (`False`) ones; `None`
-        keeps all.
-        """
-        ...
-
-    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
-        """How many items `list_for_user` pages through."""
-        ...
-
-    def list_by_collection(
+    def find(
         self,
-        collection: EntryCollection,
+        user_id: UUID,
+        search: LibrarySearch,
+        scope: SearchScope[EntryCollection],
         limit: int,
         offset: int,
-        active: bool | None = None,
     ) -> list[PracticeEntry]:
-        """The collection's entries in the order they were added, paginated in SQL.
+        """The user's items that match `search` within `scope`, paginated.
 
-        `active` keeps only active (`True`) or inactive (`False`) ones; `None`
-        keeps all.
+        Best match first (`MatchTier`), then the scope's own order: most
+        recently imported first in the library, the order they were added
+        in a collection. Without text, only the scope and `active` filter.
         """
         ...
 
-    def count_by_collection(
-        self, collection: EntryCollection, active: bool | None = None
+    def count(
+        self, user_id: UUID, search: LibrarySearch, scope: SearchScope[EntryCollection]
     ) -> int:
-        """How many items `list_by_collection` pages through."""
+        """How many items `find` pages through."""
         ...
 
     def get_by_source_entry_id(

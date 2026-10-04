@@ -4,8 +4,10 @@ import { addToCollection } from '~/services/collections'
 import { listLibraryEntries, listLibraryKanji } from '~/services/library'
 import { entryHeadword, entryMeanings, entryReading, kanjiMeanings } from '~/utils/practice-text'
 
-// Pick items of the library to add to a collection. Opened with
-// `useOverlay()`; closes with how many were added (0 if cancelled).
+// Pick items of the library to add to a collection, with a search. Only what
+// isn't in the collection yet is listed (`not_in_collection`); the selection
+// is kept across searches. Opened with `useOverlay()`; closes with how many
+// were added (0 if cancelled).
 const props = defineProps<{ kind: ItemKind; collectionId: number; collectionName: string }>()
 const emit = defineEmits<{ close: [added: number] }>()
 
@@ -16,15 +18,22 @@ const notify = useNotify()
 const { lang, glossCode } = useMeaningLang()
 
 const page = ref(1)
+const search = ref('')
 const selected = ref(new Set<number>())
 const adding = ref(false)
 
 interface Row { id: number; title: string; subtitle: string; meanings: string; active: boolean }
 
 const { data, status } = useAsyncData(
-  () => `picker-${props.kind}-${page.value}`,
+  () => `picker-${props.kind}-${props.collectionId}`,
   async () => {
-    const query = { limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }
+    const query = {
+      limit: PAGE_SIZE,
+      offset: (page.value - 1) * PAGE_SIZE,
+      not_in_collection: props.collectionId,
+      q: search.value || undefined,
+      meaning_lang: search.value ? (props.kind === 'entries' ? glossCode.value : lang.value) : undefined,
+    }
     if (props.kind === 'entries') {
       const result = await listLibraryEntries(api, query)
       return { total: result.total, rows: result.items.map(entryRow) }
@@ -32,8 +41,13 @@ const { data, status } = useAsyncData(
     const result = await listLibraryKanji(api, query)
     return { total: result.total, rows: result.items.map(kanjiRow) }
   },
-  { watch: [page] },
+  { watch: [page, search, lang] },
 )
+
+// A new search starts from its first page.
+watch(search, () => {
+  page.value = 1
+})
 
 function entryRow(entry: PracticeEntry): Row {
   return {
@@ -80,20 +94,29 @@ async function addSelected() {
 <template>
   <UModal
     :title="`Añadir a «${collectionName}»`"
-    description="Elige elementos de tu librería. Los que ya estén en la colección no se duplican."
+    description="Elige elementos de tu librería que aún no estén en la colección."
     :close="{ onClick: () => emit('close', 0) }"
     :ui="{ footer: 'justify-between', content: 'max-w-2xl' }"
   >
     <template #body>
+      <LibrarySearchInput v-model="search" class="mb-3 w-full" />
+
       <div v-if="status === 'pending' && !data" class="space-y-2">
         <USkeleton v-for="i in 5" :key="i" class="h-10 w-full" />
       </div>
 
       <UEmpty
+        v-else-if="!data?.rows.length && search"
+        icon="i-lucide-search-x"
+        :title="`Sin resultados para «${search}»`"
+        description="O ya está en la colección. Prueba con otra forma de escribirlo, en kana o romaji, o con un significado."
+      />
+
+      <UEmpty
         v-else-if="!data?.rows.length"
         icon="i-lucide-library-big"
-        title="Tu librería está vacía"
-        description="Importa palabras o kanji desde el diccionario."
+        title="No queda nada por añadir"
+        description="Toda tu librería ya está en esta colección, o aún no has importado nada."
         :actions="[{ label: 'Ir al diccionario', to: '/dictionary', icon: 'i-lucide-book-open' }]"
       />
 

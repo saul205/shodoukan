@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Search the library and collections: `q` (spelling, reading,
+  romaji converted to kana, or meaning) and `meaning_lang` on `GET /library/entries`,
+  `GET /library/kanji` and `GET /collections/{kind}/{id}/items`, best match first;
+  hidden readings and meanings count. `not_in_collection` lists what can still be added
+  to a collection.
+- **shodoukan-practice-web:** A search box in the library, in each collection and in
+  the "add to collection" picker, which now lists only what isn't in the collection
+  yet.
 - **shodoukan-practice:** `GET /collections/{entries,kanji}/{id}/items` takes `active`
   like the library listings. Without it, deactivated items are now listed too (they
   used to be hidden).

@@ -1,10 +1,12 @@
-"""Port for the user's imported kanji, including reads through a collection."""
+"""Port for the user's imported kanji: loading, searching (also within a
+collection) and storing them."""
 
 from collections.abc import Iterable
 from typing import Protocol
 from uuid import UUID
 
 from ..entities import KanjiCollection, PracticeKanji
+from ..searches import LibrarySearch, SearchScope
 
 
 class PracticeKanjiRepository(Protocol):
@@ -12,38 +14,26 @@ class PracticeKanjiRepository(Protocol):
 
     def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeKanji]: ...
 
-    def list_for_user(
-        self, user_id: UUID, limit: int, offset: int, active: bool | None = None
-    ) -> list[PracticeKanji]:
-        """The user's kanji, most recently imported first, paginated.
-
-        `active` keeps only active (`True`) or inactive (`False`) ones; `None`
-        keeps all.
-        """
-        ...
-
-    def count_for_user(self, user_id: UUID, active: bool | None = None) -> int:
-        """How many items `list_for_user` pages through."""
-        ...
-
-    def list_by_collection(
+    def find(
         self,
-        collection: KanjiCollection,
+        user_id: UUID,
+        search: LibrarySearch,
+        scope: SearchScope[KanjiCollection],
         limit: int,
         offset: int,
-        active: bool | None = None,
     ) -> list[PracticeKanji]:
-        """The collection's kanji in the order they were added, paginated in SQL.
+        """The user's items that match `search` within `scope`, paginated.
 
-        `active` keeps only active (`True`) or inactive (`False`) ones; `None`
-        keeps all.
+        Best match first (`MatchTier`), then the scope's own order: most
+        recently imported first in the library, the order they were added
+        in a collection. Without text, only the scope and `active` filter.
         """
         ...
 
-    def count_by_collection(
-        self, collection: KanjiCollection, active: bool | None = None
+    def count(
+        self, user_id: UUID, search: LibrarySearch, scope: SearchScope[KanjiCollection]
     ) -> int:
-        """How many items `list_by_collection` pages through."""
+        """How many items `find` pages through."""
         ...
 
     def get_by_literal(self, literal: str, user_id: UUID) -> PracticeKanji | None:

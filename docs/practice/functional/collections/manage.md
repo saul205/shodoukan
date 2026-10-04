@@ -26,13 +26,17 @@ There are two kinds, and they never mix:
 - **Rename** a collection or change its description.
 - **Delete** a collection. Its words or kanji stay in the library; only the grouping
   goes away.
-- **Add** an item from their library to a collection, and **remove** it. Adding
-  something that's already there, or removing something that isn't, changes nothing,
-  so a double click or a retry is safe.
-- **Browse** a collection's items, page by page, in the order they were added.
-  Deactivated items are listed too, marked as inactive, so the user can find and
-  reactivate them; the list can be narrowed to only active or only deactivated items,
-  as in the library. Practice only uses the active ones.
+- **Add** items from their library to a collection, and **remove** them. The window
+  for adding lists only what isn't in the collection yet, with the same search as the
+  library ([searching](../library/browse.md#searching)); the user can search several
+  times and add everything they ticked at once. Adding something that's already
+  there, or removing something that isn't, changes nothing, so a double click or a
+  retry is safe.
+- **Browse** a collection's items, page by page, in the order they were added, and
+  **search** within them, best match first. Deactivated items are listed too, marked
+  as inactive, so the user can find and reactivate them; the list can be narrowed to
+  only active or only deactivated items, as in the library. Practice only uses the
+  active ones.
 
 Only items in the library can be in a collection. A dictionary word that isn't
 imported yet can be put in a collection directly: it's imported and added in one go,
