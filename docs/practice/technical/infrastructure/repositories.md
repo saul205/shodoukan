@@ -136,7 +136,9 @@ out of its exercises through the FK cascade, with no repository code.
 history. `add` inserts the session and its first question in one flush; `update`
 merges the session: answered questions are updated in place (they keep their ids), a
 new active question is inserted, and one dropped by `finish` is deleted
-(`delete-orphan`). `list_open` filters on `finished_at IS NULL`.
+(`delete-orphan`). `list_open` filters on `finished_at IS NULL` and locks the rows.
+`add` inserts in a savepoint and turns a violation of the one-open-session-per-user
+index into `SessionAlreadyOpenError`.
 Removing an item or an exercise sets the questions' and sessions' references to NULL
 in the database (`SET NULL`), with no repository code.
 

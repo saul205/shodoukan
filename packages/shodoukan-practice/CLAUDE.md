@@ -118,8 +118,10 @@ statistics queries.
 - Exercise sessions (`ExerciseSession`) are open-ended: one active question
   (`current`) plus the answered ones (`history`), the statistics store; each question
   is a snapshot (prompt, options, back) plus the answer. The next item comes from the
-  history (missed items back after `REVIEW_GAP`, then a deck per round). Sessions end
-  when finished, when another of the exercise starts, or after 30 idle minutes. Sessions and questions outlive
+  history (missed items back after `REVIEW_GAP`, then a deck per round). One open session
+  per user (starting one closes the other; user row lock + partial unique index); it
+  ends when finished, when another starts, or after 30 idle minutes. Answers and
+  finish lock the session row (`get_for_update`). Sessions and questions outlive
   their exercise and items (`SET NULL`). A distractor is never a valid answer (see
   `choice_question_service`); a word is asked by its first enabled spelling/reading.
   Unanswered questions hide their solution in the API.

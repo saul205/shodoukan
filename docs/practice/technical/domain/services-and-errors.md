@@ -54,6 +54,7 @@ question can be built. `eligible_items` lists the items some direction can ask.
 | `DictionaryItemNotFoundError` | `LookupError` | An import asks for an entry or kanji the dictionary doesn't have (HTTP `404`) |
 | `ExercisePoolTooSmallError` | `ValueError` | An exercise's collections don't have enough usable items for a session (HTTP `422`) |
 | `QuestionNotActiveError` | `ValueError` | An answer to a question that isn't the session's active one, or a question asked while another is active (HTTP `409`) |
+| `SessionAlreadyOpenError` | `ValueError` | A session is stored while the user has another open one; a user studies one at a time (HTTP `409`) |
 | `SessionFinishedError` | `ValueError` | An answer or question on a finished (or idle) session (HTTP `409`) |
 | `InvalidAnswerError` | `ValueError` | An answer doesn't fit its question, e.g. an option it doesn't have (HTTP `422`) |
 

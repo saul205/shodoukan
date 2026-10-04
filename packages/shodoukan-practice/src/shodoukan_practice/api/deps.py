@@ -444,6 +444,7 @@ def get_start_exercise_session(session: SessionDep) -> StartExerciseSession:
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyUserRepository(session),
     )
 
 

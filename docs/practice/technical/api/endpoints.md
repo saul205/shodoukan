@@ -350,7 +350,8 @@ token; another user's exercise or session is a `404`.
 
 Starting takes `{"meaning_lang": "en"}`: the language of meanings as the items store
 it (2–3 lower-case letters; `eng` for entries, `en` for kanji, like `meaning_lang` on
-the library lists); it finishes the user's other open sessions of that exercise.
+the library lists); it finishes the user's open session, of any exercise (one at a
+time).
 Answering takes
 `{"question_id": 12, "answer": {"type": "option", "option": 2}, "response_ms": 1500}`:
 `question_id` must be the active question's, and `response_ms` is optional (≥ 0).
@@ -372,7 +373,7 @@ can't make another, or if the exercise was deleted, which finishes the session),
 |---|---|
 | `401` | Missing or invalid token |
 | `404` | No such exercise or session for this user |
-| `409` | The session is finished, or idle for over 30 minutes; `question_id` isn't the active question (answered already, e.g. a double click) |
+| `409` | Starting: another session was started at the same moment. Answering: the session is finished, or idle for over 30 minutes; `question_id` isn't the active question (answered already, e.g. a double click) |
 | `422` | Invalid body or `meaning_lang`; an option the question doesn't have; or the exercise's collections have too few usable items (`ExercisePoolTooSmallError`, with the reason in `detail`) |
 
 ## Conventions

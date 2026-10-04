@@ -14,15 +14,17 @@ class ExerciseSessionRepository(Protocol):
         cases that change it: concurrent answers are serialized."""
         ...
 
-    def list_open(self, user_id: UUID, exercise_id: int) -> list[ExerciseSession]:
-        """The user's sessions of that exercise with no `finished_at`.
+    def list_open(self, user_id: UUID) -> list[ExerciseSession]:
+        """The user's sessions with no `finished_at` (at most one, normally),
+        locked until the transaction ends so they can be closed safely.
 
         Some may be idle: an idle session isn't written until it's closed (see
         `ExerciseSession.ended_at`)."""
         ...
 
     def add(self, session: ExerciseSession) -> ExerciseSession:
-        """Store a new session; its questions get their ids."""
+        """Store a new session; its questions get their ids. Raises
+        `SessionAlreadyOpenError` if the user has another open session."""
         ...
 
     def update(self, session: ExerciseSession) -> ExerciseSession:

@@ -417,3 +417,19 @@ then finds the question answered and gets `409`. `UNIQUE(session_id, position)` 
 the questions backs it up in the database, the same way collection names rely on
 their unique constraint rather than a check: a second writer can't store a question
 at a position that's taken.
+
+## One open session per user
+
+This **replaces** "one open session per exercise". A user studies one session at a
+time, so starting any exercise closes their open session, of whatever exercise, at its
+last activity. It also makes the locking cheap: there's at most one session per user
+to lock.
+
+Starting is serialized per user: it locks the user's row, then reads their open
+sessions locked (`list_open`), closes them and inserts the new one. Without the locks,
+a start racing an answer in another tab could save an old copy of the session and
+delete the question just answered, and two starts could leave two open sessions. A
+partial unique index (`user_id WHERE finished_at IS NULL`) backs the rule in the
+database; its migration first closed the extra open sessions left by the per-exercise
+rule. Answering and finishing lock only the session, never the user, so there's no
+lock-order deadlock.

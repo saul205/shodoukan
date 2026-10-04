@@ -43,3 +43,8 @@ class SessionFinishedError(ValueError):
 
 class InvalidAnswerError(ValueError):
     """An answer that doesn't fit its question (e.g. an option it doesn't have)."""
+
+
+class SessionAlreadyOpenError(ValueError):
+    """The user already has an open exercise session (one was started
+    meanwhile); a user studies one session at a time."""

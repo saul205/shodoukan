@@ -13,6 +13,7 @@ from ..domain.exceptions import (
     InvalidAnswerError,
     OriginalDataError,
     QuestionNotActiveError,
+    SessionAlreadyOpenError,
     SessionFinishedError,
 )
 from .routes import (
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(OriginalDataError, _conflict)
     app.add_exception_handler(QuestionNotActiveError, _conflict)
     app.add_exception_handler(SessionFinishedError, _conflict)
+    app.add_exception_handler(SessionAlreadyOpenError, _conflict)
     # Requests that are well formed but can't be done: too few items to build
     # an exercise session, an option the question doesn't have.
     app.add_exception_handler(ExercisePoolTooSmallError, _unprocessable_detail)

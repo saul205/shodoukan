@@ -8,6 +8,7 @@ from shodoukan_practice.domain.entities import OptionAnswer
 from shodoukan_practice.domain.exceptions import (
     EntityNotFoundError,
     QuestionNotActiveError,
+    SessionAlreadyOpenError,
 )
 from shodoukan_practice.infrastructure.db.orm import ExerciseQuestionORM, UserORM
 from shodoukan_practice.infrastructure.repositories import (
@@ -78,7 +79,7 @@ def test_finish_deletes_the_active_question(
     assert session.scalars(select(ExerciseQuestionORM.id)).all() == []
 
 
-def test_list_open(
+def test_list_open_is_every_open_session_of_the_user(
     repo: SqlAlchemyExerciseSessionRepository,
     session: Session,
     user: UserORM,
@@ -86,16 +87,26 @@ def test_list_open(
 ) -> None:
     exercises = SqlAlchemyExerciseRepository(session)
     mine = exercises.add(make_kanji_exercise(user.id))
-    other = exercises.add(make_kanji_exercise(user.id, name="Other"))
-    assert mine.id is not None
-    open_one = repo.add(make_session(user.id, mine.id, question_id=None))
     closed = repo.add(make_session(user.id, mine.id, question_id=None))
     closed.finish()
     repo.update(closed)
-    repo.add(make_session(user.id, other.id, question_id=None))
+    open_one = repo.add(make_session(user.id, mine.id, question_id=None))
+    repo.add(make_session(other_user.id, question_id=None))
 
-    assert [s.id for s in repo.list_open(user.id, mine.id)] == [open_one.id]
-    assert repo.list_open(other_user.id, mine.id) == []
+    assert [s.id for s in repo.list_open(user.id)] == [open_one.id]
+
+
+def test_one_open_session_per_user(
+    repo: SqlAlchemyExerciseSessionRepository, user: UserORM, other_user: UserORM
+) -> None:
+    first = repo.add(make_session(user.id, question_id=None))
+    with pytest.raises(SessionAlreadyOpenError):
+        repo.add(make_session(user.id, question_id=None))
+    repo.add(make_session(other_user.id, question_id=None))  # others aren't affected
+
+    first.finish()
+    repo.update(first)
+    assert repo.add(make_session(user.id, question_id=None)).id is not None
 
 
 def test_update_of_a_foreign_session(

@@ -3,7 +3,13 @@ from random import Random
 from typing import Any
 
 import pytest
-from factories import choice_settings, make_kanji_collection, make_kanji_with, make_word
+from factories import (
+    choice_settings,
+    make_kanji_collection,
+    make_kanji_with,
+    make_session,
+    make_word,
+)
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.application.commands import (
@@ -37,6 +43,7 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyUserRepository,
 )
 
 KANJI = [
@@ -58,6 +65,12 @@ Repos = tuple[
 ]
 
 
+def _start_use_case(session: Session, rng: Random) -> StartExerciseSession:
+    return StartExerciseSession(
+        *_repos(session), SqlAlchemyUserRepository(session), rng=rng
+    )
+
+
 def _repos(session: Session) -> Repos:
     return (
         SqlAlchemyExerciseRepository(session),
@@ -71,7 +84,7 @@ def _repos(session: Session) -> Repos:
 
 @pytest.fixture
 def start(session: Session) -> StartExerciseSession:
-    return StartExerciseSession(*_repos(session), Random(7))
+    return _start_use_case(session, Random(7))
 
 
 @pytest.fixture
@@ -201,15 +214,33 @@ def test_answer_errors(
         answer.execute(user.id, started.id, question_id, OptionAnswer(option=0))
 
 
-def test_start_closes_the_open_sessions_of_the_exercise(
+def test_start_closes_the_users_open_session_of_any_exercise(
+    session: Session,
     start: StartExerciseSession,
     sessions: SqlAlchemyExerciseSessionRepository,
     user: UserORM,
+    other_user: UserORM,
     exercise: Exercise,
+    n5: KanjiCollection,
 ) -> None:
+    assert n5.id is not None
+    other_exercise = CreateExercise(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    ).execute(
+        user.id,
+        "kanji",
+        "N5 on'yomi",
+        None,
+        [n5.id],
+        choice_settings((("literal",), "onyomi")),
+    )
+    theirs = sessions.add(make_session(other_user.id, question_id=None))
     first = _start(start, user, exercise)
-    second = _start(start, user, exercise)
-    assert first.id is not None and exercise.id is not None
+    assert first.id is not None and theirs.id is not None
+
+    second = _start(start, user, other_exercise)  # a different exercise
 
     closed = sessions.get(first.id, user.id)
     assert closed is not None
@@ -217,7 +248,10 @@ def test_start_closes_the_open_sessions_of_the_exercise(
     assert closed.finished_at == first.updated_at
     assert closed.updated_at == first.updated_at
     assert closed.current is None
-    assert [s.id for s in sessions.list_open(user.id, exercise.id)] == [second.id]
+    assert [s.id for s in sessions.list_open(user.id)] == [second.id]
+    untouched = sessions.get(theirs.id, other_user.id)
+    assert untouched is not None
+    assert untouched.finished_at is None  # other users keep theirs
 
 
 def test_finish(

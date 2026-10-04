@@ -5,7 +5,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from ...domain.entities import ExerciseSession
-from ...domain.exceptions import EntityNotFoundError, QuestionNotActiveError
+from ...domain.exceptions import (
+    EntityNotFoundError,
+    QuestionNotActiveError,
+    SessionAlreadyOpenError,
+)
 from ...domain.repositories import ExerciseSessionRepository
 from ..db.mappers import exercise_session_to_db, exercise_session_to_domain
 from ..db.orm import ExerciseQuestionORM, ExerciseSessionORM
@@ -14,9 +18,10 @@ from ..db.orm import ExerciseQuestionORM, ExerciseSessionORM
 class SqlAlchemyExerciseSessionRepository(ExerciseSessionRepository):
     """Flushes but never commits: the caller owns the transaction.
 
-    Writes to a session are serialized: `get_for_update` locks its row until
-    the transaction ends, and `UNIQUE(session_id, position)` on its questions
-    catches two writers asking the same next question anyway.
+    Writes to a session are serialized: `get_for_update` and `list_open` lock
+    its row until the transaction ends, and `UNIQUE(session_id, position)` on
+    its questions catches two writers asking the same next question anyway. A
+    partial unique index keeps one open session per user.
     """
 
     def __init__(self, session: Session) -> None:
@@ -34,23 +39,32 @@ class SqlAlchemyExerciseSessionRepository(ExerciseSessionRepository):
         row = self._session.scalars(query).one_or_none()
         return exercise_session_to_domain(row) if row else None
 
-    def list_open(self, user_id: UUID, exercise_id: int) -> list[ExerciseSession]:
+    def list_open(self, user_id: UUID) -> list[ExerciseSession]:
         query = (
             select(ExerciseSessionORM)
             .where(
                 ExerciseSessionORM.user_id == user_id,
-                ExerciseSessionORM.exercise_id == exercise_id,
                 ExerciseSessionORM.finished_at.is_(None),
             )
             .order_by(ExerciseSessionORM.id)
             .options(selectinload(ExerciseSessionORM.questions))
+            .with_for_update(of=ExerciseSessionORM)
         )
         return [exercise_session_to_domain(row) for row in self._session.scalars(query)]
 
     def add(self, session: ExerciseSession) -> ExerciseSession:
+        """Raises `SessionAlreadyOpenError` if the user has another open session
+        (the partial unique index); only the savepoint is rolled back."""
         row = exercise_session_to_db(session)
-        self._session.add(row)
-        self._session.flush()
+        try:
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError:
+            if session.is_finished or not self._has_open(session.user_id):
+                raise
+            raise SessionAlreadyOpenError(
+                "another exercise session was started meanwhile"
+            ) from None
         return exercise_session_to_domain(row)
 
     def update(self, session: ExerciseSession) -> ExerciseSession:
@@ -76,6 +90,13 @@ class SqlAlchemyExerciseSessionRepository(ExerciseSessionRepository):
                 f"exercise session {session.id} changed meanwhile; reload it"
             ) from None
         return exercise_session_to_domain(row)
+
+    def _has_open(self, user_id: UUID) -> bool:
+        query = select(ExerciseSessionORM.id).where(
+            ExerciseSessionORM.user_id == user_id,
+            ExerciseSessionORM.finished_at.is_(None),
+        )
+        return self._session.scalar(query) is not None
 
     def _position_taken(self, session: ExerciseSession) -> bool:
         """Whether a stored question other than the session's active one

@@ -28,6 +28,7 @@ from ...domain.repositories import (
     KanjiCollectionRepository,
     PracticeEntryRepository,
     PracticeKanjiRepository,
+    UserRepository,
 )
 from ...domain.services import (
     StudyCard,
@@ -92,8 +93,8 @@ def _session_to_change(
 class StartExerciseSession:
     """Start studying an exercise: a new session with its first question.
 
-    The user's open sessions of the same exercise are closed at their last
-    activity: only one is studied at a time. `meaning_lang` is the language
+    The user's open sessions, of any exercise, are closed at their last
+    activity: a user studies one session at a time. `meaning_lang` is the language
     meanings are shown and compared in, as the items store it (`eng` for entry
     glosses, `en` for kanji meanings). Raises `EntityNotFoundError` for an
     unknown exercise and `ExercisePoolTooSmallError` if its collections don't
@@ -108,10 +109,12 @@ class StartExerciseSession:
         kanji_collections: KanjiCollectionRepository,
         entries: PracticeEntryRepository,
         kanji: PracticeKanjiRepository,
+        users: UserRepository,
         rng: Random | None = None,
     ) -> None:
         self._exercises = exercises
         self._sessions = sessions
+        self._users = users
         self._pool = _Pool(entry_collections, kanji_collections, entries, kanji)
         self._rng = rng or Random()
 
@@ -125,7 +128,11 @@ class StartExerciseSession:
         ensure_enough_items(cards, exercise.settings)
         first = build_next_question(cards, exercise.settings, [], self._rng)
 
-        for previous in self._sessions.list_open(user_id, exercise_id):
+        # One open session per user: lock the user so concurrent starts take
+        # turns, then close the open ones (locked too, so an answer being
+        # stored in another tab finishes first).
+        self._users.lock(user_id)
+        for previous in self._sessions.list_open(user_id):
             previous.close_at_last_activity()
             self._sessions.update(previous)
 

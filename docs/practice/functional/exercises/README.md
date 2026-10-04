@@ -90,7 +90,7 @@ on'yomi and kun'yomi is worth learning, so any of them can be asked.
 
 **Ending a session.** The session ends when the user leaves it (finishing it or
 leaving the page). If that doesn't get through (the app is closed, the connection is
-lost), it ends on its own when the same exercise is started again or after 30 minutes
+lost), it ends on its own when any exercise is started again or after 30 minutes
 without activity, counted until the last answer. Until then the user can come back to
 it and find the same card waiting. The card on screen when it ends isn't counted.
 

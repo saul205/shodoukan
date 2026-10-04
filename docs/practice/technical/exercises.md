@@ -63,9 +63,10 @@ ExerciseSession
 └─ history: [ExerciseQuestion]         ← the answered ones, in order
 ```
 
-1. **Launch** the exercise: a session starts with its first active question. Any
-   other open session of the same exercise is finished at its last activity: one
-   is studied at a time.
+1. **Launch** the exercise: a session starts with its first active question. The
+   user's open session, of any exercise, is finished at its last activity: **a user
+   studies one session at a time** (a partial unique index on open sessions per
+   user enforces it).
 2. **Answer** the active question: it's graded, moves to the history, and the next
    active question is built and returned with the grade.
 3. **Finish**: the session is closed and its active question, never answered, is
@@ -97,7 +98,7 @@ The client finishes the session when the user leaves it (a Finish button, leavin
 page, a `fetch` with `keepalive` when the tab closes). As that can fail, a session also
 ends:
 
-- when another session of the same exercise starts;
+- when the user starts another session, of any exercise;
 - when it's been idle for `IDLE_TIMEOUT` (30 minutes): it counts as finished at its
   last activity, and answering it is refused (`409`);
 - when its exercise is deleted: the answer that found out still counts.

@@ -106,13 +106,14 @@ collections (`item_ids`, then `get_many`), as study cards in the session's
 `meaning_lang` (as the items store it: `eng` for entries, `en` for kanji). `rng`
 defaults to a new `random.Random`; tests pass a seeded one.
 
-### `StartExerciseSession(exercises, sessions, entry_collections, kanji_collections, entries, kanji, rng=None).execute(user_id, exercise_id, meaning_lang)`
+### `StartExerciseSession(exercises, sessions, entry_collections, kanji_collections, entries, kanji, users, rng=None).execute(user_id, exercise_id, meaning_lang)`
 
 Loads the exercise (`EntityNotFoundError` if missing or another user's), checks the
 pool (`ExercisePoolTooSmallError` with fewer than 2 usable items, including when the
-exercise has no collections left), finishes the user's open sessions of that
-exercise at their last activity, and stores a new session with its first active
-question.
+exercise has no collections left), locks the user (`UserRepository.lock`) so
+concurrent starts take turns, closes the user's open sessions of any exercise at their
+last activity (`list_open` locks them, so an answer being stored in another tab
+finishes first), and stores a new session with its first active question.
 
 ### `AnswerExerciseQuestion(exercises, sessions, entry_collections, kanji_collections, entries, kanji, rng=None).execute(user_id, session_id, question_id, answer, response_ms=None)`
 

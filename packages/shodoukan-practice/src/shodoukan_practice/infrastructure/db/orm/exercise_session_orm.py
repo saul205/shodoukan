@@ -14,7 +14,15 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_orm import (
@@ -32,6 +40,14 @@ class ExerciseSessionORM(Base):
     __tablename__ = "exercise_sessions"
     __table_args__ = (
         CheckConstraint(in_check("item_kind", ITEM_KINDS), name="item_kind"),
+        # One open session per user: a user studies one session at a time.
+        Index(
+            "uq_exercise_sessions_user_id_open",
+            "user_id",
+            unique=True,
+            postgresql_where=text("finished_at IS NULL"),
+            sqlite_where=text("finished_at IS NULL"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
