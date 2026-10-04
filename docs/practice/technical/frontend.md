@@ -142,10 +142,10 @@ same reason.
 
 ## Tests
 
-`tests/unit/` runs in happy-dom: the API client (token, 401), `safeReturnPath`, the
-service functions. `tests/components/` runs in the Nuxt environment
+`tests/unit/` runs in happy-dom: the API client (token, 401), `apiStatus` (also
+through `useAsyncData`'s wrapped error), `safeReturnPath`, the service functions. `tests/components/` runs in the Nuxt environment
 (`// @vitest-environment nuxt`, `mountSuspended`): the sign-in middleware,
-`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm` (menus
+`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, the exercise edit page's not-found state (menus
 and tooltips need the `UApp` wrapper; their content is portalled to the body). They replace `useAuth` with
 `tests/fakes.ts` (`mockNuxtImport`), because the real middleware would redirect to
 Keycloak while the test app starts.
