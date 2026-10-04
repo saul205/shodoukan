@@ -20,8 +20,8 @@ one isn't in the library yet. A kanji already in the library opens the user's co
 
 A kanji's page also lists a few **words that use it**, taken from the dictionary. Words
 already in the library are ticked and open the user's copy; the others open the
-dictionary. When there are more, a link goes to the dictionary's page for the kanji,
-which lists them all.
+dictionary. A link searches the dictionary for the kanji, which finds the words that
+start with it, as on Jisho.
 
 ## What the user can change
 

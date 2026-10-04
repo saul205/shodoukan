@@ -15,7 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lists the user's collections: tick one to import the item straight into it, or to
   add an imported item to it or take it out; "Nueva colección" creates one.
 - **shodoukan-practice-web:** A library kanji's page lists a few dictionary words that
-  use it (imported ones open the library copy), with a link to all of them.
+  use it (imported ones open the library copy), with a link to search the dictionary
+  for it.
 - **shodoukan-practice-web:** A library word's page shows its kanji as the dictionary
   does, ready to import or put in a collection; imported ones open the library copy.
 

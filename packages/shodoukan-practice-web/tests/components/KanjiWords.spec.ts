@@ -55,15 +55,14 @@ describe('KanjiWords', () => {
       [expect.stringContaining('飲食'), '/dictionary/entries/2'],
     ])
     expect(wrapper.text()).toContain('to eat')
-    expect(wrapper.text()).not.toContain('Ver las')
   })
 
-  it('links to every word on the dictionary page when there are more', async () => {
+  it('searches the dictionary for the kanji to see more', async () => {
     fakeBackend([taberu, inshoku], 42)
     const wrapper = await mountWords()
 
-    const more = wrapper.findAll('a').find(a => a.text().includes('Ver las 42 palabras'))
-    expect(more?.attributes('href')).toBe(`/dictionary/kanji/食`)
+    const more = wrapper.findAll('a').find(a => a.text().includes('Buscar 食 en el diccionario'))
+    expect(decodeURIComponent(more?.attributes('href') ?? '')).toBe('/dictionary?q=食')
   })
 
   it('shows nothing when no word uses the kanji', async () => {

@@ -3,8 +3,8 @@ import type { Entry } from 'shodoukan-ui'
 import { getDictionaryKanjiEntries } from '~/services/dictionary'
 
 // A few dictionary words that use a kanji, for the side of a library kanji.
-// Imported ones open the user's copy; the full list is on the dictionary's
-// kanji page (a dictionary search would only find words starting with it).
+// Imported ones open the user's copy. "See more" is a dictionary search for
+// the kanji: like Jisho, it finds the words starting with it.
 
 const SHOWN = 5
 
@@ -69,11 +69,10 @@ function link(entry: Entry): string {
       </li>
     </ul>
     <ULink
-      v-if="words.total > SHOWN"
-      :to="`/dictionary/kanji/${literal}`"
+      :to="{ path: '/dictionary', query: { q: literal } }"
       class="inline-flex items-center gap-1 text-sm text-primary"
     >
-      Ver las {{ words.total }} palabras en el diccionario
+      Buscar {{ literal }} en el diccionario
       <UIcon name="i-lucide-arrow-right" class="size-4" />
     </ULink>
   </section>
