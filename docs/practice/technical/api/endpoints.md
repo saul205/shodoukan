@@ -356,7 +356,8 @@ time).
 Answering takes
 `{"question_id": 12, "answer": {"type": "option", "option": 2}, "response_ms": 1500}`:
 `question_id` must be the active question's, and `response_ms` is optional (0 to
-2147483647, what its 32-bit column holds).
+2147483647, what its 32-bit column holds). `{"type": "skip"}` as the answer skips the
+question: it's graded as a miss and returned with its solution, like any answer.
 
 Listing is the history: the user's sessions, newest first, **without their
 questions**. Query: `exercise_id` (one exercise's sessions; an unknown or deleted one

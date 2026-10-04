@@ -42,7 +42,7 @@ class AnswerRequest(BaseModel):
     question_id: int = Field(description="The active question's id.")
     answer: ExerciseAnswer = Field(
         description='The answer, by type. Choice cards: `{"type": "option", '
-        '"option": <index>}`.'
+        '"option": <index>}`; `{"type": "skip"}` skips it, which counts as a miss.'
     )
     response_ms: int | None = Field(
         default=None,

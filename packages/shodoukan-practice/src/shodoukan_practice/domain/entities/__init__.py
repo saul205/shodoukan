@@ -27,6 +27,7 @@ from .exercise_session_entity import (
     OptionAnswer,
     SessionStatus,
     ShownField,
+    SkipAnswer,
     session_end,
 )
 from .notes_value import NOTES_MAX_LENGTH, Notes
@@ -87,6 +88,7 @@ __all__ = [
     "PracticeSense",
     "SessionStatus",
     "ShownField",
+    "SkipAnswer",
     "StudyField",
     "TimestampedEntity",
     "User",

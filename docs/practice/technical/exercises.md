@@ -247,7 +247,8 @@ review; that id isn't updated if the item is later removed.
 
 The queryable columns (`item_id`, `answer_field`, `is_correct`, `answered_at`, ...) are
 what statistics filter and group by. `answer` is a discriminated union like
-`settings`: `{type: "option", option}` now; later `{type: "text", text}`,
+`settings`: `{type: "option", option}` and `{type: "skip"}` (a miss) now; later
+`{type: "text", text}`,
 `{type: "self_grade", knew}` and `{type: "strokes", strokes}`.
 
 The snapshot keeps a past session readable exactly as it was, even after the item is
@@ -272,7 +273,7 @@ Details: [endpoints](api/endpoints.md#exercises).
 | Method | Route | Body / result |
 |---|---|---|
 | `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its first active question, **without** the solution (item, correct option, back) |
-| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
+| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
 | `GET` | `/exercise-sessions/{id}` | The session: its active question (without solution) and its history (with) |
 | `POST` | `/exercise-sessions/{id}/finish` | Close it; idempotent |
 

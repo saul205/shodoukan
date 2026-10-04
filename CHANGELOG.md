@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Skip a question with `{"type": "skip"}` as the answer: it
+  counts as a miss, comes back as a review and returns its solution.
 - **shodoukan-practice-web:** Play exercises: "Empezar" opens a session with one card
   at a time; pick an option with a click or its number key, see the back with the
   right option in green and a wrong pick in red, open any item's detail without
