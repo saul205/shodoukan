@@ -62,6 +62,33 @@ jobs:
           alembic -c packages/shodoukan-practice/alembic.ini downgrade base
           alembic -c packages/shodoukan-practice/alembic.ini upgrade head
 
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4  # version from package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test shodoukan-ui
+        run: |
+          pnpm --filter shodoukan-ui build
+          pnpm --filter shodoukan-ui test
+
+      - name: Test practice frontend
+        run: |
+          pnpm --filter shodoukan-practice-web test
+          pnpm --filter shodoukan-practice-web typecheck
+
   deploy:
     name: Deploy to Render
     needs: test

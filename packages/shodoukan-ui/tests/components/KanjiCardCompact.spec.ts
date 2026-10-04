@@ -48,4 +48,11 @@ describe('KanjiCardCompact', () => {
     const wrapper = mount(KanjiCardCompact, { props: { kanji, lang: 'en', linkComponent: FakeLink } })
     expect(wrapper.find('a').attributes('data-to')).toBe('/kanji/食')
   })
+
+  it('links to href when given', () => {
+    const wrapper = mount(KanjiCardCompact, {
+      props: { kanji, lang: 'en', href: '/dictionary/kanji/食' },
+    })
+    expect(wrapper.find('a').attributes('href')).toBe('/dictionary/kanji/食')
+  })
 })

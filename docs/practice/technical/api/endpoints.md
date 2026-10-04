@@ -12,48 +12,99 @@ app runs on port **8001** (`shodoukan-api` uses 8000):
 
 ## `GET /library/entries` and `GET /library/kanji`
 
-The current user's library, one kind per route
-([`ListLibraryEntries` / `ListLibraryKanji`](../application/use-cases.md#listlibraryentriesentriesexecuteuser_id-limit-offset-activenone)).
-It's what the UI shows to pick items for a collection: each item's `id` is what
+The current user's library, one kind per route, listed or searched
+([`SearchEntries` / `SearchKanji`](../application/use-cases.md#queries-querieslibrary_search_queriespy)).
+It's also what the UI shows to pick items for a collection: each item's `id` is what
 [`PUT /collections/.../items/{id}`](#collections) takes.
 
 | Parameter | Type | Default | Notes |
 |---|---|---|---|
+| `q` | string, ≤ 100 | none | Search by spelling or reading (kanji, kana, or romaji converted to kana) and by meaning; hidden readings and meanings count. Blank lists everything |
+| `meaning_lang` | string, ≤ 8 | any | Language of the meanings to search, as stored: ISO 639-2 for entries (`eng`), ISO 639-1 for kanji (`en`) |
+| `active` | bool | all | `true` only active items, `false` only deactivated ones |
+| `not_in_collection` | int | none | Leave out the items of this collection of the user's (the picker's "what can still be added") |
 | `limit` | int, 1–100 | `20` | Items per page |
 | `offset` | int, ≥ 0 | `0` | Items to skip |
-| `active` | bool | all | `true` only active items, `false` only deactivated ones |
 
 | Status | When | Body |
 |---|---|---|
 | `200` | Always, for a valid token | `PracticeEntryPageResponse` / `PracticeKanjiPageResponse` |
 | `401` | Missing or invalid token | `{"detail": ...}` |
-| `422` | Out-of-range `limit` or `offset` | validation errors |
+| `404` | `not_in_collection` isn't one of the user's collections | `{"detail": ...}` |
+| `422` | Out-of-range `limit` or `offset`, `q` over 100 characters | validation errors |
 
-Items are ordered most recently imported first. The page has the same shape as the
+Without `q`, items are ordered most recently imported first. With it, best match
+first (a spelling, reading or meaning equal to the query; then one starting with it,
+or a meaning with a word that does; then one containing it), then newest first. The page has the same shape as the
 dictionary search's entry page, with `total` counting every matching item:
 
 ```json
 { "items": [{ "id": 7, "source_entry_id": 1358280, ... }], "total": 42, "limit": 20, "offset": 0 }
 ```
 
+## Library items: detail and customisation
+
+One item of the user's library (its practice `id`). Code:
+`routes/practice_entry_routes.py`, `routes/practice_kanji_routes.py`. All need a token.
+**Every edit returns the whole item as it is now** (`PracticeEntryResponse` /
+`PracticeKanjiResponse`), so the client re-renders from the response and gets the ids
+of anything new. The rules are in
+[entities](../domain/entities.md#customisation-rules): dictionary data is only ever
+disabled.
+
+| Method | Route | Body | Success |
+|---|---|---|---|
+| `GET` | `/library/entries/{id}` | — | `200` the entry |
+| `DELETE` | `/library/entries/{id}` | — | `204`; also leaves every collection |
+| `GET` | `/library/entries/{id}/collections` | — | `200` `list[CollectionResponse]`, by name |
+| `PUT` | `/library/entries/{id}/active` | `{"active": false}` | `200` |
+| `PUT` | `/library/entries/{id}/notes` | `{"notes": "..."}` (≤ 2000; blank or `null` removes it) | `200` |
+| `PUT` | `/library/entries/{id}/senses/{sense_id}/notes` | `{"notes": "..."}` | `200` |
+| `PUT` | `/library/entries/{id}/{part}/{item_id}/enabled` | `{"enabled": false}` | `200`; `part` is `kanji-readings`, `readings`, `glosses` or `examples` |
+| `POST` | `/library/entries/{id}/senses/{sense_id}/glosses` | `{"text": "...", "lang": "eng"}` (ISO 639-2) | `201` |
+| `PUT` | `/library/entries/{id}/glosses/{gloss_id}` | `{"text": "..."}` | `200`; `409` for a dictionary meaning |
+| `DELETE` | `/library/entries/{id}/glosses/{gloss_id}` | — | `200`; `409` for a dictionary meaning |
+
+Kanji, under `/library/kanji/{id}`: the same `GET`, `DELETE`, `/collections`,
+`/active` and `/notes`; `/{part}/{item_id}/enabled` with `part` `readings` (on, kun and
+nanori) or `meanings`; `POST /meanings` with `{"text", "lang"}` (ISO 639-1, e.g. `en`);
+`PUT` / `DELETE /meanings/{meaning_id}`.
+
+Meaning texts are stripped and must be 1–500 characters. The responses carry `notes` on
+the item and, for entries, on each sense.
+
+| Status | When |
+|---|---|
+| `401` | Missing or invalid token |
+| `404` | Not in the user's library (or another user's), or no such sense or nested item |
+| `409` | Editing or removing a dictionary meaning |
+| `422` | Unknown `part`, invalid body (empty meaning, wrong `lang` format, note too long) |
+
+Why one endpoint per edit: [decisions](../decisions.md#one-endpoint-per-customisation).
+
 ## `POST /library/entries`
 
 Imports a dictionary entry into the current user's library
-([`ImportEntry`](../application/use-cases.md#importentrydictionary-entriesexecuteuser_id-source_entry_id)).
+([`ImportEntry`](../application/use-cases.md#importentrydictionary-entries-collectionsexecuteuser_id-source_entry_id-collection_ids)).
 
-Request body:
+Request body (`collection_ids` is optional):
 
 ```json
-{ "entry_id": 1358280 }
+{ "entry_id": 1358280, "collection_ids": [3, 7] }
 ```
+
+`collection_ids` (at most 50) are entry collections to put the entry in, in the same
+transaction: if any of them isn't the user's, the request fails with `404` and nothing
+is imported. They're added even when the entry was already in the library (`200`), so
+"import into a collection" is a single, retry-safe request.
 
 | Status | When | Body |
 |---|---|---|
 | `201` | Imported now | `PracticeEntryResponse` |
 | `200` | Already in the library | the existing `PracticeEntryResponse` |
 | `401` | See [authentication](authentication.md#errors) | `{"detail": ...}` |
-| `404` | Not in the dictionary | `{"detail": ...}` |
-| `422` | Invalid body | validation errors |
+| `404` | Not in the dictionary, or a collection isn't the user's | `{"detail": ...}` |
+| `422` | Invalid body (e.g. more than 50 `collection_ids`) | validation errors |
 
 `PracticeEntryResponse`: `id`, `source_entry_id`, `kanji_readings`, `readings`,
 `senses` (with `glosses` and `examples`), `jlpt`, `is_common`, `is_active`,
@@ -63,12 +114,13 @@ applicable, `origin`. `user_id` isn't exposed.
 ## `POST /library/kanji`
 
 Imports a dictionary kanji
-([`ImportKanji`](../application/use-cases.md#importkanjidictionary-kanjiexecuteuser_id-literal)).
+([`ImportKanji`](../application/use-cases.md#importkanjidictionary-kanji-collectionsexecuteuser_id-literal-collection_ids)).
 
-Request body (`literal` must be exactly one character):
+Request body (`literal` must be exactly one character; `collection_ids`, kanji
+collections, is optional and works as above):
 
 ```json
-{ "literal": "食" }
+{ "literal": "食", "collection_ids": [2] }
 ```
 
 Same status codes as above. `PracticeKanjiResponse`: `id`, `literal`, `grade`,
@@ -116,6 +168,22 @@ Entry `id` is what `POST /library/entries` takes as `entry_id`, and kanji `liter
 is what `POST /library/kanji` takes. Compared to `shodoukan-api`, the practice API
 omits priority tags, nested row ids, example provenance and debug scores, and cross
 references use `sense_index`.
+
+## Dictionary details
+
+Public, like the search. They feed the entry and kanji detail pages and return the same
+models as `GET /dictionary/search`
+([`GetDictionaryEntry`, `GetDictionaryKanji`, `ListEntriesForKanji`, `ListKanjiForEntry`](../application/use-cases.md#queries-queriesdictionary_queriespy)).
+
+| Method | Route | Response |
+|---|---|---|
+| `GET` | `/dictionary/entries/{entry_id}` | `DictionaryEntryResponse` |
+| `GET` | `/dictionary/entries/{entry_id}/kanji` | `list[DictionaryKanjiResponse]`: the kanji in its spellings, empty for kana-only words |
+| `GET` | `/dictionary/kanji/{literal}` | `DictionaryKanjiResponse` |
+| `GET` | `/dictionary/kanji/{literal}/entries?limit&offset` | `DictionaryEntryPageResponse` (`items`, `total`, `limit`, `offset`): the words written with the kanji, ranked |
+
+`404` when the entry or kanji isn't in the dictionary, `422` for a `literal` that isn't
+one character or an out-of-range `limit` (1–100, default `20`) / `offset` (≥ 0).
 
 ## `GET /library/imported`
 
@@ -182,12 +250,12 @@ same as a missing one.
 | `GET` | `/collections/entries/{collection_id}` | `GetEntryCollection` | `200` `CollectionResponse` |
 | `PUT` | `/collections/entries/{collection_id}` | `UpdateEntryCollection` | `200` `CollectionResponse` |
 | `DELETE` | `/collections/entries/{collection_id}` | `DeleteEntryCollection` | `204` (the entries stay in the library) |
-| `GET` | `/collections/entries/{collection_id}/items` | `ListEntryCollectionItems` | `200` `list[PracticeEntryResponse]` |
+| `GET` | `/collections/entries/{collection_id}/items` | `SearchEntries` (`in_collection`) | `200` `PracticeEntryPageResponse` (`items`, `total`, `limit`, `offset`) |
 | `PUT` | `/collections/entries/{collection_id}/items/{entry_id}` | `AddEntryToCollection` | `204`, idempotent |
 | `DELETE` | `/collections/entries/{collection_id}/items/{entry_id}` | `RemoveEntryFromCollection` | `204`, idempotent |
 
 The kanji routes are the same under `/collections/kanji`, with `{kanji_id}` and
-`PracticeKanjiResponse`. Item ids are **practice** ids (the `id` returned by the
+`PracticeKanjiPageResponse`. Item ids are **practice** ids (the `id` returned by the
 import), not dictionary ids.
 
 `POST` and `PUT` take a `CollectionRequest`:
@@ -200,8 +268,11 @@ import), not dictionary ids.
 replaces both fields, so an omitted `description` clears it. `CollectionResponse`:
 `id`, `name`, `description`, `created_at`, `updated_at`.
 
-`GET .../items` takes `limit` (1–100, default `20`) and `offset` (≥ 0, default `0`) and
-returns the active items in the order they were added.
+`GET .../items` takes `limit` (1–100, default `20`), `offset` (≥ 0, default `0`) and
+`active` (`true` only active items, `false` only deactivated ones; all if omitted, as
+in the library) and returns a page of the items in the order they were added, with
+their `total`, the same shape as `GET /library/entries`. `q` and `meaning_lang` search
+within the collection exactly as in [the library](#get-libraryentries-and-get-librarykanji).
 
 | Status | When |
 |---|---|
@@ -222,7 +293,7 @@ returns the active items in the order they were added.
   [configuration](../cross-cutting/configuration.md).
 - **Domain errors → HTTP** (exception handlers in `app.py`):
   `DictionaryItemNotFoundError` and `EntityNotFoundError` → `404`,
-  `CollectionNameTakenError` → `409`. Authentication errors are raised as `HTTPException`s in `deps.py`.
+  `CollectionNameTakenError` and `OriginalDataError` → `409`. Authentication errors are raised as `HTTPException`s in `deps.py`.
 
 ## Transactions
 
@@ -242,7 +313,8 @@ committed is rolled back when the session closes.
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
 | `get_import_entry` / `get_import_kanji` / `get_import_status` / `get_list_library_entries` / `get_list_library_kanji` | use cases with SQLAlchemy repositories on the request's session |
 | `get_<use case>` for collections (`get_create_entry_collection`, `get_add_kanji_to_collection`, ...) | one factory per collection use case, with the collection and item repositories on the request's session |
-| `get_search_dictionary` | `SearchDictionary` over the dictionary gateway (no session, no user) |
+| `get_get_library_entry`, `get_set_entry_notes`, `get_add_kanji_meaning`, ... | one factory per library item use case, on the request's session |
+| `get_search_dictionary`, `get_get_dictionary_entry`, `get_get_dictionary_kanji`, `get_list_entries_for_kanji`, `get_list_kanji_for_entry` | dictionary use cases over the gateway (no session, no user) |
 
 Tests replace `get_session`, `get_dictionary_gateway` and `get_token_verifier` with
 `app.dependency_overrides`.

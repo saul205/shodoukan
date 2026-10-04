@@ -1,5 +1,16 @@
 <script setup lang="ts">
-const props = defineProps<{ literal: string }>()
+import { onMounted, ref } from 'vue'
+
+const props = withDefaults(
+  defineProps<{
+    literal: string
+    playLabel?: string
+    playingLabel?: string
+    /** Width and height of the drawing, in px. */
+    size?: number
+  }>(),
+  { playLabel: 'Play', playingLabel: 'Playing…', size: 160 },
+)
 
 const container = ref<HTMLDivElement | null>(null)
 const animating = ref(false)
@@ -9,8 +20,8 @@ let writer: any = null
 onMounted(async () => {
   const HanziWriter = (await import('hanzi-writer')).default
   writer = (HanziWriter as any).create(container.value!, props.literal, {
-    width: 160,
-    height: 160,
+    width: props.size,
+    height: props.size,
     padding: 8,
     showOutline: true,
     showCharacter: false,
@@ -39,14 +50,14 @@ function play() {
     <div
       ref="container"
       class="rounded border border-zinc-700 bg-zinc-800/60"
-      style="width: 160px; height: 160px;"
+      :style="{ width: `${size}px`, height: `${size}px` }"
     />
     <button
       :disabled="!ready || animating"
       class="rounded bg-indigo-600/30 px-3 py-1 text-xs font-medium text-indigo-300 transition hover:bg-indigo-600/50 disabled:opacity-40"
       @click="play"
     >
-      {{ animating ? 'Playing…' : 'Play' }}
+      {{ animating ? playingLabel : playLabel }}
     </button>
   </div>
 </template>

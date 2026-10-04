@@ -18,3 +18,9 @@ def test_readings_share_one_table_by_kind() -> None:
         ("kun", 0, "た.べる"),
         ("kun", 1, "く.う"),
     ]
+
+
+def test_round_trip_keeps_notes() -> None:
+    kanji = make_kanji(user_id=USER_ID)
+    kanji.notes = "looks like 良"
+    assert practice_kanji_to_domain(practice_kanji_to_db(kanji)) == kanji

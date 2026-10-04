@@ -19,3 +19,10 @@ class DictionaryItemNotFoundError(LookupError):
 
 class CollectionNameTakenError(ValueError):
     """The user already has a collection of that kind with that name."""
+
+
+class OriginalDataError(ValueError):
+    """Dictionary data in the library was edited or removed.
+
+    Imported items can only be disabled; only the user's own can change.
+    """

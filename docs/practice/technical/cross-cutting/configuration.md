@@ -13,9 +13,10 @@ Environment variables, the local PostgreSQL, and how the app connects.
 | `AUTH_ISSUER` | API | **Required to serve requests.** Realm URL; locally `http://localhost:8080/realms/shodoukan`. Tokens must carry it as `iss`. |
 | `AUTH_AUDIENCE` | API | Recommended. Tokens must carry it in `aud`; locally `shodoukan-practice`. |
 | `AUTH_JWKS_URL` | API | Optional. Defaults to `<AUTH_ISSUER>/protocol/openid-connect/certs`. |
-| `CORS_ORIGINS` | API | Comma-separated browser origins allowed to call the API; default `http://localhost:3000`. Shared with `shodoukan-api`. |
+| `CORS_ORIGINS` | API | Comma-separated browser origins allowed to call the API; default `http://localhost:3001` (the practice frontend). Shared with `shodoukan-api`, so a value covering both apps lists both origins. |
 | `AUTH_SWAGGER_CLIENT_ID` | API docs | Optional. Client the Swagger UI signs in with; default `shodoukan-web`. |
 | `KEYCLOAK_PORT` | compose | Optional host port for Keycloak; default `8080`. Changing it also changes the issuer URL. |
+| `NUXT_PUBLIC_API_BASE`, `NUXT_PUBLIC_AUTH_ISSUER`, `NUXT_PUBLIC_AUTH_CLIENT_ID` | practice frontend | Optional; defaults match the local setup. See [frontend](../frontend.md#running). |
 | `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
 
 Real values live in the gitignored `.env.dev` (local) or the deployment's secret
@@ -101,6 +102,16 @@ docker compose restart keycloak
 
 Either way the realm's users are recreated with new `sub`s, so existing practice users
 won't match them any more. Do it only on throwaway local data.
+
+To add a **new client** to an existing realm without losing its users, create just that
+client from the file (here `shodoukan-practice-web`):
+
+```bash
+docker compose exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080 --realm master --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD"
+python -c "import json; print(json.dumps(next(c for c in json.load(open('docker/keycloak/realm-shodoukan.json'))['clients'] if c['clientId'] == 'shodoukan-practice-web')))" \
+  | docker compose exec -T keycloak /opt/keycloak/bin/kcadm.sh create clients -r shodoukan -f -
+```
 
 ## Dictionary database
 

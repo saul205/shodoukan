@@ -15,6 +15,8 @@ and why. Coding conventions (naming, typing, testing style) live in the backend 
 - API
   - [Endpoints](api/endpoints.md): routes, schemas, status codes, transactions, wiring.
   - [Authentication](api/authentication.md): Keycloak sign-in, token checks, auto-created users, Swagger login.
+- Frontend
+  - [Frontend](frontend.md): the Nuxt app, sign-in flow, API client, screens, tests.
 - Domain
   - [Entities](domain/entities.md): aggregates, practice state, timestamps.
   - [Repository ports](domain/repository-ports.md): the persistence contracts.
@@ -54,4 +56,5 @@ the page to update:
 | `api/routes/`, `api/schemas/`, `api/app.py`, `api/deps.py` | [api/endpoints.md](api/endpoints.md) |
 | `api/auth.py`, `get_current_user`, `docker/keycloak/` (realm, clients) | [api/authentication.md](api/authentication.md) |
 | `docker-compose.yml`, `.env.example`, `.env.keycloak.example` | [cross-cutting/configuration.md](cross-cutting/configuration.md) |
+| `packages/shodoukan-practice-web/` (screens, sign-in, API client, tests) | [frontend.md](frontend.md) |
 | A new layer or area | Add a folder here, link it above and in this table |

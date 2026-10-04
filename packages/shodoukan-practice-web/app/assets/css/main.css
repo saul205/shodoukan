@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+/* shodoukan-ui is built with Tailwind 3, whose utilities aren't in a cascade layer,
+   and unlayered rules beat every layer: its .px-3 overrode Nuxt UI's ps-* and the
+   search icon covered the input text. In `components` (declared by tailwindcss
+   above) the library still beats the reset but loses to this app's utilities. */
+@import "shodoukan-ui/style.css" layer(components);
+
+/* Same fonts as the dictionary web: Inter for the UI, Noto Sans JP for Japanese. */
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-japanese: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+}

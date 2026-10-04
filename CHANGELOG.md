@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **shodoukan-practice:** Search the library and collections: `q` (spelling, reading,
+  romaji converted to kana, or meaning) and `meaning_lang` on `GET /library/entries`,
+  `GET /library/kanji` and `GET /collections/{kind}/{id}/items`, best match first;
+  hidden readings and meanings count. `not_in_collection` lists what can still be added
+  to a collection.
+- **shodoukan-practice-web:** A search box in the library, in each collection and in
+  the "add to collection" picker, which now lists only what isn't in the collection
+  yet.
+- **shodoukan-practice:** `GET /collections/{entries,kanji}/{id}/items` takes `active`
+  like the library listings. Without it, deactivated items are now listed too (they
+  used to be hidden).
+- **shodoukan-practice:** `POST /library/entries` and `POST /library/kanji` take
+  optional `collection_ids` to import an item straight into collections, in one
+  transaction: an unknown collection imports nothing.
+- **shodoukan-practice-web:** The dictionary's import button has a folder half that
+  lists the user's collections: tick one to import the item straight into it, or to
+  add an imported item to it or take it out; "Nueva colección" creates one.
+- **shodoukan-practice-web:** A library kanji's page lists a few dictionary words that
+  use it (imported ones open the library copy), with a link to search the dictionary
+  for it.
+- **shodoukan-practice-web:** A library word's page shows its kanji as the dictionary
+  does, ready to import or put in a collection; imported ones open the library copy.
+
 ### Fixed
 
 - **shodoukan:** Romaji searches report the right number of results and page through
@@ -17,6 +42,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-practice-web:** The dictionary's kanji page shows the meanings larger,
+  filling the height of the kanji, with its strokes, grade and the rest below them.
+- **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi
+  before on'yomi everywhere (`KanjiCard` and the kanji pages), as the compact cards
+  already did.
+- **shodoukan-practice-web:** A collection's page lists its deactivated items too, marked
+  as inactive, with the library's Todos / Activos / Inactivos filter.
+- **shodoukan-practice-web:** One collection picker for the dictionary and the library:
+  an icon with a searchable list where typing a new name creates the collection with
+  the item in it. In the dictionary it ticks the collections the item is in, to take it
+  out; on a library page (an icon in the "Colecciones" header, instead of a full-width
+  selector) it lists only the others.
 - **shodoukan:** Entry search ranks every match with one score, `match_tier × 2000 +
   popularity`, in a single query: reading matches by exact/prefix, meaning matches by
   bm25 relative to the best match of the search. Japanese searches keep their order;

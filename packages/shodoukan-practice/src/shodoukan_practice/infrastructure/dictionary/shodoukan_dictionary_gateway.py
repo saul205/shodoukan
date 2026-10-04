@@ -3,9 +3,18 @@ from uuid import UUID
 from shodoukan import Dictionary
 
 from ...domain.entities import PracticeEntry, PracticeKanji
-from ...domain.gateways import DictionaryGateway, DictionarySearchResult
+from ...domain.gateways import (
+    DictionaryEntry,
+    DictionaryEntryPage,
+    DictionaryGateway,
+    DictionaryKanji,
+    DictionarySearchResult,
+)
 from .shodoukan_mapper import (
+    shodoukan_entry_page_to_dictionary,
+    shodoukan_entry_to_dictionary,
     shodoukan_entry_to_practice,
+    shodoukan_kanji_to_dictionary,
     shodoukan_kanji_to_practice,
     shodoukan_search_to_dictionary,
 )
@@ -32,3 +41,25 @@ class ShodoukanDictionaryGateway(DictionaryGateway):
     ) -> DictionarySearchResult:
         result = self._dictionary.search(query, lang=lang, limit=limit, offset=offset)
         return shodoukan_search_to_dictionary(result)
+
+    def get_entry(self, entry_id: int) -> DictionaryEntry | None:
+        entry = self._dictionary.get_entry(entry_id)
+        return shodoukan_entry_to_dictionary(entry) if entry else None
+
+    def get_kanji(self, literal: str) -> DictionaryKanji | None:
+        kanji = self._dictionary.get_kanji(literal)
+        return shodoukan_kanji_to_dictionary(kanji) if kanji else None
+
+    def entries_for_kanji(
+        self, literal: str, limit: int, offset: int
+    ) -> DictionaryEntryPage:
+        page = self._dictionary.get_entries_for_kanji(
+            literal, limit=limit, offset=offset
+        )
+        return shodoukan_entry_page_to_dictionary(page)
+
+    def kanji_for_entry(self, entry_id: int) -> list[DictionaryKanji]:
+        return [
+            shodoukan_kanji_to_dictionary(k)
+            for k in self._dictionary.get_kanji_for_entry_related(entry_id)
+        ]

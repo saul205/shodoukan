@@ -5,8 +5,19 @@ from dataclasses import dataclass
 from typing import Generic, TypeVar
 from uuid import UUID
 
-from ...domain.entities import PracticeEntry, PracticeKanji
-from ...domain.repositories import PracticeEntryRepository, PracticeKanjiRepository
+from ...domain.entities import (
+    EntryCollection,
+    KanjiCollection,
+    PracticeEntry,
+    PracticeKanji,
+)
+from ...domain.exceptions import EntityNotFoundError
+from ...domain.repositories import (
+    EntryCollectionRepository,
+    KanjiCollectionRepository,
+    PracticeEntryRepository,
+    PracticeKanjiRepository,
+)
 
 T = TypeVar("T")
 
@@ -60,47 +71,53 @@ class GetImportStatus:
         )
 
 
-class ListLibraryEntries:
-    """The user's imported entries, most recently imported first.
-
-    Inactive entries are included unless `active` says otherwise, so the
-    library page can show and reactivate them.
-    """
+class GetLibraryEntry:
+    """One entry of the user's library; `EntityNotFoundError` if it isn't theirs."""
 
     def __init__(self, entries: PracticeEntryRepository) -> None:
         self._entries = entries
 
-    def execute(
-        self,
-        user_id: UUID,
-        limit: int = 20,
-        offset: int = 0,
-        active: bool | None = None,
-    ) -> LibraryPage[PracticeEntry]:
-        return LibraryPage(
-            items=self._entries.list_for_user(user_id, limit, offset, active),
-            total=self._entries.count_for_user(user_id, active),
-            limit=limit,
-            offset=offset,
-        )
+    def execute(self, user_id: UUID, entry_id: int) -> PracticeEntry:
+        entry = self._entries.get(entry_id, user_id)
+        if entry is None:
+            raise EntityNotFoundError(f"entry {entry_id} not found")
+        return entry
 
 
-class ListLibraryKanji:
-    """The user's imported kanji, like `ListLibraryEntries`."""
+class GetLibraryKanji:
+    """One kanji of the user's library; `EntityNotFoundError` if it isn't theirs."""
 
     def __init__(self, kanji: PracticeKanjiRepository) -> None:
         self._kanji = kanji
 
-    def execute(
-        self,
-        user_id: UUID,
-        limit: int = 20,
-        offset: int = 0,
-        active: bool | None = None,
-    ) -> LibraryPage[PracticeKanji]:
-        return LibraryPage(
-            items=self._kanji.list_for_user(user_id, limit, offset, active),
-            total=self._kanji.count_for_user(user_id, active),
-            limit=limit,
-            offset=offset,
-        )
+    def execute(self, user_id: UUID, kanji_id: int) -> PracticeKanji:
+        kanji = self._kanji.get(kanji_id, user_id)
+        if kanji is None:
+            raise EntityNotFoundError(f"kanji {kanji_id} not found")
+        return kanji
+
+
+class ListCollectionsOfEntry:
+    """The collections (tags) an entry of the user's library is in, by name."""
+
+    def __init__(
+        self, entries: PracticeEntryRepository, collections: EntryCollectionRepository
+    ) -> None:
+        self._get = GetLibraryEntry(entries)
+        self._collections = collections
+
+    def execute(self, user_id: UUID, entry_id: int) -> list[EntryCollection]:
+        return self._collections.list_for_item(self._get.execute(user_id, entry_id))
+
+
+class ListCollectionsOfKanji:
+    """The collections (tags) a kanji of the user's library is in, by name."""
+
+    def __init__(
+        self, kanji: PracticeKanjiRepository, collections: KanjiCollectionRepository
+    ) -> None:
+        self._get = GetLibraryKanji(kanji)
+        self._collections = collections
+
+    def execute(self, user_id: UUID, kanji_id: int) -> list[KanjiCollection]:
+        return self._collections.list_for_item(self._get.execute(user_id, kanji_id))

@@ -49,6 +49,40 @@
       ]
     },
     {
+      "clientId": "shodoukan-practice-web",
+      "name": "Shodoukan practice web",
+      "description": "Public client (authorization code + PKCE) for the practice frontend on http://localhost:3001.",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3001/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3001"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3001/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "practice-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "shodoukan-practice",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
       "clientId": "shodoukan-dev-cli",
       "name": "Local development CLI",
       "description": "LOCAL DEVELOPMENT ONLY: password grant for scripts and smoke tests. Never enable in a real realm.",

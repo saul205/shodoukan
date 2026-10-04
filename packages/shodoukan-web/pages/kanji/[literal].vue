@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { getKanji, getEntriesForKanji, SUPPORTED_LANGUAGES, EntryCard, type Kanji, type Entry } from 'shodoukan-ui'
+import {
+  getKanji,
+  getEntriesForKanji,
+  SUPPORTED_LANGUAGES,
+  EntryCard,
+  KanjiStrokeAnimator,
+  KanjiStrokeGrid,
+  type Kanji,
+  type Entry,
+} from 'shodoukan-ui'
 import { NuxtLink } from '#components'
 
 definePageMeta({ layout: 'dictionary' })
@@ -38,14 +47,14 @@ interface ReadingGroup {
 const readingGroups = computed<ReadingGroup[]>(() => {
   if (!kanji.value) return []
   return [
-    kanji.value.on_readings.length
-      ? { label: "On'yomi", readings: kanji.value.on_readings, toQuery: r => r }
-      : null,
     kanji.value.kun_readings.length
-      ? { label: "Kun'yomi", readings: kanji.value.kun_readings, toQuery: r => r.replace('.', '') }
+      ? { label: "Kun'yomi", readings: kanji.value.kun_readings, toQuery: (r: string) => r.replace('.', '') }
+      : null,
+    kanji.value.on_readings.length
+      ? { label: "On'yomi", readings: kanji.value.on_readings, toQuery: (r: string) => r }
       : null,
     kanji.value.nanori.length
-      ? { label: 'Nanori', readings: kanji.value.nanori, toQuery: r => r }
+      ? { label: 'Nanori', readings: kanji.value.nanori, toQuery: (r: string) => r }
       : null,
   ].filter(Boolean) as ReadingGroup[]
 })

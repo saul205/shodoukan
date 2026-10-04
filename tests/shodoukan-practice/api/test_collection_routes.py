@@ -120,14 +120,38 @@ def test_add_list_and_remove_items(client: TestClient, headers: dict[str, str]) 
         assert response.status_code == 204
 
     listed = client.get(items, headers=headers).json()
-    assert [item["id"] for item in listed] == [first, second]
+    assert [item["id"] for item in listed["items"]] == [first, second]
+    assert (listed["total"], listed["limit"], listed["offset"]) == (2, 20, 0)
     page = client.get(items, params={"limit": 1, "offset": 1}, headers=headers)
-    assert [item["id"] for item in page.json()] == [second]
+    assert [item["id"] for item in page.json()["items"]] == [second]
 
     for _ in range(2):
         response = client.delete(f"{items}/{first}", headers=headers)
         assert response.status_code == 204
-    assert [i["id"] for i in client.get(items, headers=headers).json()] == [second]
+    left = client.get(items, headers=headers).json()["items"]
+    assert [i["id"] for i in left] == [second]
+
+
+def test_items_can_be_filtered_by_active(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    collection = _create(client, headers)
+    active = _import_entry(client, headers, 1000001)
+    inactive = _import_entry(client, headers, 1000002)
+    items = f"/collections/entries/{collection['id']}/items"
+    for entry_id in (active, inactive):
+        client.put(f"{items}/{entry_id}", headers=headers)
+    client.put(
+        f"/library/entries/{inactive}/active", json={"active": False}, headers=headers
+    )
+
+    def ids(**params: str) -> list[int]:
+        body = client.get(items, params=params, headers=headers).json()
+        return [item["id"] for item in body["items"]]
+
+    assert ids() == [active, inactive]
+    assert ids(active="true") == [active]
+    assert ids(active="false") == [inactive]
 
 
 def test_kanji_items(client: TestClient, headers: dict[str, str]) -> None:
@@ -139,7 +163,26 @@ def test_kanji_items(client: TestClient, headers: dict[str, str]) -> None:
 
     assert added.status_code == 204
     listed = client.get(items, headers=headers).json()
-    assert [item["literal"] for item in listed] == ["食"]
+    assert [item["literal"] for item in listed["items"]] == ["食"]
+
+
+def test_items_can_be_searched(client: TestClient, headers: dict[str, str]) -> None:
+    collection = _create(client, headers)
+    eat = _import_entry(client, headers, 1000001)
+    water = _import_entry(client, headers, 1000002)
+    _import_entry(client, headers, 1000003)  # in the library, not the collection
+    items = f"/collections/entries/{collection['id']}/items"
+    for entry_id in (eat, water):
+        client.put(f"{items}/{entry_id}", headers=headers)
+
+    found = client.get(items, params={"q": "水"}, headers=headers).json()
+    by_meaning = client.get(
+        items, params={"q": "thank", "meaning_lang": "eng"}, headers=headers
+    ).json()
+
+    assert [item["id"] for item in found["items"]] == [water]
+    assert found["total"] == 1
+    assert by_meaning["total"] == 0  # ありがとう isn't in the collection
 
 
 def test_unknown_item_is_404(client: TestClient, headers: dict[str, str]) -> None:
@@ -187,7 +230,7 @@ def test_cors_allows_delete(client: TestClient) -> None:
     response = client.options(
         "/collections/entries/1",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "http://localhost:3001",
             "Access-Control-Request-Method": "DELETE",
             "Access-Control-Request-Headers": "Authorization",
         },

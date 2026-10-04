@@ -3,7 +3,6 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.11.1",
   "main": "./dist/shodoukan-ui.js",
   "module": "./dist/shodoukan-ui.js",
   "types": "./dist/index.d.ts",
@@ -30,6 +29,7 @@
     "vue": "^3.5.13"
   },
   "dependencies": {
+    "hanzi-writer": "^3.7.3",
     "ofetch": "^1"
   },
   "devDependencies": {

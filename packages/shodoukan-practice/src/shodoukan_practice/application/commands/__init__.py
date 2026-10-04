@@ -13,21 +13,55 @@ from .collection_commands import (
     UpdateKanjiCollection,
 )
 from .library_commands import ImportEntry, ImportKanji, ImportResult
+from .practice_entry_commands import (
+    AddEntryGloss,
+    EditEntryGloss,
+    RemoveEntryFromLibrary,
+    RemoveEntryGloss,
+    SetEntryActive,
+    SetEntryNotes,
+    SetEntryPartEnabled,
+    SetSenseNotes,
+)
+from .practice_kanji_commands import (
+    AddKanjiMeaning,
+    EditKanjiMeaning,
+    RemoveKanjiFromLibrary,
+    RemoveKanjiMeaning,
+    SetKanjiActive,
+    SetKanjiNotes,
+    SetKanjiPartEnabled,
+)
 from .user_commands import EnsureUser
 
 __all__ = [
+    "AddEntryGloss",
     "AddEntryToCollection",
+    "AddKanjiMeaning",
     "AddKanjiToCollection",
     "CreateEntryCollection",
     "CreateKanjiCollection",
     "DeleteEntryCollection",
     "DeleteKanjiCollection",
+    "EditEntryGloss",
+    "EditKanjiMeaning",
     "EnsureUser",
     "ImportEntry",
     "ImportKanji",
     "ImportResult",
     "RemoveEntryFromCollection",
+    "RemoveEntryFromLibrary",
+    "RemoveEntryGloss",
     "RemoveKanjiFromCollection",
+    "RemoveKanjiFromLibrary",
+    "RemoveKanjiMeaning",
+    "SetEntryActive",
+    "SetEntryNotes",
+    "SetEntryPartEnabled",
+    "SetKanjiActive",
+    "SetKanjiNotes",
+    "SetKanjiPartEnabled",
+    "SetSenseNotes",
     "UpdateEntryCollection",
     "UpdateKanjiCollection",
 ]

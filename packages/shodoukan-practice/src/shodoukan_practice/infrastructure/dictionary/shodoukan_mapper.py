@@ -11,7 +11,7 @@ provenance (`source_name`, `source_id`).
 
 from uuid import UUID
 
-from shodoukan.models.entry import Entry, Example, Sense
+from shodoukan.models.entry import Entry, Example, Page, Sense
 from shodoukan.models.kanji import Kanji
 from shodoukan.models.search import SearchResult
 
@@ -121,17 +121,21 @@ def _items(texts: list[str]) -> list[PracticeReadingItem]:
 
 def shodoukan_search_to_dictionary(result: SearchResult) -> DictionarySearchResult:
     return DictionarySearchResult(
-        entries=DictionaryEntryPage(
-            items=[_dictionary_entry(e) for e in result.entries.items],
-            total=result.entries.total,
-            limit=result.entries.limit,
-            offset=result.entries.offset,
-        ),
-        kanji=[_dictionary_kanji(k) for k in result.kanji],
+        entries=shodoukan_entry_page_to_dictionary(result.entries),
+        kanji=[shodoukan_kanji_to_dictionary(k) for k in result.kanji],
     )
 
 
-def _dictionary_entry(entry: Entry) -> DictionaryEntry:
+def shodoukan_entry_page_to_dictionary(page: Page[Entry]) -> DictionaryEntryPage:
+    return DictionaryEntryPage(
+        items=[shodoukan_entry_to_dictionary(e) for e in page.items],
+        total=page.total,
+        limit=page.limit,
+        offset=page.offset,
+    )
+
+
+def shodoukan_entry_to_dictionary(entry: Entry) -> DictionaryEntry:
     return DictionaryEntry(
         id=entry.id,
         kanji_readings=[
@@ -182,7 +186,7 @@ def _dictionary_sense(sense: Sense) -> DictionarySense:
     )
 
 
-def _dictionary_kanji(kanji: Kanji) -> DictionaryKanji:
+def shodoukan_kanji_to_dictionary(kanji: Kanji) -> DictionaryKanji:
     return DictionaryKanji(
         literal=kanji.literal,
         grade=kanji.grade,

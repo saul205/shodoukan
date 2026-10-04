@@ -23,10 +23,10 @@ from ...application.commands import (
 from ...application.queries import (
     GetEntryCollection,
     GetKanjiCollection,
-    ListEntryCollectionItems,
     ListEntryCollections,
-    ListKanjiCollectionItems,
     ListKanjiCollections,
+    SearchEntries,
+    SearchKanji,
 )
 from ..deps import (
     CurrentUserDep,
@@ -39,20 +39,22 @@ from ..deps import (
     get_delete_kanji_collection,
     get_get_entry_collection,
     get_get_kanji_collection,
-    get_list_entry_collection_items,
     get_list_entry_collections,
-    get_list_kanji_collection_items,
     get_list_kanji_collections,
     get_remove_entry_from_collection,
     get_remove_kanji_from_collection,
+    get_search_entries,
+    get_search_kanji,
     get_update_entry_collection,
     get_update_kanji_collection,
 )
 from ..schemas import (
     CollectionRequest,
     CollectionResponse,
-    PracticeEntryResponse,
-    PracticeKanjiResponse,
+    MeaningLang,
+    PracticeEntryPageResponse,
+    PracticeKanjiPageResponse,
+    SearchText,
 )
 
 _UNAUTHORIZED: dict[int | str, dict[str, Any]] = {
@@ -69,6 +71,12 @@ _NAME_TAKEN: dict[int | str, dict[str, Any]] = {
 
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]
+Active = Annotated[
+    bool | None,
+    Query(
+        description="Only active (`true`) or inactive (`false`) items; all if omitted."
+    ),
+]
 
 entry_router = APIRouter(
     prefix="/collections/entries",
@@ -166,23 +174,35 @@ def delete_entry_collection(
 
 @entry_router.get(
     "/{collection_id}/items",
-    response_model=list[PracticeEntryResponse],
+    response_model=PracticeEntryPageResponse,
     responses=_NOT_FOUND,
 )
 def list_entry_collection_items(
     collection_id: int,
     user: CurrentUserDep,
     session: SessionDep,
-    use_case: Annotated[
-        ListEntryCollectionItems, Depends(get_list_entry_collection_items)
-    ],
+    use_case: Annotated[SearchEntries, Depends(get_search_entries)],
+    q: SearchText = None,
+    meaning_lang: MeaningLang = None,
+    active: Active = None,
     limit: Limit = 20,
     offset: Offset = 0,
-) -> list[PracticeEntryResponse]:
-    """A page of the collection's active entries, in the order they were added."""
-    items = use_case.execute(user.id, collection_id, limit, offset)
+) -> PracticeEntryPageResponse:
+    """A page of the collection's entries, in the order they were added.
+
+    With `q`, only the matching ones, best match first.
+    """
+    page = use_case.execute(
+        user.id,
+        text=q,
+        meaning_lang=meaning_lang,
+        active=active,
+        in_collection=collection_id,
+        limit=limit,
+        offset=offset,
+    )
     session.commit()
-    return [PracticeEntryResponse.model_validate(item) for item in items]
+    return PracticeEntryPageResponse.model_validate(page)
 
 
 @entry_router.put(
@@ -305,23 +325,35 @@ def delete_kanji_collection(
 
 @kanji_router.get(
     "/{collection_id}/items",
-    response_model=list[PracticeKanjiResponse],
+    response_model=PracticeKanjiPageResponse,
     responses=_NOT_FOUND,
 )
 def list_kanji_collection_items(
     collection_id: int,
     user: CurrentUserDep,
     session: SessionDep,
-    use_case: Annotated[
-        ListKanjiCollectionItems, Depends(get_list_kanji_collection_items)
-    ],
+    use_case: Annotated[SearchKanji, Depends(get_search_kanji)],
+    q: SearchText = None,
+    meaning_lang: MeaningLang = None,
+    active: Active = None,
     limit: Limit = 20,
     offset: Offset = 0,
-) -> list[PracticeKanjiResponse]:
-    """A page of the collection's active kanji, in the order they were added."""
-    items = use_case.execute(user.id, collection_id, limit, offset)
+) -> PracticeKanjiPageResponse:
+    """A page of the collection's kanji, in the order they were added.
+
+    With `q`, only the matching ones, best match first.
+    """
+    page = use_case.execute(
+        user.id,
+        text=q,
+        meaning_lang=meaning_lang,
+        active=active,
+        in_collection=collection_id,
+        limit=limit,
+        offset=offset,
+    )
     session.commit()
-    return [PracticeKanjiResponse.model_validate(item) for item in items]
+    return PracticeKanjiPageResponse.model_validate(page)
 
 
 @kanji_router.put(

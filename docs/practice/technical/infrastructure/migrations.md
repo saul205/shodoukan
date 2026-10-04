@@ -46,6 +46,13 @@ was before the first deployment: the history was squashed into a single initial
 migration (see [decisions](../decisions.md#migrations-squashed-before-the-first-deploy)).
 Once any environment is deployed, migrations are append-only.
 
+## History
+
+| Revision | Change |
+|---|---|
+| `4ea69ccc76fd` | Initial schema (squashed before the first deploy) |
+| `cc326135e923` | `notes` on `practice_entries`, `practice_senses`, `practice_kanji` |
+
 ## Safety nets
 
 - `tests/shodoukan-practice/infrastructure/test_migrations.py` upgrades an empty SQLite

@@ -8,12 +8,15 @@ from ..domain.exceptions import (
     CollectionNameTakenError,
     DictionaryItemNotFoundError,
     EntityNotFoundError,
+    OriginalDataError,
 )
 from .routes import (
     dictionary_router,
     entry_collection_router,
     kanji_collection_router,
     library_router,
+    practice_entry_router,
+    practice_kanji_router,
     user_router,
 )
 
@@ -32,16 +35,19 @@ def create_app() -> FastAPI:
             "scopes": "openid profile",
         },
     )
-    # The frontend calls this API from the browser with an Authorization
-    # header, so it needs CORS (same variable as shodoukan-api).
+    # The practice frontend (port 3001) calls this API from the browser with
+    # an Authorization header, so it needs CORS (same variable as
+    # shodoukan-api).
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3001").split(","),
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(dictionary_router)
     app.include_router(library_router)
+    app.include_router(practice_entry_router)
+    app.include_router(practice_kanji_router)
     app.include_router(user_router)
     app.include_router(entry_collection_router)
     app.include_router(kanji_collection_router)
@@ -50,6 +56,8 @@ def create_app() -> FastAPI:
     # or item is "not found" too.
     app.add_exception_handler(EntityNotFoundError, _not_found)
     app.add_exception_handler(CollectionNameTakenError, _conflict)
+    # Dictionary data in the library can only be disabled, not changed.
+    app.add_exception_handler(OriginalDataError, _conflict)
     return app
 
 

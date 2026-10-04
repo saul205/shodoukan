@@ -21,24 +21,30 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 
 | Folder / file | Covers |
 |---|---|
-| `domain/test_*_entity.py` | Entity shape, defaults, validation, mutation methods and `touch()` |
+| `domain/test_*_entity.py` | Entity shape, defaults, validation, mutation methods (notes, enabled parts, own meanings, dictionary data protected) and `touch()` |
+| `domain/test_notes_value.py` | Notes cleaning and length limit |
 | `domain/test_timestamped_entity.py` | Timestamp defaults, `touch()` |
 | `domain/test_collection_service.py` | `ensure_combinable` |
 | `infrastructure/test_base_orm.py` | `UtcDateTime`: naive UTC stored, aware UTC read, naive rejected, no DB default |
 | `infrastructure/test_*_orm.py` | Constraints, cascades, `position` ordering |
 | `infrastructure/test_*_mapper.py` | `to_domain(to_db(entity)) == entity` without a database |
-| `infrastructure/test_sqlalchemy_*_repository.py` | Each repository through its port, including owner scoping and membership |
+| `infrastructure/test_sqlalchemy_*_repository.py` | Each repository through its port, including owner scoping and membership; `find` / `count`: match tiers, romaji and katakana, hidden and own meanings, meaning language, wildcards, scopes, paging |
+| `infrastructure/test_shodoukan_kana_gateway.py` | Romaji and kana in both scripts; text that isn't either |
 | `infrastructure/test_migrations.py` | Migrations match the models; downgrade works |
 | `infrastructure/test_shodoukan_mapper.py` | Dictionary models → fresh practice entities, every language kept |
-| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary: snapshots, and search by Japanese, romaji and meaning |
+| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary: snapshots, search by Japanese, romaji and meaning, and entry/kanji details |
 | `application/test_library_commands.py` | Import use cases with real repositories and the real gateway: created, already imported, per-user copies, not found |
-| `application/test_library_queries.py` | `GetImportStatus`: only the user's imports, empty input; `ListLibraryEntries` / `ListLibraryKanji`: page with total, `active` filter |
+| `application/test_dictionary_queries.py` | Dictionary detail queries: found, not found, words for a kanji, kanji of an entry |
+| `application/test_library_queries.py` | `GetImportStatus`: only the user's imports, empty input; getting items and their collections |
+| `application/test_library_search_queries.py` | `build_search` (normalizing, kana, blank text), `resolve_scope`, and `SearchEntries` / `SearchKanji`: library with total and `active`, romaji, a collection's items filtered by `active`, not in a collection, other users' collections not found |
 | `application/test_collection_commands.py` | Collection commands: create, duplicate names, update and `updated_at`, delete keeps items, idempotent membership, other users' collections and items not found |
-| `application/test_collection_queries.py` | Listing and getting collections, paging a collection's active items, owner scoping |
+| `application/test_collection_queries.py` | Listing and getting collections, owner scoping |
+| `application/test_practice_entry_commands.py`, `test_practice_kanji_commands.py` | Customisation use cases: notes, active, enabled, own meanings, dictionary meanings rejected, other users' items, removal from the library |
 | `application/test_user_commands.py` | `EnsureUser`: existing identity, first request creates, no duplicates |
-| `api/test_library_routes.py` | The library endpoints through `TestClient`: listing (newest first, total, paging, `active`, owner scoping, ids usable in collections), import (201/200/404/422/401), import status (only the user's imports, limits, validation), user creation on first request, CORS preflight |
-| `api/test_collection_routes.py` | The collection endpoints: create/get/list/update/delete, name validation and `409`, items (add, list, page, remove), other users' collections `404`, `401`, CORS for `DELETE` |
-| `api/test_dictionary_routes.py` | `GET /dictionary/search`: public, the same shape as shodoukan-api, pagination, validation, and that results can be imported |
+| `api/test_library_routes.py` | The library endpoints through `TestClient`: listing (newest first, total, paging, `active`, owner scoping, ids usable in collections), search (`q`, romaji, `meaning_lang`, `not_in_collection` and its `404`, `q` length), import (201/200/404/422/401), import status (only the user's imports, limits, validation), user creation on first request, CORS preflight |
+| `api/test_collection_routes.py` | The collection endpoints: create/get/list/update/delete, name validation and `409`, items (add, list, page, search, remove), other users' collections `404`, `401`, CORS for `DELETE` |
+| `api/test_practice_entry_routes.py`, `test_practice_kanji_routes.py` | Library item endpoints: detail, notes (and validation), active, enabled per part, own meanings, 409 for dictionary meanings, collections of an item, removal, other users' items `404`, `401` |
+| `api/test_dictionary_routes.py` | `GET /dictionary/search` and the detail routes: public, the same shape as shodoukan-api, pagination, validation, 404s, and that results can be imported |
 | `api/test_user_routes.py` | `GET /users/me`, and the OAuth2 login declared in the OpenAPI schema |
 | `api/test_auth.py` | `TokenVerifier`: identity, expiry, issuer, signature, audience, configuration |
 
@@ -84,3 +90,7 @@ them on `http://localhost`, while scripted HTTP clients have to forward them by 
 `.github/workflows/ci.yml` installs the package, runs `mypy` and
 `pytest tests/shodoukan-practice`, then runs the migrations against a throwaway
 `postgres:16-alpine` service: `upgrade head`, `check`, `downgrade base`, `upgrade head`.
+
+A separate `frontend` job installs the pnpm workspace (`--frozen-lockfile`), builds and
+tests `shodoukan-ui`, and runs the practice frontend's Vitest suite and `nuxt
+typecheck`. See [frontend](frontend.md#tests).

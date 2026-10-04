@@ -18,7 +18,7 @@ Japanese-English dictionary platform with three main deliverables:
 | Practice database | PostgreSQL, Alembic (tests on SQLite) |
 | Code style | PEP 8 |
 | Formatter | Ruff |
-| Frontend | Nuxt 3 (Vue 3, Composition API), Tailwind CSS, TypeScript |
+| Frontend | Nuxt 3 (Vue 3, Composition API), Tailwind CSS, TypeScript; the practice frontend uses Nuxt 4 + Nuxt UI 4 (Tailwind 4) |
 | Frontend tests | Vitest + Vue Test Utils |
 | Backend tests | pytest |
 
@@ -30,7 +30,8 @@ packages/
   shodoukan-api/       FastAPI routes, Dockerfile, docker-compose
   shodoukan-practice/  Practice/exercises backend: users' imported entries/kanji and collections (domain, PostgreSQL persistence, dictionary gateway, import use cases and endpoints with Keycloak auth). Docs: `docs/practice/`
   shodoukan-ui/        Shared Vue component library (EntryCard, KanjiCard, SearchBar, ...), own Tailwind build
-  shodoukan-web/       Nuxt 3 frontend (see FRONTEND.md for full reference)
+  shodoukan-web/       Nuxt 3 dictionary frontend (docs/technical/frontend.md)
+  shodoukan-practice-web/  Nuxt 4 + Nuxt UI practice frontend on :3001, Keycloak sign-in (docs/practice/technical/frontend.md)
 tests/
   shodoukan/           Backend unit + integration tests
   shodoukan-api/       API route tests
@@ -60,6 +61,7 @@ See `docs/index.md` for the full documentation index. Quick reference:
 | `docs/technical/search.md` | Search architecture: query classification, pipelines, scoring formulas |
 | `docs/technical/frontend.md` | Frontend architecture, components, responsive layout, Tailwind conventions |
 | `docs/practice/README.md` | Practice app entry point: status and map of its docs |
+| `docs/practice/technical/frontend.md` | Practice frontend: sign-in flow, API client, screens, tests |
 | `docs/practice/technical/README.md` | Practice app technical docs index, plus the "where to document what" table |
 
 If you add a new package or introduce a significant architectural decision, create or extend the appropriate doc file and add a row to this table.
@@ -78,6 +80,9 @@ If you add a new package or introduce a significant architectural decision, crea
   each package's own `CLAUDE.md` (`packages/shodoukan-practice/CLAUDE.md`).
 - Git, documentation, and changelog conventions (repo-wide, not just Python) are in
   `.claude/rules/git-and-docs.md`.
+- Frontend work on `packages/shodoukan-practice-web` (Nuxt UI v4) loads the `nuxt-ui`
+  skill (`.claude/skills/nuxt-ui/`, the official Nuxt UI skill; update it with
+  `npx skills update nuxt-ui`, pinned in `skills-lock.json`).
 
 ### Python tooling in this repo
 

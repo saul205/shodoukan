@@ -8,8 +8,9 @@
   "tasks": [
     {
       "label": "nuxt: dev",
+      "detail": "Nuxt directly, not `pnpm dev`, so the SIGHUP that stops the task reaches Nuxt instead of depending on pnpm forwarding it",
       "type": "shell",
-      "command": "pnpm dev",
+      "command": "exec ./node_modules/.bin/nuxt dev",
       "options": {
         "cwd": "${workspaceFolder}/packages/shodoukan-web"
       },
@@ -58,6 +59,76 @@
       "detail": "Services up, then migrations; run before launching the Practice API",
       "dependsOn": ["practice: services", "practice: migrate"],
       "dependsOrder": "sequence"
+    },
+    {
+      "label": "shodoukan-ui: build",
+      "detail": "Build the shared component library; the apps import its dist/, not src/",
+      "type": "shell",
+      "command": "pnpm --filter shodoukan-ui build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent" },
+      "problemMatcher": []
+    },
+    {
+      "label": "practice-web: dev",
+      "detail": "Build shodoukan-ui, then run Nuxt directly on :3001 (not `pnpm dev`, so stopping the task reaches Nuxt)",
+      "type": "shell",
+      "command": "exec ./node_modules/.bin/nuxt dev",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/shodoukan-practice-web"
+      },
+      "dependsOn": ["shodoukan-ui: build"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "nuxt",
+        "pattern": { "regexp": ".", "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "NUXT",
+          "endsPattern": "Local:"
+        }
+      }
+    },
+    {
+      "label": "wait-for-practice-api",
+      "type": "shell",
+      "command": "until curl -sf http://localhost:8001/docs > /dev/null; do sleep 0.5; done",
+      "presentation": { "reveal": "silent" }
+    },
+    {
+      "label": "practice-web: dev (after api)",
+      "dependsOn": ["wait-for-practice-api", "practice-web: dev"],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "nuxt: stop",
+      "detail": "Stop the shodoukan-web dev server; stopping the debugger only closes Chrome",
+      "type": "shell",
+      "command": "echo ${input:terminateNuxtDev}",
+      "presentation": { "reveal": "never" },
+      "problemMatcher": []
+    },
+    {
+      "label": "practice-web: stop",
+      "detail": "Stop the practice frontend dev server; stopping the debugger only closes Chrome",
+      "type": "shell",
+      "command": "echo ${input:terminatePracticeWebDev}",
+      "presentation": { "reveal": "never" },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "terminateNuxtDev",
+      "type": "command",
+      "command": "workbench.action.tasks.terminate",
+      "args": "nuxt: dev"
+    },
+    {
+      "id": "terminatePracticeWebDev",
+      "type": "command",
+      "command": "workbench.action.tasks.terminate",
+      "args": "practice-web: dev"
     }
   ]
 }

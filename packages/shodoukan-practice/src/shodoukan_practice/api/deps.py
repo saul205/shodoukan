@@ -17,36 +17,60 @@ from sqlalchemy.orm import Session, sessionmaker
 from shodoukan import Dictionary
 
 from ..application.commands import (
+    AddEntryGloss,
     AddEntryToCollection,
+    AddKanjiMeaning,
     AddKanjiToCollection,
     CreateEntryCollection,
     CreateKanjiCollection,
     DeleteEntryCollection,
     DeleteKanjiCollection,
+    EditEntryGloss,
+    EditKanjiMeaning,
     EnsureUser,
     ImportEntry,
     ImportKanji,
     RemoveEntryFromCollection,
+    RemoveEntryFromLibrary,
+    RemoveEntryGloss,
     RemoveKanjiFromCollection,
+    RemoveKanjiFromLibrary,
+    RemoveKanjiMeaning,
+    SetEntryActive,
+    SetEntryNotes,
+    SetEntryPartEnabled,
+    SetKanjiActive,
+    SetKanjiNotes,
+    SetKanjiPartEnabled,
+    SetSenseNotes,
     UpdateEntryCollection,
     UpdateKanjiCollection,
 )
 from ..application.queries import (
+    GetDictionaryEntry,
+    GetDictionaryKanji,
     GetEntryCollection,
     GetImportStatus,
     GetKanjiCollection,
-    ListEntryCollectionItems,
+    GetLibraryEntry,
+    GetLibraryKanji,
+    ListCollectionsOfEntry,
+    ListCollectionsOfKanji,
+    ListEntriesForKanji,
     ListEntryCollections,
-    ListKanjiCollectionItems,
     ListKanjiCollections,
-    ListLibraryEntries,
-    ListLibraryKanji,
+    ListKanjiForEntry,
     SearchDictionary,
+    SearchEntries,
+    SearchKanji,
 )
 from ..domain.entities import User
-from ..domain.gateways import DictionaryGateway
+from ..domain.gateways import DictionaryGateway, KanaGateway
 from ..infrastructure.db.connection import create_db_engine, create_session_factory
-from ..infrastructure.dictionary import ShodoukanDictionaryGateway
+from ..infrastructure.dictionary import (
+    ShodoukanDictionaryGateway,
+    ShodoukanKanaGateway,
+)
 from ..infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyKanjiCollectionRepository,
@@ -138,20 +162,47 @@ def get_import_entry(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> ImportEntry:
-    return ImportEntry(dictionary, SqlAlchemyPracticeEntryRepository(session))
+    return ImportEntry(
+        dictionary,
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
 
 
 def get_import_kanji(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> ImportKanji:
-    return ImportKanji(dictionary, SqlAlchemyPracticeKanjiRepository(session))
+    return ImportKanji(
+        dictionary,
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
 
 
 def get_search_dictionary(
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> SearchDictionary:
     return SearchDictionary(dictionary)
+
+
+DictionaryGatewayDep = Annotated[DictionaryGateway, Depends(get_dictionary_gateway)]
+
+
+def get_get_dictionary_entry(dictionary: DictionaryGatewayDep) -> GetDictionaryEntry:
+    return GetDictionaryEntry(dictionary)
+
+
+def get_get_dictionary_kanji(dictionary: DictionaryGatewayDep) -> GetDictionaryKanji:
+    return GetDictionaryKanji(dictionary)
+
+
+def get_list_entries_for_kanji(dictionary: DictionaryGatewayDep) -> ListEntriesForKanji:
+    return ListEntriesForKanji(dictionary)
+
+
+def get_list_kanji_for_entry(dictionary: DictionaryGatewayDep) -> ListKanjiForEntry:
+    return ListKanjiForEntry(dictionary)
 
 
 def get_import_status(session: SessionDep) -> GetImportStatus:
@@ -161,12 +212,112 @@ def get_import_status(session: SessionDep) -> GetImportStatus:
     )
 
 
-def get_list_library_entries(session: SessionDep) -> ListLibraryEntries:
-    return ListLibraryEntries(SqlAlchemyPracticeEntryRepository(session))
+def get_kana_gateway() -> KanaGateway:
+    return ShodoukanKanaGateway()
 
 
-def get_list_library_kanji(session: SessionDep) -> ListLibraryKanji:
-    return ListLibraryKanji(SqlAlchemyPracticeKanjiRepository(session))
+KanaGatewayDep = Annotated[KanaGateway, Depends(get_kana_gateway)]
+
+
+def get_search_entries(session: SessionDep, kana: KanaGatewayDep) -> SearchEntries:
+    return SearchEntries(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        kana,
+    )
+
+
+def get_search_kanji(session: SessionDep, kana: KanaGatewayDep) -> SearchKanji:
+    return SearchKanji(
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+        kana,
+    )
+
+
+# --- Library items ---
+
+
+def get_add_entry_gloss(session: SessionDep) -> AddEntryGloss:
+    return AddEntryGloss(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_edit_entry_gloss(session: SessionDep) -> EditEntryGloss:
+    return EditEntryGloss(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_from_library(session: SessionDep) -> RemoveEntryFromLibrary:
+    return RemoveEntryFromLibrary(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_gloss(session: SessionDep) -> RemoveEntryGloss:
+    return RemoveEntryGloss(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_set_entry_active(session: SessionDep) -> SetEntryActive:
+    return SetEntryActive(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_set_entry_notes(session: SessionDep) -> SetEntryNotes:
+    return SetEntryNotes(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_set_entry_part_enabled(session: SessionDep) -> SetEntryPartEnabled:
+    return SetEntryPartEnabled(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_set_sense_notes(session: SessionDep) -> SetSenseNotes:
+    return SetSenseNotes(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_add_kanji_meaning(session: SessionDep) -> AddKanjiMeaning:
+    return AddKanjiMeaning(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_edit_kanji_meaning(session: SessionDep) -> EditKanjiMeaning:
+    return EditKanjiMeaning(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_remove_kanji_from_library(session: SessionDep) -> RemoveKanjiFromLibrary:
+    return RemoveKanjiFromLibrary(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_remove_kanji_meaning(session: SessionDep) -> RemoveKanjiMeaning:
+    return RemoveKanjiMeaning(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_set_kanji_active(session: SessionDep) -> SetKanjiActive:
+    return SetKanjiActive(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_set_kanji_notes(session: SessionDep) -> SetKanjiNotes:
+    return SetKanjiNotes(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_set_kanji_part_enabled(session: SessionDep) -> SetKanjiPartEnabled:
+    return SetKanjiPartEnabled(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_get_library_entry(session: SessionDep) -> GetLibraryEntry:
+    return GetLibraryEntry(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_get_library_kanji(session: SessionDep) -> GetLibraryKanji:
+    return GetLibraryKanji(SqlAlchemyPracticeKanjiRepository(session))
+
+
+def get_list_collections_of_entry(session: SessionDep) -> ListCollectionsOfEntry:
+    return ListCollectionsOfEntry(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
+def get_list_collections_of_kanji(session: SessionDep) -> ListCollectionsOfKanji:
+    return ListCollectionsOfKanji(
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
 
 
 # --- Collections ---
@@ -190,13 +341,6 @@ def get_update_entry_collection(session: SessionDep) -> UpdateEntryCollection:
 
 def get_delete_entry_collection(session: SessionDep) -> DeleteEntryCollection:
     return DeleteEntryCollection(SqlAlchemyEntryCollectionRepository(session))
-
-
-def get_list_entry_collection_items(session: SessionDep) -> ListEntryCollectionItems:
-    return ListEntryCollectionItems(
-        SqlAlchemyEntryCollectionRepository(session),
-        SqlAlchemyPracticeEntryRepository(session),
-    )
 
 
 def get_add_entry_to_collection(session: SessionDep) -> AddEntryToCollection:
@@ -231,13 +375,6 @@ def get_update_kanji_collection(session: SessionDep) -> UpdateKanjiCollection:
 
 def get_delete_kanji_collection(session: SessionDep) -> DeleteKanjiCollection:
     return DeleteKanjiCollection(SqlAlchemyKanjiCollectionRepository(session))
-
-
-def get_list_kanji_collection_items(session: SessionDep) -> ListKanjiCollectionItems:
-    return ListKanjiCollectionItems(
-        SqlAlchemyKanjiCollectionRepository(session),
-        SqlAlchemyPracticeKanjiRepository(session),
-    )
 
 
 def get_add_kanji_to_collection(session: SessionDep) -> AddKanjiToCollection:

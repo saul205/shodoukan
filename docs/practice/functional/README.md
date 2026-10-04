@@ -21,6 +21,8 @@ page per use case.
   your library.
 - [Browsing the library](library/browse.md): see every imported word and kanji, and
   pick items for collections.
+- [Customising the library](library/customise.md): notes, hiding parts, own meanings,
+  deactivating and removing items.
 
 ## Collections
 
@@ -32,7 +34,6 @@ page per use case.
 These features will get their folder once their use cases are agreed:
 
 - `exercises/`: practising with one or more collections.
-- More `library/` pages: customising imported items.
 
 Until then, the [technical documentation](../technical/README.md) describes the model
 that is already built.

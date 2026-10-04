@@ -76,6 +76,40 @@ describe('EntryCard', () => {
     expect(wrapper.text()).toContain('sort: 15')
   })
 
+  it('links "details" to detailsHref when given, with a custom label', () => {
+    const wrapper = mount(EntryCard, {
+      props: { entry, lang: 'en', detailsHref: '/dictionary/entries/1', detailsLabel: 'ver →' },
+    })
+    const link = wrapper.find('a')
+    expect(link.attributes('href')).toBe('/dictionary/entries/1')
+    expect(link.text()).toBe('ver →')
+  })
+
+  it('renders entries without nested ids, priority or score (practice API shape)', () => {
+    const practiceEntry: Entry = {
+      id: 1,
+      kanji_readings: [{ kanji: '食べる', info: [] }],
+      readings: [{ text: 'たべる', no_kanji: false, info: [], restricted_to: [] }],
+      senses: [
+        {
+          pos: ['v1'], misc: [], dialects: [], info: [],
+          glosses: [{ text: 'to eat', type: null, lang: 'eng' }],
+          cross_references: [], examples: [],
+        },
+        {
+          pos: ['v1'], misc: [], dialects: [], info: [],
+          glosses: [{ text: 'to live on', type: null, lang: 'eng' }],
+          cross_references: [], examples: [],
+        },
+      ],
+      jlpt: 5,
+      is_common: true,
+    }
+    const wrapper = mount(EntryCard, { props: { entry: practiceEntry, lang: 'en' } })
+    expect(wrapper.findAll('li')).toHaveLength(2)
+    expect(wrapper.text()).toContain('to live on')
+  })
+
   it('uses the unified score as the sort value, with tier and relevance', () => {
     const withScore: Entry = {
       ...entry,

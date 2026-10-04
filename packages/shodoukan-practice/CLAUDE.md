@@ -13,11 +13,15 @@ Built: domain, PostgreSQL persistence (ORM, Alembic), mappers, SQLAlchemy reposi
 the dictionary integration (in-process `shodoukan` library behind `DictionaryGateway`),
 sign-in through Keycloak (users auto-created on first request, `GET /users/me`), importing an entry or kanji (`POST /library/entries`, `POST /library/kanji`), and public
 dictionary search (`GET /dictionary/search`, same `Dictionary.search` as shodoukan-api),
-the import status of search results (`GET /library/imported`), listing the library
-(`GET /library/entries`, `GET /library/kanji`, paged with a total), and collections
+the import status of search results (`GET /library/imported`), listing and searching
+the library (`GET /library/entries`, `GET /library/kanji`, paged with a total; `q`,
+`meaning_lang`, `not_in_collection`), and collections
 (`/collections/entries`, `/collections/kanji`: CRUD plus adding, removing and paging
-items). The practice and dictionary apps are standalone: never call shodoukan-api from
-here. Not built yet: customisation endpoints, exercises.
+items), dictionary entry and kanji details (`/dictionary/entries/{id}`,
+`/dictionary/kanji/{literal}`, ...), and customising library items (notes, enabling
+parts, own meanings, active, removal: `/library/entries/{id}/...`,
+`/library/kanji/{id}/...`). The practice and dictionary apps are standalone: never call
+shodoukan-api from here. Not built yet: exercises.
 
 ## Layout
 
@@ -28,7 +32,9 @@ here. Not built yet: customisation endpoints, exercises.
     `user_entity.py`, `collection_entity.py`, and `timestamped_entity.py`
     (`TimestampedEntity` with `touch()`).
   - `repositories/`: Protocol ports.
-  - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port.
+  - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port;
+    `gateways/kana_gateway.py`: `KanaGateway` (romaji/kana → both kana scripts).
+  - `searches/library_search.py`: library search criteria, match tiers and scopes.
   - `services/collection_service.py`: `ensure_combinable`.
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
@@ -38,12 +44,22 @@ here. Not built yet: customisation endpoints, exercises.
 - `application/commands/library_commands.py`: `ImportEntry`, `ImportKanji`
   (idempotent, return `ImportResult(item, created)`).
 - `application/commands/user_commands.py`: `EnsureUser` (creates the user on first use).
+- `application/commands/practice_entry_commands.py` / `practice_kanji_commands.py`:
+  customising one library item (`SetEntryNotes`, `SetEntryPartEnabled`,
+  `AddKanjiMeaning`, `RemoveEntryFromLibrary`, ...). Routes in
+  `api/routes/practice_entry_routes.py` / `practice_kanji_routes.py`.
 - `application/commands/collection_commands.py` / `queries/collection_queries.py`:
   collection use cases, one class per use case and kind (`CreateEntryCollection`,
-  `AddKanjiToCollection`, `ListEntryCollectionItems`, ...).
-- `application/queries/library_queries.py`: `GetImportStatus`, `ListLibraryEntries`,
-  `ListLibraryKanji` (return `LibraryPage(items, total, limit, offset)`);
-  `queries/dictionary_queries.py`: `SearchDictionary`.
+  `AddKanjiToCollection`, ...).
+- `application/queries/library_search_queries.py`: `SearchEntries`, `SearchKanji`
+  (every list of library items: the library, a collection's items, the picker; return
+  `LibraryPage(items, total, limit, offset)`), `build_search`, `resolve_scope`.
+  `domain/searches/library_search.py` holds what they run: `LibrarySearch`,
+  `MatchTier` and the scopes; the item repositories' `find` / `count` run it.
+- `application/queries/library_queries.py`: `GetImportStatus`, `LibraryPage`,
+  `GetLibraryEntry`, `ListCollectionsOfEntry` (and kanji);
+  `queries/dictionary_queries.py`: `SearchDictionary`, `GetDictionaryEntry`,
+  `GetDictionaryKanji`, `ListEntriesForKanji`, `ListKanjiForEntry`.
 - Dictionary read models (`DictionaryEntry`, `DictionarySearchResult`, ...) live with
   the port in `domain/gateways/dictionary_gateway.py`.
 - `api/`: `app.py` (maps `EntityNotFoundError` → 404, `CollectionNameTakenError` →
@@ -51,7 +67,7 @@ here. Not built yet: customisation endpoints, exercises.
   commit), `routes/*_routes.py`, `schemas/*_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
 - `infrastructure/dictionary/`: `ShodoukanDictionaryGateway` and `shodoukan_mapper.py`
-  (the anti-corruption layer). Wired in `api/deps.py` (cached `Dictionary()`).
+  (the anti-corruption layer), and `ShodoukanKanaGateway`. Wired in `api/deps.py` (cached `Dictionary()`).
 
 ## Domain rules specific to this app
 
@@ -70,9 +86,13 @@ here. Not built yet: customisation endpoints, exercises.
   initial migration).
 - Imports keep every language. Importing again returns the existing copy (`200`);
   `add_if_absent` uses a savepoint to handle concurrent duplicates.
-- Mutating methods so far: `Collection.rename` / `describe` and
-  `PracticeEntry` / `PracticeKanji.activate` / `deactivate`. Add new ones with their use
-  cases; each calls `touch()`.
+- Mutating methods: `Collection.rename` / `describe`; `PracticeEntry` /
+  `PracticeKanji`: `activate` / `deactivate`, `set_notes`, `set_enabled(part, id, …)`,
+  own meanings (`add_gloss` / `edit_gloss` / `remove_gloss`, `add_meaning` / ...),
+  `PracticeEntry.set_sense_notes`. Each calls `touch()` only on a real change.
+- Dictionary data in the library is never edited or deleted, only disabled
+  (`OriginalDataError` → 409); only the user's own meanings change. Readings can't be
+  added. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).
 
 ## Database
 

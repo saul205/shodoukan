@@ -28,11 +28,11 @@ const jlptLabel = computed(() =>
       </p>
 
       <div class="flex flex-wrap items-center gap-3 text-sm text-zinc-400">
-        <span v-if="kanji.on_readings.length">
-          On: {{ kanji.on_readings.join('、') }}
-        </span>
         <span v-if="kanji.kun_readings.length">
           Kun: {{ kanji.kun_readings.join('、') }}
+        </span>
+        <span v-if="kanji.on_readings.length">
+          On: {{ kanji.on_readings.join('、') }}
         </span>
       </div>
 

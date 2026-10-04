@@ -11,24 +11,34 @@ commit: the caller (the API route) owns the transaction. See
 
 ## Commands (`commands/library_commands.py`)
 
-### `ImportEntry(dictionary, entries).execute(user_id, source_entry_id)`
+### `ImportEntry(dictionary, entries, collections).execute(user_id, source_entry_id, collection_ids=())`
 
-Copies dictionary entry `source_entry_id` into the user's library.
+Copies dictionary entry `source_entry_id` into the user's library and, optionally,
+into some of the user's entry collections.
 
-1. If the user already has it (`entries.get_by_source_entry_id`), return it with
-   `created=False`. Nothing is written, and the dictionary isn't read.
-2. Otherwise ask the [dictionary gateway](../infrastructure/dictionary-gateway.md) for
+1. Look up every collection in `collection_ids` (duplicates ignored) scoped to the
+   user. A missing one, or another user's, raises `EntityNotFoundError` before
+   anything is read or written, so a failed request imports nothing.
+2. If the user already has the entry (`entries.get_by_source_entry_id`), take it with
+   `created=False`. The dictionary isn't read.
+3. Otherwise ask the [dictionary gateway](../infrastructure/dictionary-gateway.md) for
    a fresh snapshot. If there's none, raise `DictionaryItemNotFoundError`.
-3. Store it with `entries.add_if_absent`. If a concurrent request stored the same item
+4. Store it with `entries.add_if_absent`. If a concurrent request stored the same item
    in between, that copy is returned with `created=False`. See
    [repositories](../infrastructure/repositories.md#add_if_absent).
+5. Add the item to each collection (`collections.add_item`, idempotent). This also
+   happens when the item was already imported.
 
-Returns `ImportResult[PracticeEntry]` (`item`, `created`).
+Returns `ImportResult[PracticeEntry]` (`item`, `created`). Why collections are part
+of the import: [decisions](../decisions.md#importing-into-collections-is-one-request).
 
-### `ImportKanji(dictionary, kanji).execute(user_id, literal)`
+### `ImportKanji(dictionary, kanji, collections).execute(user_id, literal, collection_ids=())`
 
 Same flow for kanji, keyed by `literal` (`kanji.get_by_literal`,
-`dictionary.new_practice_kanji`).
+`dictionary.new_practice_kanji`), with kanji collections.
+
+The collection lookups (`entry_collection`, `kanji_collection`) live in
+`commands/collection_lookups.py`, shared with the collection commands below.
 
 ## Commands (`commands/collection_commands.py`)
 
@@ -63,6 +73,24 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
+## Commands (`commands/practice_entry_commands.py`, `commands/practice_kanji_commands.py`)
+
+Customising an item of the library. Each one loads the user's item with `get(id,
+user_id)` (`EntityNotFoundError` if it isn't theirs), calls one
+[domain method](../domain/entities.md#customisation-rules), stores it with `update`
+and returns the stored item, with ids for anything new.
+
+| Entry | Kanji | Does |
+|---|---|---|
+| `SetEntryActive` | `SetKanjiActive` | `activate()` / `deactivate()` |
+| `SetEntryNotes` | `SetKanjiNotes` | the general note |
+| `SetSenseNotes` | — | a sense's note |
+| `SetEntryPartEnabled` | `SetKanjiPartEnabled` | enable or disable one nested item |
+| `AddEntryGloss` | `AddKanjiMeaning` | add a meaning of the user's own |
+| `EditEntryGloss` | `EditKanjiMeaning` | change an own meaning's text (`OriginalDataError` for imported ones) |
+| `RemoveEntryGloss` | `RemoveKanjiMeaning` | remove an own meaning (`OriginalDataError` for imported ones) |
+| `RemoveEntryFromLibrary` | `RemoveKanjiFromLibrary` | `delete(item)`: the copy and its collection links go; returns nothing |
+
 ## Commands (`commands/user_commands.py`)
 
 ### `EnsureUser(users).execute(user_id, username)`
@@ -83,6 +111,22 @@ It returns the gateway's `DictionarySearchResult` read models. It needs no user:
 results are the same for everyone, and import status is
 [`GetImportStatus`](#getimportstatusentries-kanjiexecuteuser_id-source_entry_ids-literals).
 
+### `GetDictionaryEntry(dictionary).execute(entry_id)` / `GetDictionaryKanji(dictionary).execute(literal)`
+
+One entry or kanji for its detail page; `DictionaryItemNotFoundError` if the dictionary
+doesn't have it.
+
+### `ListEntriesForKanji(dictionary).execute(literal, limit, offset)`
+
+A `DictionaryEntryPage` of the words written with the kanji.
+`DictionaryItemNotFoundError` if the kanji doesn't exist, so a typo isn't shown as a
+kanji no word uses.
+
+### `ListKanjiForEntry(dictionary).execute(entry_id)`
+
+The kanji in the entry's spellings; `DictionaryItemNotFoundError` if the entry doesn't
+exist.
+
 ## Queries (`queries/library_queries.py`)
 
 ### `GetImportStatus(entries, kanji).execute(user_id, source_entry_ids, literals)`
@@ -94,13 +138,43 @@ are ignored, and an empty input skips the query. It uses the repositories' light
 lookups (`practice_ids_by_source_entry_id`, `practice_ids_by_literal`), which read two
 columns and load no snapshots.
 
-### `ListLibraryEntries(entries).execute(user_id, limit, offset, active=None)`
+### `GetLibraryEntry(entries).execute(user_id, entry_id)` / `GetLibraryKanji(kanji)`
 
-A page of the user's imported entries, most recently imported first, as
-`LibraryPage[PracticeEntry]` (`items`, `total`, `limit`, `offset`). Inactive entries
-are included unless `active` is given, so the library page can show and reactivate
-them. It's what the UI lists to pick items for a collection.
-`ListLibraryKanji(kanji)` likewise.
+One item of the user's library for its detail page; `EntityNotFoundError` if it isn't
+theirs.
+
+### `ListCollectionsOfEntry(entries, collections).execute(user_id, entry_id)` / `ListCollectionsOfKanji`
+
+The collections (tags) the item is in, by name (`list_for_item`).
+
+## Queries (`queries/library_search_queries.py`)
+
+Every list of library items is a search: the library page, a collection's items and
+the picker that adds items to a collection only differ in scope. See
+[decisions](../decisions.md#library-search-is-one-module-over-the-item-repositories).
+
+### `SearchEntries(entries, collections, kana).execute(user_id, text=None, meaning_lang=None, active=None, in_collection=None, not_in_collection=None, limit=20, offset=0)`
+
+A `LibraryPage[PracticeEntry]` (`items`, `total`, `limit`, `offset`) of the user's
+entries matching `text`, best match first; blank text lists the scope in its own order.
+
+| Scope | Items | Order without text |
+|---|---|---|
+| neither id | the library; inactive too unless `active` is given (the library page shows and reactivates them) | most recently imported first |
+| `in_collection` | the collection's items; inactive too unless `active` is given, as in the library (practice reads `item_ids`, which is active-only) | the order they were added |
+| `not_in_collection` | the library minus the collection's items: what the picker can still add | most recently imported first |
+
+The collection is loaded first (`GetEntryCollection`): `EntityNotFoundError` if it
+isn't the user's. Passing both ids is a `ValueError`. `SearchKanji(kanji, collections,
+kana)` likewise.
+
+Shared helpers:
+
+- `build_search(text, meaning_lang, active, kana)`: trims and lower-cases the text,
+  adds its kana forms through `KanaGateway` (romaji → kana, both scripts) and turns
+  blank text or language into `None`.
+- `resolve_scope(get_collection, in_collection, not_in_collection)`: the
+  `SearchScope` for the ids.
 
 ## Queries (`queries/collection_queries.py`)
 
@@ -112,8 +186,6 @@ The user's entry collections, ordered by name. `ListKanjiCollections` likewise.
 
 One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
 
-### `ListEntryCollectionItems(collections, entries).execute(user_id, collection_id, limit, offset)`
-
-A page of the collection's **active** items, in the order they were added
-(`list_by_collection`). `EntityNotFoundError` if the collection isn't the user's.
-`ListKanjiCollectionItems(collections, kanji)` likewise.
+A collection's items are listed (and searched) with
+[`SearchEntries` / `SearchKanji`](#queries-querieslibrary_search_queriespy) and
+`in_collection`.

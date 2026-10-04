@@ -38,6 +38,7 @@ packages/shodoukan-practice/
       entities/                       *_entity.py, one module per aggregate
       repositories/                   *_repository.py, Protocol ports
       gateways/                       *_gateway.py, ports to external sources
+      searches/                       library_search.py: search criteria, scopes, tiers
       services/                       *_service.py, pure business rules
     application/
       commands/                       *_commands.py, write use cases
@@ -47,7 +48,7 @@ packages/shodoukan-practice/
       db/orm/                         *_orm.py + base_orm.py
       db/mappers/                     *_mapper.py
       db/migrations/                  env.py, script.py.mako, versions/
-      repositories/                   sqlalchemy_*_repository.py
+      repositories/                   sqlalchemy_*_repository.py (+ sqlalchemy_library_search.py)
       dictionary/                     shodoukan gateway + anti-corruption mapper
     api/
       app.py                          FastAPI app, domain error → HTTP mapping

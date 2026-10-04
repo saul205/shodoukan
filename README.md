@@ -51,12 +51,20 @@ personal library, customises them, and groups them into collections (which doubl
 tags) to practise with. Built so far: the domain, PostgreSQL persistence, sign-in
 through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
 (`GET /dictionary/search`), and importing entries and kanji (`POST /library/entries`,
-`POST /library/kanji`), and grouping them into collections (`/collections/entries`,
-`/collections/kanji`). See the [practice app documentation](docs/practice/README.md).
+`POST /library/kanji`), grouping them into collections (`/collections/entries`,
+`/collections/kanji`), and searching the library and its collections (`q` on the list
+endpoints). See the [practice app documentation](docs/practice/README.md).
 
 ### Web interface *(planned)*
 
 Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
+
+### `shodoukan-practice-web` — Practice frontend *(in progress)*
+
+Nuxt 4 + Nuxt UI app for the practice API on <http://localhost:3001>: sign in with
+Keycloak, then search the dictionary and import, customise your library (meanings,
+notes, readings) and group it into collections. See the
+[frontend docs](docs/practice/technical/frontend.md).
 
 ---
 
@@ -141,6 +149,16 @@ uvicorn shodoukan_practice.api.app:app --port 8001 --reload
 
 Open <http://localhost:8001/docs> and click **Authorize** to sign in (local user
 `dev` / `dev`). See the [authentication docs](docs/practice/technical/api/authentication.md).
+
+### Practice frontend
+
+With the practice API and Keycloak running (above):
+
+```bash
+pnpm install
+pnpm --filter shodoukan-ui build               # shared components
+pnpm --filter shodoukan-practice-web dev       # http://localhost:3001 (sign in as dev / dev)
+```
 
 After changing an ORM model, create a migration and review it:
 

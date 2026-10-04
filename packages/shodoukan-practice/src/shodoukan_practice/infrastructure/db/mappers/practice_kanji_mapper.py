@@ -53,6 +53,7 @@ def practice_kanji_to_domain(row: PracticeKanjiORM) -> PracticeKanji:
             for m in row.meanings
         ],
         is_active=row.is_active,
+        notes=row.notes,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -91,6 +92,7 @@ def practice_kanji_to_db(entity: PracticeKanji) -> PracticeKanjiORM:
             for i, m in enumerate(entity.meanings)
         ],
         is_active=entity.is_active,
+        notes=entity.notes,
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     )

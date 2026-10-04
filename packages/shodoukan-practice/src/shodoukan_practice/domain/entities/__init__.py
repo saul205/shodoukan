@@ -4,7 +4,9 @@ from .collection_entity import (
     EntryCollection,
     KanjiCollection,
 )
+from .notes_value import NOTES_MAX_LENGTH, Notes
 from .practice_entry_entity import (
+    EntryPart,
     PracticeEntry,
     PracticeExample,
     PracticeExampleSentence,
@@ -14,6 +16,7 @@ from .practice_entry_entity import (
     PracticeSense,
 )
 from .practice_kanji_entity import (
+    KanjiPart,
     PracticeKanji,
     PracticeKanjiMeaning,
     PracticeReadingItem,
@@ -23,9 +26,13 @@ from .user_entity import User
 
 __all__ = [
     "COLLECTION_NAME_MAX_LENGTH",
+    "NOTES_MAX_LENGTH",
     "Collection",
     "EntryCollection",
+    "EntryPart",
     "KanjiCollection",
+    "KanjiPart",
+    "Notes",
     "PracticeEntry",
     "PracticeExample",
     "PracticeExampleSentence",
