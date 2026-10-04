@@ -65,7 +65,11 @@ class GetKanjiCollection:
 
 
 class ListEntryCollectionItems:
-    """A page of the active entries in a collection, in the order they were added."""
+    """A page of a collection's entries, in the order they were added.
+
+    Inactive ones are included unless `active` says otherwise, as in the
+    library, so the collection page can show and reactivate them.
+    """
 
     def __init__(
         self, collections: EntryCollectionRepository, entries: PracticeEntryRepository
@@ -74,19 +78,24 @@ class ListEntryCollectionItems:
         self._entries = entries
 
     def execute(
-        self, user_id: UUID, collection_id: int, limit: int = 20, offset: int = 0
+        self,
+        user_id: UUID,
+        collection_id: int,
+        limit: int = 20,
+        offset: int = 0,
+        active: bool | None = None,
     ) -> LibraryPage[PracticeEntry]:
         collection = self._get.execute(user_id, collection_id)
         return LibraryPage(
-            items=self._entries.list_by_collection(collection, limit, offset),
-            total=self._entries.count_by_collection(collection),
+            items=self._entries.list_by_collection(collection, limit, offset, active),
+            total=self._entries.count_by_collection(collection, active),
             limit=limit,
             offset=offset,
         )
 
 
 class ListKanjiCollectionItems:
-    """A page of the active kanji in a collection, in the order they were added."""
+    """A page of a collection's kanji (see `ListEntryCollectionItems`)."""
 
     def __init__(
         self, collections: KanjiCollectionRepository, kanji: PracticeKanjiRepository
@@ -95,12 +104,17 @@ class ListKanjiCollectionItems:
         self._kanji = kanji
 
     def execute(
-        self, user_id: UUID, collection_id: int, limit: int = 20, offset: int = 0
+        self,
+        user_id: UUID,
+        collection_id: int,
+        limit: int = 20,
+        offset: int = 0,
+        active: bool | None = None,
     ) -> LibraryPage[PracticeKanji]:
         collection = self._get.execute(user_id, collection_id)
         return LibraryPage(
-            items=self._kanji.list_by_collection(collection, limit, offset),
-            total=self._kanji.count_by_collection(collection),
+            items=self._kanji.list_by_collection(collection, limit, offset, active),
+            total=self._kanji.count_by_collection(collection, active),
             limit=limit,
             offset=offset,
         )

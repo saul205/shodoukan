@@ -58,7 +58,11 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
         return self._session.scalar(query.select_from(PracticeKanjiORM)) or 0
 
     def list_by_collection(
-        self, collection: KanjiCollection, limit: int, offset: int
+        self,
+        collection: KanjiCollection,
+        limit: int,
+        offset: int,
+        active: bool | None = None,
     ) -> list[PracticeKanji]:
         query = (
             self._select()
@@ -66,18 +70,16 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
                 kanji_collection_items,
                 kanji_collection_items.c.kanji_id == PracticeKanjiORM.id,
             )
-            .where(
-                kanji_collection_items.c.collection_id == collection.id,
-                PracticeKanjiORM.user_id == collection.user_id,
-                PracticeKanjiORM.is_active.is_(True),
-            )
+            .where(*self._collection_filter(collection, active))
             .order_by(kanji_collection_items.c.added_at, PracticeKanjiORM.id)
             .limit(limit)
             .offset(offset)
         )
         return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
 
-    def count_by_collection(self, collection: KanjiCollection) -> int:
+    def count_by_collection(
+        self, collection: KanjiCollection, active: bool | None = None
+    ) -> int:
         query = (
             select(func.count())
             .select_from(PracticeKanjiORM)
@@ -85,11 +87,7 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
                 kanji_collection_items,
                 kanji_collection_items.c.kanji_id == PracticeKanjiORM.id,
             )
-            .where(
-                kanji_collection_items.c.collection_id == collection.id,
-                PracticeKanjiORM.user_id == collection.user_id,
-                PracticeKanjiORM.is_active.is_(True),
-            )
+            .where(*self._collection_filter(collection, active))
         )
         return self._session.scalar(query) or 0
 
@@ -154,6 +152,18 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
     @staticmethod
     def _user_filter(user_id: UUID, active: bool | None) -> list[ColumnElement[bool]]:
         conditions = [PracticeKanjiORM.user_id == user_id]
+        if active is not None:
+            conditions.append(PracticeKanjiORM.is_active.is_(active))
+        return conditions
+
+    @staticmethod
+    def _collection_filter(
+        collection: KanjiCollection, active: bool | None
+    ) -> list[ColumnElement[bool]]:
+        conditions: list[ColumnElement[bool]] = [
+            kanji_collection_items.c.collection_id == collection.id,
+            PracticeKanjiORM.user_id == collection.user_id,
+        ]
         if active is not None:
             conditions.append(PracticeKanjiORM.is_active.is_(active))
         return conditions

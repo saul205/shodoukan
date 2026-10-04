@@ -60,7 +60,7 @@ def test_get_another_users_collection_is_not_found(
         GetEntryCollection(collections).execute(other_user.id, verbs.id)
 
 
-def test_list_items_pages_through_active_entries(
+def test_list_items_pages_through_entries_and_filters_by_active(
     collections: SqlAlchemyEntryCollectionRepository,
     session: Session,
     user: UserORM,
@@ -68,17 +68,23 @@ def test_list_items_pages_through_active_entries(
     entries = SqlAlchemyPracticeEntryRepository(session)
     verbs = collections.add(make_entry_collection(user.id))
     first = entries.add(make_entry(user.id, 1))
-    second = entries.add(make_entry(user.id, 2))
-    inactive = entries.add(make_entry(user.id, 3, is_active=False))
-    for item in (first, second, inactive):
+    inactive = entries.add(make_entry(user.id, 2, is_active=False))
+    third = entries.add(make_entry(user.id, 3))
+    for item in (first, inactive, third):
         collections.add_item(verbs, item)
     assert verbs.id is not None
 
     query = ListEntryCollectionItems(collections, entries)
 
     first_page = query.execute(user.id, verbs.id, limit=1)
-    assert (first_page.items, first_page.total) == ([first], 2)  # inactive skipped
-    assert query.execute(user.id, verbs.id, limit=10, offset=1).items == [second]
+    assert (first_page.items, first_page.total) == ([first], 3)
+    assert query.execute(user.id, verbs.id, limit=10, offset=1).items == [
+        inactive,
+        third,
+    ]
+    active = query.execute(user.id, verbs.id, active=True)
+    assert (active.items, active.total) == ([first, third], 2)
+    assert query.execute(user.id, verbs.id, active=False).items == [inactive]
 
 
 def test_list_items_of_another_users_collection_is_not_found(

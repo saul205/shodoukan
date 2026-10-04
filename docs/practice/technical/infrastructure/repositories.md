@@ -92,8 +92,8 @@ Membership is read and written directly on the link tables:
 - `add_item` checks `item.user_id == collection.user_id`, skips the insert if the
   link exists, and stamps `added_at = utc_now()`.
 - `remove_item` deletes the link if present.
-- `list_by_collection` (on the item repositories) joins the link table, keeps active
-  items only, orders by `added_at, id`, and applies `LIMIT/OFFSET` in SQL.
+- `list_by_collection` (on the item repositories) joins the link table, filters by
+  `active` when given, orders by `added_at, id`, and applies `LIMIT/OFFSET` in SQL.
 - `item_ids` returns `SELECT DISTINCT` item ids of active items across the given
   collections.
 - `list_for_item` joins the link table to return an item's collections by name.

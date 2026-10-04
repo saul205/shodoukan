@@ -27,12 +27,22 @@ class PracticeKanjiRepository(Protocol):
         ...
 
     def list_by_collection(
-        self, collection: KanjiCollection, limit: int, offset: int
+        self,
+        collection: KanjiCollection,
+        limit: int,
+        offset: int,
+        active: bool | None = None,
     ) -> list[PracticeKanji]:
-        """Active kanji in the collection, paginated in the database."""
+        """The collection's kanji in the order they were added, paginated in SQL.
+
+        `active` keeps only active (`True`) or inactive (`False`) ones; `None`
+        keeps all.
+        """
         ...
 
-    def count_by_collection(self, collection: KanjiCollection) -> int:
+    def count_by_collection(
+        self, collection: KanjiCollection, active: bool | None = None
+    ) -> int:
         """How many items `list_by_collection` pages through."""
         ...
 

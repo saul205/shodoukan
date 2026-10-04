@@ -67,7 +67,11 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         return self._session.scalar(query.select_from(PracticeEntryORM)) or 0
 
     def list_by_collection(
-        self, collection: EntryCollection, limit: int, offset: int
+        self,
+        collection: EntryCollection,
+        limit: int,
+        offset: int,
+        active: bool | None = None,
     ) -> list[PracticeEntry]:
         query = (
             self._select()
@@ -75,18 +79,16 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
                 entry_collection_items,
                 entry_collection_items.c.entry_id == PracticeEntryORM.id,
             )
-            .where(
-                entry_collection_items.c.collection_id == collection.id,
-                PracticeEntryORM.user_id == collection.user_id,
-                PracticeEntryORM.is_active.is_(True),
-            )
+            .where(*self._collection_filter(collection, active))
             .order_by(entry_collection_items.c.added_at, PracticeEntryORM.id)
             .limit(limit)
             .offset(offset)
         )
         return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
 
-    def count_by_collection(self, collection: EntryCollection) -> int:
+    def count_by_collection(
+        self, collection: EntryCollection, active: bool | None = None
+    ) -> int:
         query = (
             select(func.count())
             .select_from(PracticeEntryORM)
@@ -94,11 +96,7 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
                 entry_collection_items,
                 entry_collection_items.c.entry_id == PracticeEntryORM.id,
             )
-            .where(
-                entry_collection_items.c.collection_id == collection.id,
-                PracticeEntryORM.user_id == collection.user_id,
-                PracticeEntryORM.is_active.is_(True),
-            )
+            .where(*self._collection_filter(collection, active))
         )
         return self._session.scalar(query) or 0
 
@@ -166,6 +164,18 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
     @staticmethod
     def _user_filter(user_id: UUID, active: bool | None) -> list[ColumnElement[bool]]:
         conditions = [PracticeEntryORM.user_id == user_id]
+        if active is not None:
+            conditions.append(PracticeEntryORM.is_active.is_(active))
+        return conditions
+
+    @staticmethod
+    def _collection_filter(
+        collection: EntryCollection, active: bool | None
+    ) -> list[ColumnElement[bool]]:
+        conditions: list[ColumnElement[bool]] = [
+            entry_collection_items.c.collection_id == collection.id,
+            PracticeEntryORM.user_id == collection.user_id,
+        ]
         if active is not None:
             conditions.append(PracticeEntryORM.is_active.is_(active))
         return conditions

@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** `GET /collections/{entries,kanji}/{id}/items` takes `active`
+  like the library listings. Without it, deactivated items are now listed too (they
+  used to be hidden).
 - **shodoukan-practice:** `POST /library/entries` and `POST /library/kanji` take
   optional `collection_ids` to import an item straight into collections, in one
   transaction: an unknown collection imports nothing.

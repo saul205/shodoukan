@@ -94,7 +94,7 @@ def test_remove_item(
     assert repo.item_ids([collection]) == set()
 
 
-def test_list_by_collection_paginates_and_skips_inactive(
+def test_list_by_collection_paginates_and_filters_by_active(
     session: Session,
     repo: SqlAlchemyKanjiCollectionRepository,
     user: UserORM,
@@ -105,11 +105,13 @@ def test_list_by_collection_paginates_and_skips_inactive(
         repo.add_item(collection, item)
     item_repo = SqlAlchemyPracticeKanjiRepository(session)
 
-    first = item_repo.list_by_collection(collection, limit=1, offset=0)
-    rest = item_repo.list_by_collection(collection, limit=10, offset=1)
+    first = item_repo.list_by_collection(collection, limit=1, offset=0, active=True)
+    rest = item_repo.list_by_collection(collection, limit=10, offset=1, active=True)
+    every = item_repo.list_by_collection(collection, limit=10, offset=0)
 
     assert first == [items[0]]
     assert rest == [items[1]]
+    assert every == items
 
 
 def test_list_for_item_returns_its_collections(

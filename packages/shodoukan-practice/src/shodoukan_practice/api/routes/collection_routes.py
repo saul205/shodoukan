@@ -69,6 +69,12 @@ _NAME_TAKEN: dict[int | str, dict[str, Any]] = {
 
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]
+Active = Annotated[
+    bool | None,
+    Query(
+        description="Only active (`true`) or inactive (`false`) items; all if omitted."
+    ),
+]
 
 entry_router = APIRouter(
     prefix="/collections/entries",
@@ -178,9 +184,10 @@ def list_entry_collection_items(
     ],
     limit: Limit = 20,
     offset: Offset = 0,
+    active: Active = None,
 ) -> PracticeEntryPageResponse:
-    """A page of the collection's active entries, in the order they were added."""
-    page = use_case.execute(user.id, collection_id, limit, offset)
+    """A page of the collection's entries, in the order they were added."""
+    page = use_case.execute(user.id, collection_id, limit, offset, active)
     session.commit()
     return PracticeEntryPageResponse.model_validate(page)
 
@@ -317,9 +324,10 @@ def list_kanji_collection_items(
     ],
     limit: Limit = 20,
     offset: Offset = 0,
+    active: Active = None,
 ) -> PracticeKanjiPageResponse:
-    """A page of the collection's active kanji, in the order they were added."""
-    page = use_case.execute(user.id, collection_id, limit, offset)
+    """A page of the collection's kanji, in the order they were added."""
+    page = use_case.execute(user.id, collection_id, limit, offset, active)
     session.commit()
     return PracticeKanjiPageResponse.model_validate(page)
 

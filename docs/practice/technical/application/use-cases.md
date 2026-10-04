@@ -165,8 +165,11 @@ The user's entry collections, ordered by name. `ListKanjiCollections` likewise.
 
 One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
 
-### `ListEntryCollectionItems(collections, entries).execute(user_id, collection_id, limit, offset)`
+### `ListEntryCollectionItems(collections, entries).execute(user_id, collection_id, limit, offset, active=None)`
 
-A `LibraryPage` of the collection's **active** items, in the order they were added
-(`list_by_collection`), with their `total` (`count_by_collection`). `EntityNotFoundError` if the collection isn't the user's.
+A `LibraryPage` of the collection's items, in the order they were added
+(`list_by_collection`), with their `total` (`count_by_collection`). Like the library,
+inactive ones are included unless `active` is `True` (only active) or `False` (only
+inactive), so the collection page can show and reactivate them. `EntityNotFoundError`
+if the collection isn't the user's.
 `ListKanjiCollectionItems(collections, kanji)` likewise.

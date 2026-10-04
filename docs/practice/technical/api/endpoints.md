@@ -262,9 +262,10 @@ import), not dictionary ids.
 replaces both fields, so an omitted `description` clears it. `CollectionResponse`:
 `id`, `name`, `description`, `created_at`, `updated_at`.
 
-`GET .../items` takes `limit` (1–100, default `20`) and `offset` (≥ 0, default `0`) and
-returns a page of the active items in the order they were added, with the `total` of
-active items, the same shape as `GET /library/entries`.
+`GET .../items` takes `limit` (1–100, default `20`), `offset` (≥ 0, default `0`) and
+`active` (`true` only active items, `false` only deactivated ones; all if omitted, as
+in the library) and returns a page of the items in the order they were added, with
+their `total`, the same shape as `GET /library/entries`.
 
 | Status | When |
 |---|---|

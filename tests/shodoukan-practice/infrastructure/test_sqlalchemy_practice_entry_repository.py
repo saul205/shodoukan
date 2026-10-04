@@ -185,7 +185,7 @@ def test_delete_of_another_users_item_fails(
     assert repo.get(item.id, user.id) is not None
 
 
-def test_count_by_collection_counts_active_items(
+def test_count_by_collection_filters_by_active(
     repo: SqlAlchemyPracticeEntryRepository, user: UserORM, session: Session
 ) -> None:
     collections = SqlAlchemyEntryCollectionRepository(session)
@@ -193,7 +193,9 @@ def test_count_by_collection_counts_active_items(
     collections.add_item(collection, repo.add(make_entry(user.id, 1)))
     collections.add_item(collection, repo.add(make_entry(user.id, 2, is_active=False)))
 
-    assert repo.count_by_collection(collection) == 1
+    assert repo.count_by_collection(collection) == 2
+    assert repo.count_by_collection(collection, active=True) == 1
+    assert repo.count_by_collection(collection, active=False) == 1
 
 
 def test_update_persists_added_edited_and_removed_meanings(

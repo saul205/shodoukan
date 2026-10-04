@@ -37,8 +37,8 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 | `get_many(ids, user_id)` | the user's items among `ids`, ordered by id |
 | `list_for_user(user_id, limit, offset, active=None)` | the user's items, most recently imported first (`created_at`, then `id`, descending), paginated; `active` keeps only active or inactive ones, `None` keeps all |
 | `count_for_user(user_id, active=None)` | how many items `list_for_user` pages through |
-| `list_by_collection(collection, limit, offset)` | active items in the collection, in the order they were added, paginated |
-| `count_by_collection(collection)` | how many items `list_by_collection` pages through |
+| `list_by_collection(collection, limit, offset, active=None)` | items in the collection, in the order they were added, paginated; `active` keeps only active or inactive ones, `None` keeps all |
+| `count_by_collection(collection, active=None)` | how many items `list_by_collection` pages through |
 | `get_by_source_entry_id(source_entry_id, user_id)` / `get_by_literal(literal, user_id)` | the user's copy of that dictionary item, or `None` |
 | `practice_ids_by_source_entry_id(source_entry_ids, user_id)` / `practice_ids_by_literal(literals, user_id)` | `{source_entry_id or literal: practice id}` for the ones the user has imported; reads two columns, no snapshot |
 | `add(item)` | the stored item, with ids for it and every nested part |

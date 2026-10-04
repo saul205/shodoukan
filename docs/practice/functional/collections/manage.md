@@ -30,8 +30,9 @@ There are two kinds, and they never mix:
   something that's already there, or removing something that isn't, changes nothing,
   so a double click or a retry is safe.
 - **Browse** a collection's items, page by page, in the order they were added.
-  Items the user has deactivated are hidden from the collection but stay in it, and
-  reappear when reactivated.
+  Deactivated items are listed too, marked as inactive, so the user can find and
+  reactivate them; the list can be narrowed to only active or only deactivated items,
+  as in the library. Practice only uses the active ones.
 
 Only items in the library can be in a collection. A dictionary word that isn't
 imported yet can be put in a collection directly: it's imported and added in one go,
