@@ -2,8 +2,9 @@
 
 [← Functional documentation](../README.md)
 
-How a user practises the words and kanji of their collections. Saving exercises is
-built; playing them and their history come in the next phases (see the
+How a user practises the words and kanji of their collections. Saving exercises and
+running sessions are built in the practice API; the screens to create and play them,
+and the history, come in the next phases (see the
 [design](../../technical/exercises.md#phases)).
 
 ## What an exercise is
@@ -44,7 +45,11 @@ Each question uses one of the chosen directions at random.
 The user also chooses what the **back** of the card shows once answered, besides the
 question and its answer: for example the reading and the meaning.
 
-## Playing a choice card (next phases)
+## Playing a choice card
+
+Starting an exercise creates a **session**: a set of questions (10 by default, or
+every item once), each about a different item of the collections, picked at random.
+Meanings are shown in the language chosen in the sidebar.
 
 1. A random active item from the collection is shown with the fields of the
    direction.
@@ -70,6 +75,15 @@ question has fewer options.
 
 Only active items with enabled parts are used: a reading or meaning the user hid isn't
 shown or asked, and a word with no kanji isn't asked for its writing.
+
+**A word is asked by its usual form.** Words often have variant spellings or
+readings (山 also read ヤマ, 川 also がわ). The card asks and offers only the first one
+the user has enabled, which is the usual one; the back of the card shows them all. To
+be asked another form, disable the first one in the library. Kanji are different: each
+on'yomi and kun'yomi is worth learning, so any of them can be asked.
+
+Each question is answered once. The session ends when the last one is answered, and
+it can be resumed until then.
 
 ## History (next phases)
 
@@ -101,7 +115,8 @@ a collection of someone else's can't be used.
 | The exercise or the collection doesn't exist, isn't the user's, or is of the other kind (a word collection in a kanji exercise) | Rejected as not found |
 | A field that doesn't exist for the item kind, a direction that asks for a field it shows, or a repeated direction | Rejected as invalid |
 | No directions, or no collection | Rejected as invalid |
-| The collection has fewer than 2 usable items (next phases) | The session can't start |
+| The collections have fewer than 2 usable items (active, with the fields the exercise asks), or the exercise has no collection left | The session can't start |
+| A question is answered again | Rejected; the first answer counts |
 
 Technical details: [exercises design](../../technical/exercises.md) and
 [endpoints](../../technical/api/endpoints.md#exercises).

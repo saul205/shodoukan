@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Exercise sessions: `POST /exercises/{id}/sessions` builds
+  choice-card questions from the active items of the exercise's collections, and
+  `POST /exercise-sessions/{id}/questions/{qid}/answer` grades them; `GET
+  /exercise-sessions/{id}` reads a session back. A wrong option is never also a right
+  answer (shared readings, homophones, synonyms, katakana/hiragana), words are asked by
+  their usual form, and solutions stay hidden until answered. Sessions keep a snapshot
+  of every question for history and statistics.
 - **shodoukan-practice:** Saved exercises (`/exercises`: create, list, get, replace,
   delete). An exercise studies words or kanji from the user's collections; its
   settings are a choice card with directions (fields shown → field asked), back-of-card

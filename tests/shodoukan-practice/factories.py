@@ -5,9 +5,12 @@ from uuid import UUID
 
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
+    ChoiceOption,
     Direction,
     EntryCollection,
     EntryExercise,
+    ExerciseQuestion,
+    ExerciseSession,
     KanjiCollection,
     KanjiExercise,
     PracticeEntry,
@@ -20,6 +23,7 @@ from shodoukan_practice.domain.entities import (
     PracticeReading,
     PracticeReadingItem,
     PracticeSense,
+    ShownField,
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -251,6 +255,59 @@ def make_kanji_exercise(
             (("kunyomi",), "literal"),
             back_fields=["meaning"],
         ),
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def make_question(
+    position: int, item_id: int | None = None, question_id: int | None = None
+) -> ExerciseQuestion:
+    """Literal → kun'yomi for 食; option 0 is right."""
+    return ExerciseQuestion(
+        id=question_id,
+        position=position,
+        item_id=item_id,
+        prompt_fields=("literal",),
+        answer_field="kunyomi",
+        prompt=(ShownField(field="literal", values=("食",)),),
+        options=(
+            ChoiceOption(text="た.べる", item_id=item_id),
+            ChoiceOption(text="みず", item_id=None),
+            ChoiceOption(text="やま", item_id=None),
+        ),
+        correct_option=0,
+        back=(
+            ShownField(field="literal", values=("食",)),
+            ShownField(field="kunyomi", values=("た.べる", "く.う")),
+        ),
+    )
+
+
+def make_session(
+    user_id: UUID,
+    exercise_id: int | None = None,
+    questions: int = 1,
+    item_ids: tuple[int | None, ...] = (),
+    *,
+    stored: bool = True,
+) -> ExerciseSession:
+    """A kanji session; question ids are 1..n when `stored`, else None."""
+    return ExerciseSession(
+        id=None,
+        user_id=user_id,
+        exercise_id=exercise_id,
+        exercise_name="N5 kanji",
+        item_kind="kanji",
+        meaning_lang="en",
+        questions=[
+            make_question(
+                i,
+                item_ids[i] if i < len(item_ids) else None,
+                i + 1 if stored else None,
+            )
+            for i in range(questions)
+        ],
         created_at=NOW,
         updated_at=NOW,
     )

@@ -20,10 +20,12 @@ the library (`GET /library/entries`, `GET /library/kanji`, paged with a total; `
 items), dictionary entry and kanji details (`/dictionary/entries/{id}`,
 `/dictionary/kanji/{literal}`, ...), and customising library items (notes, enabling
 parts, own meanings, active, removal: `/library/entries/{id}/...`,
-`/library/kanji/{id}/...`), and saved exercise definitions (`/exercises`: CRUD;
-design in `docs/practice/technical/exercises.md`). The practice and dictionary apps are
-standalone: never call shodoukan-api from here. Not built yet: exercise sessions
-(question generation, answers, history).
+`/library/kanji/{id}/...`), saved exercise definitions (`/exercises`: CRUD) and
+exercise sessions (`POST /exercises/{id}/sessions`, `/exercise-sessions/{id}`:
+questions built and graded on the server); design in
+`docs/practice/technical/exercises.md`. The practice and dictionary apps are
+standalone: never call shodoukan-api from here. Not built yet: session history and
+statistics queries.
 
 ## Layout
 
@@ -31,13 +33,17 @@ standalone: never call shodoukan-api from here. Not built yet: exercise sessions
 
 - `domain/`
   - `entities/`: `practice_entry_entity.py`, `practice_kanji_entity.py`,
-    `user_entity.py`, `collection_entity.py`, `exercise_entity.py`, and
-    `timestamped_entity.py` (`TimestampedEntity` with `touch()`).
+    `user_entity.py`, `collection_entity.py`, `exercise_entity.py`,
+    `exercise_session_entity.py`, and `timestamped_entity.py` (`TimestampedEntity`
+    with `touch()`).
   - `repositories/`: Protocol ports.
   - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port;
     `gateways/kana_gateway.py`: `KanaGateway` (romaji/kana → both kana scripts).
   - `searches/library_search.py`: library search criteria, match tiers and scopes.
-  - `services/collection_service.py`: `ensure_combinable`.
+  - `services/collection_service.py`: `ensure_combinable`;
+    `services/study_field_service.py` (field values and comparison keys) and
+    `services/choice_question_service.py` (`build_choice_questions`, the distractor
+    rule).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`
@@ -56,6 +62,10 @@ standalone: never call shodoukan-api from here. Not built yet: exercise sessions
 - `application/commands/exercise_commands.py` / `queries/exercise_queries.py`:
   `CreateExercise`, `UpdateExercise`, `DeleteExercise`, `ListExercises`, `GetExercise`.
   Routes in `api/routes/exercise_routes.py`.
+- `application/commands/exercise_session_commands.py` /
+  `queries/exercise_session_queries.py`: `StartExerciseSession` (takes an optional
+  `random.Random`), `AnswerExerciseQuestion`, `GetExerciseSession`. Routes in
+  `api/routes/exercise_session_routes.py`.
 - `application/queries/library_search_queries.py`: `SearchEntries`, `SearchKanji`
   (every list of library items: the library, a collection's items, the picker; return
   `LibraryPage(items, total, limit, offset)`), `build_search`, `resolve_scope`.
@@ -68,7 +78,8 @@ standalone: never call shodoukan-api from here. Not built yet: exercise sessions
 - Dictionary read models (`DictionaryEntry`, `DictionarySearchResult`, ...) live with
   the port in `domain/gateways/dictionary_gateway.py`.
 - `api/`: `app.py` (maps `EntityNotFoundError` → 404, `CollectionNameTakenError` →
-  409, Pydantic `ValidationError` from a use case → 422), `auth.py`
+  409, `QuestionAnsweredError` → 409, `ExercisePoolTooSmallError` /
+  `InvalidAnswerError` / Pydantic `ValidationError` from a use case → 422), `auth.py`
   (`TokenVerifier`), `deps.py` (one session per request; routes commit),
   `routes/*_routes.py`, `schemas/*_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
@@ -102,6 +113,11 @@ standalone: never call shodoukan-api from here. Not built yet: exercise sessions
   by the domain (`ChoiceCardSettings`, keyed by `type`). `collection_ids` lives on the
   entity and is stored in one link table per kind; collection ids are looked up among
   the user's collections of the exercise's kind.
+- Exercise sessions (`ExerciseSession`) are the statistics store: each question is a
+  snapshot (prompt, options, back) plus the answer. Sessions and questions outlive
+  their exercise and items (`SET NULL`). A distractor is never a valid answer (see
+  `choice_question_service`); a word is asked by its first enabled spelling/reading.
+  Unanswered questions hide their solution in the API.
 - Dictionary data in the library is never edited or deleted, only disabled
   (`OriginalDataError` → 409); only the user's own meanings change. Readings can't be
   added. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).

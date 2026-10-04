@@ -348,3 +348,21 @@ by one without "to " or parentheses). Shared on'yomi, homophones and synonyms ar
 common, and an option that is "wrong" but actually right would teach the wrong thing
 and spoil statistics. A question with fewer options is preferred over an ambiguous
 one. Details: [exercises](exercises.md#distractors-a-wrong-option-must-never-be-right).
+
+## A word is asked by its usual form
+
+A word's other spellings and readings are mostly variants (ヤマ for やま, がわ for かわ,
+聴く for 聞く). Asking or offering one at random made odd forms the "right" answer,
+so only the first enabled spelling and reading of a word are asked, offered and shown
+on the card front; the back shows them all, and all are still compared for
+ambiguity. The dictionary lists the usual form first, and disabling it in the library
+picks the next. A kanji's readings are different things to learn, so any enabled one
+can be asked.
+
+## Session solutions are hidden until answered
+
+Questions are sent when the session starts, so the client can show them without a
+request per card. Their solution (the item, the right option, the back, the options'
+items) is left out of the response until the question is answered: the right option
+would otherwise be one look at the network tab away, and an option's item id would
+give it away. Grading happens on the server either way.

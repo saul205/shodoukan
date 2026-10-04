@@ -73,7 +73,8 @@ same name in folders that aren't packages.
 - Helper modules next to `conftest.py`:
   - `factories.py`: `USER_ID` / `OTHER_USER_ID` (fixed UUIDs), `make_entry`,
     `make_kanji`, `make_*_collection`, `make_entry_exercise` / `make_kanji_exercise`,
-    `choice_settings((prompt, answer), ...)`, `NOW`, and
+    `choice_settings((prompt, answer), ...)`, `make_session` / `make_question`, `NOW`,
+    and
     `TIMESTAMPS` for ORM rows built directly;
   - `tokens.py`: `ISSUER`, `DEFAULT_SUBJECT`, `TokenFactory`, `bearer(token)`.
 

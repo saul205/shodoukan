@@ -85,9 +85,14 @@ the kanji or its kun'yomi, never an on'yomi.
   - entry: the glosses of the first sense with glosses in that language, joined with
     "; ";
   - kanji: its meanings in that language, joined with ", ".
-- A field can have several values (two kun'yomi, two spellings). On the **front** all
-  of them are shown. As the **answer** one is picked at random, and only that one is
-  offered.
+- A field can have several values (two kun'yomi, two spellings). Every value is
+  compared (see below) and shown on the **back**.
+  - **Kanji readings:** each is worth learning, so the asked value is picked at
+    random among the enabled ones, and the front shows all of them.
+  - **A word's spellings and readings:** the others are variants of the usual form
+    (ヤマ for やま, がわ for かわ, 聴く for 聞く), so only the **first enabled** one is
+    asked, offered as an option and shown on the front. The dictionary lists the usual
+    form first; disabling it in the library makes the next one the asked form.
 - An item that has no value for a field (a kana-only word has no `writing`, a kanji
   with no kun'yomi) isn't used for directions that need that field.
 
@@ -169,12 +174,15 @@ is normalized so single parts can be toggled). Deleting a collection removes it 
 every exercise; an exercise left with no collections stays, but can't start a session
 until it gets one.
 
-### Sessions and answers (phase 2)
+### Sessions and answers (built)
 
 | Table | Columns |
 |---|---|
-| `exercise_sessions` | `id`, `user_id`, `exercise_id` (→ `exercises`, `SET NULL` on delete, so history survives), `exercise_name` and `settings` (snapshots), `item_kind`, `meaning_lang`, `started_at`, `finished_at` |
-| `exercise_questions` | `id`, `session_id` (cascade), `position`, `item_kind`, `item_id` (`SET NULL` if the item is removed from the library), `prompt_fields`, `answer_field`, `prompt` / `options` / `back` (JSON snapshot), `correct_option`, `answer` (JSON, null until answered), `is_correct`, `answered_at`, `response_ms` |
+| `exercise_sessions` | `id`, `user_id`, `exercise_id` (→ `exercises`, `SET NULL` on delete, so history survives), `exercise_name` (snapshot), `item_kind`, `meaning_lang`, `created_at` (the start), `updated_at`, `finished_at` |
+| `exercise_questions` | `id`, `session_id` (cascade), `position`, `entry_id` / `kanji_id` (one of them, by the session's kind; `SET NULL` when the item leaves the library), `prompt_fields`, `answer_field`, `prompt` / `options` / `back` (JSON snapshot), `correct_option`, `answer` (JSON, SQL `NULL` until answered), `is_correct`, `answered_at`, `response_ms` |
+
+Each option keeps the id of the item it came from, for opening its detail from the
+review; that id isn't updated if the item is later removed.
 
 The queryable columns (`item_id`, `answer_field`, `is_correct`, `answered_at`, ...) are
 what statistics filter and group by. `answer` is a discriminated union like
@@ -198,14 +206,16 @@ edited or deleted.
 
 Details: [endpoints](api/endpoints.md#exercises).
 
-### Sessions (phase 2)
+### Sessions (built)
 
 | Method | Route | Body / result |
 |---|---|---|
-| `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its questions, **without** the correct option or the back |
-| `POST` | `/exercise-sessions/{id}/questions/{question_id}/answer` | `{type: "option", option, response_ms}` → `{is_correct, correct_option, back}` |
-| `GET` | `/exercise-sessions/{id}` | The whole session, for review (answered questions include their solution) |
-| `GET` | `/exercises/{id}/sessions` | History: one row per session with its score |
+| `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its questions, **without** the solution (item, correct option, back) |
+| `POST` | `/exercise-sessions/{id}/questions/{question_id}/answer` | `{answer: {type: "option", option}, response_ms}` → the graded question with its solution, the score and `finished_at` |
+| `GET` | `/exercise-sessions/{id}` | The whole session, to go on playing or review it (answered questions include their solution) |
+| `GET` | `/exercises/{id}/sessions` | History, one row per session with its score (phase 5) |
+
+Details: [endpoints](api/endpoints.md#exercise-sessions).
 
 The server generates the questions and grades the answers, so statistics don't depend
 on the client and library-wide distractors (later) need no paging in the browser.
@@ -244,12 +254,14 @@ Options:                         Options:
 ## Phases
 
 Branches: `saul205/27_add-the-interactive-exercises-to-the-practice-app` is the
-umbrella; each phase is a branch off it and merges back with a PR.
+umbrella. The choice card (#28) is `saul205/28_select-between-x-options-exercise`:
+phase 1 was built on it, and each later phase is a branch off it
+(`saul205/<issue>_<description>`) that merges back with a PR.
 
 | # | Phase | Scope |
 |---|---|---|
 | 1 | Exercise definitions (backend) **(built)** | Entity, settings union, storage, CRUD use cases and routes |
-| 2 | Exercise sessions (backend) | Field reading and comparison keys, question builder with the distractor rule, sessions and answers storage, session routes |
+| 2 | Exercise sessions (backend) **(built)** | Field reading and comparison keys, question builder with the distractor rule, sessions and answers storage, session routes |
 | 3 | Exercise list and creation (frontend) | Exercises pages, `ExerciseForm`, `DirectionsEditor`, one collection |
 | 4 | Playing a choice session (frontend) | `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
 | 5 | History and review (statistics) | Session history per exercise, reviewing a past session, accuracy per item |

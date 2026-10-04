@@ -128,3 +128,11 @@ with the same `(exercise_id, collection_id)` are updated (their `position`), new
 inserted, missing ones deleted. `update` and `delete` check that the stored exercise
 belongs to the same user (`EntityNotFoundError` otherwise). A deleted collection drops
 out of its exercises through the FK cascade, with no repository code.
+
+## Exercise sessions
+
+`SqlAlchemyExerciseSessionRepository` loads a session with its questions
+(`selectinload`). `add` inserts the session and its questions in one flush; `update`
+merges the session, so answered questions are updated in place (they keep their ids).
+Removing an item or an exercise sets the questions' and sessions' references to NULL
+in the database (`SET NULL`), with no repository code.

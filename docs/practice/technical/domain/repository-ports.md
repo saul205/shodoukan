@@ -90,6 +90,14 @@ and the user still needs to find the item to manage it.
 | `update(exercise)` | replaces its fields and collections; `EntityNotFoundError` if missing or another user's |
 | `delete(exercise)` | removes the exercise and its collection links; the collections stay |
 
+## `ExerciseSessionRepository`
+
+| Method | Returns / behavior |
+|---|---|
+| `get(id, user_id)` | the session with its questions, or `None` |
+| `add(session)` | the stored session; its questions get their ids |
+| `update(session)` | stores the answers given; `EntityNotFoundError` if missing or another user's |
+
 ## `DictionaryGateway`
 
 Read-only access to the shodoukan dictionary. It returns **fresh practice entities**

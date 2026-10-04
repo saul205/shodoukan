@@ -96,6 +96,24 @@ changes. `EntityNotFoundError` for a missing or foreign exercise.
 
 Deletes the exercise and its collection links; the collections stay.
 
+## Commands (`commands/exercise_session_commands.py`)
+
+### `StartExerciseSession(exercises, sessions, entry_collections, kanji_collections, entries, kanji, rng=None).execute(user_id, exercise_id, meaning_lang)`
+
+Loads the exercise (`EntityNotFoundError` if missing or another user's), reads the
+**active** items of its collections (`item_ids`, then `get_many`), turns them into
+study cards in `meaning_lang` (as the items store it: `eng` for entries, `en` for
+kanji), builds the questions with `build_choice_questions` and stores the session.
+`ExercisePoolTooSmallError` if there aren't enough usable items, including when the
+exercise has no collections left. `rng` defaults to a new `random.Random`; tests pass
+a seeded one.
+
+### `AnswerExerciseQuestion(sessions).execute(user_id, session_id, question_id, answer, response_ms=None)`
+
+Grades one answer through `ExerciseSession.answer` and stores it. Returns the stored
+session and the graded question. `EntityNotFoundError` (session or question),
+`QuestionAnsweredError` or `InvalidAnswerError`.
+
 ## Commands (`commands/practice_entry_commands.py`, `commands/practice_kanji_commands.py`)
 
 Customising an item of the library. Each one loads the user's item with `get(id,
@@ -222,3 +240,9 @@ The user's exercises, by name.
 ### `GetExercise(exercises).execute(user_id, exercise_id)`
 
 One exercise, or `EntityNotFoundError` if it's missing or another user's.
+
+## Queries (`queries/exercise_session_queries.py`)
+
+### `GetExerciseSession(sessions).execute(user_id, session_id)`
+
+One of the user's sessions with all its questions, or `EntityNotFoundError`.

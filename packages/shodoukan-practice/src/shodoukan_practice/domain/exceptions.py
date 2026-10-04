@@ -26,3 +26,15 @@ class OriginalDataError(ValueError):
 
     Imported items can only be disabled; only the user's own can change.
     """
+
+
+class ExercisePoolTooSmallError(ValueError):
+    """An exercise's collections don't have enough usable items to ask about."""
+
+
+class QuestionAnsweredError(ValueError):
+    """A question of an exercise session was answered already."""
+
+
+class InvalidAnswerError(ValueError):
+    """An answer that doesn't fit its question (e.g. an option it doesn't have)."""

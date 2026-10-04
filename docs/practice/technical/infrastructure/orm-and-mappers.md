@@ -18,6 +18,7 @@ package registers every table on `Base.metadata`, which Alembic and `create_all`
 | `practice_kanji_orm.py` | `PracticeKanjiORM`, `PracticeKanjiReadingItemORM`, `PracticeKanjiMeaningORM` |
 | `entry_collection_orm.py` | `EntryCollectionORM`, `entry_collection_items` (plain `Table`) |
 | `kanji_collection_orm.py` | `KanjiCollectionORM`, `kanji_collection_items` (plain `Table`) |
+| `exercise_session_orm.py` | `ExerciseSessionORM`, `ExerciseQuestionORM` (children via `children()`) |
 | `exercise_orm.py` | `ExerciseORM`, `ExerciseEntryCollectionORM`, `ExerciseKanjiCollectionORM` (children of the exercise via `children()`) |
 
 Helpers in `base_orm.py`:
@@ -53,5 +54,9 @@ Mapping rules:
   subclass on the way back; an unknown value raises `ValueError`.
 - Exercise `settings` are dumped to JSON-compatible dicts and validated back through
   a `TypeAdapter` of `ExerciseSettings`, so a stored type picks its settings class.
+- A session question's `item_id` goes to `entry_id` or `kanji_id` by the session's
+  `item_kind`, and comes back from the same column. Its prompt, options, back and
+  answer are dumped to JSON-compatible lists and dicts and validated back with
+  `TypeAdapter`s; `item_kind` and the fields are narrowed to their `Literal`s.
 - `origin` strings are narrowed back to the domain's `Literal` type. Unknown values
   raise `ValueError`, and the `CHECK` constraint prevents them anyway.

@@ -16,6 +16,7 @@ All entities are Pydantic models. Aggregate roots inherit
 | `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id`, `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active`, `notes` |
 | `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description` |
+| `ExerciseSession` | `exercise_session_entity.py` | `user_id`, `exercise_id` (`None` once the exercise is deleted), `exercise_name`, `item_kind`, `meaning_lang`, `questions` (at least one), `finished_at`; `created_at` is the start |
 | `Exercise` → `EntryExercise`, `KanjiExercise` | `exercise_entity.py` | `user_id`, `name` (1–100, `EXERCISE_NAME_MAX_LENGTH`, not unique), `description`, `collection_ids`, `settings`; `item_kind` (`"entries"` / `"kanji"`) comes from the subclass |
 
 Everything is re-exported from `domain/entities/__init__.py`.
@@ -77,6 +78,25 @@ A saved exercise. The design (types, sessions, statistics) is in
   empty after its collections are deleted: the exercise stays but can't run. Why:
   [decisions](../decisions.md#an-exercise-holds-its-collection-ids).
 
+## Exercise sessions
+
+One run of an exercise, built by the [question service](services-and-errors.md#services-domainservices).
+Each `ExerciseQuestion` is a snapshot of the card, so the session reads the same after
+its items or its exercise change:
+
+- `item_id` (the item asked about; `None` once it leaves the library),
+  `prompt_fields`, `answer_field`;
+- `prompt` and `back`: `ShownField(field, values)`, what the front and the back show;
+- `options`: `ChoiceOption(text, item_id)`, with `correct_option` as an index;
+- `answer` (`OptionAnswer(type="option", option)`; `ExerciseAnswer` becomes a union
+  discriminated by `type` with the next exercise type), `is_correct`, `answered_at`,
+  `response_ms` (measured by the client). All `None` until answered.
+
+`answer(question_id, answer, response_ms)` grades a question once and sets
+`finished_at` when it's the last one. It raises `EntityNotFoundError` for an unknown
+question, `QuestionAnsweredError` if it's answered and `InvalidAnswerError` for an
+option the question doesn't have. `score` counts the right answers.
+
 ## Timestamps and `touch()`
 
 `TimestampedEntity` (`timestamped_entity.py`):
@@ -96,6 +116,7 @@ Current methods:
 | Aggregate | Methods |
 |---|---|
 | `Collection` | `rename(name)`, `describe(description)` |
+| `ExerciseSession` | `answer(question_id, answer, response_ms)` |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
 | `PracticeEntry` | `set_sense_notes(sense_id, notes)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)` |
