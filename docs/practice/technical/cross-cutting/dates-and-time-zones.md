@@ -39,3 +39,11 @@ Timestamp columns have **no** ORM `default`, `onupdate` or database `server_defa
 so a missing timestamp fails instead of being invented by persistence.
 
 Why no database defaults: [decisions](../decisions.md#the-domain-decides-now-no-database-defaults-for-timestamps).
+
+## The user's time zone
+
+Dates stay UTC everywhere except where a figure depends on the user's day: the answers
+per day of `GET /statistics`. The client sends its IANA zone (`tz`, default `UTC`;
+unknown → `422`), and `GetPracticeStatistics` buckets the UTC `answered_at` values by
+their local date with `zoneinfo`, in Python so SQLite and PostgreSQL agree. Why:
+[decisions](../decisions.md#activity-per-day-is-grouped-in-python).

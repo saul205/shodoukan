@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Session history and statistics. `GET /exercise-sessions`
+  lists the user's sessions, newest first, without their questions, filtered by
+  exercise and by `status` (`open` or `finished`; `status=open&limit=1` is the session
+  to resume). `GET /exercises/{id}/statistics` gives an exercise's totals, accuracy
+  per direction and most missed items; `GET /statistics?days=30&tz=...` gives the
+  same over every exercise, the answers of each day in the user's time zone, a
+  summary per exercise, and the words and kanji missed most. Missed items are named
+  as they are now in the library. Every question in a session response now carries
+  its `type` (`"card.choice"`).
 - **shodoukan-practice-web:** "Ejercicios": list, create, edit and delete exercises.
   The form picks one or more collections of words or kanji, the directions (fields
   shown → field asked), what the back of the card shows and the number of options,

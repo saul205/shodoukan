@@ -73,9 +73,10 @@ same name in folders that aren't packages.
 - Helper modules next to `conftest.py`:
   - `factories.py`: `USER_ID` / `OTHER_USER_ID` (fixed UUIDs), `make_entry`,
     `make_kanji`, `make_*_collection`, `make_entry_exercise` / `make_kanji_exercise`,
-    `choice_settings((prompt, answer), ...)`, `make_session` / `make_question`, `NOW`,
-    and
-    `TIMESTAMPS` for ORM rows built directly;
+    `choice_settings((prompt, answer), ...)`, `make_session` / `make_question`,
+    `make_answered_session(user_id, exercise_id, [answered(item_id, correct, at,
+    ...)])` (a session with only answered questions, for history and statistics),
+    `NOW`, and `TIMESTAMPS` for ORM rows built directly;
   - `tokens.py`: `ISSUER`, `DEFAULT_SUBJECT`, `TokenFactory`, `bearer(token)`.
 
 ## Against the real Keycloak

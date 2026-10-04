@@ -58,15 +58,18 @@ from ..application.queries import (
     GetEntryCollection,
     GetExercise,
     GetExerciseSession,
+    GetExerciseStatistics,
     GetImportStatus,
     GetKanjiCollection,
     GetLibraryEntry,
     GetLibraryKanji,
+    GetPracticeStatistics,
     ListCollectionsOfEntry,
     ListCollectionsOfKanji,
     ListEntriesForKanji,
     ListEntryCollections,
     ListExercises,
+    ListExerciseSessions,
     ListKanjiCollections,
     ListKanjiForEntry,
     SearchDictionary,
@@ -84,6 +87,7 @@ from ..infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyExerciseRepository,
     SqlAlchemyExerciseSessionRepository,
+    SqlAlchemyExerciseStatisticsRepository,
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
@@ -465,6 +469,30 @@ def get_finish_exercise_session(session: SessionDep) -> FinishExerciseSession:
 
 def get_get_exercise_session(session: SessionDep) -> GetExerciseSession:
     return GetExerciseSession(SqlAlchemyExerciseSessionRepository(session))
+
+
+def get_list_exercise_sessions(session: SessionDep) -> ListExerciseSessions:
+    return ListExerciseSessions(SqlAlchemyExerciseSessionRepository(session))
+
+
+# --- Statistics ---
+
+
+def get_get_exercise_statistics(session: SessionDep) -> GetExerciseStatistics:
+    return GetExerciseStatistics(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyExerciseStatisticsRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+    )
+
+
+def get_get_practice_statistics(session: SessionDep) -> GetPracticeStatistics:
+    return GetPracticeStatistics(
+        SqlAlchemyExerciseStatisticsRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+    )
 
 
 def _unauthorized(detail: str) -> HTTPException:

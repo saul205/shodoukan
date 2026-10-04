@@ -23,10 +23,11 @@ parts, own meanings, active, removal: `/library/entries/{id}/...`,
 `/library/kanji/{id}/...`), saved exercise definitions (`/exercises`: CRUD) and
 exercise sessions (`POST /exercises/{id}/sessions`, `/exercise-sessions/{id}` with
 `/answer` and `/finish`: open-ended, one active question at a time, built and graded
-on the server); design in
+on the server), the session history (`GET /exercise-sessions`, summaries without
+questions) and statistics (`GET /exercises/{id}/statistics`, `GET /statistics`: SQL
+aggregates over the answered questions, computed on request); design in
 `docs/practice/technical/exercises.md`. The practice and dictionary apps are
-standalone: never call shodoukan-api from here. Not built yet: session history and
-statistics queries.
+standalone: never call shodoukan-api from here.
 
 ## Layout
 
@@ -37,12 +38,15 @@ statistics queries.
     `user_entity.py`, `collection_entity.py`, `exercise_entity.py`,
     `exercise_session_entity.py`, and `timestamped_entity.py` (`TimestampedEntity`
     with `touch()`).
-  - `repositories/`: Protocol ports.
+  - `repositories/`: Protocol ports. Read models live with their port:
+    `SessionSummary` in `exercise_session_repository.py`; `AnswerTotals`,
+    `DirectionTotals`, `ItemTotals`, `ExerciseTotals`, `AnswerMoment` with the
+    read-only `ExerciseStatisticsRepository` in `exercise_statistics_repository.py`.
   - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port;
     `gateways/kana_gateway.py`: `KanaGateway` (romaji/kana → both kana scripts).
   - `searches/library_search.py`: library search criteria, match tiers and scopes.
   - `services/collection_service.py`: `ensure_combinable`;
-    `services/study_field_service.py` (field values and comparison keys) and
+    `services/study_field_service.py` (field values, comparison keys, `entry_label`) and
     `services/choice_question_service.py` (`build_next_question`: the next item and
     the distractor rule).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
@@ -66,8 +70,14 @@ statistics queries.
 - `application/commands/exercise_session_commands.py` /
   `queries/exercise_session_queries.py`: `StartExerciseSession`,
   `AnswerExerciseQuestion` (grades and asks the next; both take an optional
-  `random.Random`), `FinishExerciseSession`, `GetExerciseSession`. Routes in
+  `random.Random`), `FinishExerciseSession`, `GetExerciseSession`,
+  `ListExerciseSessions` (the history, `SessionSummaryPage`). Routes in
   `api/routes/exercise_session_routes.py`.
+- `application/queries/exercise_statistics_queries.py`: `GetExerciseStatistics`,
+  `GetPracticeStatistics` (activity per day bucketed in Python in the user's time
+  zone), `MissedItem` (named from the current library item). Routes in
+  `api/routes/exercise_statistics_routes.py`, schemas in
+  `api/schemas/exercise_statistics_schemas.py`.
 - `application/queries/library_search_queries.py`: `SearchEntries`, `SearchKanji`
   (every list of library items: the library, a collection's items, the picker; return
   `LibraryPage(items, total, limit, offset)`), `build_search`, `resolve_scope`.

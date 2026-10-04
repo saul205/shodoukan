@@ -15,7 +15,7 @@ exercises built from those collections.
 | Sign-in (Keycloak, OAuth2 / OpenID Connect) | Built: local Keycloak with the `shodoukan` realm; practice users created on first request |
 | HTTP API | `GET /dictionary/search` (public), `GET /users/me`, `GET`/`POST /library/entries`, `GET`/`POST /library/kanji`, `GET /library/imported`, `/collections/entries` and `/collections/kanji` |
 | Frontend (`shodoukan-practice-web`) | Built: Keycloak sign-in, dictionary, library with customisation, collections; see [frontend](technical/frontend.md) |
-| Exercises | Designed ([design](technical/exercises.md)); exercise definitions (`/exercises`) and sessions (`/exercise-sessions`) built; creating and managing exercises in the frontend built; playing, history and statistics to come |
+| Exercises | Designed ([design](technical/exercises.md)); exercise definitions (`/exercises`), sessions, their history (`/exercise-sessions`) and statistics (`/exercises/{id}/statistics`, `/statistics`) built; creating and managing exercises in the frontend built; screens to play, review and see statistics to come |
 
 ## Documentation
 
