@@ -16,7 +16,7 @@ All entities are Pydantic models. Aggregate roots inherit
 | `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id`, `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active`, `notes` |
 | `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description` |
-| `ExerciseSession` | `exercise_session_entity.py` | `user_id`, `exercise_id` (`None` once the exercise is deleted), `exercise_name`, `item_kind`, `meaning_lang`, `questions` (at least one), `finished_at`; `created_at` is the start |
+| `ExerciseSession` | `exercise_session_entity.py` | `user_id`, `exercise_id` (`None` once the exercise is deleted), `exercise_name`, `item_kind`, `meaning_lang`, `current` (the active question), `history` (the answered ones), `finished_at`; `created_at` is the start, `updated_at` the last activity |
 | `Exercise` → `EntryExercise`, `KanjiExercise` | `exercise_entity.py` | `user_id`, `name` (1–100, `EXERCISE_NAME_MAX_LENGTH`, not unique), `description`, `collection_ids`, `settings`; `item_kind` (`"entries"` / `"kanji"`) comes from the subclass |
 
 Everything is re-exported from `domain/entities/__init__.py`.
@@ -66,10 +66,10 @@ A saved exercise. The design (types, sessions, statistics) is in
   field of the other kind, on construction and on `configure`.
 - **`settings: ExerciseSettings`**, for now only `ChoiceCardSettings`
   (`type = "card.choice"`): `directions`, `back_fields`, `option_count` (2–8, default
-  4), `distractor_source` (`"collection"`), `question_count` (1–200 or `None` for
-  every item, default 10). Frozen value objects. `ExerciseSettings` becomes a union
-  discriminated by `type` when a second exercise type is added; card types share
-  `CardSettings` (`directions`, `back_fields`).
+  4), `distractor_source` (`"collection"`). Frozen value objects; a
+  `question_count` stored by earlier versions is ignored. `ExerciseSettings` becomes a
+  union discriminated by `type` when a second exercise type is added; card types
+  share `CardSettings` (`directions`, `back_fields`).
 - **`Direction(prompt, answer)`**: the fields shown (at least one, no repeats) and the
   field asked, which can't be one of them. An exercise needs at least one direction
   and can't repeat one (the prompt's order doesn't count); back fields can't repeat.
@@ -80,9 +80,11 @@ A saved exercise. The design (types, sessions, statistics) is in
 
 ## Exercise sessions
 
-One run of an exercise, built by the [question service](services-and-errors.md#services-domainservices).
-Each `ExerciseQuestion` is a snapshot of the card, so the session reads the same after
-its items or its exercise change:
+An open-ended study session of an exercise: one active question (`current`) and the
+answered ones (`history`). Its questions are built by the
+[question service](services-and-errors.md#services-domainservices). Each
+`ExerciseQuestion` is a snapshot of the card, so the session reads the same after its
+items or its exercise change:
 
 - `item_id` (the item asked about; `None` once it leaves the library),
   `prompt_fields`, `answer_field`;
@@ -92,10 +94,19 @@ its items or its exercise change:
   discriminated by `type` with the next exercise type), `is_correct`, `answered_at`,
   `response_ms` (measured by the client). All `None` until answered.
 
-`answer(question_id, answer, response_ms)` grades a question once and sets
-`finished_at` when it's the last one. It raises `EntityNotFoundError` for an unknown
-question, `QuestionAnsweredError` if it's answered and `InvalidAnswerError` for an
-option the question doesn't have. `score` counts the right answers.
+Methods (all raise `SessionFinishedError` on a finished session):
+
+- `ask(question)`: makes it the active question, positioned after the history;
+  `QuestionNotActiveError` if one is active already.
+- `answer(question_id, answer, response_ms)`: grades the active question and moves it
+  to the history. `question_id` must be the active one's (`QuestionNotActiveError`
+  otherwise: a double click, a stale tab); `InvalidAnswerError` for an option it
+  doesn't have.
+- `finish(at=None)`: closes it and drops the active question; idempotent.
+- `ended_at(now)`: `finished_at`, or the last activity if idle for more than
+  `IDLE_TIMEOUT` (30 minutes), or `None`. `close_if_idle(now)` makes that permanent
+  (closing isn't activity: `updated_at` stays).
+- `answered` and `score` count the history and its right answers.
 
 ## Timestamps and `touch()`
 
@@ -116,7 +127,7 @@ Current methods:
 | Aggregate | Methods |
 |---|---|
 | `Collection` | `rename(name)`, `describe(description)` |
-| `ExerciseSession` | `answer(question_id, answer, response_ms)` |
+| `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish(at)`, `close_if_idle(now)` |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
 | `PracticeEntry` | `set_sense_notes(sense_id, notes)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)` |

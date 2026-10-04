@@ -21,8 +21,9 @@ items), dictionary entry and kanji details (`/dictionary/entries/{id}`,
 `/dictionary/kanji/{literal}`, ...), and customising library items (notes, enabling
 parts, own meanings, active, removal: `/library/entries/{id}/...`,
 `/library/kanji/{id}/...`), saved exercise definitions (`/exercises`: CRUD) and
-exercise sessions (`POST /exercises/{id}/sessions`, `/exercise-sessions/{id}`:
-questions built and graded on the server); design in
+exercise sessions (`POST /exercises/{id}/sessions`, `/exercise-sessions/{id}` with
+`/answer` and `/finish`: open-ended, one active question at a time, built and graded
+on the server); design in
 `docs/practice/technical/exercises.md`. The practice and dictionary apps are
 standalone: never call shodoukan-api from here. Not built yet: session history and
 statistics queries.
@@ -42,8 +43,8 @@ statistics queries.
   - `searches/library_search.py`: library search criteria, match tiers and scopes.
   - `services/collection_service.py`: `ensure_combinable`;
     `services/study_field_service.py` (field values and comparison keys) and
-    `services/choice_question_service.py` (`build_choice_questions`, the distractor
-    rule).
+    `services/choice_question_service.py` (`build_next_question`: the next item and
+    the distractor rule).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`
@@ -63,8 +64,9 @@ statistics queries.
   `CreateExercise`, `UpdateExercise`, `DeleteExercise`, `ListExercises`, `GetExercise`.
   Routes in `api/routes/exercise_routes.py`.
 - `application/commands/exercise_session_commands.py` /
-  `queries/exercise_session_queries.py`: `StartExerciseSession` (takes an optional
-  `random.Random`), `AnswerExerciseQuestion`, `GetExerciseSession`. Routes in
+  `queries/exercise_session_queries.py`: `StartExerciseSession`,
+  `AnswerExerciseQuestion` (grades and asks the next; both take an optional
+  `random.Random`), `FinishExerciseSession`, `GetExerciseSession`. Routes in
   `api/routes/exercise_session_routes.py`.
 - `application/queries/library_search_queries.py`: `SearchEntries`, `SearchKanji`
   (every list of library items: the library, a collection's items, the picker; return
@@ -78,7 +80,7 @@ statistics queries.
 - Dictionary read models (`DictionaryEntry`, `DictionarySearchResult`, ...) live with
   the port in `domain/gateways/dictionary_gateway.py`.
 - `api/`: `app.py` (maps `EntityNotFoundError` → 404, `CollectionNameTakenError` →
-  409, `QuestionAnsweredError` → 409, `ExercisePoolTooSmallError` /
+  409, `QuestionNotActiveError` / `SessionFinishedError` → 409, `ExercisePoolTooSmallError` /
   `InvalidAnswerError` / Pydantic `ValidationError` from a use case → 422), `auth.py`
   (`TokenVerifier`), `deps.py` (one session per request; routes commit),
   `routes/*_routes.py`, `schemas/*_schemas.py`.
@@ -113,8 +115,11 @@ statistics queries.
   by the domain (`ChoiceCardSettings`, keyed by `type`). `collection_ids` lives on the
   entity and is stored in one link table per kind; collection ids are looked up among
   the user's collections of the exercise's kind.
-- Exercise sessions (`ExerciseSession`) are the statistics store: each question is a
-  snapshot (prompt, options, back) plus the answer. Sessions and questions outlive
+- Exercise sessions (`ExerciseSession`) are open-ended: one active question
+  (`current`) plus the answered ones (`history`), the statistics store; each question
+  is a snapshot (prompt, options, back) plus the answer. The next item comes from the
+  history (missed items back after `REVIEW_GAP`, then a deck per round). Sessions end
+  when finished, when another of the exercise starts, or after 30 idle minutes. Sessions and questions outlive
   their exercise and items (`SET NULL`). A distractor is never a valid answer (see
   `choice_question_service`); a word is asked by its first enabled spelling/reading.
   Unanswered questions hide their solution in the API.

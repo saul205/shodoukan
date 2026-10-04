@@ -1,8 +1,18 @@
-"""Build the questions of a choice-card session from the pool's study cards.
+"""Build the next question of a choice-card session from the pool's cards.
 
-Each question picks an item and one of the exercise's directions, shows the
+A question picks an item and one of the exercise's directions, shows the
 prompt fields, and offers one value of the answer field among distractors
 taken from other items.
+
+**Which item comes next** is worked out from the session's history alone:
+
+1. items answered wrong come back once `REVIEW_GAP` questions went by, but
+   never twice in a row, so many misses can't keep the deck from moving on;
+2. then the deck: every item once per round, in random order, before any
+   repeats (a round ends when every item of the pool was asked in it);
+3. then any other item, if the ones above can't make an unambiguous question.
+
+The same item is never asked twice in a row.
 
 **A distractor is never a valid answer.** A question about item C shows C's
 prompt values and asks for field A. A candidate text t is rejected if some
@@ -29,39 +39,105 @@ from ..exceptions import ExercisePoolTooSmallError
 from .study_field_service import FieldValue, StudyCard
 
 MIN_POOL_SIZE = 2
+# Questions to wait before an item answered wrong comes back.
+REVIEW_GAP = 3
 
 
-def build_choice_questions(
-    cards: Sequence[StudyCard], settings: ChoiceCardSettings, rng: Random
-) -> list[ExerciseQuestion]:
-    """The session's questions, in order, without ids.
+def eligible_items(
+    cards: Sequence[StudyCard], settings: ChoiceCardSettings
+) -> list[StudyCard]:
+    """The items some direction of the exercise can ask about."""
+    return [c for c in cards if any(_can_ask(c, d) for d in settings.directions)]
 
-    Raises `ExercisePoolTooSmallError` if fewer than two items can be asked
-    about, or no question can be built.
-    """
-    eligible = [
-        card for card in cards if any(_can_ask(card, d) for d in settings.directions)
-    ]
-    if len(eligible) < MIN_POOL_SIZE:
+
+def ensure_enough_items(
+    cards: Sequence[StudyCard], settings: ChoiceCardSettings
+) -> None:
+    """Raises `ExercisePoolTooSmallError` with fewer than `MIN_POOL_SIZE`."""
+    eligible = len(eligible_items(cards, settings))
+    if eligible < MIN_POOL_SIZE:
         raise ExercisePoolTooSmallError(
             f"the exercise needs at least {MIN_POOL_SIZE} items with the fields it "
-            f"studies; its collections have {len(eligible)}"
+            f"studies; its collections have {eligible}"
         )
-    order = list(eligible)
-    rng.shuffle(order)
-    wanted = settings.question_count or len(order)
-    questions: list[ExerciseQuestion] = []
-    for card in order:
-        question = _question(card, cards, settings, rng, position=len(questions))
+
+
+def build_next_question(
+    cards: Sequence[StudyCard],
+    settings: ChoiceCardSettings,
+    history: Sequence[ExerciseQuestion],
+    rng: Random,
+) -> ExerciseQuestion:
+    """The next question, positioned after `history`, without an id.
+
+    Raises `ExercisePoolTooSmallError` if the pool is too small or no item can
+    be asked without an ambiguous option.
+    """
+    ensure_enough_items(cards, settings)
+    eligible = eligible_items(cards, settings)
+    for card in _candidates(eligible, history, rng):
+        question = _question(card, cards, settings, rng, position=len(history))
         if question is not None:
-            questions.append(question)
-        if len(questions) == wanted:
-            break
-    if not questions:
-        raise ExercisePoolTooSmallError(
-            "no question can be asked without an ambiguous option"
-        )
-    return questions
+            return question
+    raise ExercisePoolTooSmallError(
+        "no question can be asked without an ambiguous option"
+    )
+
+
+def _candidates(
+    eligible: Sequence[StudyCard], history: Sequence[ExerciseQuestion], rng: Random
+) -> list[StudyCard]:
+    """The eligible items in the order to try them (see the module docs)."""
+    by_id = {card.item_id: card for card in eligible}
+    last = history[-1].item_id if history else None
+
+    due = [by_id[i] for i in _due_for_review(history) if i in by_id and i != last]
+    if history and _is_review(history, len(history) - 1):
+        due = []  # the last one was a missed item coming back: deal from the deck
+    asked = _asked_this_round(set(by_id), history)
+    deck = [c for c in eligible if c.item_id not in asked and c.item_id != last]
+    rest = [c for c in eligible if c.item_id not in asked and c.item_id == last]
+    rest += [c for c in eligible if c.item_id in asked and c.item_id != last]
+    rng.shuffle(deck)
+    rng.shuffle(rest)
+    ordered = [*due, *deck, *rest]
+    return list({card.item_id: card for card in ordered}.values())
+
+
+def _due_for_review(history: Sequence[ExerciseQuestion]) -> list[int]:
+    """Items whose last answer was wrong, at least `REVIEW_GAP` questions ago,
+    oldest first."""
+    last_seen: dict[int, int] = {}
+    for index, question in enumerate(history):
+        if question.item_id is not None:
+            last_seen[question.item_id] = index
+    due = [
+        (index, item_id)
+        for item_id, index in last_seen.items()
+        if history[index].is_correct is False and len(history) - index >= REVIEW_GAP
+    ]
+    return [item_id for _, item_id in sorted(due)]
+
+
+def _is_review(history: Sequence[ExerciseQuestion], index: int) -> bool:
+    """Whether question `index` asked again an item missed the last time."""
+    item_id = history[index].item_id
+    for earlier in reversed(history[:index]):
+        if earlier.item_id == item_id:
+            return earlier.is_correct is False
+    return False
+
+
+def _asked_this_round(pool: set[int], history: Sequence[ExerciseQuestion]) -> set[int]:
+    """The pool items asked in the current round: a round ends as soon as
+    every item of the pool was asked in it."""
+    asked: set[int] = set()
+    for question in history:
+        if question.item_id in pool:
+            asked.add(question.item_id)
+            if asked == pool:
+                asked = set()
+    return asked
 
 
 def _can_ask(card: StudyCard, direction: Direction) -> bool:

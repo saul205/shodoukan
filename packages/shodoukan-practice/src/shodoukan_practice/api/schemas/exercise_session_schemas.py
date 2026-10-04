@@ -1,8 +1,8 @@
 """Request and response models for exercise sessions.
 
-An unanswered question shows only what the card's front shows: its prompt
-and the options' texts. The item, the right option, the back and every
-option's item appear once it's answered, so a client can't read the
+The active question shows only what the card's front shows: its prompt and
+the options' texts. Its item, right option and back, and the options' items,
+appear once it's answered (in the history), so a client can't read the
 solution ahead.
 """
 
@@ -35,6 +35,7 @@ class StartSessionRequest(BaseModel):
 
 
 class AnswerRequest(BaseModel):
+    question_id: int = Field(description="The active question's id.")
     answer: ExerciseAnswer = Field(
         description='The answer, by type. Choice cards: `{"type": "option", '
         '"option": <index>}`.'
@@ -102,13 +103,25 @@ class SessionResponse(BaseModel):
     item_kind: ItemKind
     meaning_lang: str
     started_at: datetime
-    finished_at: datetime | None
-    score: int = Field(description="Questions answered right so far.")
-    questions: list[QuestionResponse]
+    last_activity_at: datetime
+    finished_at: datetime | None = Field(
+        description="When it was closed, or its last activity if it's been idle "
+        "too long; null while it's open."
+    )
+    answered: int = Field(description="Questions answered.")
+    score: int = Field(description="Questions answered right.")
+    current: QuestionResponse | None = Field(
+        description="The active question, without its solution."
+    )
+    history: list[QuestionResponse] = Field(
+        description="The answered questions, in order, with their solutions."
+    )
 
     @classmethod
-    def of(cls, session: ExerciseSession) -> "SessionResponse":
+    def of(cls, session: ExerciseSession, now: datetime) -> "SessionResponse":
         assert session.id is not None
+        finished_at = session.ended_at(now)
+        current = session.current if finished_at is None else None
         return cls(
             id=session.id,
             exercise_id=session.exercise_id,
@@ -116,15 +129,21 @@ class SessionResponse(BaseModel):
             item_kind=session.item_kind,
             meaning_lang=session.meaning_lang,
             started_at=session.created_at,
-            finished_at=session.finished_at,
+            last_activity_at=session.updated_at,
+            finished_at=finished_at,
+            answered=session.answered,
             score=session.score,
-            questions=[QuestionResponse.of(q) for q in session.questions],
+            current=QuestionResponse.of(current) if current else None,
+            history=[QuestionResponse.of(q) for q in session.history],
         )
 
 
 class AnswerResponse(BaseModel):
-    question: QuestionResponse
-    finished_at: datetime | None = Field(
-        description="Set when this was the session's last question."
+    answered: QuestionResponse = Field(description="The graded question.")
+    next: QuestionResponse | None = Field(
+        description="The new active question; null if no other can be made (or "
+        "the exercise was deleted, which finishes the session)."
     )
+    answered_count: int
     score: int
+    finished_at: datetime | None

@@ -30,14 +30,17 @@ is what can be asked or offered: only the first value of a word's `writing` and
 `reading` (`first_only`), every value otherwise. Details:
 [exercises](../exercises.md#reading-a-field-from-an-item).
 
-### `choice_question_service.build_choice_questions(cards, settings, rng)`
+### `choice_question_service.build_next_question(cards, settings, history, rng)`
 
-Builds a choice-card session's questions from the pool's cards with the injected
-`random.Random`: shuffles the eligible items, takes `question_count` (or all), tries
-each item's directions in random order, and picks distractors so that **none is a
-valid answer** (the [rule](../exercises.md#the-rule)). An item no direction can ask
-about without an ambiguous option is skipped. Raises `ExercisePoolTooSmallError` if
-fewer than `MIN_POOL_SIZE` (2) items can be asked about, or no question can be built.
+Builds a session's next choice-card question from the pool's cards and the session's
+history, with the injected `random.Random`. The item comes from missed items due for
+review (after `REVIEW_GAP` questions, never two reviews in a row), then the deck (each
+item once per round), then any other; never the last one again
+([details](../exercises.md#which-item-comes-next)). Directions are tried in random
+order, and distractors are picked so that **none is a valid answer**
+([the rule](../exercises.md#the-rule)). Raises `ExercisePoolTooSmallError` if fewer
+than `MIN_POOL_SIZE` (2) items can be asked about (`ensure_enough_items`), or no
+question can be built. `eligible_items` lists the items some direction can ask.
 
 ## Exceptions (`domain/exceptions.py`)
 
@@ -50,7 +53,8 @@ fewer than `MIN_POOL_SIZE` (2) items can be asked about, or no question can be b
 | `OriginalDataError` | `ValueError` | An imported (dictionary) meaning is edited or removed; it can only be disabled (HTTP `409`) |
 | `DictionaryItemNotFoundError` | `LookupError` | An import asks for an entry or kanji the dictionary doesn't have (HTTP `404`) |
 | `ExercisePoolTooSmallError` | `ValueError` | An exercise's collections don't have enough usable items for a session (HTTP `422`) |
-| `QuestionAnsweredError` | `ValueError` | A session question is answered a second time (HTTP `409`) |
+| `QuestionNotActiveError` | `ValueError` | An answer to a question that isn't the session's active one, or a question asked while another is active (HTTP `409`) |
+| `SessionFinishedError` | `ValueError` | An answer or question on a finished (or idle) session (HTTP `409`) |
 | `InvalidAnswerError` | `ValueError` | An answer doesn't fit its question, e.g. an option it doesn't have (HTTP `422`) |
 
 ## Clock (`domain/clock.py`)

@@ -98,21 +98,33 @@ Deletes the exercise and its collection links; the collections stay.
 
 ## Commands (`commands/exercise_session_commands.py`)
 
+The three of them read the exercise's pool the same way: the **active** items of its
+collections (`item_ids`, then `get_many`), as study cards in the session's
+`meaning_lang` (as the items store it: `eng` for entries, `en` for kanji). `rng`
+defaults to a new `random.Random`; tests pass a seeded one.
+
 ### `StartExerciseSession(exercises, sessions, entry_collections, kanji_collections, entries, kanji, rng=None).execute(user_id, exercise_id, meaning_lang)`
 
-Loads the exercise (`EntityNotFoundError` if missing or another user's), reads the
-**active** items of its collections (`item_ids`, then `get_many`), turns them into
-study cards in `meaning_lang` (as the items store it: `eng` for entries, `en` for
-kanji), builds the questions with `build_choice_questions` and stores the session.
-`ExercisePoolTooSmallError` if there aren't enough usable items, including when the
-exercise has no collections left. `rng` defaults to a new `random.Random`; tests pass
-a seeded one.
+Loads the exercise (`EntityNotFoundError` if missing or another user's), checks the
+pool (`ExercisePoolTooSmallError` with fewer than 2 usable items, including when the
+exercise has no collections left), finishes the user's open sessions of that
+exercise at their last activity, and stores a new session with its first active
+question.
 
-### `AnswerExerciseQuestion(sessions).execute(user_id, session_id, question_id, answer, response_ms=None)`
+### `AnswerExerciseQuestion(exercises, sessions, entry_collections, kanji_collections, entries, kanji, rng=None).execute(user_id, session_id, question_id, answer, response_ms=None)`
 
-Grades one answer through `ExerciseSession.answer` and stores it. Returns the stored
-session and the graded question. `EntityNotFoundError` (session or question),
-`QuestionAnsweredError` or `InvalidAnswerError`.
+Closes the session if it's idle and refuses (`SessionFinishedError`); otherwise grades
+the active question (`ExerciseSession.answer`), builds the next one from the history
+and the current pool, and stores both. Returns the stored session, the graded question
+and the next active one: `None` if the pool can't make another (the session stays
+open), or if the exercise was deleted (the session is finished; the answer counts).
+`EntityNotFoundError`, `SessionFinishedError`, `QuestionNotActiveError` or
+`InvalidAnswerError`.
+
+### `FinishExerciseSession(sessions).execute(user_id, session_id)`
+
+Closes the session (at its last activity if it was idle) and drops its active
+question. Finishing a finished session changes nothing. `EntityNotFoundError`.
 
 ## Commands (`commands/practice_entry_commands.py`, `commands/practice_kanji_commands.py`)
 
@@ -245,4 +257,6 @@ One exercise, or `EntityNotFoundError` if it's missing or another user's.
 
 ### `GetExerciseSession(sessions).execute(user_id, session_id)`
 
-One of the user's sessions with all its questions, or `EntityNotFoundError`.
+One of the user's sessions with its active question and history, or
+`EntityNotFoundError`. It doesn't write: the API reports an idle session as finished
+(`ended_at`) without storing it.

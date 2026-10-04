@@ -13,7 +13,11 @@ from .collection_commands import (
     UpdateKanjiCollection,
 )
 from .exercise_commands import CreateExercise, DeleteExercise, UpdateExercise
-from .exercise_session_commands import AnswerExerciseQuestion, StartExerciseSession
+from .exercise_session_commands import (
+    AnswerExerciseQuestion,
+    FinishExerciseSession,
+    StartExerciseSession,
+)
 from .library_commands import ImportEntry, ImportKanji, ImportResult
 from .practice_entry_commands import (
     AddEntryGloss,
@@ -51,6 +55,7 @@ __all__ = [
     "EditEntryGloss",
     "EditKanjiMeaning",
     "EnsureUser",
+    "FinishExerciseSession",
     "ImportEntry",
     "ImportKanji",
     "ImportResult",

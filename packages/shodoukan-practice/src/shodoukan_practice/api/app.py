@@ -12,7 +12,8 @@ from ..domain.exceptions import (
     ExercisePoolTooSmallError,
     InvalidAnswerError,
     OriginalDataError,
-    QuestionAnsweredError,
+    QuestionNotActiveError,
+    SessionFinishedError,
 )
 from .routes import (
     dictionary_router,
@@ -66,7 +67,8 @@ def create_app() -> FastAPI:
     app.add_exception_handler(CollectionNameTakenError, _conflict)
     # Dictionary data in the library can only be disabled, not changed.
     app.add_exception_handler(OriginalDataError, _conflict)
-    app.add_exception_handler(QuestionAnsweredError, _conflict)
+    app.add_exception_handler(QuestionNotActiveError, _conflict)
+    app.add_exception_handler(SessionFinishedError, _conflict)
     # Requests that are well formed but can't be done: too few items to build
     # an exercise session, an option the question doesn't have.
     app.add_exception_handler(ExercisePoolTooSmallError, _unprocessable_detail)

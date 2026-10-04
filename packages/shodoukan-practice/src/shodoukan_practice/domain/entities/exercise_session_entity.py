@@ -1,22 +1,32 @@
-"""One run of an exercise: its questions and the answers given.
+"""One run of an exercise: an open-ended study session.
+
+A session has one active question (`current`) and the questions already
+answered (`history`). Answering the active one moves it to the history; the
+next one is asked by the application, which builds it from the history (so it
+doesn't repeat) and the exercise. The session lasts until it's finished, or
+until it's idle for `IDLE_TIMEOUT`.
 
 A question keeps a snapshot of what was shown (prompt, options, back of the
 card), so a session reads the same later even if its items are edited or
-removed from the library. Sessions are also the statistics: accuracy and
-history are queries over them. See docs/practice/technical/exercises.md.
+removed from the library. The history is also the statistics. See
+docs/practice/technical/exercises.md.
 
 `answer` is a union discriminated by `type`, like exercise settings; only
 `OptionAnswer` (choice cards) exists for now.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..clock import utc_now
-from ..exceptions import EntityNotFoundError, InvalidAnswerError, QuestionAnsweredError
+from ..exceptions import (
+    InvalidAnswerError,
+    QuestionNotActiveError,
+    SessionFinishedError,
+)
 from .exercise_entity import ItemKind, StudyField
 from .timestamped_entity import TimestampedEntity
 
@@ -75,9 +85,13 @@ class ExerciseQuestion(BaseModel):
         return self.answer is not None
 
 
+# A session nobody touched for this long counts as finished at its last activity.
+IDLE_TIMEOUT = timedelta(minutes=30)
+
+
 class ExerciseSession(TimestampedEntity):
-    """`created_at` is when it started; `finished_at` when the last question
-    was answered."""
+    """`created_at` is when it started, `updated_at` its last activity and
+    `finished_at` when it was closed."""
 
     id: int | None
     user_id: UUID
@@ -86,43 +100,90 @@ class ExerciseSession(TimestampedEntity):
     exercise_name: str
     item_kind: ItemKind
     meaning_lang: str
-    questions: list[ExerciseQuestion] = Field(min_length=1)
+    # The active question, not answered yet.
+    current: ExerciseQuestion | None = None
+    # The answered questions, in the order they were asked.
+    history: list[ExerciseQuestion] = Field(default_factory=list)
     finished_at: datetime | None = None
+
+    @property
+    def is_finished(self) -> bool:
+        return self.finished_at is not None
+
+    def ended_at(self, now: datetime) -> datetime | None:
+        """When it ended: closed, or idle since its last activity; None if open."""
+        if self.finished_at is not None:
+            return self.finished_at
+        if now - self.updated_at > IDLE_TIMEOUT:
+            return self.updated_at
+        return None
+
+    def ask(self, question: ExerciseQuestion) -> None:
+        """Make `question` the active one. Raises `SessionFinishedError` if the
+        session is closed, `QuestionNotActiveError` if one is already active."""
+        self._require_open()
+        if self.current is not None:
+            raise QuestionNotActiveError("the session already has an active question")
+        self.current = question.model_copy(
+            update={"id": None, "position": len(self.history)}
+        )
+        self.touch()
 
     def answer(
         self, question_id: int, answer: ExerciseAnswer, response_ms: int | None = None
     ) -> ExerciseQuestion:
-        """Grade `answer` to a question, once. Finishes the session when it's
-        the last one.
+        """Grade the active question and move it to the history.
 
-        Raises `EntityNotFoundError` for an unknown question,
-        `QuestionAnsweredError` if it was answered already and
-        `InvalidAnswerError` for an option it doesn't have.
+        `question_id` must be the active question's, so an answer meant for
+        another one (a double click, a stale tab) is rejected with
+        `QuestionNotActiveError`. Raises `SessionFinishedError` if the session
+        is closed and `InvalidAnswerError` for an option it doesn't have.
         """
-        question = self._question(question_id)
-        if question.answered:
-            raise QuestionAnsweredError(f"question {question_id} is already answered")
+        self._require_open()
+        question = self.current
+        if question is None or question.id != question_id:
+            raise QuestionNotActiveError(f"question {question_id} isn't the active one")
         if answer.option >= len(question.options):
             raise InvalidAnswerError(
                 f"question {question_id} has no option {answer.option}"
             )
-        now = utc_now()
         question.answer = answer
         question.is_correct = answer.option == question.correct_option
-        question.answered_at = now
+        question.answered_at = utc_now()
         question.response_ms = response_ms
-        if all(q.answered for q in self.questions):
-            self.finished_at = now
+        self.history.append(question)
+        self.current = None
         self.touch()
         return question
+
+    def finish(self, at: datetime | None = None) -> None:
+        """Close the session; the active question, never answered, is dropped.
+        Closing a closed session changes nothing."""
+        if self.is_finished:
+            return
+        self.current = None
+        self.finished_at = at or utc_now()
+        self.touch()
+
+    def close_if_idle(self, now: datetime) -> bool:
+        """Close it at its last activity if it's been idle too long."""
+        ended = self.ended_at(now)
+        if ended is None or self.is_finished:
+            return False
+        updated_at = self.updated_at
+        self.finish(at=ended)
+        self.updated_at = updated_at  # closing an idle session isn't activity
+        return True
+
+    @property
+    def answered(self) -> int:
+        return len(self.history)
 
     @property
     def score(self) -> int:
         """Questions answered right."""
-        return sum(1 for q in self.questions if q.is_correct)
+        return sum(1 for q in self.history if q.is_correct)
 
-    def _question(self, question_id: int) -> ExerciseQuestion:
-        for question in self.questions:
-            if question.id == question_id:
-                return question
-        raise EntityNotFoundError(f"question {question_id} not found")
+    def _require_open(self) -> None:
+        if self.is_finished:
+            raise SessionFinishedError(f"exercise session {self.id} is finished")

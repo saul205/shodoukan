@@ -132,7 +132,10 @@ out of its exercises through the FK cascade, with no repository code.
 ## Exercise sessions
 
 `SqlAlchemyExerciseSessionRepository` loads a session with its questions
-(`selectinload`). `add` inserts the session and its questions in one flush; `update`
-merges the session, so answered questions are updated in place (they keep their ids).
+(`selectinload`); the mapper splits them into the active one (no answer) and the
+history. `add` inserts the session and its first question in one flush; `update`
+merges the session: answered questions are updated in place (they keep their ids), a
+new active question is inserted, and one dropped by `finish` is deleted
+(`delete-orphan`). `list_open` filters on `finished_at IS NULL`.
 Removing an item or an exercise sets the questions' and sessions' references to NULL
 in the database (`SET NULL`), with no repository code.

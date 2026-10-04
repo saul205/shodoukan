@@ -28,6 +28,19 @@ class SqlAlchemyExerciseSessionRepository(ExerciseSessionRepository):
         row = self._session.scalars(query).one_or_none()
         return exercise_session_to_domain(row) if row else None
 
+    def list_open(self, user_id: UUID, exercise_id: int) -> list[ExerciseSession]:
+        query = (
+            select(ExerciseSessionORM)
+            .where(
+                ExerciseSessionORM.user_id == user_id,
+                ExerciseSessionORM.exercise_id == exercise_id,
+                ExerciseSessionORM.finished_at.is_(None),
+            )
+            .order_by(ExerciseSessionORM.id)
+            .options(selectinload(ExerciseSessionORM.questions))
+        )
+        return [exercise_session_to_domain(row) for row in self._session.scalars(query)]
+
     def add(self, session: ExerciseSession) -> ExerciseSession:
         row = exercise_session_to_db(session)
         self._session.add(row)

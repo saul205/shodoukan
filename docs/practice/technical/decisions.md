@@ -366,3 +366,32 @@ request per card. Their solution (the item, the right option, the back, the opti
 items) is left out of the response until the question is answered: the right option
 would otherwise be one look at the network tab away, and an option's item id would
 give it away. Grading happens on the server either way.
+
+## Sessions are open-ended, with one active question
+
+This **replaces** sessions of a fixed number of questions built when they start
+(`question_count` is gone). A session lasts as long as the user studies: it has one
+active question, and answering it moves it to the history and asks the next one,
+which is returned with the grade (one request per card). The next question is built
+from the history, so nothing else has to be stored to avoid repeats, and items added
+or deactivated mid-session count straight away. The active question is stored, not
+kept in memory, so a reload shows the same card and the answer is graded against the
+options really shown. Only that question is ever sent unanswered, still without its
+solution (see "Session solutions are hidden until answered").
+
+## The next item: a deck, plus missed items coming back
+
+Each round deals every item once in random order, so nothing is left out and nothing
+repeats too soon. An item answered wrong comes back after a few questions
+(`REVIEW_GAP`), but reviews never come two in a row: in a run on real data where
+most answers were wrong, misses alone took every turn and most items were never
+asked. Spaced repetition across sessions is a later step that can reuse the history.
+
+## Sessions close explicitly or when idle
+
+The client finishes a session when the user leaves it, but browsers don't reliably
+report a closed tab. So a session also ends when another one of the same exercise
+starts, or after 30 minutes without activity, in both cases at its last activity, so
+its duration isn't inflated. An idle session is reported as finished when read (no
+write) and closed for good the next time it's used. The unanswered active question of
+a finished session is dropped: it says nothing about what the user knows.

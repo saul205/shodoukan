@@ -32,8 +32,13 @@ class ExercisePoolTooSmallError(ValueError):
     """An exercise's collections don't have enough usable items to ask about."""
 
 
-class QuestionAnsweredError(ValueError):
-    """A question of an exercise session was answered already."""
+class QuestionNotActiveError(ValueError):
+    """An answer to a question that isn't the session's active one (answered
+    already, or replaced), or a question asked while another is active."""
+
+
+class SessionFinishedError(ValueError):
+    """The exercise session is closed: no more questions or answers."""
 
 
 class InvalidAnswerError(ValueError):

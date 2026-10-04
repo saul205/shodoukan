@@ -31,6 +31,7 @@ from ..application.commands import (
     EditEntryGloss,
     EditKanjiMeaning,
     EnsureUser,
+    FinishExerciseSession,
     ImportEntry,
     ImportKanji,
     RemoveEntryFromCollection,
@@ -447,7 +448,18 @@ def get_start_exercise_session(session: SessionDep) -> StartExerciseSession:
 
 
 def get_answer_exercise_question(session: SessionDep) -> AnswerExerciseQuestion:
-    return AnswerExerciseQuestion(SqlAlchemyExerciseSessionRepository(session))
+    return AnswerExerciseQuestion(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyExerciseSessionRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+    )
+
+
+def get_finish_exercise_session(session: SessionDep) -> FinishExerciseSession:
+    return FinishExerciseSession(SqlAlchemyExerciseSessionRepository(session))
 
 
 def get_get_exercise_session(session: SessionDep) -> GetExerciseSession:

@@ -1,8 +1,10 @@
 """ExerciseSession <-> exercise_sessions and exercise_questions.
 
-The question's item goes to `entry_id` or `kanji_id` by the session's item
-kind. Prompt, options, back and answer are stored as JSON-compatible lists
-and dicts, validated back into the domain's value objects.
+The active question and the history share `exercise_questions`: the active
+one is the row with no answer. The question's item goes to `entry_id` or
+`kanji_id` by the session's item kind. Prompt, options, back and answer are
+stored as JSON-compatible lists and dicts, validated back into the domain's
+value objects.
 """
 
 from pydantic import TypeAdapter
@@ -28,6 +30,8 @@ _item_kind = TypeAdapter[ItemKind](ItemKind)
 
 def exercise_session_to_domain(row: ExerciseSessionORM) -> ExerciseSession:
     item_kind = _item_kind.validate_python(row.item_kind)
+    questions = [_question_to_domain(q, item_kind) for q in row.questions]
+    pending = [q for q in questions if not q.answered]
     return ExerciseSession(
         id=row.id,
         user_id=row.user_id,
@@ -35,7 +39,8 @@ def exercise_session_to_domain(row: ExerciseSessionORM) -> ExerciseSession:
         exercise_name=row.exercise_name,
         item_kind=item_kind,
         meaning_lang=row.meaning_lang,
-        questions=[_question_to_domain(q, item_kind) for q in row.questions],
+        current=pending[-1] if pending else None,
+        history=[q for q in questions if q.answered],
         finished_at=row.finished_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -50,7 +55,13 @@ def exercise_session_to_db(entity: ExerciseSession) -> ExerciseSessionORM:
         exercise_name=entity.exercise_name,
         item_kind=entity.item_kind,
         meaning_lang=entity.meaning_lang,
-        questions=[_question_to_db(question, entity) for question in entity.questions],
+        questions=[
+            _question_to_db(question, entity)
+            for question in [
+                *entity.history,
+                *([entity.current] if entity.current else []),
+            ]
+        ],
         finished_at=entity.finished_at,
         created_at=entity.created_at,
         updated_at=entity.updated_at,

@@ -15,7 +15,7 @@ What the user sees: [functional documentation](../functional/exercises/README.md
 | Concept | What it is | Lifetime |
 |---|---|---|
 | `Exercise` | A saved definition: which collections, which exercise type, and its settings. | Created, edited and deleted by the user |
-| `ExerciseSession` | One run of an exercise: the questions generated for it and the answers given. | Created when the user starts practising; never edited after it ends |
+| `ExerciseSession` | One study session of an exercise: its active question and the questions answered so far. | Started when the user launches the exercise; open-ended, until finished or idle |
 | Statistics | Read-only queries over sessions and their answers. | Derived, nothing stored twice |
 
 **Sessions are the statistics module.** Every question keeps a snapshot of what was
@@ -50,7 +50,57 @@ All card types share `CardSettings`:
 |---|---|---|
 | `option_count` | 2–8 | 4 |
 | `distractor_source` | `"collection"` (later `"library"`) | `"collection"` |
-| `question_count` | 1–200, or `null` for every eligible item once | 10 |
+
+## Sessions (built)
+
+A session is open-ended: it lasts as long as the user keeps studying.
+
+```
+ExerciseSession
+├─ exercise_id, exercise_name, item_kind, meaning_lang
+├─ created_at (start) · updated_at (last activity) · finished_at
+├─ current: ExerciseQuestion | None   ← the active question, not answered yet
+└─ history: [ExerciseQuestion]         ← the answered ones, in order
+```
+
+1. **Launch** the exercise: a session starts with its first active question. Any
+   other open session of the same exercise is finished at its last activity: one
+   is studied at a time.
+2. **Answer** the active question: it's graded, moves to the history, and the next
+   active question is built and returned with the grade.
+3. **Finish**: the session is closed and its active question, never answered, is
+   dropped, so it doesn't count in statistics.
+
+There's never more than one active question, and it's stored: reloading the page
+shows the same one, and the answer is graded against the options really shown.
+An answer names the active question's id, so a double click or a stale tab can't
+answer the next one by mistake.
+
+### Which item comes next
+
+Worked out from the history alone, with the current pool (items added or
+deactivated mid-session count from the next question):
+
+1. **Missed items come back**: an item whose last answer was wrong is asked again
+   once `REVIEW_GAP` (3) questions went by, oldest miss first. Two reviews never come
+   in a row, so a lot of misses can't stop the deck.
+2. **The deck**: every item of the pool once per round, in random order; a round ends
+   when every item was asked in it, and the next one is shuffled again.
+3. **Fallback**: any other item, if the ones above can't make a question without an
+   ambiguous option.
+
+The same item is never asked twice in a row.
+
+### Closing
+
+The client finishes the session when the user leaves it (a Finish button, leaving the
+page, a `fetch` with `keepalive` when the tab closes). As that can fail, a session also
+ends:
+
+- when another session of the same exercise starts;
+- when it's been idle for `IDLE_TIMEOUT` (30 minutes): it counts as finished at its
+  last activity, and answering it is refused (`409`);
+- when its exercise is deleted: the answer that found out still counts.
 
 ## Fields and directions
 
@@ -152,7 +202,8 @@ Pure domain services, testable with a seeded `random.Random`:
 - `domain/services/study_field_service.py`: reads a field's values from a
   `PracticeEntry` / `PracticeKanji`, and builds their comparison keys. Katakana to
   hiragana is a code-point shift, so the domain doesn't need the `KanaGateway`.
-- `domain/services/choice_question_service.py`: picks the item and direction, the
+- `domain/services/choice_question_service.py`: `build_next_question` picks the next
+  item (see [which item comes next](#which-item-comes-next)) and direction, the
   answer value and the distractors, applying the rule above.
 
 Tests cover every ambiguity: shared kun'yomi, shared on'yomi, homophones, synonyms,
@@ -180,6 +231,9 @@ until it gets one.
 |---|---|
 | `exercise_sessions` | `id`, `user_id`, `exercise_id` (→ `exercises`, `SET NULL` on delete, so history survives), `exercise_name` (snapshot), `item_kind`, `meaning_lang`, `created_at` (the start), `updated_at`, `finished_at` |
 | `exercise_questions` | `id`, `session_id` (cascade), `position`, `entry_id` / `kanji_id` (one of them, by the session's kind; `SET NULL` when the item leaves the library), `prompt_fields`, `answer_field`, `prompt` / `options` / `back` (JSON snapshot), `correct_option`, `answer` (JSON, SQL `NULL` until answered), `is_correct`, `answered_at`, `response_ms` |
+
+The active question and the history share `exercise_questions`: the active one is the
+row with no answer. Finishing a session deletes that row.
 
 Each option keeps the id of the item it came from, for opening its detail from the
 review; that id isn't updated if the item is later removed.
@@ -210,9 +264,10 @@ Details: [endpoints](api/endpoints.md#exercises).
 
 | Method | Route | Body / result |
 |---|---|---|
-| `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its questions, **without** the solution (item, correct option, back) |
-| `POST` | `/exercise-sessions/{id}/questions/{question_id}/answer` | `{answer: {type: "option", option}, response_ms}` → the graded question with its solution, the score and `finished_at` |
-| `GET` | `/exercise-sessions/{id}` | The whole session, to go on playing or review it (answered questions include their solution) |
+| `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its first active question, **without** the solution (item, correct option, back) |
+| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
+| `GET` | `/exercise-sessions/{id}` | The session: its active question (without solution) and its history (with) |
+| `POST` | `/exercise-sessions/{id}/finish` | Close it; idempotent |
 | `GET` | `/exercises/{id}/sessions` | History, one row per session with its score (phase 5) |
 
 Details: [endpoints](api/endpoints.md#exercise-sessions).

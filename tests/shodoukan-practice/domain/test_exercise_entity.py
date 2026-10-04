@@ -35,7 +35,6 @@ def test_settings_defaults_and_fields() -> None:
     assert settings.type == "card.choice"
     assert settings.option_count == 4
     assert settings.distractor_source == "collection"
-    assert settings.question_count == 10
     assert settings.fields == {"literal", "kunyomi", "meaning"}
 
 
@@ -63,9 +62,9 @@ def test_settings_bound_the_options(option_count: int) -> None:
         choice_settings((("writing",), "meaning"), option_count=option_count)
 
 
-def test_question_count_can_be_every_item() -> None:
-    settings = choice_settings((("writing",), "meaning"), question_count=None)
-    assert settings.question_count is None
+def test_old_settings_with_question_count_still_load() -> None:
+    settings = choice_settings((("writing",), "meaning"), question_count=10)
+    assert "question_count" not in settings.model_dump()
 
 
 def test_item_kind_comes_from_the_subclass() -> None:

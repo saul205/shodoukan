@@ -287,12 +287,12 @@ def make_question(
 def make_session(
     user_id: UUID,
     exercise_id: int | None = None,
-    questions: int = 1,
-    item_ids: tuple[int | None, ...] = (),
+    item_id: int | None = None,
     *,
-    stored: bool = True,
+    question_id: int | None = 1,
 ) -> ExerciseSession:
-    """A kanji session; question ids are 1..n when `stored`, else None."""
+    """A kanji session with an active question (id `question_id`, None as if
+    not stored yet) and no history."""
     return ExerciseSession(
         id=None,
         user_id=user_id,
@@ -300,14 +300,7 @@ def make_session(
         exercise_name="N5 kanji",
         item_kind="kanji",
         meaning_lang="en",
-        questions=[
-            make_question(
-                i,
-                item_ids[i] if i < len(item_ids) else None,
-                i + 1 if stored else None,
-            )
-            for i in range(questions)
-        ],
+        current=make_question(0, item_id, question_id),
         created_at=NOW,
         updated_at=NOW,
     )

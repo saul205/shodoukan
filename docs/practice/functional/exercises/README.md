@@ -47,18 +47,24 @@ question and its answer: for example the reading and the meaning.
 
 ## Playing a choice card
 
-Starting an exercise creates a **session**: a set of questions (10 by default, or
-every item once), each about a different item of the collections, picked at random.
-Meanings are shown in the language chosen in the sidebar.
+Starting an exercise opens a **session**, and the user studies for as long as they
+like: there's no set number of questions. Meanings are shown in the language chosen
+in the sidebar.
 
-1. A random active item from the collection is shown with the fields of the
-   direction.
+1. An active item from the collection is shown with the fields of the direction.
 2. Below it, the options: the right one and wrong ones taken from other items of the
    collection.
 3. The user picks one. The card turns over and shows the back. The picked option turns
    red if it was wrong, and the right one green.
 4. From the back the user can open the item's full detail in a window, without
    leaving the session.
+5. The next card comes, until the user stops.
+
+**Which item comes next.** Every item of the collection comes up once, in random
+order, before any repeats; then a new round starts, shuffled again. An item answered
+wrong comes back a few cards later, without taking every turn when there are many
+misses. The same item never comes twice in a row. Items added to the collection, or
+deactivated, during the session count from the next card.
 
 Example, direction *kanji → kun'yomi*:
 
@@ -82,8 +88,14 @@ the user has enabled, which is the usual one; the back of the card shows them al
 be asked another form, disable the first one in the library. Kanji are different: each
 on'yomi and kun'yomi is worth learning, so any of them can be asked.
 
-Each question is answered once. The session ends when the last one is answered, and
-it can be resumed until then.
+**Ending a session.** The session ends when the user leaves it (finishing it or
+leaving the page). If that doesn't get through (the app is closed, the connection is
+lost), it ends on its own when the same exercise is started again or after 30 minutes
+without activity, counted until the last answer. Until then the user can come back to
+it and find the same card waiting. The card on screen when it ends isn't counted.
+
+Each card is answered once: a second click on another option doesn't change the
+answer.
 
 ## History (next phases)
 
@@ -116,7 +128,8 @@ a collection of someone else's can't be used.
 | A field that doesn't exist for the item kind, a direction that asks for a field it shows, or a repeated direction | Rejected as invalid |
 | No directions, or no collection | Rejected as invalid |
 | The collections have fewer than 2 usable items (active, with the fields the exercise asks), or the exercise has no collection left | The session can't start |
-| A question is answered again | Rejected; the first answer counts |
+| A card is answered again, or the session has ended | Rejected; the first answer counts |
+| The collection loses its usable items during a session | No more cards; the user can finish the session |
 
 Technical details: [exercises design](../../technical/exercises.md) and
 [endpoints](../../technical/api/endpoints.md#exercises).
