@@ -73,6 +73,29 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
+## Commands (`commands/exercise_commands.py`)
+
+Collection ids are checked against the user's collections **of the exercise's kind**
+(`entry_collection` / `kanji_collection`), so another user's collection, a missing one,
+or an id that only exists among collections of the other kind raises
+`EntityNotFoundError`. Duplicated ids are dropped, keeping the first. Settings that use
+fields of the other kind fail the entity's validation (a Pydantic `ValidationError`,
+`422` in the API).
+
+### `CreateExercise(exercises, entry_collections, kanji_collections).execute(user_id, item_kind, name, description, collection_ids, settings)`
+
+Builds an `EntryExercise` or a `KanjiExercise` from `item_kind` and stores it.
+
+### `UpdateExercise(exercises, entry_collections, kanji_collections).execute(user_id, exercise_id, name, description, collection_ids, settings)`
+
+Replaces every editable field through `rename`, `describe`, `use_collections` and
+`configure`, so `updated_at` only moves when something changed. The item kind never
+changes. `EntityNotFoundError` for a missing or foreign exercise.
+
+### `DeleteExercise(exercises).execute(user_id, exercise_id)`
+
+Deletes the exercise and its collection links; the collections stay.
+
 ## Commands (`commands/practice_entry_commands.py`, `commands/practice_kanji_commands.py`)
 
 Customising an item of the library. Each one loads the user's item with `get(id,
@@ -189,3 +212,13 @@ One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
 A collection's items are listed (and searched) with
 [`SearchEntries` / `SearchKanji`](#queries-querieslibrary_search_queriespy) and
 `in_collection`.
+
+## Queries (`queries/exercise_queries.py`)
+
+### `ListExercises(exercises).execute(user_id)`
+
+The user's exercises, by name.
+
+### `GetExercise(exercises).execute(user_id, exercise_id)`
+
+One exercise, or `EntityNotFoundError` if it's missing or another user's.

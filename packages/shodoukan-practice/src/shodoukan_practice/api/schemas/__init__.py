@@ -7,6 +7,7 @@ from .dictionary_schemas import (
     DictionaryKanjiResponse,
     DictionarySearchResponse,
 )
+from .exercise_schemas import ExerciseRequest, ExerciseResponse, NewExerciseRequest
 from .library_schemas import (
     ActiveRequest,
     EnabledRequest,
@@ -36,6 +37,8 @@ __all__ = [
     "DictionaryKanjiResponse",
     "DictionarySearchResponse",
     "EnabledRequest",
+    "ExerciseRequest",
+    "ExerciseResponse",
     "ImportEntryRequest",
     "ImportKanjiRequest",
     "ImportStatusResponse",
@@ -43,6 +46,7 @@ __all__ = [
     "ImportedKanjiResponse",
     "MeaningLang",
     "MeaningTextRequest",
+    "NewExerciseRequest",
     "NewGlossRequest",
     "NewKanjiMeaningRequest",
     "NotInCollection",

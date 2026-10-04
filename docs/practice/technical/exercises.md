@@ -3,9 +3,10 @@
 [← Technical documentation](README.md)
 
 The design of interactive exercises: how they're defined, run, graded and kept for
-statistics, and how new exercise types fit in. This is the agreed design, built in
-the phases listed at the end. When a phase lands, its details move to the layer pages
-(entities, schema, endpoints, use cases) and this page keeps the overview.
+statistics, and how new exercise types fit in. Parts that are built are marked
+**(built)**; the rest is the agreed design for the phases listed at the end. When a
+phase lands, its details move to the layer pages (entities, schema, endpoints, use
+cases) and this page keeps the overview.
 
 What the user sees: [functional documentation](../functional/exercises/README.md).
 
@@ -154,7 +155,7 @@ same spelling.
 
 ## Storage
 
-### Exercise definitions
+### Exercise definitions (built)
 
 | Table | Columns |
 |---|---|
@@ -185,7 +186,7 @@ edited or deleted.
 
 ## API
 
-### Exercise definitions
+### Exercise definitions (built)
 
 | Method | Route | Body / result |
 |---|---|---|
@@ -194,6 +195,8 @@ edited or deleted.
 | `GET` | `/exercises/{id}` | `ExerciseResponse` |
 | `PUT` | `/exercises/{id}` | `ExerciseRequest` (whole replacement; `item_kind` can't change) |
 | `DELETE` | `/exercises/{id}` | `204` |
+
+Details: [endpoints](api/endpoints.md#exercises).
 
 ### Sessions (phase 2)
 
@@ -245,7 +248,7 @@ umbrella; each phase is a branch off it and merges back with a PR.
 
 | # | Phase | Scope |
 |---|---|---|
-| 1 | Exercise definitions (backend) | Entity, settings union, storage, CRUD use cases and routes |
+| 1 | Exercise definitions (backend) **(built)** | Entity, settings union, storage, CRUD use cases and routes |
 | 2 | Exercise sessions (backend) | Field reading and comparison keys, question builder with the distractor rule, sessions and answers storage, session routes |
 | 3 | Exercise list and creation (frontend) | Exercises pages, `ExerciseForm`, `DirectionsEditor`, one collection |
 | 4 | Playing a choice session (frontend) | `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |

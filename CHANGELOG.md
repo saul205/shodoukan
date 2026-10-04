@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Saved exercises (`/exercises`: create, list, get, replace,
+  delete). An exercise studies words or kanji from the user's collections; its
+  settings are a choice card with directions (fields shown → field asked), back-of-card
+  fields, number of options and questions per session. Sessions come next.
 - **shodoukan-practice:** Search the library and collections: `q` (spelling, reading,
   romaji converted to kana, or meaning) and `meaning_lang` on `GET /library/entries`,
   `GET /library/kanji` and `GET /collections/{kind}/{id}/items`, best match first;

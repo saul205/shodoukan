@@ -26,13 +26,17 @@ The models that define these tables are described in
 | `kanji_collections` | `users` | `UNIQUE(user_id, name)` |
 | `entry_collection_items` | link table | PK `(collection_id, entry_id)`, index on `entry_id`, `added_at` |
 | `kanji_collection_items` | link table | PK `(collection_id, kanji_id)`, index on `kanji_id`, `added_at` |
+| `exercises` | `users` | `item_kind` with `CHECK item_kind IN ('entries','kanji')`, `settings` JSON, `name` (not unique), `description` |
+| `exercise_entry_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `entry_collections`, index on `collection_id`, `position` |
+| `exercise_kanji_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `kanji_collections`, index on `collection_id`, `position` |
 
 Every table except `users` and the link tables has an integer `id` primary key.
 `users.id` is a UUID, and so is every `user_id` foreign key (`practice_entries`,
-`practice_kanji`, `entry_collections`, `kanji_collections`). SQLAlchemy's `Uuid` type is
+`practice_kanji`, `entry_collections`, `kanji_collections`, `exercises`). SQLAlchemy's `Uuid` type is
 native `uuid` on PostgreSQL and `CHAR(32)` on SQLite. Aggregate tables
-(`users`, `practice_entries`, `practice_kanji`, `*_collections`) have `created_at` and
-`updated_at`.
+(`users`, `practice_entries`, `practice_kanji`, `*_collections`, `exercises`) have
+`created_at` and `updated_at`. The exercise link tables have no `id`: their primary key
+is the pair of foreign keys.
 
 ## Cascades
 
@@ -40,12 +44,16 @@ native `uuid` on PostgreSQL and `CHAR(32)` on SQLite. Aggregate tables
 - Deleting a user removes their whole library, their collections and all links.
 - Deleting an entry or kanji removes its nested rows and its links; the collections
   stay.
-- Deleting a collection removes its links; the items stay.
+- Deleting a collection removes its links, including its links to exercises; the items
+  and the exercises stay.
+- Deleting an exercise removes its collection links; the collections stay.
 
 ## Conventions
 
 - **Order.** Nested lists keep their order in a `position` column (0-based).
 - **Lists of strings** are `JSON` columns (portable; not `JSONB`).
+- **Exercise settings** are one `JSON` column, read and written whole and validated by
+  the domain (see [exercises](../exercises.md#storage)).
 - **User notes** are nullable `TEXT` with no length limit in the database; the domain
   caps them at 2000 characters and stores a blank note as `NULL`.
 - **Dates** are `timestamp without time zone` holding UTC, with no database default.

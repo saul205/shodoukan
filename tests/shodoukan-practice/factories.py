@@ -4,8 +4,12 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from shodoukan_practice.domain.entities import (
+    ChoiceCardSettings,
+    Direction,
     EntryCollection,
+    EntryExercise,
     KanjiCollection,
+    KanjiExercise,
     PracticeEntry,
     PracticeExample,
     PracticeExampleSentence,
@@ -194,4 +198,59 @@ def make_entry_collection(user_id: UUID, name: str = "verbs") -> EntryCollection
 def make_kanji_collection(user_id: UUID, name: str = "N5") -> KanjiCollection:
     return KanjiCollection(
         id=None, user_id=user_id, name=name, created_at=NOW, updated_at=NOW
+    )
+
+
+def choice_settings(
+    *directions: tuple[tuple[str, ...], str], **extra: object
+) -> ChoiceCardSettings:
+    """`ChoiceCardSettings` from `(prompt_fields, answer_field)` pairs."""
+    return ChoiceCardSettings.model_validate(
+        {
+            "directions": [
+                {"prompt": prompt, "answer": answer} for prompt, answer in directions
+            ],
+            **extra,
+        }
+    )
+
+
+def make_entry_exercise(
+    user_id: UUID, collection_ids: tuple[int, ...] = (), name: str = "Verbs"
+) -> EntryExercise:
+    """Meaning → writing and writing → meaning; reading on the back."""
+    return EntryExercise(
+        id=None,
+        user_id=user_id,
+        name=name,
+        collection_ids=collection_ids,
+        settings=ChoiceCardSettings(
+            directions=(
+                Direction(prompt=("meaning",), answer="writing"),
+                Direction(prompt=("writing",), answer="meaning"),
+            ),
+            back_fields=("reading",),
+        ),
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def make_kanji_exercise(
+    user_id: UUID, collection_ids: tuple[int, ...] = (), name: str = "N5 kanji"
+) -> KanjiExercise:
+    """Literal → kun'yomi, literal → on'yomi, kun'yomi → literal."""
+    return KanjiExercise(
+        id=None,
+        user_id=user_id,
+        name=name,
+        collection_ids=collection_ids,
+        settings=choice_settings(
+            (("literal",), "kunyomi"),
+            (("literal",), "onyomi"),
+            (("kunyomi",), "literal"),
+            back_fields=["meaning"],
+        ),
+        created_at=NOW,
+        updated_at=NOW,
     )

@@ -20,8 +20,10 @@ the library (`GET /library/entries`, `GET /library/kanji`, paged with a total; `
 items), dictionary entry and kanji details (`/dictionary/entries/{id}`,
 `/dictionary/kanji/{literal}`, ...), and customising library items (notes, enabling
 parts, own meanings, active, removal: `/library/entries/{id}/...`,
-`/library/kanji/{id}/...`). The practice and dictionary apps are standalone: never call
-shodoukan-api from here. Not built yet: exercises.
+`/library/kanji/{id}/...`), and saved exercise definitions (`/exercises`: CRUD;
+design in `docs/practice/technical/exercises.md`). The practice and dictionary apps are
+standalone: never call shodoukan-api from here. Not built yet: exercise sessions
+(question generation, answers, history).
 
 ## Layout
 
@@ -29,8 +31,8 @@ shodoukan-api from here. Not built yet: exercises.
 
 - `domain/`
   - `entities/`: `practice_entry_entity.py`, `practice_kanji_entity.py`,
-    `user_entity.py`, `collection_entity.py`, and `timestamped_entity.py`
-    (`TimestampedEntity` with `touch()`).
+    `user_entity.py`, `collection_entity.py`, `exercise_entity.py`, and
+    `timestamped_entity.py` (`TimestampedEntity` with `touch()`).
   - `repositories/`: Protocol ports.
   - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port;
     `gateways/kana_gateway.py`: `KanaGateway` (romaji/kana → both kana scripts).
@@ -51,6 +53,9 @@ shodoukan-api from here. Not built yet: exercises.
 - `application/commands/collection_commands.py` / `queries/collection_queries.py`:
   collection use cases, one class per use case and kind (`CreateEntryCollection`,
   `AddKanjiToCollection`, ...).
+- `application/commands/exercise_commands.py` / `queries/exercise_queries.py`:
+  `CreateExercise`, `UpdateExercise`, `DeleteExercise`, `ListExercises`, `GetExercise`.
+  Routes in `api/routes/exercise_routes.py`.
 - `application/queries/library_search_queries.py`: `SearchEntries`, `SearchKanji`
   (every list of library items: the library, a collection's items, the picker; return
   `LibraryPage(items, total, limit, offset)`), `build_search`, `resolve_scope`.
@@ -63,8 +68,9 @@ shodoukan-api from here. Not built yet: exercises.
 - Dictionary read models (`DictionaryEntry`, `DictionarySearchResult`, ...) live with
   the port in `domain/gateways/dictionary_gateway.py`.
 - `api/`: `app.py` (maps `EntityNotFoundError` → 404, `CollectionNameTakenError` →
-  409), `auth.py` (`TokenVerifier`), `deps.py` (one session per request; routes
-  commit), `routes/*_routes.py`, `schemas/*_schemas.py`.
+  409, Pydantic `ValidationError` from a use case → 422), `auth.py`
+  (`TokenVerifier`), `deps.py` (one session per request; routes commit),
+  `routes/*_routes.py`, `schemas/*_schemas.py`.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
 - `infrastructure/dictionary/`: `ShodoukanDictionaryGateway` and `shodoukan_mapper.py`
   (the anti-corruption layer), and `ShodoukanKanaGateway`. Wired in `api/deps.py` (cached `Dictionary()`).
@@ -89,7 +95,13 @@ shodoukan-api from here. Not built yet: exercises.
 - Mutating methods: `Collection.rename` / `describe`; `PracticeEntry` /
   `PracticeKanji`: `activate` / `deactivate`, `set_notes`, `set_enabled(part, id, …)`,
   own meanings (`add_gloss` / `edit_gloss` / `remove_gloss`, `add_meaning` / ...),
-  `PracticeEntry.set_sense_notes`. Each calls `touch()` only on a real change.
+  `PracticeEntry.set_sense_notes`; `Exercise.rename` / `describe` / `configure` /
+  `use_collections`. Each calls `touch()` only on a real change.
+- Exercises are `EntryExercise` / `KanjiExercise` (one `exercises` table, `item_kind`);
+  the subclass decides which fields its settings may use. `settings` is JSON validated
+  by the domain (`ChoiceCardSettings`, keyed by `type`). `collection_ids` lives on the
+  entity and is stored in one link table per kind; collection ids are looked up among
+  the user's collections of the exercise's kind.
 - Dictionary data in the library is never edited or deleted, only disabled
   (`OriginalDataError` → 409); only the user's own meanings change. Readings can't be
   added. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).

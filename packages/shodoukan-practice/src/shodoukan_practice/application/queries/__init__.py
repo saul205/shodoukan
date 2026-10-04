@@ -13,6 +13,7 @@ from .dictionary_queries import (
     ListKanjiForEntry,
     SearchDictionary,
 )
+from .exercise_queries import GetExercise, ListExercises
 from .library_queries import (
     GetImportStatus,
     GetLibraryEntry,
@@ -33,6 +34,7 @@ __all__ = [
     "GetDictionaryEntry",
     "GetDictionaryKanji",
     "GetEntryCollection",
+    "GetExercise",
     "GetImportStatus",
     "GetKanjiCollection",
     "GetLibraryEntry",
@@ -43,6 +45,7 @@ __all__ = [
     "ListCollectionsOfKanji",
     "ListEntriesForKanji",
     "ListEntryCollections",
+    "ListExercises",
     "ListKanjiCollections",
     "ListKanjiForEntry",
     "SearchDictionary",

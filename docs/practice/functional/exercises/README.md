@@ -2,8 +2,9 @@
 
 [← Functional documentation](../README.md)
 
-How a user practises the words and kanji of their collections. It's designed and
-built in phases (see the [design](../../technical/exercises.md#phases)).
+How a user practises the words and kanji of their collections. Saving exercises is
+built; playing them and their history come in the next phases (see the
+[design](../../technical/exercises.md#phases)).
 
 ## What an exercise is
 
@@ -97,10 +98,10 @@ a collection of someone else's can't be used.
 | Situation | Result |
 |---|---|
 | Not signed in, or the session expired | Rejected; the user must sign in again |
-| The exercise or the collection doesn't exist, or isn't the user's | Rejected as not found |
-| A word collection in a kanji exercise, or the other way round | Rejected as invalid |
+| The exercise or the collection doesn't exist, isn't the user's, or is of the other kind (a word collection in a kanji exercise) | Rejected as not found |
 | A field that doesn't exist for the item kind, a direction that asks for a field it shows, or a repeated direction | Rejected as invalid |
 | No directions, or no collection | Rejected as invalid |
 | The collection has fewer than 2 usable items (next phases) | The session can't start |
 
-Technical details: [exercises design](../../technical/exercises.md).
+Technical details: [exercises design](../../technical/exercises.md) and
+[endpoints](../../technical/api/endpoints.md#exercises).

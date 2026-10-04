@@ -80,6 +80,16 @@ and the user still needs to find the item to manage it.
 | `add(collection)` / `update(collection)` | the stored collection; `CollectionNameTakenError` if the user already has a collection of that kind with that name |
 | `delete(collection)` | removes the collection and its links; the items stay |
 
+## `ExerciseRepository`
+
+| Method | Returns / behavior |
+|---|---|
+| `get(id, user_id)` | the exercise (an `EntryExercise` or `KanjiExercise`) or `None` |
+| `list_for_user(user_id)` | the user's exercises, by name |
+| `add(exercise)` | the stored exercise, with its id |
+| `update(exercise)` | replaces its fields and collections; `EntityNotFoundError` if missing or another user's |
+| `delete(exercise)` | removes the exercise and its collection links; the collections stay |
+
 ## `DictionaryGateway`
 
 Read-only access to the shodoukan dictionary. It returns **fresh practice entities**

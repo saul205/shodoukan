@@ -281,6 +281,61 @@ within the collection exactly as in [the library](#get-libraryentries-and-get-li
 | `409` | The user already has a collection of that kind with that name (`POST`, `PUT`) |
 | `422` | Invalid body, name, `limit` or `offset` |
 
+## Exercises
+
+Saved exercise definitions; design in [exercises](../exercises.md). Code:
+`routes/exercise_routes.py`, `schemas/exercise_schemas.py`. All need a token; another
+user's exercise or collection is a `404`.
+
+| Method | Route | Use case | Success |
+|---|---|---|---|
+| `GET` | `/exercises` | `ListExercises` | `200` `list[ExerciseResponse]`, by name |
+| `POST` | `/exercises` | `CreateExercise` | `201` `ExerciseResponse` |
+| `GET` | `/exercises/{exercise_id}` | `GetExercise` | `200` `ExerciseResponse` |
+| `PUT` | `/exercises/{exercise_id}` | `UpdateExercise` | `200` `ExerciseResponse` |
+| `DELETE` | `/exercises/{exercise_id}` | `DeleteExercise` | `204` (the collections stay) |
+
+`POST` takes a `NewExerciseRequest`; `PUT` an `ExerciseRequest`, the same without
+`item_kind` (it can't change; a sent one is ignored), and replaces every field:
+
+```json
+{
+  "item_kind": "kanji",
+  "name": "N5 kanji",
+  "description": null,
+  "collection_ids": [3],
+  "settings": {
+    "type": "card.choice",
+    "directions": [
+      { "prompt": ["literal"], "answer": "kunyomi" },
+      { "prompt": ["kunyomi"], "answer": "literal" }
+    ],
+    "back_fields": ["meaning"],
+    "option_count": 4,
+    "question_count": 10
+  }
+}
+```
+
+- `name`: stripped, 1–100 characters. `collection_ids`: at least one, collections of
+  the exercise's kind.
+- `settings` is the domain's settings model as JSON, keyed by `type` (`card.choice`
+  only for now). Omitted settings take their defaults (`back_fields` `[]`,
+  `option_count` `4`, `distractor_source` `"collection"`, `question_count` `10`;
+  `null` asks every item once).
+- Fields: `writing`, `reading`, `meaning` for `entries`; `literal`, `onyomi`,
+  `kunyomi`, `meaning` for `kanji`.
+
+`ExerciseResponse`: `id`, `name`, `description`, `item_kind`, `collection_ids` (empty if
+its collections were deleted: it can't run until it gets one), `settings` with every
+default filled in, `created_at`, `updated_at`.
+
+| Status | When |
+|---|---|
+| `401` | Missing or invalid token |
+| `404` | No such exercise, or a collection that isn't one of the user's of that kind |
+| `422` | Invalid body: name, no collection, unknown `type`, no direction, a direction asking for a field it shows, a repeated direction or back field, `option_count` outside 2–8, or a field of the other item kind |
+
 ## Conventions
 
 - **Schemas** (`schemas/<subject>_schemas.py`) are separate from domain entities, so the
@@ -294,6 +349,11 @@ within the collection exactly as in [the library](#get-libraryentries-and-get-li
 - **Domain errors → HTTP** (exception handlers in `app.py`):
   `DictionaryItemNotFoundError` and `EntityNotFoundError` → `404`,
   `CollectionNameTakenError` and `OriginalDataError` → `409`. Authentication errors are raised as `HTTPException`s in `deps.py`.
+- **Entity validation → `422`.** A Pydantic `ValidationError` raised inside a use case
+  (an entity built or changed against its rules, e.g. exercise settings with fields of
+  the other item kind) is answered `422` with `detail` shaped like FastAPI's request
+  validation errors (without `input` or `url`). Response serialisation errors are a
+  different exception and stay `500`.
 
 ## Transactions
 
@@ -313,6 +373,7 @@ committed is rolled back when the session closes.
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
 | `get_import_entry` / `get_import_kanji` / `get_import_status` / `get_list_library_entries` / `get_list_library_kanji` | use cases with SQLAlchemy repositories on the request's session |
 | `get_<use case>` for collections (`get_create_entry_collection`, `get_add_kanji_to_collection`, ...) | one factory per collection use case, with the collection and item repositories on the request's session |
+| `get_list_exercises`, `get_get_exercise`, `get_create_exercise`, `get_update_exercise`, `get_delete_exercise` | exercise use cases, with the exercise and both collection repositories on the request's session |
 | `get_get_library_entry`, `get_set_entry_notes`, `get_add_kanji_meaning`, ... | one factory per library item use case, on the request's session |
 | `get_search_dictionary`, `get_get_dictionary_entry`, `get_get_dictionary_kanji`, `get_list_entries_for_kanji`, `get_list_kanji_for_entry` | dictionary use cases over the gateway (no session, no user) |
 

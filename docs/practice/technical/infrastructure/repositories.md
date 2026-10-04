@@ -118,3 +118,13 @@ Membership is read and written directly on the link tables:
 
 The entry and kanji collection repositories are near-identical on purpose. There's no
 shared generic base until a third collection kind shows what to abstract.
+
+## Exercises
+
+`SqlAlchemyExerciseRepository` loads an exercise with both link tables
+(`selectinload`) and maps the one of its kind. The collection links are child rows of
+the exercise, so `update` replaces them through `merge` like any nested item: links
+with the same `(exercise_id, collection_id)` are updated (their `position`), new ones
+inserted, missing ones deleted. `update` and `delete` check that the stored exercise
+belongs to the same user (`EntityNotFoundError` otherwise). A deleted collection drops
+out of its exercises through the FK cascade, with no repository code.

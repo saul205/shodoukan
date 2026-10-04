@@ -72,7 +72,8 @@ same name in folders that aren't packages.
   `get_dictionary_gateway` and `get_token_verifier` overridden).
 - Helper modules next to `conftest.py`:
   - `factories.py`: `USER_ID` / `OTHER_USER_ID` (fixed UUIDs), `make_entry`,
-    `make_kanji`, `make_*_collection`, `NOW`, and
+    `make_kanji`, `make_*_collection`, `make_entry_exercise` / `make_kanji_exercise`,
+    `choice_settings((prompt, answer), ...)`, `NOW`, and
     `TIMESTAMPS` for ORM rows built directly;
   - `tokens.py`: `ISSUER`, `DEFAULT_SUBJECT`, `TokenFactory`, `bearer(token)`.
 

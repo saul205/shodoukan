@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from ..domain.exceptions import (
     CollectionNameTakenError,
@@ -13,6 +14,7 @@ from ..domain.exceptions import (
 from .routes import (
     dictionary_router,
     entry_collection_router,
+    exercise_router,
     kanji_collection_router,
     library_router,
     practice_entry_router,
@@ -51,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(user_router)
     app.include_router(entry_collection_router)
     app.include_router(kanji_collection_router)
+    app.include_router(exercise_router)
     app.add_exception_handler(DictionaryItemNotFoundError, _not_found)
     # Repositories scope lookups to the user, so another user's collection
     # or item is "not found" too.
@@ -58,6 +61,10 @@ def create_app() -> FastAPI:
     app.add_exception_handler(CollectionNameTakenError, _conflict)
     # Dictionary data in the library can only be disabled, not changed.
     app.add_exception_handler(OriginalDataError, _conflict)
+    # Rules entities check when built or changed in a use case (e.g. exercise
+    # settings that use fields of the other item kind), shaped like FastAPI's
+    # own request validation errors.
+    app.add_exception_handler(ValidationError, _unprocessable)
     return app
 
 
@@ -70,6 +77,18 @@ async def _not_found(_: Request, error: Exception) -> JSONResponse:
 async def _conflict(_: Request, error: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT, content={"detail": str(error)}
+    )
+
+
+async def _unprocessable(_: Request, error: Exception) -> JSONResponse:
+    assert isinstance(error, ValidationError)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={
+            "detail": error.errors(
+                include_url=False, include_context=False, include_input=False
+            )
+        },
     )
 
 

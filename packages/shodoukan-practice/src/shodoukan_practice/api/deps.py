@@ -22,8 +22,10 @@ from ..application.commands import (
     AddKanjiMeaning,
     AddKanjiToCollection,
     CreateEntryCollection,
+    CreateExercise,
     CreateKanjiCollection,
     DeleteEntryCollection,
+    DeleteExercise,
     DeleteKanjiCollection,
     EditEntryGloss,
     EditKanjiMeaning,
@@ -44,12 +46,14 @@ from ..application.commands import (
     SetKanjiPartEnabled,
     SetSenseNotes,
     UpdateEntryCollection,
+    UpdateExercise,
     UpdateKanjiCollection,
 )
 from ..application.queries import (
     GetDictionaryEntry,
     GetDictionaryKanji,
     GetEntryCollection,
+    GetExercise,
     GetImportStatus,
     GetKanjiCollection,
     GetLibraryEntry,
@@ -58,6 +62,7 @@ from ..application.queries import (
     ListCollectionsOfKanji,
     ListEntriesForKanji,
     ListEntryCollections,
+    ListExercises,
     ListKanjiCollections,
     ListKanjiForEntry,
     SearchDictionary,
@@ -73,6 +78,7 @@ from ..infrastructure.dictionary import (
 )
 from ..infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
+    SqlAlchemyExerciseRepository,
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
@@ -389,6 +395,37 @@ def get_remove_kanji_from_collection(session: SessionDep) -> RemoveKanjiFromColl
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
     )
+
+
+# --- Exercises ---
+
+
+def get_list_exercises(session: SessionDep) -> ListExercises:
+    return ListExercises(SqlAlchemyExerciseRepository(session))
+
+
+def get_get_exercise(session: SessionDep) -> GetExercise:
+    return GetExercise(SqlAlchemyExerciseRepository(session))
+
+
+def get_create_exercise(session: SessionDep) -> CreateExercise:
+    return CreateExercise(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+def get_update_exercise(session: SessionDep) -> UpdateExercise:
+    return UpdateExercise(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+def get_delete_exercise(session: SessionDep) -> DeleteExercise:
+    return DeleteExercise(SqlAlchemyExerciseRepository(session))
 
 
 def _unauthorized(detail: str) -> HTTPException:
