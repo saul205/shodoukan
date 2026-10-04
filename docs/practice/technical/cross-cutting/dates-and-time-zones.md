@@ -10,7 +10,7 @@ How dates are stored, handled and sent, and who decides "now".
 |---|---|
 | Database | naive UTC (`timestamp without time zone`) |
 | Backend (domain, use cases, repositories) | aware UTC `datetime` |
-| API (planned) | ISO 8601 with offset, e.g. `2026-07-01T10:00:00Z`; clients convert to local time |
+| API | ISO 8601 with offset, e.g. `2026-07-01T10:00:00Z`; clients convert to local time |
 
 ## `UtcDateTime` (`infrastructure/db/orm/base_orm.py`)
 

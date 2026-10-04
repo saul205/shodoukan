@@ -13,7 +13,7 @@ exercises built from those collections.
 | Dictionary integration (in-process `shodoukan` library) | Built |
 | Application use cases | Import an entry or kanji; browse and customise the library; manage collections and their items; dictionary entry and kanji details |
 | Sign-in (Keycloak, OAuth2 / OpenID Connect) | Built: local Keycloak with the `shodoukan` realm; practice users created on first request |
-| HTTP API | `GET /dictionary/search` (public), `GET /users/me`, `GET`/`POST /library/entries`, `GET`/`POST /library/kanji`, `GET /library/imported`, `/collections/entries` and `/collections/kanji` |
+| HTTP API | `GET /dictionary/search` (public), `GET /users/me`, `GET`/`POST /library/entries`, `GET`/`POST /library/kanji`, `GET /library/imported`, `/collections/entries` and `/collections/kanji`, `/exercises`, `POST /exercises/{id}/sessions`, `/exercise-sessions` (list, get, answer, finish), `GET /exercises/{id}/statistics`, `GET /statistics` |
 | Frontend (`shodoukan-practice-web`) | Built: Keycloak sign-in, dictionary, library with customisation, collections; see [frontend](technical/frontend.md) |
 | Exercises | Designed ([design](technical/exercises.md)); exercise definitions (`/exercises`), sessions, their history (`/exercise-sessions`) and statistics (`/exercises/{id}/statistics`, `/statistics`) built; creating and managing exercises in the frontend built; screens to play, review and see statistics to come |
 
