@@ -148,3 +148,50 @@ export interface LibraryQuery extends SearchQuery {
   /** Leave out this collection's items (what can still be added to it). */
   not_in_collection?: number
 }
+
+/** A field an exercise can study; which ones apply depends on the item kind. */
+export type StudyField = 'writing' | 'reading' | 'meaning' | 'literal' | 'onyomi' | 'kunyomi'
+
+/** Show the `prompt` fields, ask for the `answer` field (never one of them). */
+export interface Direction {
+  prompt: StudyField[]
+  answer: StudyField
+}
+
+/** A card with options: the right answer and wrong ones from the collections. */
+export interface ChoiceCardSettings {
+  type: 'card.choice'
+  directions: Direction[]
+  /** Shown on the back once answered, besides the prompt and the answer. */
+  back_fields: StudyField[]
+  option_count: number // 2–8
+  distractor_source: 'collection'
+}
+
+/** Settings by exercise type, discriminated by `type`. */
+export type ExerciseSettings = ChoiceCardSettings
+
+export interface Exercise {
+  id: number
+  name: string
+  description: string | null
+  item_kind: ItemKind
+  /** Empty if its collections were deleted; it can't run then. */
+  collection_ids: number[]
+  settings: ExerciseSettings
+  created_at: string
+  updated_at: string
+}
+
+/** An exercise's editable fields; an update replaces all of them. */
+export interface ExerciseInput {
+  name: string
+  description: string | null
+  collection_ids: number[]
+  settings: ExerciseSettings
+}
+
+export interface NewExerciseInput extends ExerciseInput {
+  /** Can't change once created. */
+  item_kind: ItemKind
+}

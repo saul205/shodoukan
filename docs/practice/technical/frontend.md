@@ -85,18 +85,20 @@ Every screen requires sign-in; only `/auth/callback` is public.
 
 The default layout is Nuxt UI's dashboard: `UDashboardGroup` with a collapsible
 `UDashboardSidebar` (state kept in localStorage; a slideover on mobile). The sidebar
-has the three sections, the **meaning language** (`useMeaningLang()`, kept in
+has the four sections, the **meaning language** (`useMeaningLang()`, kept in
 localStorage) and the user menu. Every page uses `AppPanel` (navbar with the collapse
 button, title and actions).
 
 | Route | Screen |
 |---|---|
-| `/` | Home: the three sections |
+| `/` | Home: the four sections |
 | `/dictionary?q=&page=` | Search; `shodoukan-ui` cards with an icon-only split button over each card's corner (beside the card's link, not inside it): `ImportButton` (import, or remove on hover/focus with `ConfirmModal`) and `CollectionMenuButton` (see below), in a `UFieldGroup`; status from `GET /library/imported` (`useImportStatus()`) |
 | `/dictionary/entries/:id`, `/dictionary/kanji/:literal` | Dictionary details (senses, examples, kanji; readings, stroke order, words using the kanji; the kanji's meanings are large and fill its height, with its data at the base), with the split button (labelled `ImportButton`) and, once imported, a link to the library copy. The entry page's kanji are `EntryKanjiList`: the cards with the corner split button, plus "import the missing ones" (`addKanjiList`, one notification) |
 | `/library?tab=&q=&active=&page=` | The library: words / kanji tabs, search (`LibrarySearchInput`: updates 300 ms after typing stops, at once on Enter or clear; `meaning_lang` is `glossCode` for words and `lang` for kanji; kept when switching tab), active filter (`useActiveFilter()`, shared with collections), paging |
 | `/library/entries/:id`, `/library/kanji/:id` | **Shared detail page** for the library and collections: only the senses with a meaning in the chosen language (`sensesIn`); `MeaningList` (dictionary meanings only toggle; own meanings add / edit / delete), switches for spellings, readings and examples (a kanji's readings are `ReadingChips`: chips that toggle on click, hidden ones faded and struck through), `NotesEditor` (general and per sense, saved on blur), active, `ItemCollections` (the "Colecciones" section: removable badges and a `CollectionPicker` in its header), removal. The entry page lists the word's kanji after the meanings with the dictionary's `EntryKanjiList` (`GET /dictionary/entries/{source_entry_id}/kanji`, `link-to="library"`: imported kanji open the library copy). The kanji page puts its data under the kanji, the readings beside it and the stroke order (animation at 128 px + `KanjiStrokeGrid` at `4.5rem`) below, then the meanings; its aside ends with `KanjiWords`: the first 5 dictionary words with the kanji (imported ones open the library copy, via `useImportStatus`) and a link to search the dictionary for the kanji (`/dictionary?q=`; like Jisho, it matches words *starting* with it; a "contains" filter is left for the search filters) |
 | `/collections?tab=` | Collections of words / kanji: create and edit (`CollectionFormModal`), delete (`ConfirmModal`) |
+| `/exercises` | The user's exercises as cards: item kind, collections (by name; "Sin colecciones" when they were all deleted) and directions; edit, delete (`ConfirmModal`; past sessions are kept) |
+| `/exercises/new`, `/exercises/:id/edit` | `ExerciseForm` (below) in a card; saving goes back to the list |
 | `/collections/:kind/:id?q=&active=&page=` | A collection's items with search (`LibrarySearchInput`, `in_collection` on the API side), the same active filter as the library (inactive ones are listed, marked, unless filtered out) and paging; add from the library (`LibraryPickerModal`: its own search, `not_in_collection` so only what can still be added is listed, selection kept across searches), remove; items open the detail page with `?collection=<id>` for the back link (`useBackLink()`) |
 
 **Adding to a collection** (`CollectionPicker`): one picker for the dictionary and the
@@ -119,16 +121,31 @@ in the dictionary it matches the import button beside it. It has two modes
   `POST /library/...` with `collection_ids`, so the import and the collection never get
   out of step ([decisions](decisions.md#importing-into-collections-is-one-request)).
 
+**Exercise form** (`ExerciseForm`): name, description, item kind (a radio group,
+fixed when editing), collections (a multiple `USelectMenu` of that kind's collections,
+with a link to create one when there are none), directions (`DirectionsEditor`), back
+fields (checkboxes) and the number of options (`UInputNumber`, 2–8). Fields, their
+Spanish labels and each kind's defaults are in `utils/study-fields.ts`, mirroring the
+backend's `ENTRY_FIELDS` / `KANJI_FIELDS`. Switching the item kind starts collections,
+directions and back fields over. The Zod schema repeats the backend's rules (at least
+one collection and one direction, no direction asking a field it shows, no repeated
+direction in any order of its shown fields), so mistakes show on their field; a 404 on
+save (a collection deleted meanwhile) is shown on the collections field and reloads
+them. The form saves on its own and emits `saved`, so the new and edit pages only
+navigate. `DirectionsEditor` is one row per direction, a multiple `USelectMenu` of the
+shown fields → a `USelect` of the asked field; the asked field is never offered among
+the shown ones, and picking it as the answer takes it out of the prompt.
+
 The detail is a page, not a modal: it has its own URL, the back button works, and it
 has room for editing. List state (tab, filter, page, query) lives in the URL for the
 same reason.
 
 ## Tests
 
-`tests/unit/` runs in happy-dom: the API client (token, 401), `safeReturnPath`, the
-service functions. `tests/components/` runs in the Nuxt environment
+`tests/unit/` runs in happy-dom: the API client (token, 401), `apiStatus` (also
+through `useAsyncData`'s wrapped error), `safeReturnPath`, the service functions. `tests/components/` runs in the Nuxt environment
 (`// @vitest-environment nuxt`, `mountSuspended`): the sign-in middleware,
-`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `EntryKanjiList`, `ItemCollections`, `CollectionPicker` (menus
+`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, the exercise edit page's not-found state (menus
 and tooltips need the `UApp` wrapper; their content is portalled to the body). They replace `useAuth` with
 `tests/fakes.ts` (`mockNuxtImport`), because the real middleware would redirect to
 Keycloak while the test app starts.

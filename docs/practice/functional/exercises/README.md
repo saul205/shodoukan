@@ -2,9 +2,10 @@
 
 [← Functional documentation](../README.md)
 
-How a user practises the words and kanji of their collections. Saving exercises and
-running sessions are built in the practice API; the screens to create and play them,
-the history and the statistics, come in the next phases (see the
+How a user practises the words and kanji of their collections. Exercises are created
+and managed in the practice app ("Ejercicios"); running sessions is built in the
+practice API, and the screens to play them, the history and the statistics come in
+the next phases (see the
 [design](../../technical/exercises.md#phases)).
 
 ## What an exercise is
@@ -117,6 +118,10 @@ was right. Editing or removing an item later doesn't change past sessions.
   directions, the back fields and the number of options.
 - **See** their exercises, sorted by name.
 - **Edit** any of it except whether it holds words or kanji.
+- The form checks the same rules before saving: at least one collection and one
+  direction, no direction asking a field it shows, no repeated direction. Switching
+  between words and kanji while creating starts the collections and fields over,
+  since they belong to one kind.
 - **Delete** it. Its past sessions will be kept in the history.
 
 Deleting a collection removes it from its exercises; an exercise with no collection

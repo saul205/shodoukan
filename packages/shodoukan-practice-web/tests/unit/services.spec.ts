@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addToCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
 import { searchDictionary } from '../../app/services/dictionary'
+import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
   addGloss,
   getImportStatus,
@@ -75,6 +76,34 @@ describe('practice API services', () => {
       ['/library/entries', { query: { q: 'taberu', meaning_lang: 'eng', not_in_collection: 3, limit: 20, offset: 0 } }],
       ['/library/kanji', { query: { q: '兄弟', active: true } }],
       ['/collections/kanji/4/items', { query: { q: 'eat', meaning_lang: 'en' } }],
+    ])
+  })
+
+  it('exercises use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    const input = {
+      name: 'Verbos',
+      description: null,
+      collection_ids: [1],
+      settings: {
+        type: 'card.choice' as const,
+        directions: [{ prompt: ['writing' as const], answer: 'meaning' as const }],
+        back_fields: [],
+        option_count: 4,
+        distractor_source: 'collection' as const,
+      },
+    }
+    await listExercises(api)
+    await getExercise(api, 7)
+    await createExercise(api, { ...input, item_kind: 'entries' })
+    await updateExercise(api, 7, input)
+    await deleteExercise(api, 7)
+    expect(calls).toEqual([
+      ['/exercises'],
+      ['/exercises/7'],
+      ['/exercises', { method: 'POST', body: { ...input, item_kind: 'entries' } }],
+      ['/exercises/7', { method: 'PUT', body: input }],
+      ['/exercises/7', { method: 'DELETE' }],
     ])
   })
 })

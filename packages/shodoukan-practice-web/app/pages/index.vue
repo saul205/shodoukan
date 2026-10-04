@@ -20,6 +20,12 @@ const sections = [
     icon: 'i-lucide-folders',
     to: '/collections',
   },
+  {
+    title: 'Ejercicios',
+    description: 'Practica tus colecciones con tarjetas: elige qué se muestra y qué se pregunta.',
+    icon: 'i-lucide-dumbbell',
+    to: '/exercises',
+  },
 ]
 </script>
 
@@ -33,7 +39,7 @@ const sections = [
         <p class="mt-1 text-muted">¿Por dónde quieres empezar?</p>
       </div>
 
-      <UPageGrid class="lg:grid-cols-3">
+      <UPageGrid class="lg:grid-cols-2 xl:grid-cols-4">
         <UPageCard
           v-for="section in sections"
           :key="section.to"

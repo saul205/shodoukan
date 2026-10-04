@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice-web:** "Ejercicios": list, create, edit and delete exercises.
+  The form picks one or more collections of words or kanji, the directions (fields
+  shown → field asked), what the back of the card shows and the number of options,
+  and checks the same rules as the API before saving.
 - **shodoukan-practice:** Exercise sessions to study an exercise for as long as the
   user likes: `POST /exercises/{id}/sessions` starts one with its first question,
   `POST /exercise-sessions/{id}/answer` grades the active question and returns the

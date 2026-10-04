@@ -306,9 +306,10 @@ on the client and library-wide distractors (later) need no paging in the browser
 In `shodoukan-practice-web`:
 
 - **Pages:**
-  - `exercises/index.vue`: the list, with Empezar, Editar and Eliminar, and a
-    "Continuar" notice when a session is open (also on the home page).
-  - `exercises/new.vue` and `exercises/[id]/edit.vue`.
+  - `exercises/index.vue`: the list, with Editar and Eliminar **(built)**; Empezar
+    and a "Continuar" notice when a session is open (also on the home page) come
+    with phase 4.
+  - `exercises/new.vue` and `exercises/[id]/edit.vue` **(built)**.
   - `exercises/[id]/index.vue`: the exercise's summary, session history and
     statistics.
   - `exercise-sessions/[id].vue`: play an open session; a finished one opens in
@@ -318,7 +319,8 @@ In `shodoukan-practice-web`:
 - **Components:**
   - `ExerciseForm` with several collections of one kind, a `DirectionsEditor` (rows
     of prompt fields → answer field) and back-field checkboxes; the field list
-    depends on the item kind (`utils/study-fields.ts`).
+    depends on the item kind (`utils/study-fields.ts`) **(built**, see
+    [frontend](frontend.md#screens)**)**.
   - `StudyCard`: front and back of a card. The back shows the prompt, the answer and
     the chosen `back_fields`.
   - `ChoiceOptions`: the options, keys 1–N; once answered, the picked one is red if
@@ -330,7 +332,7 @@ In `shodoukan-practice-web`:
   - `StatTile`, `AccuracyBar`, `ActivityChart`: Nuxt UI and CSS, no chart library.
 - A registry `question type → player component` picks the player for each exercise
   type (`components/exercise-players/`).
-- "Ejercicios" and "Estadísticas" in the sidebar (`app/layouts/default.vue`).
+- "Ejercicios" **(built)** and "Estadísticas" in the sidebar (`app/layouts/default.vue`).
 
 Example of a `card.choice` question, direction *literal → kunyomi*:
 
@@ -355,7 +357,7 @@ go in the order 3 → A → 4 → 5 → C.
 |---|---|---|
 | 1 | Exercise definitions (backend) **(built)** | Entity, settings union, storage, CRUD use cases and routes |
 | 2 | Exercise sessions (backend) **(built)** | Field reading and comparison keys, question builder with the distractor rule, sessions and answers storage, session routes |
-| 3 | Exercise list and creation (frontend), #31 | Exercises pages, `ExerciseForm` with several collections, `DirectionsEditor` |
+| 3 | Exercise list and creation (frontend), #31 **(built)** | Exercises pages, `ExerciseForm` with several collections, `DirectionsEditor` |
 | A | History and statistics (backend), #42 | Session summaries (history, the open session), statistics per exercise and overall, question `type` |
 | 4 | Playing a choice session (frontend), #32 | Start and resume, `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
 | 5 | History and review (frontend), #33 | Session history per exercise, reviewing a past session |
