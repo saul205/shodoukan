@@ -48,7 +48,8 @@ async function createAndAdd(name: string) {
     show-selected
     :collections="all"
     :selected="mine"
-    :variant="iconOnly ? 'soft' : 'outline'"
+    :color="imported ? 'success' : 'primary'"
+    :variant="imported || iconOnly ? 'soft' : 'solid'"
     :disabled="busy || loading"
     @open="open"
     @add="addTo"

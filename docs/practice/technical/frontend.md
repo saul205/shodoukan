@@ -103,7 +103,9 @@ button, title and actions).
 library, an icon-only `USelectMenu` with a search where typing a new name offers
 «Crear "…"» (`create-item`). It's presentational: it emits `open`, `add`, `remove` and
 `create`, and the caller does the requests with `useItemCollections(kind, itemId)`
-(`load`, `add`, `remove`, `create`). It has two modes
+(`load`, `add`, `remove`, `create`). Its `color` and `variant` make it look like a
+`UButton` (a select's own `color` only tints the focus ring, and it has no `solid`), so
+in the dictionary it matches the import button beside it. It has two modes
 ([decisions](decisions.md#one-collection-picker-two-modes)):
 
 - **Library** (default), in the header of `ItemCollections`: only the collections the

@@ -101,4 +101,19 @@ describe('CollectionMenuButton', () => {
     })
     expect(menu.emitted()).toEqual([[cocina]])
   })
+
+  it('looks like the import button beside it', async () => {
+    const wrapper = await mountSuspended(defineComponent({
+      render: () => h(UApp, null, { default: () => [
+        h(CollectionMenuButton, { kind: 'entries', practiceId: 7, iconOnly: true }),
+        h(CollectionMenuButton, { kind: 'entries' }),
+      ] }),
+    }))
+    const [imported, missing] = wrapper.findAll('button[aria-label="Añadir a una colección"]').map(b => b.classes())
+
+    expect(imported).toEqual(expect.arrayContaining(['text-success', 'bg-success/10', 'p-1.5']))
+    expect(imported).not.toContain('bg-elevated/50')
+    expect(imported).not.toContain('ps-8')
+    expect(missing).toEqual(expect.arrayContaining(['text-inverted', 'bg-primary']))
+  })
 })

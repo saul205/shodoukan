@@ -17,10 +17,15 @@ const props = withDefaults(defineProps<{
   selected: Collection[]
   showSelected?: boolean
   tooltip?: string
-  /** A select's look (its color only tints the focus ring). */
-  variant?: SelectMenuProps['variant']
+  /**
+   * Look like a `UButton` of this color, to sit beside one. A select's own
+   * `color` only tints the focus ring, so the colors are applied as classes.
+   */
+  color?: 'neutral' | 'primary' | 'success'
+  /** `solid` is only for primary and success; selects have no solid variant. */
+  variant?: 'solid' | 'soft' | 'outline' | 'ghost'
   disabled?: boolean
-}>(), { showSelected: false, tooltip: 'Añadir a una colección', variant: 'ghost' })
+}>(), { showSelected: false, tooltip: 'Añadir a una colección', color: 'neutral', variant: 'ghost' })
 
 // The root is UTooltip, which renders no element: attributes go to the menu.
 defineOptions({ inheritAttrs: false })
@@ -57,6 +62,34 @@ function changed(ids: number[]) {
   for (const collection of props.selected.filter(c => !ids.includes(c.id))) emit('remove', collection)
 }
 
+// UButton's classes for these colors (from its theme); written out in full so
+// Tailwind sees them.
+const BUTTON_COLORS = {
+  primary: {
+    solid: 'text-inverted bg-primary hover:bg-primary/75 disabled:bg-primary',
+    soft: 'text-primary bg-primary/10 hover:bg-primary/15 disabled:bg-primary/10',
+  },
+  success: {
+    solid: 'text-inverted bg-success hover:bg-success/75 disabled:bg-success',
+    soft: 'text-success bg-success/10 hover:bg-success/15 disabled:bg-success/10',
+  },
+} as const
+
+const look = computed<{ variant: SelectMenuProps['variant']; base: string }>(() => {
+  if (props.color === 'neutral' || (props.variant !== 'solid' && props.variant !== 'soft'))
+    return { variant: props.variant === 'solid' ? 'outline' : props.variant, base: '' }
+  return { variant: 'none', base: BUTTON_COLORS[props.color][props.variant] }
+})
+
+// A square icon button like UButton's (the select puts its icon at the start,
+// absolutely, and pads for it).
+const ui = computed(() => ({
+  base: `p-1.5 ${look.value.base}`,
+  leading: 'static',
+  leadingIcon: look.value.base ? 'text-current' : '',
+  content: 'min-w-56',
+}))
+
 const emptyText = computed(() => {
   if (props.collections === null) return 'Cargando…'
   return props.collections.length ? 'Escribe un nombre para crear una colección' : 'Escribe un nombre para crear tu primera colección'
@@ -75,12 +108,12 @@ const emptyText = computed(() => {
       icon="i-lucide-folder-plus"
       trailing-icon=""
       color="neutral"
-      :variant="variant"
+      :variant="look.variant"
       size="sm"
       :aria-label="tooltip"
       :disabled="disabled"
       :content="{ align: 'end' }"
-      :ui="{ content: 'min-w-56' }"
+      :ui="ui"
       :search-input="{ placeholder: 'Buscar o crear una colección…' }"
       create-item
       @update:open="isOpen => isOpen && emit('open')"
@@ -100,12 +133,12 @@ const emptyText = computed(() => {
       icon="i-lucide-folder-plus"
       trailing-icon=""
       color="neutral"
-      :variant="variant"
+      :variant="look.variant"
       size="sm"
       :aria-label="tooltip"
       :disabled="disabled"
       :content="{ align: 'end' }"
-      :ui="{ content: 'min-w-56' }"
+      :ui="ui"
       :search-input="{ placeholder: 'Buscar o crear una colección…' }"
       create-item
       @update:open="isOpen => isOpen && emit('open')"
