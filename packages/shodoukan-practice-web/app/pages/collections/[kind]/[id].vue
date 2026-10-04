@@ -11,8 +11,8 @@ import {
   removeFromCollection,
 } from '~/services/collections'
 
-// One collection and its items. Items open the library's detail page, which
-// links back here.
+// One collection and its items, inactive ones included unless filtered out (as
+// in the library). Items open the library's detail page, which links back here.
 
 definePageMeta({
   validate: route => ['entries', 'kanji'].includes(String(route.params.kind)),
@@ -28,9 +28,10 @@ const overlay = useOverlay()
 
 const kind = computed(() => route.params.kind as ItemKind)
 const id = computed(() => Number(route.params.id))
+const { filter, active, options: filters } = useActiveFilter()
 const page = computed<number>({
   get: () => Math.max(1, Number(route.query.page) || 1),
-  set: value => router.push({ query: { page: value } }),
+  set: value => router.push({ query: { ...route.query, page: value } }),
 })
 
 const { data: collection, error: collectionError, refresh: refreshCollection } = useAsyncData(
@@ -40,15 +41,22 @@ const { data: collection, error: collectionError, refresh: refreshCollection } =
 )
 
 const { data: items, status, refresh: refreshItems } = useAsyncData(
-  () => `collection-items-${kind.value}-${id.value}-${page.value}`,
+  () => `collection-items-${kind.value}-${id.value}-${filter.value}-${page.value}`,
   async () => {
-    const query = { limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }
+    const query = { limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE, active: active.value }
     return kind.value === 'entries'
       ? { kind: 'entries' as const, page: await listCollectionEntries(api, id.value, query) }
       : { kind: 'kanji' as const, page: await listCollectionKanji(api, id.value, query) }
   },
-  { watch: [kind, id, page] },
+  { watch: [kind, id, filter, page] },
 )
+
+const countLabel = computed(() => {
+  const total = items.value?.page.total ?? 0
+  if (filter.value === 'active') return `${total} activos`
+  if (filter.value === 'inactive') return `${total} inactivos`
+  return total === 1 ? '1 elemento' : `${total} elementos`
+})
 
 const backToLibrary = computed(() => ({ path: '/collections', query: kind.value === 'kanji' ? { tab: 'kanji' } : {} }))
 
@@ -125,11 +133,14 @@ async function remove() {
     />
 
     <div v-else class="space-y-5">
-      <div v-if="collection" class="space-y-1">
-        <p class="text-sm text-muted">
-          Colección de {{ kind === 'entries' ? 'palabras' : 'kanji' }}<template v-if="items"> · {{ items.page.total }} activos</template>
-        </p>
-        <p v-if="collection.description" class="text-toned">{{ collection.description }}</p>
+      <div v-if="collection" class="flex flex-wrap items-start justify-between gap-3">
+        <div class="space-y-1">
+          <p class="text-sm text-muted">
+            Colección de {{ kind === 'entries' ? 'palabras' : 'kanji' }}<template v-if="items"> · {{ countLabel }}</template>
+          </p>
+          <p v-if="collection.description" class="text-toned">{{ collection.description }}</p>
+        </div>
+        <USelect v-model="filter" :items="filters" class="w-36" aria-label="Filtrar por estado" />
       </div>
 
       <div v-if="status === 'pending' && !items" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -137,10 +148,16 @@ async function remove() {
       </div>
 
       <UEmpty
+        v-else-if="items && !items.page.items.length && filter !== 'all'"
+        icon="i-lucide-filter-x"
+        title="Nada con este filtro"
+      />
+
+      <UEmpty
         v-else-if="items && !items.page.items.length"
         icon="i-lucide-folder-open"
         title="Esta colección está vacía"
-        description="Añade elementos de tu librería. Los inactivos no se muestran aquí."
+        description="Añade elementos de tu librería."
         :actions="[{ label: 'Añadir elementos', icon: 'i-lucide-plus', onClick: addItems }]"
       />
 

@@ -12,16 +12,11 @@ const route = useRoute()
 const router = useRouter()
 const api = useApi()
 
-type ActiveFilter = 'all' | 'active' | 'inactive'
-
 const tab = computed<ItemKind>({
   get: () => (route.query.tab === 'kanji' ? 'kanji' : 'entries'),
   set: value => router.replace({ query: { tab: value } }),
 })
-const filter = computed<ActiveFilter>({
-  get: () => (['active', 'inactive'].includes(String(route.query.active)) ? route.query.active as ActiveFilter : 'all'),
-  set: value => router.replace({ query: { ...route.query, active: value === 'all' ? undefined : value, page: undefined } }),
-})
+const { filter, active, options: filters } = useActiveFilter()
 const page = computed<number>({
   get: () => Math.max(1, Number(route.query.page) || 1),
   set: value => router.push({ query: { ...route.query, page: value } }),
@@ -31,11 +26,6 @@ const tabs: TabsItem[] = [
   { label: 'Palabras', value: 'entries', icon: 'i-lucide-languages' },
   { label: 'Kanji', value: 'kanji', icon: 'i-lucide-type' },
 ]
-const filters = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Activos', value: 'active' },
-  { label: 'Inactivos', value: 'inactive' },
-]
 
 const { data, status, error } = useAsyncData(
   'library',
@@ -43,7 +33,7 @@ const { data, status, error } = useAsyncData(
     const query: LibraryQuery = {
       limit: PAGE_SIZE,
       offset: (page.value - 1) * PAGE_SIZE,
-      active: filter.value === 'all' ? undefined : filter.value === 'active',
+      active: active.value,
     }
     return tab.value === 'entries'
       ? { kind: 'entries' as const, page: await listLibraryEntries(api, query) }

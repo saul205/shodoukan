@@ -53,11 +53,13 @@ describe('practice API services', () => {
     await updateCollection(api, 'kanji', 2, { name: 'N5', description: null })
     await addToCollection(api, 'entries', 1, 9)
     await listCollectionEntries(api, 1, { limit: 10, offset: 10 })
+    await listCollectionEntries(api, 1, { active: false })
 
     expect(calls).toEqual([
       ['/collections/kanji/2', { method: 'PUT', body: { name: 'N5', description: null } }],
       ['/collections/entries/1/items/9', { method: 'PUT' }],
       ['/collections/entries/1/items', { query: { limit: 10, offset: 10 } }],
+      ['/collections/entries/1/items', { query: { active: false } }],
     ])
   })
 })

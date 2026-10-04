@@ -39,6 +39,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi
   before on'yomi everywhere (`KanjiCard` and the kanji pages), as the compact cards
   already did.
+- **shodoukan-practice-web:** A collection's page lists its deactivated items too, marked
+  as inactive, with the library's Todos / Activos / Inactivos filter.
 - **shodoukan-practice-web:** One collection picker for the dictionary and the library:
   an icon with a searchable list where typing a new name creates the collection with
   the item in it. In the dictionary it ticks the collections the item is in, to take it
