@@ -3,7 +3,7 @@ import type { Origin } from '~/models/practice'
 
 // An editable list of meanings. The dictionary's own meanings can only be
 // switched on or off; the user's own can also be edited and deleted, and new
-// ones added at the end.
+// ones added at the end. `view-only` lists only the shown ones, as text.
 
 export interface MeaningItem {
   id: number
@@ -15,7 +15,8 @@ export interface MeaningItem {
 const props = withDefaults(defineProps<{
   meanings: MeaningItem[]
   disabled?: boolean
-}>(), { disabled: false })
+  viewOnly?: boolean
+}>(), { disabled: false, viewOnly: false })
 
 const emit = defineEmits<{
   toggle: [id: number, enabled: boolean]
@@ -29,6 +30,8 @@ const MAX_LENGTH = 500
 const newText = ref('')
 const editingId = ref<number | null>(null)
 const editText = ref('')
+
+const shown = computed(() => props.meanings.filter(meaning => meaning.enabled))
 
 const canAdd = computed(() => {
   const text = newText.value.trim()
@@ -54,7 +57,17 @@ function confirmEdit(meaning: MeaningItem) {
 </script>
 
 <template>
-  <div class="space-y-2">
+  <div v-if="viewOnly">
+    <ul v-if="shown.length" class="list-inside list-disc space-y-0.5 text-default">
+      <li v-for="meaning in shown" :key="meaning.id" data-testid="meaning">
+        {{ meaning.text }}
+        <UBadge v-if="meaning.origin === 'added'" label="propio" color="primary" variant="soft" size="sm" />
+      </li>
+    </ul>
+    <p v-else class="text-sm text-muted">Sin significados en este idioma.</p>
+  </div>
+
+  <div v-else class="space-y-2">
     <ul v-if="meanings.length" class="space-y-1">
       <li
         v-for="meaning in meanings"
