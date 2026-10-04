@@ -213,10 +213,11 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
-# Claude Code: local settings stay private; shared rules and skills are tracked
+# Claude Code: local settings stay private; shared rules, skills and agents are tracked
 .claude/*
 !.claude/rules/
 !.claude/skills/
+!.claude/agents/
 
 # PyPI configuration file
 .pypirc
