@@ -172,6 +172,27 @@ def test_answer_errors(
     assert _answer(client, headers, session_id, question_id, 1).status_code == 409
 
 
+def test_response_ms_must_fit_the_database(
+    client: TestClient, headers: dict[str, str], exercise_id: int
+) -> None:
+    started = _start(client, headers, exercise_id)
+    url = f"/exercise-sessions/{started['id']}/answer"
+    body = {
+        "question_id": started["current"]["id"],
+        "answer": {"type": "option", "option": 0},
+    }
+
+    for too_much in (-1, 2_147_483_648):
+        response = client.post(
+            url, json={**body, "response_ms": too_much}, headers=headers
+        )
+        assert response.status_code == 422
+    response = client.post(
+        url, json={**body, "response_ms": 2_147_483_647}, headers=headers
+    )
+    assert response.status_code == 200
+
+
 def test_finish(client: TestClient, headers: dict[str, str], exercise_id: int) -> None:
     started = _start(client, headers, exercise_id)
     session_id, current = started["id"], started["current"]

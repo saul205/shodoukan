@@ -354,7 +354,8 @@ the library lists); it finishes the user's open session, of any exercise (one at
 time).
 Answering takes
 `{"question_id": 12, "answer": {"type": "option", "option": 2}, "response_ms": 1500}`:
-`question_id` must be the active question's, and `response_ms` is optional (≥ 0).
+`question_id` must be the active question's, and `response_ms` is optional (0 to
+2147483647, what its 32-bit column holds).
 
 `SessionResponse`: `id`, `exercise_id` (null if the exercise was deleted),
 `exercise_name`, `item_kind`, `meaning_lang`, `started_at`, `last_activity_at`,

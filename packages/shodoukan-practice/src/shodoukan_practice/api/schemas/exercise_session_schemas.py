@@ -20,6 +20,9 @@ from ...domain.entities import (
     StudyField,
 )
 
+# The largest value the `response_ms` column (a 32-bit INTEGER) can hold.
+RESPONSE_MS_MAX = 2_147_483_647
+
 MeaningLangCode = Annotated[
     str, StringConstraints(strip_whitespace=True, pattern=r"^[a-z]{2,3}$")
 ]
@@ -41,7 +44,10 @@ class AnswerRequest(BaseModel):
         '"option": <index>}`.'
     )
     response_ms: int | None = Field(
-        default=None, ge=0, description="How long the user took, in milliseconds."
+        default=None,
+        ge=0,
+        le=RESPONSE_MS_MAX,
+        description="How long the user took, in milliseconds.",
     )
 
 
