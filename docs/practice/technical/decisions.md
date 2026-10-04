@@ -395,3 +395,14 @@ starts, or after 30 minutes without activity, in both cases at its last activity
 its duration isn't inflated. An idle session is reported as finished when read (no
 write) and closed for good the next time it's used. The unanswered active question of
 a finished session is dropped: it says nothing about what the user knows.
+
+## An idle session isn't closed by an answer
+
+This **replaces** "closed for good the next time it's used" in "Sessions close
+explicitly or when idle". Answering an idle session closed it and then refused the
+answer, but the refusal is an error, so the route never committed and the close was
+rolled back. Rather than commit on an error path, an idle session is simply not
+written there: `ask` and `answer` refuse it (`ended_at(now)`), and it's stored as
+finished, at its last activity, when the user finishes it or starts the exercise
+again. Abandoned sessions keep `finished_at` NULL either way, so "open" is defined by
+`finished_at` and the idle timeout together.

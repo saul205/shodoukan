@@ -20,7 +20,6 @@ from ...domain.entities import (
 from ...domain.exceptions import (
     EntityNotFoundError,
     ExercisePoolTooSmallError,
-    SessionFinishedError,
 )
 from ...domain.repositories import (
     EntryCollectionRepository,
@@ -147,7 +146,8 @@ class AnswerExerciseQuestion:
     active question. The next one is None if the pool can't make another (the
     session stays open; the user can finish it), or if the exercise was
     deleted (the session is finished; the answer still counts). An idle
-    session is closed at its last activity first, and the answer refused.
+    session refuses the answer and isn't written: it's closed for good when
+    it's finished or the exercise is started again.
     Raises `EntityNotFoundError`, `SessionFinishedError`,
     `QuestionNotActiveError` or `InvalidAnswerError`.
     """
@@ -176,11 +176,6 @@ class AnswerExerciseQuestion:
         response_ms: int | None = None,
     ) -> tuple[ExerciseSession, ExerciseQuestion, ExerciseQuestion | None]:
         session = _session(self._sessions, session_id, user_id)
-        if session.close_if_idle(utc_now()):
-            self._sessions.update(session)
-            raise SessionFinishedError(
-                f"exercise session {session_id} was idle and is finished"
-            )
         session.answer(question_id, answer, response_ms)
         self._ask_next(session)
         stored = self._sessions.update(session)

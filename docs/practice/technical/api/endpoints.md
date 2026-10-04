@@ -372,7 +372,7 @@ can't make another, or if the exercise was deleted, which finishes the session),
 |---|---|
 | `401` | Missing or invalid token |
 | `404` | No such exercise or session for this user |
-| `409` | The session is finished, or idle for over 30 minutes (it's closed then); `question_id` isn't the active question (answered already, e.g. a double click) |
+| `409` | The session is finished, or idle for over 30 minutes; `question_id` isn't the active question (answered already, e.g. a double click) |
 | `422` | Invalid body or `meaning_lang`; an option the question doesn't have; or the exercise's collections have too few usable items (`ExercisePoolTooSmallError`, with the reason in `detail`) |
 
 ## Conventions

@@ -94,7 +94,8 @@ items or its exercise change:
   discriminated by `type` with the next exercise type), `is_correct`, `answered_at`,
   `response_ms` (measured by the client). All `None` until answered.
 
-Methods (all raise `SessionFinishedError` on a finished session):
+`ask` and `answer` raise `SessionFinishedError` on a finished **or idle** session,
+and change nothing then. Methods:
 
 - `ask(question)`: makes it the active question, positioned after the history;
   `QuestionNotActiveError` if one is active already.

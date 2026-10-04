@@ -13,6 +13,7 @@ from shodoukan_practice.application.commands import (
     StartExerciseSession,
 )
 from shodoukan_practice.application.queries import GetExerciseSession
+from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     EntryCollection,
     Exercise,
@@ -241,27 +242,63 @@ def test_finish(
         answer.execute(user.id, started.id, 1, OptionAnswer(option=0))
 
 
-def test_an_idle_session_is_closed_instead_of_answered(
+def _make_idle(
+    sessions: SqlAlchemyExerciseSessionRepository, started: ExerciseSession
+) -> ExerciseSession:
+    """Store the session as if its last activity was long ago."""
+    started.updated_at = utc_now() - IDLE_TIMEOUT - timedelta(minutes=1)
+    return sessions.update(started)
+
+
+def test_an_idle_session_refuses_answers_without_writing(
     start: StartExerciseSession,
     answer: AnswerExerciseQuestion,
     sessions: SqlAlchemyExerciseSessionRepository,
     user: UserORM,
     exercise: Exercise,
 ) -> None:
-    started = _start(start, user, exercise)
-    assert started.id is not None
-    # As if the last activity was long ago.
-    idle_since = started.updated_at - IDLE_TIMEOUT - timedelta(minutes=1)
-    started.updated_at = idle_since
-    sessions.update(started)
+    idle = _make_idle(sessions, _start(start, user, exercise))
+    assert idle.id is not None
 
     with pytest.raises(SessionFinishedError):
-        _reply(answer, user, started)
+        _reply(answer, user, idle)
 
-    closed = sessions.get(started.id, user.id)
+    stored = sessions.get(idle.id, user.id)
+    assert stored == idle  # nothing written
+    assert stored.finished_at is None
+    assert stored.ended_at(utc_now()) == idle.updated_at  # but it has ended
+
+
+def test_an_idle_session_is_closed_for_good_by_the_next_start(
+    start: StartExerciseSession,
+    sessions: SqlAlchemyExerciseSessionRepository,
+    user: UserORM,
+    exercise: Exercise,
+) -> None:
+    idle = _make_idle(sessions, _start(start, user, exercise))
+    assert idle.id is not None
+
+    _start(start, user, exercise)
+
+    closed = sessions.get(idle.id, user.id)
     assert closed is not None
-    assert closed.finished_at == idle_since
-    assert closed.history == []
+    assert closed.finished_at == idle.updated_at
+    assert closed.current is None
+
+
+def test_finishing_an_idle_session_closes_it_at_its_last_activity(
+    start: StartExerciseSession,
+    sessions: SqlAlchemyExerciseSessionRepository,
+    user: UserORM,
+    exercise: Exercise,
+) -> None:
+    idle = _make_idle(sessions, _start(start, user, exercise))
+    assert idle.id is not None
+
+    finished = FinishExerciseSession(sessions).execute(user.id, idle.id)
+
+    assert finished.finished_at == idle.updated_at
+    assert finished.updated_at == idle.updated_at
 
 
 def test_deleted_exercise_keeps_the_answer_and_finishes(

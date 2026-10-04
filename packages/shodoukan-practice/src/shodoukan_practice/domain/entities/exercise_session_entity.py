@@ -120,7 +120,8 @@ class ExerciseSession(TimestampedEntity):
 
     def ask(self, question: ExerciseQuestion) -> None:
         """Make `question` the active one. Raises `SessionFinishedError` if the
-        session is closed, `QuestionNotActiveError` if one is already active."""
+        session is closed or idle, `QuestionNotActiveError` if one is already
+        active."""
         self._require_open()
         if self.current is not None:
             raise QuestionNotActiveError("the session already has an active question")
@@ -137,7 +138,8 @@ class ExerciseSession(TimestampedEntity):
         `question_id` must be the active question's, so an answer meant for
         another one (a double click, a stale tab) is rejected with
         `QuestionNotActiveError`. Raises `SessionFinishedError` if the session
-        is closed and `InvalidAnswerError` for an option it doesn't have.
+        is closed or idle (nothing changes) and `InvalidAnswerError` for an
+        option it doesn't have.
         """
         self._require_open()
         question = self.current
@@ -192,5 +194,7 @@ class ExerciseSession(TimestampedEntity):
         return sum(1 for q in self.history if q.is_correct)
 
     def _require_open(self) -> None:
-        if self.is_finished:
+        """Closed or idle: an idle session counts as finished without being
+        written (see `ended_at`), so nothing is asked or answered in it."""
+        if self.ended_at(utc_now()) is not None:
             raise SessionFinishedError(f"exercise session {self.id} is finished")

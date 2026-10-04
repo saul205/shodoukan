@@ -113,13 +113,13 @@ question.
 
 ### `AnswerExerciseQuestion(exercises, sessions, entry_collections, kanji_collections, entries, kanji, rng=None).execute(user_id, session_id, question_id, answer, response_ms=None)`
 
-Closes the session if it's idle and refuses (`SessionFinishedError`); otherwise grades
-the active question (`ExerciseSession.answer`), builds the next one from the history
+Grades the active question (`ExerciseSession.answer`), builds the next one from the history
 and the current pool, and stores both. Returns the stored session, the graded question
 and the next active one: `None` if the pool can't make another (the session stays
 open), or if the exercise was deleted (the session is finished; the answer counts).
-`EntityNotFoundError`, `SessionFinishedError`, `QuestionNotActiveError` or
-`InvalidAnswerError`.
+`EntityNotFoundError`; `SessionFinishedError` if the session is finished or idle (then
+nothing is written: an answer that fails doesn't commit); `QuestionNotActiveError`
+or `InvalidAnswerError`.
 
 ### `FinishExerciseSession(sessions).execute(user_id, session_id)`
 

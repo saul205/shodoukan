@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
     ChoiceOption,
@@ -291,8 +292,9 @@ def make_session(
     *,
     question_id: int | None = 1,
 ) -> ExerciseSession:
-    """A kanji session with an active question (id `question_id`, None as if
-    not stored yet) and no history."""
+    """A kanji session started now (sessions go idle), with an active question
+    (id `question_id`, None as if not stored yet) and no history."""
+    now = utc_now()
     return ExerciseSession(
         id=None,
         user_id=user_id,
@@ -301,6 +303,6 @@ def make_session(
         item_kind="kanji",
         meaning_lang="en",
         current=make_question(0, item_id, question_id),
-        created_at=NOW,
-        updated_at=NOW,
+        created_at=now,
+        updated_at=now,
     )

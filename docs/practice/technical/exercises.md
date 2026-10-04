@@ -102,6 +102,12 @@ ends:
   last activity, and answering it is refused (`409`);
 - when its exercise is deleted: the answer that found out still counts.
 
+**Open means `finished_at` is NULL _and_ the last activity is under 30 minutes old.**
+An idle session isn't written when it's read or answered (`ended_at(now)` reports it
+as finished); it's stored as finished, at its last activity, when the user finishes
+it or starts the exercise again. A session nobody comes back to keeps a NULL
+`finished_at` forever, so history and statistics apply the same rule.
+
 ## Fields and directions
 
 The fields that can be studied depend on what the exercise holds:
