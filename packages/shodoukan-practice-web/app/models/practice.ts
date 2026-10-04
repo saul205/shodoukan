@@ -195,3 +195,99 @@ export interface NewExerciseInput extends ExerciseInput {
   /** Can't change once created. */
   item_kind: ItemKind
 }
+
+/** How a question is played; picks the player component. */
+export type QuestionType = 'card.choice'
+
+/** A field of the item as the card shows it, with all its values. */
+export interface ShownField {
+  field: StudyField
+  values: string[]
+}
+
+export interface ChoiceOption {
+  text: string
+  /** The item the option comes from; null until the question is answered. */
+  item_id: number | null
+}
+
+/** The option picked, by its index. */
+export interface OptionAnswer {
+  type: 'option'
+  option: number
+}
+
+/** Answers by type, discriminated by `type`. */
+export type ExerciseAnswer = OptionAnswer
+
+/**
+ * A question of a session. Until it's answered the API hides its solution:
+ * `item_id`, `correct_option`, `back` and the options' items are null.
+ */
+export interface ExerciseQuestion {
+  type: QuestionType
+  id: number
+  position: number
+  prompt_fields: StudyField[]
+  answer_field: StudyField
+  prompt: ShownField[]
+  options: ChoiceOption[]
+  answered: boolean
+  item_id: number | null
+  correct_option: number | null
+  back: ShownField[] | null
+  answer: ExerciseAnswer | null
+  is_correct: boolean | null
+  answered_at: string | null
+  response_ms: number | null
+}
+
+export interface ExerciseSession {
+  id: number
+  /** Null if the exercise was deleted. */
+  exercise_id: number | null
+  exercise_name: string
+  item_kind: ItemKind
+  meaning_lang: string
+  started_at: string
+  last_activity_at: string
+  /** When it was closed, or its last activity once idle; null while open. */
+  finished_at: string | null
+  answered: number
+  score: number
+  /** The active question, without its solution. */
+  current: ExerciseQuestion | null
+  /** The answered questions, in order, with their solutions. */
+  history: ExerciseQuestion[]
+}
+
+export interface AnswerResult {
+  /** The graded question, with its solution. */
+  answered: ExerciseQuestion
+  /** The new active question; null if no other can be made. */
+  next: ExerciseQuestion | null
+  answered_count: number
+  score: number
+  finished_at: string | null
+}
+
+export type SessionStatus = 'open' | 'finished'
+
+/** A session in the history, without its questions. */
+export interface SessionSummary {
+  id: number
+  exercise_id: number | null
+  exercise_name: string
+  item_kind: ItemKind
+  started_at: string
+  last_activity_at: string
+  finished_at: string | null
+  answered: number
+  score: number
+}
+
+export interface SessionQuery extends PageQuery {
+  exercise_id?: number
+  /** Open (the one to resume) or finished, idle ones included. */
+  status?: SessionStatus
+}

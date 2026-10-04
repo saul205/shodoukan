@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addToCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
 import { searchDictionary } from '../../app/services/dictionary'
+import { answerQuestion, finishSession, getSession, listSessions, startSession } from '../../app/services/exercise-sessions'
 import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
   addGloss,
@@ -104,6 +105,25 @@ describe('practice API services', () => {
       ['/exercises', { method: 'POST', body: { ...input, item_kind: 'entries' } }],
       ['/exercises/7', { method: 'PUT', body: input }],
       ['/exercises/7', { method: 'DELETE' }],
+    ])
+  })
+
+  it('exercise sessions use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    await startSession(api, 2, 'eng')
+    await getSession(api, 5)
+    await answerQuestion(api, 5, 9, { type: 'option', option: 1 }, 1500)
+    await finishSession(api, 5)
+    await listSessions(api, { status: 'open', limit: 1 })
+    expect(calls).toEqual([
+      ['/exercises/2/sessions', { method: 'POST', body: { meaning_lang: 'eng' } }],
+      ['/exercise-sessions/5'],
+      ['/exercise-sessions/5/answer', {
+        method: 'POST',
+        body: { question_id: 9, answer: { type: 'option', option: 1 }, response_ms: 1500 },
+      }],
+      ['/exercise-sessions/5/finish', { method: 'POST' }],
+      ['/exercise-sessions', { query: { status: 'open', limit: 1 } }],
     ])
   })
 })

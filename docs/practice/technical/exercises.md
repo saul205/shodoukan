@@ -310,14 +310,14 @@ on the client and library-wide distractors (later) need no paging in the browser
 In `shodoukan-practice-web`:
 
 - **Pages:**
-  - `exercises/index.vue`: the list, with Editar and Eliminar **(built)**; Empezar
-    and a "Continuar" notice when a session is open (also on the home page) come
-    with phase 4.
+  - `exercises/index.vue`: the list, with Empezar, Editar and Eliminar, and a
+    "Continuar" notice when a session is open (also on the home page) **(built)**.
   - `exercises/new.vue` and `exercises/[id]/edit.vue` **(built)**.
   - `exercises/[id]/index.vue`: the exercise's summary, session history and
     statistics.
-  - `exercise-sessions/[id].vue`: play an open session; a finished one opens in
-    review mode (each answered question as it was, filter "solo falladas").
+  - `exercise-sessions/[id].vue`: play an open session **(built)**; a finished one
+    shows its result, and in phase 5 opens in review mode (each answered question as
+    it was, filter "solo falladas").
   - `statistics/index.vue`: totals, activity of the last 30 days, a table per
     exercise, most missed words and kanji.
 - **Components:**
@@ -326,16 +326,17 @@ In `shodoukan-practice-web`:
     depends on the item kind (`utils/study-fields.ts`) **(built**, see
     [frontend](frontend.md#screens)**)**.
   - `StudyCard`: front and back of a card. The back shows the prompt, the answer and
-    the chosen `back_fields`.
+    the chosen `back_fields` **(built)**.
   - `ChoiceOptions`: the options, keys 1–N; once answered, the picked one is red if
-    wrong, the correct one green.
+    wrong, the correct one green **(built)**.
   - `ItemDetailModal`: opens an item's full detail without leaving the session (the
-    asked item or a wrong option's). It reuses read-only `EntryDetail` /
+    asked item or a wrong option's). It reuses view-only `EntryDetail` /
     `KanjiDetail`, extracted from `app/pages/library/entries/[id].vue` and
-    `app/pages/library/kanji/[id].vue`.
+    `app/pages/library/kanji/[id].vue` **(built)**.
   - `StatTile`, `AccuracyBar`, `ActivityChart`: Nuxt UI and CSS, no chart library.
 - A registry `question type → player component` picks the player for each exercise
-  type (`components/exercise-players/`).
+  type (`components/exercise-players/`) **(built**; details in
+  [frontend](frontend.md#screens)**)**.
 - "Ejercicios" **(built)** and "Estadísticas" in the sidebar (`app/layouts/default.vue`).
 
 Example of a `card.choice` question, direction *literal → kunyomi*:
@@ -363,7 +364,7 @@ go in the order 3 → A → 4 → 5 → C.
 | 2 | Exercise sessions (backend) **(built)** | Field reading and comparison keys, question builder with the distractor rule, sessions and answers storage, session routes |
 | 3 | Exercise list and creation (frontend), #31 **(built)** | Exercises pages, `ExerciseForm` with several collections, `DirectionsEditor` |
 | A | History and statistics (backend), #42 **(built)** | Session summaries (history, the open session), statistics per exercise and overall, question `type` |
-| 4 | Playing a choice session (frontend), #32 | Start and resume, `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
+| 4 | Playing a choice session (frontend), #32 **(built)** | Start and resume, `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
 | 5 | History and review (frontend), #33 | Session history per exercise, reviewing a past session |
 | C | Statistics (frontend), #43 | Statistics per exercise and the "Estadísticas" page |
 | 6 | Library distractors, #34 | `distractor_source = "library"` |

@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice-web:** Play exercises: "Empezar" opens a session with one card
+  at a time; pick an option with a click or its number key, see the back with the
+  right option in green and a wrong pick in red, open any item's detail without
+  leaving, and go on with "Siguiente" or Enter. "Continuar" (on the exercise list and
+  the home page) resumes the open session; "Terminar" shows how it went.
 - **shodoukan-practice:** Session history and statistics. `GET /exercise-sessions`
   lists the user's sessions, newest first, without their questions, filtered by
   exercise and by `status` (`open` or `finished`; `status=open&limit=1` is the session

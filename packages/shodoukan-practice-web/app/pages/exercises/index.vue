@@ -13,6 +13,7 @@ const api = useApi()
 const notify = useNotify()
 const overlay = useOverlay()
 const confirm = overlay.create(ConfirmModal)
+const { start, starting } = useStartExercise()
 
 const { data, status, error, refresh } = useAsyncData('exercises', async () => {
   const [exercises, entryCollections, kanjiCollections] = await Promise.all([
@@ -63,6 +64,8 @@ function actions(exercise: Exercise): DropdownMenuItem[][] {
     <template #actions>
       <UButton label="Nuevo ejercicio" icon="i-lucide-plus" to="/exercises/new" />
     </template>
+
+    <OpenSessionAlert class="mb-5" />
 
     <div v-if="status === 'pending' && !data" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <USkeleton v-for="i in 3" :key="i" class="h-32" />
@@ -125,6 +128,15 @@ function actions(exercise: Exercise): DropdownMenuItem[][] {
             {{ directionLabel(direction) }}
           </li>
         </ul>
+
+        <UButton
+          label="Empezar"
+          icon="i-lucide-play"
+          block
+          :disabled="!exercise.collection_ids.length || starting"
+          data-testid="start"
+          @click="start(exercise)"
+        />
       </UCard>
     </div>
   </AppPanel>
