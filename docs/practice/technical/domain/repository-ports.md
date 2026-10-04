@@ -95,9 +95,10 @@ and the user still needs to find the item to manage it.
 | Method | Returns / behavior |
 |---|---|
 | `get(id, user_id)` | the session with its active question and history, or `None` |
+| `get_for_update(id, user_id)` | `get`, locking the session until the transaction ends; used by the use cases that change it |
 | `list_open(user_id, exercise_id)` | the user's unfinished sessions of that exercise |
 | `add(session)` | the stored session; its questions get their ids |
-| `update(session)` | stores answers, the new active question and the state; a dropped active question is deleted; `EntityNotFoundError` if missing or another user's |
+| `update(session)` | stores answers, the new active question and the state; a dropped active question is deleted; `EntityNotFoundError` if missing or another user's; `QuestionNotActiveError` if another request stored the next question first |
 
 ## `DictionaryGateway`
 

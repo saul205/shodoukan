@@ -139,3 +139,11 @@ new active question is inserted, and one dropped by `finish` is deleted
 (`delete-orphan`). `list_open` filters on `finished_at IS NULL`.
 Removing an item or an exercise sets the questions' and sessions' references to NULL
 in the database (`SET NULL`), with no repository code.
+
+Writes to a session are serialized. `get_for_update` reads it with
+`SELECT ... FOR UPDATE` on the session row, so a concurrent answer or finish waits for
+the first transaction and then reads what it stored (SQLite, used in tests, has no
+row locks). As a backstop, `UNIQUE(session_id, position)` on `exercise_questions`
+stops two writers from storing the same next question: `update` flushes in a
+savepoint and turns that violation into `QuestionNotActiveError`, re-raising any other
+`IntegrityError`.

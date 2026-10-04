@@ -1,10 +1,14 @@
 import pytest
 from factories import make_kanji, make_kanji_exercise, make_question, make_session
-from sqlalchemy import select
+from sqlalchemy import insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.domain.entities import OptionAnswer
-from shodoukan_practice.domain.exceptions import EntityNotFoundError
+from shodoukan_practice.domain.exceptions import (
+    EntityNotFoundError,
+    QuestionNotActiveError,
+)
 from shodoukan_practice.infrastructure.db.orm import ExerciseQuestionORM, UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyExerciseRepository,
@@ -127,3 +131,54 @@ def test_history_survives_removing_the_exercise_and_items(
     assert kept.exercise_name == "N5 kanji"
     assert kept.history[0].item_id is None
     assert kept.history[0].prompt == stored.history[0].prompt
+
+
+def test_get_for_update_reads_like_get(
+    repo: SqlAlchemyExerciseSessionRepository, user: UserORM, other_user: UserORM
+) -> None:
+    stored = repo.add(make_session(user.id, question_id=None))
+    assert stored.id is not None
+    assert repo.get_for_update(stored.id, user.id) == repo.get(stored.id, user.id)
+    assert repo.get_for_update(stored.id, other_user.id) is None
+
+
+def test_a_racing_answer_is_refused(
+    session: Session, repo: SqlAlchemyExerciseSessionRepository, user: UserORM
+) -> None:
+    # Two requests read the session before either stores its answer (what the
+    # row lock prevents on PostgreSQL): the second can't store its next
+    # question at the same position.
+    stored = repo.add(make_session(user.id, question_id=None))
+    assert stored.id is not None and stored.current is not None
+    question_id = stored.current.id
+    assert question_id is not None
+    first, second = stored.model_copy(deep=True), stored.model_copy(deep=True)
+    for copy, option in ((first, 0), (second, 1)):
+        copy.answer(question_id, OptionAnswer(option=option))
+        copy.ask(make_question(0))
+
+    repo.update(first)
+    with pytest.raises(QuestionNotActiveError):
+        repo.update(second)
+    session.expire_all()
+
+    kept = repo.get(stored.id, user.id)
+    assert kept is not None
+    assert kept.history[0].answer == OptionAnswer(option=0)  # the first one
+    assert kept.current is not None
+    assert kept.current.position == 1
+
+
+def test_question_positions_are_unique_per_session(
+    session: Session, repo: SqlAlchemyExerciseSessionRepository, user: UserORM
+) -> None:
+    stored = repo.add(make_session(user.id, question_id=None))
+    row = session.scalars(select(ExerciseQuestionORM)).one()
+    columns = {
+        c.name: getattr(row, c.name)
+        for c in ExerciseQuestionORM.__table__.columns
+        if c.name != "id"
+    }
+    assert stored.id is not None
+    with pytest.raises(IntegrityError), session.begin_nested():
+        session.execute(insert(ExerciseQuestionORM).values(**columns))

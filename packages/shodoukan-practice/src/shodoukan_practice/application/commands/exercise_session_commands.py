@@ -78,10 +78,12 @@ class _Pool:
         ]
 
 
-def _session(
+def _session_to_change(
     sessions: ExerciseSessionRepository, session_id: int, user_id: UUID
 ) -> ExerciseSession:
-    session = sessions.get(session_id, user_id)
+    """The session, locked until the transaction ends so concurrent changes to
+    it (a double click) are serialized."""
+    session = sessions.get_for_update(session_id, user_id)
     if session is None:
         raise EntityNotFoundError(f"exercise session {session_id} not found")
     return session
@@ -175,7 +177,7 @@ class AnswerExerciseQuestion:
         answer: ExerciseAnswer,
         response_ms: int | None = None,
     ) -> tuple[ExerciseSession, ExerciseQuestion, ExerciseQuestion | None]:
-        session = _session(self._sessions, session_id, user_id)
+        session = _session_to_change(self._sessions, session_id, user_id)
         session.answer(question_id, answer, response_ms)
         self._ask_next(session)
         stored = self._sessions.update(session)
@@ -212,7 +214,7 @@ class FinishExerciseSession:
         self._sessions = sessions
 
     def execute(self, user_id: UUID, session_id: int) -> ExerciseSession:
-        session = _session(self._sessions, session_id, user_id)
+        session = _session_to_change(self._sessions, session_id, user_id)
         if session.is_finished:
             return session
         if not session.close_if_idle(utc_now()):

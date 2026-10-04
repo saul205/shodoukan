@@ -14,7 +14,7 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, String
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_orm import (
@@ -57,6 +57,9 @@ class ExerciseQuestionORM(Base):
     __tablename__ = "exercise_questions"
     __table_args__ = (
         CheckConstraint("entry_id IS NULL OR kanji_id IS NULL", name="one_item"),
+        # One question per position: two answers racing to ask the next one
+        # can't both store it.
+        UniqueConstraint("session_id", "position"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -406,3 +406,14 @@ written there: `ask` and `answer` refuse it (`ended_at(now)`), and it's stored a
 finished, at its last activity, when the user finishes it or starts the exercise
 again. Abandoned sessions keep `finished_at` NULL either way, so "open" is defined by
 `finished_at` and the idle timeout together.
+
+## Answers to a session are serialized
+
+A double click sent two answers to the same question; both read the session before
+either stored it, so both succeeded, each asked a different next question, and one
+answer could silently overwrite the other. Answering and finishing now lock the
+session row (`SELECT ... FOR UPDATE`) for the transaction: the second request waits,
+then finds the question answered and gets `409`. `UNIQUE(session_id, position)` on
+the questions backs it up in the database, the same way collection names rely on
+their unique constraint rather than a check: a second writer can't store a question
+at a position that's taken.
