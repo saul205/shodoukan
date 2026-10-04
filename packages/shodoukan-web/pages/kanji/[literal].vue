@@ -47,11 +47,11 @@ interface ReadingGroup {
 const readingGroups = computed<ReadingGroup[]>(() => {
   if (!kanji.value) return []
   return [
-    kanji.value.on_readings.length
-      ? { label: "On'yomi", readings: kanji.value.on_readings, toQuery: (r: string) => r }
-      : null,
     kanji.value.kun_readings.length
       ? { label: "Kun'yomi", readings: kanji.value.kun_readings, toQuery: (r: string) => r.replace('.', '') }
+      : null,
+    kanji.value.on_readings.length
+      ? { label: "On'yomi", readings: kanji.value.on_readings, toQuery: (r: string) => r }
       : null,
     kanji.value.nanori.length
       ? { label: 'Nanori', readings: kanji.value.nanori, toQuery: (r: string) => r }
