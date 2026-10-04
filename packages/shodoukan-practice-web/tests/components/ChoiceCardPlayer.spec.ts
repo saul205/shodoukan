@@ -47,4 +47,12 @@ describe('ChoiceCardPlayer', () => {
     await wrapper.find('[data-testid="open-item"]').trigger('click')
     expect(wrapper.emitted('open-item')).toEqual([[10]])
   })
+
+  it('keeps the bottom row before answering, with no verdict or next', async () => {
+    const wrapper = await mountSuspended(ChoiceCardPlayer, { props: { question: question(1) } })
+
+    expect(wrapper.find('[data-testid="bottom-row"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="verdict"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="next"]').exists()).toBe(false)
+  })
 })

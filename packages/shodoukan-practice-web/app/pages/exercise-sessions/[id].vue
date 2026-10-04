@@ -103,7 +103,7 @@ function openItem(itemId: number) {
 </script>
 
 <template>
-  <AppPanel :title="session?.exercise_name ?? 'Sesión'">
+  <AppPanel :title="session?.exercise_name ?? 'Sesión'" fill>
     <template #leading>
       <UButton to="/exercises" icon="i-lucide-arrow-left" color="neutral" variant="ghost" aria-label="Volver a los ejercicios" />
     </template>
@@ -119,7 +119,7 @@ function openItem(itemId: number) {
       <UButton label="Terminar" icon="i-lucide-square" color="neutral" variant="outline" :loading="finishing" @click="finish" />
     </template>
 
-    <div class="mx-auto max-w-2xl">
+    <div class="mx-auto flex w-full max-w-4xl flex-1 flex-col">
       <USkeleton v-if="status === 'pending' && !session" class="h-96 w-full" />
 
       <UEmpty
@@ -166,6 +166,7 @@ function openItem(itemId: number) {
       <component
         :is="player"
         v-else-if="question && player"
+        class="flex-1"
         :question="question"
         :busy="busy"
         @answer="onAnswer"

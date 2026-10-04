@@ -154,7 +154,14 @@ takes `question` and `busy` and emits `answer(answer, responseMs)`, `next` and
 their labels and what's asked; back once answered: the question's `back` and "Ver
 detalle") over `ChoiceOptions` (keys 1–N, then the right option green and a wrong pick
 red, with "detail" buttons on options that came from an item); Enter goes on. It
-measures `response_ms` from when the question is shown. `next: null` shows "No quedan
+measures `response_ms` from when the question is shown. The layout stays put: the page uses
+`AppPanel fill` (the content stretches to the panel's height), and in the player the
+options and a bottom row (a key hint, then the verdict and "Siguiente") take their
+height while the card takes the rest. The card has two halves that are always there
+(the back shows a placeholder until answered and scrolls inside if long), the options
+are rows of equal height (`auto-rows-fr`, at least two lines, long texts cut at three)
+with their detail buttons in a corner, so answering or going on resizes nothing. Text
+grows with the screen; phones get one column of options. `next: null` shows "No quedan
 preguntas" with "Terminar"; an answer that finished the session (its exercise was
 deleted) reloads it into its result; a 409 (answered in another tab, closed or idle
 meanwhile) reloads the session with a toast. `ItemDetailModal` (`useOverlay()`) loads
