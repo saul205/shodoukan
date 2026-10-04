@@ -13,7 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan-practice-web:** Play exercises: "Empezar" opens a session with one card
   at a time; pick an option with a click or its number key, see the back with the
   right option in green and a wrong pick in red, open any item's detail without
-  leaving, and go on with "Siguiente" or Enter. "Continuar" (on the exercise list and
+  leaving, skip a card ("Saltar", counted as a miss) and go on with "Siguiente" or
+  Enter. The card and options fill the screen and don't move when answering. "Continuar" (on the exercise list and
   the home page) resumes the open session; "Terminar" shows how it went.
 - **shodoukan-practice:** Session history and statistics. `GET /exercise-sessions`
   lists the user's sessions, newest first, without their questions, filtered by

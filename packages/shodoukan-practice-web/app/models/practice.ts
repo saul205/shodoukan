@@ -217,8 +217,13 @@ export interface OptionAnswer {
   option: number
 }
 
+/** The question was skipped: it counts as a miss and its solution is shown. */
+export interface SkipAnswer {
+  type: 'skip'
+}
+
 /** Answers by type, discriminated by `type`. */
-export type ExerciseAnswer = OptionAnswer
+export type ExerciseAnswer = OptionAnswer | SkipAnswer
 
 /**
  * A question of a session. Until it's answered the API hides its solution:

@@ -153,7 +153,9 @@ takes `question` and `busy` and emits `answer(answer, responseMs)`, `next` and
 `open-item(itemId)`. `ChoiceCardPlayer` is a `StudyCard` (front: the prompt fields with
 their labels and what's asked; back once answered: the question's `back` and "Ver
 detalle") over `ChoiceOptions` (keys 1–N, then the right option green and a wrong pick
-red, with "detail" buttons on options that came from an item); Enter goes on. It
+red, with "detail" buttons on options that came from an item); Enter goes on.
+"Saltar" (or S / Escape) answers `{type: "skip"}`: a miss, shown with only the right
+option marked and the verdict "Saltada". It
 measures `response_ms` from when the question is shown. The layout stays put: the page uses
 `AppPanel fill` (the content stretches to the panel's height), and in the player the
 options and a bottom row (a key hint, then the verdict and "Siguiente") take their

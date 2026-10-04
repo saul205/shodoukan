@@ -61,7 +61,10 @@ right ones.
    green.
 4. From the back the user can open the item's full detail in a window, without
    leaving the session; the wrong options can open theirs too.
-5. "Siguiente" (or Enter) brings the next card, until the user stops with "Terminar".
+5. "Saltar" (or the S key) skips a card the user doesn't know: it counts as a miss,
+   the card turns over showing the right option, and it comes back a few cards
+   later like any missed one.
+6. "Siguiente" (or Enter) brings the next card, until the user stops with "Terminar".
    If the collections no longer have enough active items for another card, the
    session says so and can be finished.
 

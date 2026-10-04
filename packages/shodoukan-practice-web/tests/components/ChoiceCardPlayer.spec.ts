@@ -55,4 +55,24 @@ describe('ChoiceCardPlayer', () => {
     expect(wrapper.find('[data-testid="verdict"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="next"]').exists()).toBe(false)
   })
+
+  it('skips with the button or the S key', async () => {
+    const wrapper = await mountSuspended(ChoiceCardPlayer, { props: { question: question(1) } })
+
+    await wrapper.find('[data-testid="skip"]').trigger('click')
+    press('s')
+
+    const answers = (wrapper.emitted('answer') as [unknown, number][]).map(([answer]) => answer)
+    expect(answers).toEqual([{ type: 'skip' }, { type: 'skip' }])
+  })
+
+  it('shows a skipped question as skipped, with only the right option marked', async () => {
+    const skipped = { ...graded(question(1), 0), answer: { type: 'skip' as const }, is_correct: false }
+    const wrapper = await mountSuspended(ChoiceCardPlayer, { props: { question: skipped } })
+
+    expect(wrapper.find('[data-testid="verdict"]').text()).toBe('Saltada')
+    const states = wrapper.findAll('[data-testid="option"]').map(o => o.attributes('data-state'))
+    expect(states).toEqual(['correct', 'other', 'other', 'other'])
+    expect(wrapper.find('[data-testid="skip"]').exists()).toBe(false)
+  })
 })
