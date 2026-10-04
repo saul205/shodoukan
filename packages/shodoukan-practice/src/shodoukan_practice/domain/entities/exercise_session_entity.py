@@ -88,6 +88,22 @@ class ExerciseQuestion(BaseModel):
 # A session nobody touched for this long counts as finished at its last activity.
 IDLE_TIMEOUT = timedelta(minutes=30)
 
+# How history lists filter sessions: still open (closed nor idle), or ended.
+SessionStatus = Literal["open", "finished"]
+
+
+def session_end(
+    finished_at: datetime | None, last_activity: datetime, now: datetime
+) -> datetime | None:
+    """When a session ended: when it was closed, or its last activity if it's
+    been idle longer than `IDLE_TIMEOUT`; None while it's open. The one rule
+    for sessions and their summaries alike."""
+    if finished_at is not None:
+        return finished_at
+    if now - last_activity > IDLE_TIMEOUT:
+        return last_activity
+    return None
+
 
 class ExerciseSession(TimestampedEntity):
     """`created_at` is when it started, `updated_at` its last activity and
@@ -112,11 +128,7 @@ class ExerciseSession(TimestampedEntity):
 
     def ended_at(self, now: datetime) -> datetime | None:
         """When it ended: closed, or idle since its last activity; None if open."""
-        if self.finished_at is not None:
-            return self.finished_at
-        if now - self.updated_at > IDLE_TIMEOUT:
-            return self.updated_at
-        return None
+        return session_end(self.finished_at, self.updated_at, now)
 
     def ask(self, question: ExerciseQuestion) -> None:
         """Make `question` the active one. Raises `SessionFinishedError` if the

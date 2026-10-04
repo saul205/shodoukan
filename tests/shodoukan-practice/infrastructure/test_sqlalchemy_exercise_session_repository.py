@@ -1,10 +1,20 @@
+from datetime import timedelta
+
 import pytest
-from factories import make_kanji, make_kanji_exercise, make_question, make_session
+from factories import (
+    answered,
+    make_answered_session,
+    make_kanji,
+    make_kanji_exercise,
+    make_question,
+    make_session,
+)
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from shodoukan_practice.domain.entities import OptionAnswer
+from shodoukan_practice.domain.clock import utc_now
+from shodoukan_practice.domain.entities import IDLE_TIMEOUT, OptionAnswer
 from shodoukan_practice.domain.exceptions import (
     EntityNotFoundError,
     QuestionNotActiveError,
@@ -193,3 +203,93 @@ def test_question_positions_are_unique_per_session(
     assert stored.id is not None
     with pytest.raises(IntegrityError), session.begin_nested():
         session.execute(insert(ExerciseQuestionORM).values(**columns))
+
+
+def _summaries_setup(
+    session: Session, repo: SqlAlchemyExerciseSessionRepository, user: UserORM
+) -> tuple[int, int, int, int]:
+    """Sessions of two exercises, newest first: one still going, one finished,
+    one of the other exercise with no answers. Returns their ids and the first
+    exercise's."""
+    exercises = SqlAlchemyExerciseRepository(session)
+    first = exercises.add(make_kanji_exercise(user.id)).id
+    second = exercises.add(make_kanji_exercise(user.id, name="Other")).id
+    assert first is not None and second is not None
+    now = utc_now()
+    other = repo.add(
+        make_answered_session(
+            user.id,
+            second,
+            [],
+            started_at=now - timedelta(days=1),
+            finished_at=now - timedelta(days=1),
+        )
+    )
+    finished = repo.add(
+        make_answered_session(
+            user.id,
+            first,
+            [answered(None, True, now - timedelta(hours=3))],
+            finished_at=now - timedelta(hours=3),
+        )
+    )
+    going = repo.add(
+        make_answered_session(
+            user.id,
+            first,
+            [
+                answered(None, True, now - timedelta(minutes=10)),
+                answered(None, False, now - timedelta(minutes=5)),
+            ],
+        )
+    )
+    assert going.id and finished.id and other.id
+    return going.id, finished.id, other.id, first
+
+
+def test_list_summaries_counts_answers_newest_first(
+    session: Session,
+    repo: SqlAlchemyExerciseSessionRepository,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    going, finished, other, _ = _summaries_setup(session, repo, user)
+    now = utc_now()
+
+    summaries = repo.list_summaries(user.id, now)
+
+    assert [s.id for s in summaries] == [going, finished, other]
+    assert [(s.answered, s.score) for s in summaries] == [(2, 1), (1, 1), (0, 0)]
+    assert summaries[0].ended_at(now) is None
+    assert repo.count_summaries(user.id, now) == 3
+    assert repo.list_summaries(other_user.id, now) == []
+    assert repo.count_summaries(other_user.id, now) == 0
+
+
+def test_list_summaries_filters_by_status_and_exercise(
+    session: Session, repo: SqlAlchemyExerciseSessionRepository, user: UserORM
+) -> None:
+    going, finished, other, first = _summaries_setup(session, repo, user)
+    now = utc_now()
+
+    assert [s.id for s in repo.list_summaries(user.id, now, status="open")] == [going]
+    ended = repo.list_summaries(user.id, now, status="finished")
+    assert [s.id for s in ended] == [finished, other]
+    of_first = repo.list_summaries(user.id, now, exercise_id=first)
+    assert [s.id for s in of_first] == [going, finished]
+    assert repo.count_summaries(user.id, now, status="finished") == 2
+    paged = repo.list_summaries(user.id, now, limit=1, offset=1)
+    assert [s.id for s in paged] == [finished]
+
+
+def test_an_idle_session_counts_as_finished(
+    session: Session, repo: SqlAlchemyExerciseSessionRepository, user: UserORM
+) -> None:
+    going, *_ = _summaries_setup(session, repo, user)
+    later = utc_now() + IDLE_TIMEOUT + timedelta(minutes=1)
+
+    assert repo.list_summaries(user.id, later, status="open") == []
+    ended = repo.list_summaries(user.id, later, status="finished")
+    assert ended[0].id == going
+    assert ended[0].finished_at is None  # not written
+    assert ended[0].ended_at(later) == ended[0].last_activity_at

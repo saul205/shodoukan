@@ -4,7 +4,11 @@ import pytest
 from factories import USER_ID, make_question, make_session
 
 from shodoukan_practice.domain.clock import utc_now
-from shodoukan_practice.domain.entities import ExerciseSession, OptionAnswer
+from shodoukan_practice.domain.entities import (
+    ExerciseSession,
+    OptionAnswer,
+    session_end,
+)
 from shodoukan_practice.domain.entities.exercise_session_entity import IDLE_TIMEOUT
 from shodoukan_practice.domain.exceptions import (
     InvalidAnswerError,
@@ -139,3 +143,12 @@ def test_idle_session_ends_at_its_last_activity() -> None:
     assert session.updated_at == last  # closing isn't activity
     assert session.current is None
     assert session.close_if_idle(later) is False  # already closed
+
+
+def test_session_end_is_the_close_or_the_last_activity_once_idle() -> None:
+    now = utc_now()
+    closed = now - timedelta(hours=1)
+    assert session_end(closed, now, now) == closed
+    assert session_end(None, now - timedelta(minutes=1), now) is None
+    idle_since = now - IDLE_TIMEOUT - timedelta(seconds=1)
+    assert session_end(None, idle_since, now) == idle_since

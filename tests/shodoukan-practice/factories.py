@@ -14,6 +14,7 @@ from shodoukan_practice.domain.entities import (
     ExerciseSession,
     KanjiCollection,
     KanjiExercise,
+    OptionAnswer,
     PracticeEntry,
     PracticeExample,
     PracticeExampleSentence,
@@ -305,4 +306,62 @@ def make_session(
         current=make_question(0, item_id, question_id),
         created_at=now,
         updated_at=now,
+    )
+
+
+# (item id, right?, answered at, prompt fields, answer field)
+Answer = tuple[int | None, bool, datetime, tuple[str, ...], str]
+
+
+def answered(
+    item_id: int | None,
+    correct: bool,
+    at: datetime,
+    prompt: tuple[str, ...] = ("literal",),
+    answer: str = "kunyomi",
+) -> Answer:
+    return (item_id, correct, at, prompt, answer)
+
+
+def make_answered_session(
+    user_id: UUID,
+    exercise_id: int | None,
+    answers: list[Answer],
+    *,
+    item_kind: str = "kanji",
+    started_at: datetime | None = None,
+    last_activity_at: datetime | None = None,
+    finished_at: datetime | None = None,
+    response_ms: int | None = 1000,
+) -> ExerciseSession:
+    """A session whose history is `answers` (no active question). It starts at
+    the first answer and was last active at the last one unless told."""
+    history = []
+    for position, (item_id, correct, at, prompt, answer_field) in enumerate(answers):
+        question = make_question(position, item_id).model_copy(
+            update={
+                "prompt_fields": prompt,
+                "answer_field": answer_field,
+                "answer": OptionAnswer(option=0 if correct else 1),
+                "is_correct": correct,
+                "answered_at": at,
+                "response_ms": response_ms,
+            }
+        )
+        history.append(question)
+    first = answers[0][2] if answers else utc_now()
+    last = answers[-1][2] if answers else first
+    return ExerciseSession.model_validate(
+        {
+            "id": None,
+            "user_id": user_id,
+            "exercise_id": exercise_id,
+            "exercise_name": "N5 kanji",
+            "item_kind": item_kind,
+            "meaning_lang": "en",
+            "history": history,
+            "finished_at": finished_at,
+            "created_at": started_at or first,
+            "updated_at": last_activity_at or last,
+        }
     )

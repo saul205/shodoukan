@@ -144,3 +144,20 @@ def kanji_card(
         ]
         values["meaning"] = _meaning(meanings, ", ")
     return StudyCard(kanji.id, values)
+
+
+def entry_label(entry: PracticeEntry) -> tuple[str, str | None]:
+    """How a word is named outside a card (e.g. in statistics): its usual
+    form, as asked (`entry_card`'s first spelling, else its first reading),
+    and its reading when the form is a spelling. With every part disabled,
+    the dictionary's first spelling or reading."""
+    card = entry_card(entry, frozenset({"writing", "reading"}), "")
+    writings, readings = card.answers("writing"), card.answers("reading")
+    reading = readings[0].text if readings else None
+    if writings:
+        return writings[0].text, reading
+    if reading is not None:
+        return reading, None
+    if entry.kanji_readings:
+        return entry.kanji_readings[0].kanji, None
+    return entry.readings[0].text, None

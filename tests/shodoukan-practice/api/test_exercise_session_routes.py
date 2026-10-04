@@ -286,3 +286,42 @@ def test_requires_a_token(client: TestClient) -> None:
     assert client.post("/exercise-sessions/1/finish").status_code == 401
     response = client.post("/exercises/1/sessions", json={"meaning_lang": "en"})
     assert response.status_code == 401
+
+
+def test_questions_carry_their_type(
+    client: TestClient, headers: dict[str, str], exercise_id: int
+) -> None:
+    started = _start(client, headers, exercise_id)
+    assert started["current"]["type"] == "card.choice"
+
+
+def test_list_sessions_finds_the_open_one_and_the_history(
+    client: TestClient, headers: dict[str, str], exercise_id: int
+) -> None:
+    first = _start(client, headers, exercise_id)
+    current = first["current"]
+    _answer(client, headers, first["id"], current["id"], _right_option(current))
+    client.post(f"/exercise-sessions/{first['id']}/finish", headers=headers)
+    second = _start(client, headers, exercise_id)
+
+    listed = client.get("/exercise-sessions", headers=headers).json()
+    assert listed["total"] == 2
+    assert [s["id"] for s in listed["items"]] == [second["id"], first["id"]]
+    assert (listed["items"][1]["answered"], listed["items"][1]["score"]) == (1, 1)
+    assert "history" not in listed["items"][0]
+
+    open_ = client.get("/exercise-sessions?status=open&limit=1", headers=headers)
+    assert [s["id"] for s in open_.json()["items"]] == [second["id"]]
+    assert open_.json()["items"][0]["finished_at"] is None
+    ended = client.get(
+        f"/exercise-sessions?status=finished&exercise_id={exercise_id}", headers=headers
+    ).json()
+    assert [s["id"] for s in ended["items"]] == [first["id"]]
+    assert ended["items"][0]["finished_at"].endswith("Z")
+
+
+def test_list_sessions_rejects_an_unknown_status(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    response = client.get("/exercise-sessions?status=idle", headers=headers)
+    assert response.status_code == 422

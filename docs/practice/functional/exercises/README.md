@@ -3,9 +3,9 @@
 [← Functional documentation](../README.md)
 
 How a user practises the words and kanji of their collections. Exercises are created
-and managed in the practice app ("Ejercicios"); running sessions is built in the
-practice API, and the screens to play them, the history and the statistics come in
-the next phases (see the
+and managed in the practice app ("Ejercicios"); running sessions, the history and
+the statistics are built in the practice API, and the screens to play sessions and to
+see the history and the statistics come in the next phases (see the
 [design](../../technical/exercises.md#phases)).
 
 ## What an exercise is
@@ -98,10 +98,12 @@ it and find the same card waiting. The card on screen when it ends isn't counted
 Each card is answered once: a second click on another option doesn't change the
 answer.
 
-## History and statistics (next phases)
+## History and statistics
 
 Every session keeps each question as it was shown, the option picked and whether it
-was right. Editing or removing an item later doesn't change past sessions.
+was right. Editing or removing an item later doesn't change past sessions. The history
+and the statistics below are available in the practice API; their screens come in
+the next phases.
 
 - **Continue:** a session left open (the tab was closed) can be resumed from the
   exercise list or the home page, as long as it isn't idle.
@@ -109,8 +111,11 @@ was right. Editing or removing an item later doesn't change past sessions.
   answered, accuracy), and any of them can be reviewed card by card, or only the
   missed ones.
 - **Statistics:** for each exercise, its accuracy overall and per direction, and the
-  items missed most; a statistics page shows the same over all exercises, plus the
-  activity of the last days.
+  items missed most; a statistics page shows the same over all exercises (words and
+  kanji missed most apart), plus the answers of each of the last days, counted in the
+  user's time zone, and a summary per exercise. Missed items show their current name
+  in the library; items removed from it aren't listed, and neither are deleted
+  exercises in the per-exercise summary.
 
 ## Managing exercises
 
@@ -122,7 +127,7 @@ was right. Editing or removing an item later doesn't change past sessions.
   direction, no direction asking a field it shows, no repeated direction. Switching
   between words and kanji while creating starts the collections and fields over,
   since they belong to one kind.
-- **Delete** it. Its past sessions will be kept in the history.
+- **Delete** it. Its past sessions are kept in the history.
 
 Deleting a collection removes it from its exercises; an exercise with no collection
 left can't be started until it gets one.

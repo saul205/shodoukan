@@ -1,16 +1,17 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import ColumnElement, Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from ...domain.entities import ExerciseSession
+from ...domain.entities import IDLE_TIMEOUT, ExerciseSession, SessionStatus
 from ...domain.exceptions import (
     EntityNotFoundError,
     QuestionNotActiveError,
     SessionAlreadyOpenError,
 )
-from ...domain.repositories import ExerciseSessionRepository
+from ...domain.repositories import ExerciseSessionRepository, SessionSummary
 from ..db.mappers import exercise_session_to_db, exercise_session_to_domain
 from ..db.orm import ExerciseQuestionORM, ExerciseSessionORM
 
@@ -52,6 +53,73 @@ class SqlAlchemyExerciseSessionRepository(ExerciseSessionRepository):
         )
         return [exercise_session_to_domain(row) for row in self._session.scalars(query)]
 
+    def list_summaries(
+        self,
+        user_id: UUID,
+        now: datetime,
+        *,
+        exercise_id: int | None = None,
+        status: SessionStatus | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[SessionSummary]:
+        """Counts come from correlated subqueries over the questions, so no
+        question is loaded."""
+        answered = (
+            select(func.count())
+            .where(
+                ExerciseQuestionORM.session_id == ExerciseSessionORM.id,
+                ExerciseQuestionORM.answered_at.is_not(None),
+            )
+            .correlate(ExerciseSessionORM)
+            .scalar_subquery()
+        )
+        score = (
+            select(func.count())
+            .where(
+                ExerciseQuestionORM.session_id == ExerciseSessionORM.id,
+                ExerciseQuestionORM.is_correct.is_(True),
+            )
+            .correlate(ExerciseSessionORM)
+            .scalar_subquery()
+        )
+        query = (
+            select(ExerciseSessionORM, answered, score)
+            .where(*self._summary_filters(user_id, now, exercise_id, status))
+            .order_by(
+                ExerciseSessionORM.created_at.desc(), ExerciseSessionORM.id.desc()
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+        return [
+            SessionSummary(
+                id=row.id,
+                exercise_id=row.exercise_id,
+                exercise_name=row.exercise_name,
+                item_kind=row.item_kind,
+                started_at=row.created_at,
+                last_activity_at=row.updated_at,
+                finished_at=row.finished_at,
+                answered=answered_count,
+                score=right,
+            )
+            for row, answered_count, right in self._session.execute(query)
+        ]
+
+    def count_summaries(
+        self,
+        user_id: UUID,
+        now: datetime,
+        *,
+        exercise_id: int | None = None,
+        status: SessionStatus | None = None,
+    ) -> int:
+        query = select(func.count(ExerciseSessionORM.id)).where(
+            *self._summary_filters(user_id, now, exercise_id, status)
+        )
+        return self._session.scalar(query) or 0
+
     def add(self, session: ExerciseSession) -> ExerciseSession:
         """Raises `SessionAlreadyOpenError` if the user has another open session
         (the partial unique index); only the savepoint is rolled back."""
@@ -90,6 +158,33 @@ class SqlAlchemyExerciseSessionRepository(ExerciseSessionRepository):
                 f"exercise session {session.id} changed meanwhile; reload it"
             ) from None
         return exercise_session_to_domain(row)
+
+    @staticmethod
+    def _summary_filters(
+        user_id: UUID,
+        now: datetime,
+        exercise_id: int | None,
+        status: SessionStatus | None,
+    ) -> list[ColumnElement[bool]]:
+        """Open is `ExerciseSession.ended_at(now) is None` in SQL: not closed,
+        and active within `IDLE_TIMEOUT`."""
+        filters: list[ColumnElement[bool]] = [ExerciseSessionORM.user_id == user_id]
+        if exercise_id is not None:
+            filters.append(ExerciseSessionORM.exercise_id == exercise_id)
+        idle_since = now - IDLE_TIMEOUT
+        if status == "open":
+            filters += [
+                ExerciseSessionORM.finished_at.is_(None),
+                ExerciseSessionORM.updated_at >= idle_since,
+            ]
+        elif status == "finished":
+            filters.append(
+                or_(
+                    ExerciseSessionORM.finished_at.is_not(None),
+                    ExerciseSessionORM.updated_at < idle_since,
+                )
+            )
+        return filters
 
     def _has_open(self, user_id: UUID) -> bool:
         query = select(ExerciseSessionORM.id).where(

@@ -30,6 +30,11 @@ is what can be asked or offered: only the first value of a word's `writing` and
 `reading` (`first_only`), every value otherwise. Details:
 [exercises](../exercises.md#reading-a-field-from-an-item).
 
+`entry_label(entry)` names a word outside a card (in statistics): `(label, reading)`,
+its usual form as asked (`entry_card`'s first enabled spelling, else its first
+enabled reading) plus its reading when the label is a spelling. With every spelling
+and reading disabled, it falls back to the dictionary's first spelling or reading.
+
 ### `choice_question_service.build_next_question(cards, settings, history, rng)`
 
 Builds a session's next choice-card question from the pool's cards and the session's

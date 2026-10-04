@@ -8,21 +8,23 @@ exercise or session is a 404, like a missing one.
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from ...application.commands import (
     AnswerExerciseQuestion,
     FinishExerciseSession,
     StartExerciseSession,
 )
-from ...application.queries import GetExerciseSession
+from ...application.queries import GetExerciseSession, ListExerciseSessions
 from ...domain.clock import utc_now
+from ...domain.entities import SessionStatus
 from ..deps import (
     CurrentUserDep,
     SessionDep,
     get_answer_exercise_question,
     get_finish_exercise_session,
     get_get_exercise_session,
+    get_list_exercise_sessions,
     get_start_exercise_session,
 )
 from ..schemas import (
@@ -30,6 +32,8 @@ from ..schemas import (
     AnswerResponse,
     QuestionResponse,
     SessionResponse,
+    SessionSummaryPageResponse,
+    SessionSummaryResponse,
     StartSessionRequest,
 )
 
@@ -64,10 +68,43 @@ def start_exercise_session(
 ) -> SessionResponse:
     """Start studying: a new session with its first active question.
 
-    The user's open sessions of this exercise are finished."""
+    The user's open session, of any exercise, is closed at its last
+    activity: a user studies one session at a time."""
     started = use_case.execute(user.id, exercise_id, body.meaning_lang)
     session.commit()
     return SessionResponse.of(started, utc_now())
+
+
+@router.get("/exercise-sessions", response_model=SessionSummaryPageResponse)
+def list_exercise_sessions(
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[ListExerciseSessions, Depends(get_list_exercise_sessions)],
+    exercise_id: int | None = None,
+    session_status: Annotated[SessionStatus | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> SessionSummaryPageResponse:
+    """The user's sessions, newest first, without their questions.
+
+    `exercise_id` keeps one exercise's; `status=open` the one to resume (idle
+    sessions count as finished), `status=finished` the ended ones."""
+    now = utc_now()
+    page = use_case.execute(
+        user.id,
+        now,
+        exercise_id=exercise_id,
+        status=session_status,
+        limit=limit,
+        offset=offset,
+    )
+    session.commit()  # persists the user if this request created it
+    return SessionSummaryPageResponse(
+        items=[SessionSummaryResponse.of(s, now) for s in page.items],
+        total=page.total,
+        limit=page.limit,
+        offset=page.offset,
+    )
 
 
 @router.get(

@@ -278,13 +278,13 @@ Details: [endpoints](api/endpoints.md#exercises).
 
 Details: [endpoints](api/endpoints.md#exercise-sessions).
 
-### History and statistics (planned, #42)
+### History and statistics (built, #42)
 
 | Method | Route | Result |
 |---|---|---|
 | `GET` | `/exercise-sessions?exercise_id=&status=open\|finished&limit=&offset=` | Paged session summaries, newest first, without questions: exercise, start, last activity, effective `finished_at`, answered, score. `status=open&limit=1` is the session to resume ("Continuar") |
 | `GET` | `/exercises/{id}/statistics` | The exercise's totals (sessions, answers, right, accuracy, mean response time), accuracy per direction, most missed items |
-| `GET` | `/statistics?days=30&tz=Europe/Madrid` | The same over every exercise, plus answers per day in the user's time zone and a summary per exercise |
+| `GET` | `/statistics?days=30&tz=Europe/Madrid` | The same over every exercise (most missed words and kanji apart), plus answers per day in the user's time zone and a summary per exercise |
 
 - **Open** means `finished_at IS NULL` and active within `IDLE_TIMEOUT`, the rule of
   `ExerciseSession.ended_at` written in SQL, so a summary and a full session agree.
@@ -297,6 +297,10 @@ Details: [endpoints](api/endpoints.md#exercise-sessions).
   user's time zone.
 - Each question in a response carries `type` (`"card.choice"` today), so the frontend
   picks the player by type. It's a constant until a second type needs a column.
+
+Details: [endpoints](api/endpoints.md#exercise-statistics), [use
+cases](application/use-cases.md#queries-queriesexercise_statistics_queriespy) and
+[repositories](infrastructure/repositories.md#exercise-statistics).
 
 The server generates the questions and grades the answers, so statistics don't depend
 on the client and library-wide distractors (later) need no paging in the browser.
@@ -358,7 +362,7 @@ go in the order 3 → A → 4 → 5 → C.
 | 1 | Exercise definitions (backend) **(built)** | Entity, settings union, storage, CRUD use cases and routes |
 | 2 | Exercise sessions (backend) **(built)** | Field reading and comparison keys, question builder with the distractor rule, sessions and answers storage, session routes |
 | 3 | Exercise list and creation (frontend), #31 **(built)** | Exercises pages, `ExerciseForm` with several collections, `DirectionsEditor` |
-| A | History and statistics (backend), #42 | Session summaries (history, the open session), statistics per exercise and overall, question `type` |
+| A | History and statistics (backend), #42 **(built)** | Session summaries (history, the open session), statistics per exercise and overall, question `type` |
 | 4 | Playing a choice session (frontend), #32 | Start and resume, `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
 | 5 | History and review (frontend), #33 | Session history per exercise, reviewing a past session |
 | C | Statistics (frontend), #43 | Statistics per exercise and the "Estadísticas" page |
