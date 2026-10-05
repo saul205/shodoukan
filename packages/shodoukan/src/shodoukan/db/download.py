@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -7,6 +8,14 @@ _RELEASES_URL = "https://api.github.com/repos/saul205/shodoukan-db/releases/late
 _ASSET_NAME = "shodoukan.sqlite"
 
 
+def _api_headers() -> dict[str, str]:
+    # Unauthenticated GitHub API calls are limited to 60 an hour per IP, which
+    # shared CI runners can exhaust; a token (e.g. Actions' GITHUB_TOKEN)
+    # raises the limit.
+    token = os.environ.get("GITHUB_TOKEN")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def download(dest: Path, force: bool = False) -> None:
     if dest.exists() and not force:
         return
@@ -14,7 +23,7 @@ def download(dest: Path, force: bool = False) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
 
     print("Fetching latest release info...", file=sys.stderr)
-    response = httpx.get(_RELEASES_URL, follow_redirects=True)
+    response = httpx.get(_RELEASES_URL, headers=_api_headers(), follow_redirects=True)
     response.raise_for_status()
     release = response.json()
 
