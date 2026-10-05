@@ -4,7 +4,8 @@ import { formatResponseTime } from '~/utils/session-format'
 
 // An answered question in a session review, collapsed to one line: its
 // number, the verdict, the prompt, the right answer (and the wrong pick,
-// struck through) and the time. Opened (`v-model:open`), it shows the card
+// struck through) and the time. Number, verdict and time have fixed widths,
+// so every line's prompt starts at the same place. Opened (`v-model:open`), it shows the card
 // and the options as they were played, in their compact form.
 const props = defineProps<{ question: ExerciseQuestion }>()
 defineEmits<{ 'open-item': [itemId: number] }>()
@@ -40,15 +41,22 @@ const wrongText = computed(() =>
       :aria-expanded="open"
       data-testid="review-toggle"
     >
-      <span class="w-8 shrink-0 text-sm text-dimmed">#{{ question.position + 1 }}</span>
-      <UBadge :label="verdict.label" :color="verdict.color" variant="subtle" class="shrink-0" data-testid="review-verdict" />
+      <span class="w-10 shrink-0 text-right text-sm text-dimmed tabular-nums">#{{ question.position + 1 }}</span>
+      <!-- Fixed width, so every summary starts at the same place. -->
+      <UBadge
+        :label="verdict.label"
+        :color="verdict.color"
+        variant="subtle"
+        class="w-20 shrink-0 justify-center"
+        data-testid="review-verdict"
+      />
       <span class="min-w-0 flex-1 truncate" data-testid="review-summary">
         <span class="font-japanese">{{ prompt }}</span>
         <span class="mx-1.5 text-dimmed">→</span>
         <span :class="{ 'font-japanese': japaneseAnswer }" class="text-success">{{ rightText }}</span>
         <span v-if="wrongText" class="ml-2 text-error line-through" :class="{ 'font-japanese': japaneseAnswer }">{{ wrongText }}</span>
       </span>
-      <span v-if="question.response_ms !== null" class="hidden shrink-0 text-xs text-dimmed sm:inline">
+      <span v-if="question.response_ms !== null" class="hidden w-14 shrink-0 text-right text-xs text-dimmed tabular-nums sm:inline">
         {{ formatResponseTime(question.response_ms) }}
       </span>
       <UIcon
