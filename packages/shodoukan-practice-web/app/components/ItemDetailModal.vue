@@ -4,8 +4,10 @@ import { getLibraryEntry, getLibraryKanji } from '~/services/library'
 import { apiStatus } from '~/utils/api-error'
 
 // A library item's full detail, view-only, without leaving the session.
-// Opened with `useOverlay()`.
-const props = defineProps<{ kind: ItemKind; itemId: number }>()
+// Opened with `useOverlay()`. "Abrir en la librería" goes to the item's page
+// in the same window; its back button returns to the session (`?session=`),
+// which picks up where it was.
+const props = defineProps<{ kind: ItemKind; itemId: number; sessionId?: number }>()
 const emit = defineEmits<{ close: [] }>()
 
 const api = useApi()
@@ -18,7 +20,13 @@ const { data: item, status, error } = useAsyncData(
       : { kanji: await getLibraryKanji(api, props.itemId) },
 )
 
-const libraryLink = `/library/${props.kind}/${props.itemId}`
+async function openInLibrary() {
+  emit('close')
+  await navigateTo({
+    path: `/library/${props.kind}/${props.itemId}`,
+    query: props.sessionId ? { session: props.sessionId } : {},
+  })
+}
 </script>
 
 <template>
@@ -56,12 +64,12 @@ const libraryLink = `/library/${props.kind}/${props.itemId}`
 
     <template #footer>
       <UButton
-        :to="libraryLink"
-        target="_blank"
         label="Abrir en la librería"
-        icon="i-lucide-external-link"
+        icon="i-lucide-library-big"
         color="neutral"
         variant="ghost"
+        data-testid="open-in-library"
+        @click="openInLibrary"
       />
       <UButton label="Cerrar" @click="emit('close')" />
     </template>

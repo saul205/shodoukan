@@ -96,7 +96,9 @@ function actions(exercise: Exercise): DropdownMenuItem[][] {
       >
         <div class="flex items-start gap-3">
           <div class="min-w-0 flex-1">
-            <p class="truncate font-medium text-highlighted">{{ exercise.name }}</p>
+            <NuxtLink :to="`/exercises/${exercise.id}`" class="block truncate font-medium text-highlighted hover:underline">
+              {{ exercise.name }}
+            </NuxtLink>
             <p v-if="exercise.description" class="line-clamp-2 text-sm text-muted">{{ exercise.description }}</p>
           </div>
           <UDropdownMenu :items="actions(exercise)" :content="{ align: 'end' }">

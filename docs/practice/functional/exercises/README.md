@@ -60,7 +60,9 @@ right ones.
    and shows the back. The picked option turns red if it was wrong, and the right one
    green.
 4. From the back the user can open the item's full detail in a window, without
-   leaving the session; the wrong options can open theirs too.
+   leaving the session; the wrong options can open theirs too. From there, "Abrir en
+   la librería" goes to the item's library page (to edit it, for instance), and its
+   back button returns to the session where it was.
 5. "Saltar" (or the S key) skips a card the user doesn't know: it counts as a miss,
    the card turns over showing the right option, and it comes back a few cards
    later like any missed one.
@@ -109,15 +111,18 @@ answer.
 ## History and statistics
 
 Every session keeps each question as it was shown, the option picked and whether it
-was right. Editing or removing an item later doesn't change past sessions. The history
-and the statistics below are available in the practice API; their screens come in
-the next phases (continuing a session is already in the app).
+was right. Editing or removing an item later doesn't change past sessions. Continuing
+a session, the history and the review are in the app; the statistics are available in
+the practice API and their screens come next.
 
 - **Continue:** a session left open (the tab was closed) can be resumed from the
   exercise list or the home page, as long as it isn't idle.
-- **History:** each exercise lists its past sessions (date, duration, questions
-  answered, accuracy), and any of them can be reviewed card by card, or only the
-  missed ones.
+- **History:** opening an exercise (its name in the list) shows what it studies and
+  its past sessions, newest first (date, duration, questions answered, accuracy, open
+  or finished). Any of them opens: a finished session shows its result and a review:
+  one line per card (the question, the right answer, the wrong pick struck through,
+  how long it took) that unfolds into the card as it was played; all of them, or only
+  the missed and skipped ones. Sessions of a deleted exercise can still be reviewed.
 - **Statistics:** for each exercise, its accuracy overall and per direction, and the
   items missed most; a statistics page shows the same over all exercises (words and
   kanji missed most apart), plus the answers of each of the last days, counted in the

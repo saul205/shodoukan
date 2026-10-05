@@ -4,12 +4,16 @@ import { PLAYERS } from '~/components/exercise-players'
 import type { ExerciseAnswer, ExerciseQuestion } from '~/models/practice'
 import { answerQuestion, finishSession, getSession } from '~/services/exercise-sessions'
 import { apiStatus } from '~/utils/api-error'
+import { formatDateTime, formatDuration } from '~/utils/session-format'
 
 // Play a session: one question at a time, picked by its type's player.
 // Answering shows the graded card; "Siguiente" shows the next one, which the
-// answer already brought. A finished session shows its result.
+// answer already brought. A finished session shows its result and a review
+// of every answered question as it was played (?filter=missed: only the
+// missed and skipped ones).
 
 const route = useRoute()
+const router = useRouter()
 const api = useApi()
 const notify = useNotify()
 const overlay = useOverlay()
@@ -45,6 +49,33 @@ watch(session, (value) => {
 const finished = computed(() => !!session.value?.finished_at)
 const exhausted = computed(() => !finished.value && !question.value)
 const player = computed(() => (question.value ? PLAYERS[question.value.type] : null))
+// Back to the exercise, or to the list if it was deleted.
+const back = computed(() =>
+  session.value?.exercise_id != null
+    ? { to: `/exercises/${session.value.exercise_id}`, label: 'Volver al ejercicio' }
+    : { to: '/exercises', label: 'Volver a los ejercicios' },
+)
+
+const onlyMissed = computed<boolean>({
+  get: () => route.query.filter === 'missed',
+  set: value => router.replace({ query: { ...route.query, filter: value ? 'missed' : undefined } }),
+})
+const missedCount = computed(() => session.value?.history.filter(q => !q.is_correct).length ?? 0)
+const reviewed = computed(() =>
+  (session.value?.history ?? []).filter(q => !onlyMissed.value || !q.is_correct),
+)
+// Which review questions are open, by id; all start collapsed.
+const expanded = ref<Record<number, boolean>>({})
+const allExpanded = computed(() => reviewed.value.length > 0 && reviewed.value.every(q => expanded.value[q.id]))
+function expandAll(open: boolean) {
+  expanded.value = Object.fromEntries(reviewed.value.map(q => [q.id, open]))
+}
+
+const reviewTabs = computed(() => [
+  { label: `Todas (${session.value?.history.length ?? 0})`, value: 'all' },
+  { label: `Falladas (${missedCount.value})`, value: 'missed' },
+])
+
 const accuracy = computed(() => (answered.value ? Math.round((score.value / answered.value) * 100) : null))
 
 async function onAnswer(answer: ExerciseAnswer, responseMs: number) {
@@ -98,14 +129,14 @@ async function finish() {
 
 function openItem(itemId: number) {
   if (!session.value) return
-  overlay.create(ItemDetailModal).open({ kind: session.value.item_kind, itemId })
+  overlay.create(ItemDetailModal).open({ kind: session.value.item_kind, itemId, sessionId: id.value })
 }
 </script>
 
 <template>
-  <AppPanel :title="session?.exercise_name ?? 'Sesión'" fill>
+  <AppPanel :title="session?.exercise_name ?? 'Sesión'" :fill="!finished">
     <template #leading>
-      <UButton to="/exercises" icon="i-lucide-arrow-left" color="neutral" variant="ghost" aria-label="Volver a los ejercicios" />
+      <UButton :to="back.to" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="back.label" />
     </template>
     <template v-if="session && !finished" #actions>
       <UBadge
@@ -137,23 +168,63 @@ function openItem(itemId: number) {
         title="No se ha podido cargar la sesión"
       />
 
-      <UCard v-else-if="session && finished" :ui="{ body: 'space-y-4 text-center' }" data-testid="result">
-        <UIcon name="i-lucide-flag" class="size-10 text-primary" />
-        <h2 class="text-xl font-semibold text-highlighted">Sesión terminada</h2>
-        <p class="text-muted">
-          {{ answered }} respondidas · {{ score }} acertadas<template v-if="accuracy !== null"> · {{ accuracy }}%</template>
-        </p>
-        <div class="flex flex-wrap justify-center gap-2">
-          <UButton label="Volver a los ejercicios" to="/exercises" color="neutral" variant="outline" />
-          <UButton
-            v-if="session.exercise_id !== null"
-            label="Practicar otra vez"
-            icon="i-lucide-rotate-ccw"
-            :loading="starting"
-            @click="start({ id: session.exercise_id, item_kind: session.item_kind })"
-          />
-        </div>
-      </UCard>
+      <div v-else-if="session && finished" class="space-y-6">
+        <UCard :ui="{ body: 'space-y-4 text-center' }" data-testid="result">
+          <UIcon name="i-lucide-flag" class="size-10 text-primary" />
+          <h2 class="text-xl font-semibold text-highlighted">Sesión terminada</h2>
+          <p class="text-muted">
+            {{ answered }} respondidas · {{ score }} acertadas<template v-if="accuracy !== null"> · {{ accuracy }}%</template>
+          </p>
+          <p class="text-sm text-dimmed" data-testid="result-when">
+            {{ formatDateTime(session.started_at) }} · {{ formatDuration(session.started_at, session.finished_at!) }}
+          </p>
+          <div class="flex flex-wrap justify-center gap-2">
+            <UButton :label="back.label" :to="back.to" color="neutral" variant="outline" />
+            <UButton
+              v-if="session.exercise_id !== null"
+              label="Practicar otra vez"
+              icon="i-lucide-rotate-ccw"
+              :loading="starting"
+              @click="start({ id: session.exercise_id, item_kind: session.item_kind })"
+            />
+          </div>
+        </UCard>
+
+        <section v-if="session.history.length" aria-labelledby="review" class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="review" class="text-sm font-semibold uppercase tracking-wide text-muted">Repaso</h2>
+            <UButton
+              v-if="reviewed.length"
+              :label="allExpanded ? 'Plegar todas' : 'Desplegar todas'"
+              :icon="allExpanded ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              class="ml-auto"
+              data-testid="expand-all"
+              @click="expandAll(!allExpanded)"
+            />
+            <UTabs
+              :model-value="onlyMissed ? 'missed' : 'all'"
+              :items="reviewTabs"
+              :content="false"
+              size="sm"
+              data-testid="review-filter"
+              @update:model-value="onlyMissed = $event === 'missed'"
+            />
+          </div>
+          <p v-if="!reviewed.length" class="text-sm text-muted">No fallaste ninguna.</p>
+          <div class="space-y-2">
+            <ReviewQuestion
+              v-for="item in reviewed"
+              :key="item.id"
+              v-model:open="expanded[item.id]"
+              :question="item"
+              @open-item="openItem"
+            />
+          </div>
+        </section>
+      </div>
 
       <UCard v-else-if="exhausted" :ui="{ body: 'space-y-4 text-center' }" data-testid="exhausted">
         <h2 class="text-lg font-semibold text-highlighted">No quedan preguntas</h2>
