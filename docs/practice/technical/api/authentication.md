@@ -103,7 +103,7 @@ those would need an id-mapping column again. See
 
 ## Production
 
-Pre and prod run a self-hosted Keycloak behind the same host as the app
+Pre runs a self-hosted Keycloak behind the same host as the app
 ([deployment](../../../technical/deployment.md)):
 
 - `docker/keycloak/Dockerfile`: an optimized build (`start --optimized`) for
@@ -117,8 +117,13 @@ Pre and prod run a self-hosted Keycloak behind the same host as the app
   at import time.
 - The API uses `AUTH_ISSUER=<PUBLIC_URL>/idp/realms/shodoukan` (the tokens' `iss`),
   but fetches the keys from Keycloak inside the Docker network (`AUTH_JWKS_URL`).
+- The realm is invite-only: registration is closed, and users are created in the
+  admin console.
 - The admin console and the master realm are only served on a localhost port
   (`KC_HOSTNAME_ADMIN`); Caddy answers 404 for them on the public URL.
+- After every start, the one-shot `keycloak-setup` (`docker/keycloak/setup.sh`) closes
+  registration, points the clients' redirect URIs at `PUBLIC_URL` (the realm file is
+  only imported once), and moves the master realm's sign-in to the admin URL.
 - Keycloak marks its cookies `Secure`. Browsers send those to `http://localhost`, so
   pre works over HTTP, but HTTP clients in scripts may not.
 

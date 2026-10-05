@@ -20,9 +20,8 @@ Environment variables, the local PostgreSQL, and how the app connects.
 | `NUXT_PUBLIC_API_BASE`, `NUXT_PUBLIC_AUTH_ISSUER`, `NUXT_PUBLIC_AUTH_CLIENT_ID` | practice frontend | Optional; defaults match the local setup. See [frontend](../frontend.md#running). |
 | `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
 
-Real values live in the gitignored `.env.dev` (local). Deployed (pre and prod),
-`deploy/compose.yml` derives the API's variables from a few in `deploy/.env.pre` /
-`deploy/.env.prod`; see [deployment](../../../technical/deployment.md#variables). Keycloak and its database have their own file; see [Keycloak](#keycloak). [`.env.example`](../../../../.env.example) documents every variable with
+Real values live in the gitignored `.env.dev` (local). Deployed (pre),
+`deploy/compose.yml` derives the API's variables from a few in `deploy/.env.pre`; see [deployment](../../../technical/deployment.md#variables-deployenvpre). Keycloak and its database have their own file; see [Keycloak](#keycloak). [`.env.example`](../../../../.env.example) documents every variable with
 placeholder values.
 
 ## Local PostgreSQL
@@ -123,12 +122,13 @@ dictionary SQLite on disk:
 
 - **Locally:** `shodoukan-setup` downloads it to the default path, or set
   `SHODOUKAN_DB_PATH`. `Dictionary()` also downloads it on first use if it's missing.
-- **Deployed:** `packages/shodoukan-practice/Dockerfile` downloads it at image build
-  time with `shodoukan-setup` (as the `shodoukan-api` image does) and sets
-  `SHODOUKAN_DB_PATH`. Images are rebuilt monthly to pick up a new release
+- **Deployed:** `packages/shodoukan-practice/Dockerfile` downloads it in its own
+  build stage, from the `shodoukan-db` release named by the `DICT_RELEASE` build arg
+  (default `latest`), and sets `SHODOUKAN_DB_PATH`. The stage is cached per release,
+  so code changes don't download it again; `deploy/deploy.sh` passes the latest release
   ([deployment](../../../technical/deployment.md#monthly-dictionary-refresh)).
-  `shodoukan-setup` sends `GITHUB_TOKEN`, when set, to avoid GitHub's anonymous rate
-  limit; the Dockerfile reads it from the optional `github_token` build secret.
+  `shodoukan-setup` (used by the `shodoukan-api` image and locally) sends
+  `GITHUB_TOKEN`, when set, to avoid GitHub's anonymous rate limit.
 
 The file is read-only and published monthly by `shodoukan-db`. Imported items are
 snapshots, so a dictionary update never changes what users already have.

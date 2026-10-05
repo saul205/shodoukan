@@ -543,3 +543,31 @@ CI builds and publishes the practice images to GHCR, and the host deploys them w
 `deploy/deploy.sh`. A self-hosted GitHub runner on the host would deploy automatically,
 but it runs repository code on a personal machine of a public repo. We deferred it:
 adding one later only means a job that calls the same script.
+
+## One pre environment, shared through a private Tailscale tunnel
+
+Reverses "Tailscale Funnel with path routing" (the path routing stays) and "Practice
+deploys are pulled by hand".
+
+Until the app is deployed anywhere, everything served from this machine is pre. Running
+a pre and a prod side by side on one PC was ceremony, so there's one self-hosted
+environment. Friends use it, so it must be stable and keep their data.
+
+- `deploy/deploy.sh` builds a commit (default `origin/main`) in a separate git
+  worktree, so pre only runs committed code and the working checkout is never touched.
+- It backs up both databases before every deploy, and `seed` asks before replacing
+  data.
+- Images are built on the host. Publishing them to GHCR from CI added a workflow and
+  public packages for one consumer; any git ref deploys or rolls back just as well.
+
+Access is private. `tailscale serve`, without Funnel, makes the stack reachable only
+from our tailnet and from the people we share the `shodoukan` node with. They install
+the free Tailscale app on a phone or computer. The node is its own container, so
+sharing it exposes nothing else of the machine. On top of that, the realm is
+invite-only.
+
+Rejected:
+
+- **Funnel with closed registration.** No app to install, but the login page would be
+  public.
+- **Cloudflare Tunnel with Access.** It needs a paid domain.

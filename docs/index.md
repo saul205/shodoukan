@@ -23,7 +23,7 @@ For developers building, extending, or debugging the platform.
 | [technical/api.md](technical/api.md) | Full REST API reference: all endpoints, parameters, response schemas |
 | [technical/search.md](technical/search.md) | Search architecture: query classification, entry/kanji pipelines, scoring formulas |
 | [technical/frontend.md](technical/frontend.md) | Frontend architecture: components, responsive layout conventions, Tailwind patterns, debug mode |
-| [technical/deployment.md](technical/deployment.md) | Deployment: dictionary on Render, self-hosted practice stack (pre and prod), CI/CD, backups, runbook |
+| [technical/deployment.md](technical/deployment.md) | Deployment: dictionary on Render, self-hosted pre shared through Tailscale, CI/CD, backups, runbook |
 
 ## Practice app
 

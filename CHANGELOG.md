@@ -10,14 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **repo:** Deployment, at no cost. The dictionary API and web stay on Render
   (static site plus a kept-awake API, deployed by CI). The practice stack (API,
-  PostgreSQL, Keycloak, practice SPA) runs self-hosted with docker compose behind
-  Tailscale Funnel on one URL: `/`, `/practice-api/`, `/idp/`. It comes with a pre
-  environment on `localhost:8088` (`deploy/pre.sh up|down|reset|seed`), nightly
-  database backups, `deploy/deploy.sh` to deploy or roll back published images, and a
-  monthly rebuild that picks up the new dictionary. See
-  `docs/technical/deployment.md`.
-- **repo:** CI runs on `develop` too, builds every deployable image, and publishes the
-  practice images to GHCR (`practice-publish.yml`).
+  PostgreSQL, Keycloak, practice SPA) runs as "pre" on our own machine with docker
+  compose, shared privately through Tailscale: only invited people can reach it, and
+  accounts are invite-only. One URL serves `/`, `/practice-api/` and `/idp/`.
+  `deploy/deploy.sh` builds any commit (default `origin/main`) in a separate worktree,
+  backs up before every deploy, rolls back to any ref, and copies chosen dev users into
+  pre (`seed`). Nightly database backups, and each deploy picks up the latest
+  dictionary. See `docs/technical/deployment.md`.
+- **repo:** CI runs on `develop` too and builds every deployable image.
 - **shodoukan-api**, **shodoukan-practice:** `GET /health`.
 - **shodoukan-practice:** A Dockerfile for the API, with the dictionary baked in; it
   also runs the migrations.

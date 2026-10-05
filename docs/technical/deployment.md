@@ -4,7 +4,7 @@
 
 How shodoukan is deployed, at no cost and without a card or a paid domain. It
 covers the environments, the first-time setup and day-to-day operations. The
-reasons behind these choices are in [decisions](../practice/technical/decisions.md#deployment-split-dictionary-on-render-practice-self-hosted).
+reasons behind these choices are in [decisions](../practice/technical/decisions.md#one-pre-environment-shared-through-a-private-tailscale-tunnel).
 
 ## Topology
 
@@ -12,133 +12,99 @@ reasons behind these choices are in [decisions](../practice/technical/decisions.
 |---|---|---|
 | Dictionary API (`shodoukan-api`) | Render web service (free), Docker image `packages/shodoukan-api/Dockerfile` | CI → Render deploy hook on every push to `main` |
 | Dictionary web (`shodoukan-web`) | Render Static Site (free), a static SPA (`nuxt generate`) | CI → Render deploy hook on every push to `main` |
-| Practice stack: API, PostgreSQL, Keycloak + its PostgreSQL, practice SPA | A machine of ours, `docker compose`, published with **Tailscale Funnel** | CI publishes images to GHCR; `deploy/deploy.sh` on the host |
+| Practice stack: API, PostgreSQL, Keycloak + its PostgreSQL, practice SPA | **Pre**, on the developer's machine with `docker compose`, shared privately through **Tailscale** | `deploy/deploy.sh` on that machine, built from `main` |
 
 The two halves are independent. The practice API reads the dictionary in-process from
 its own baked-in copy, so it never calls Render (see [the dictionary gateway decision](../practice/technical/decisions.md#the-dictionary-is-used-in-process-behind-a-port)).
 
-### The practice stack
+### Pre
 
-Funnel gives one HTTPS hostname, `https://shodoukan.<tailnet>.ts.net`, and Caddy (the
-`web` service) routes by path:
+Pre is the one self-hosted environment: friends use it, so its data matters. It isn't
+public. The `tailscale` container serves it as `https://shodoukan.<tailnet>.ts.net` on
+our tailnet, and only our devices and the people we share the node with can reach it.
+Caddy (the `web` service) routes by path:
 
 | Path | Service | Notes |
 |---|---|---|
 | `/` | practice SPA, static files | `try_files … /index.html` for client-side routes |
-| `/practice-api/*` | `practice-api` (uvicorn :8001) | `UVICORN_ROOT_PATH=/practice-api`, so `/practice-api/docs` works |
+| `/practice-api/*` | `practice-api` (uvicorn :8001) | Caddy strips the prefix; `UVICORN_ROOT_PATH=/practice-api` keeps it in the docs and OpenAPI URLs |
 | `/idp/*` | `keycloak` (:8080) | built with `http-relative-path=/idp` |
 | `/idp/admin*`, `/idp/realms/master*` | blocked (404) | the admin console is only on `localhost` (see [Keycloak admin](#keycloak-admin)) |
 
-Everything is same-origin, so the browser never needs CORS. The SPA is built once with
-relative URLs (`/practice-api`, `/idp/realms/shodoukan`), so the same image serves pre
-and prod.
+Everything is same-origin, so the browser never needs CORS. The SPA is built with
+relative URLs (`/practice-api`, `/idp/realms/shodoukan`), so the same build works on
+any host.
 
 ```
- browser ──HTTPS──▶ Tailscale Funnel ──▶ tailscale ──▶ web (Caddy :80)
-                                                       ├── /               SPA files
-                                                       ├── /practice-api/  practice-api ──▶ practice-db
-                                                       └── /idp/           keycloak ──────▶ keycloak-db
+ friend's device ──Tailscale──▶ tailscale (node "shodoukan", HTTPS) ──▶ web (Caddy :80)
+                                                                         ├── /               SPA files
+                                                                         ├── /practice-api/  practice-api ──▶ practice-db
+                                                                         └── /idp/           keycloak ──────▶ keycloak-db
  practice-api ──(JWKS, internal)──▶ keycloak
+ keycloak-setup (one-shot): invite-only realm, client URLs, admin sign-in on localhost
  practice-db-backup, keycloak-db-backup ──▶ volumes practice-backups, keycloak-backups (nightly)
 ```
 
-Files:
-
 | Path | What |
 |---|---|
-| `deploy/compose.yml` | The shared stack. Publishes no ports. Includes the one-shots `practice-migrate` and `keycloak-setup`. |
-| `deploy/compose.pre.yml` | Pre: builds from the working tree, web on `127.0.0.1:8088`, project `shodoukan-pre` |
-| `deploy/compose.prod.yml` | Prod: GHCR images (`TAG`), adds `tailscale`, project `shodoukan-prod` |
-| `deploy/Caddyfile`, `deploy/web/Dockerfile` | Caddy routing; the image that bundles Caddy and the SPA |
-| `deploy/tailscale/serve.json` | Funnel: port 443 → `http://web:80` |
-| `deploy/pre.sh`, `deploy/deploy.sh`, `deploy/lib.sh` | Helper scripts (use these, not raw compose) |
-| `deploy/.env.pre.example`, `deploy/.env.prod.example` | Every variable, documented |
+| `deploy/compose.yml` | The whole stack, in one file. Project `shodoukan-pre`. Its `tailscale` service only runs with the `tunnel` profile. |
+| `deploy/deploy.sh` | Deploy, back up, seed, and run any compose command. Always use it rather than raw compose. |
+| `deploy/.env.pre.example` | Every variable, documented. The real file, `deploy/.env.pre`, is gitignored. |
+| `deploy/Caddyfile`, `deploy/web/Dockerfile` | Caddy's routing, and the image that bundles Caddy with the generated SPA |
+| `deploy/tailscale/serve.json` | `tailscale serve`: HTTPS on 443 → `http://web:80`, tailnet only (no Funnel) |
 | `packages/shodoukan-practice/Dockerfile` | Practice API image. It also runs the migrations. |
-| `docker/keycloak/Dockerfile`, `docker/keycloak/prod/realm-shodoukan.json` | Optimized Keycloak and the deployed realm |
+| `docker/keycloak/Dockerfile`, `docker/keycloak/prod/realm-shodoukan.json`, `docker/keycloak/setup.sh` | Optimized Keycloak, the deployed realm, and the script `keycloak-setup` runs |
 
 ## Environments
 
-| | Dev | Pre | Prod |
-|---|---|---|---|
-| What | Code with hot reload | The prod stack, built locally | The real thing |
-| Compose | `docker-compose.yml` (DBs + Keycloak `start-dev`) | `deploy/compose.yml` + `compose.pre.yml` | `deploy/compose.yml` + `compose.prod.yml` |
-| Project / volumes | `shodoukan` | `shodoukan-pre` | `shodoukan-prod` |
-| URL | API :8001, SPA :3001, Keycloak :8080 | `http://localhost:8088` | `https://shodoukan.<tailnet>.ts.net` |
-| Realm | dev realm (`dev`/`dev`, dev CLI client) | prod realm | prod realm |
-| Env file | `.env.dev`, `.env.keycloak` | `deploy/.env.pre` | `deploy/.env.prod` |
+| | Dev | Pre |
+|---|---|---|
+| What | Code with hot reload | The stack friends use |
+| Runs | Your working tree | A commit, by default `origin/main`, built in a separate worktree |
+| Compose | `docker-compose.yml` (DBs + Keycloak `start-dev`) | `deploy/compose.yml` |
+| Project / volumes | `shodoukan` | `shodoukan-pre` |
+| URL | API :8001, SPA :3001, Keycloak :8080 | `PUBLIC_URL`, and `http://localhost:8088` from this machine |
+| Realm | dev realm (`dev`/`dev`, dev CLI client, open registration) | deployed realm (invite-only) |
+| Env file | `.env.dev`, `.env.keycloak` | `deploy/.env.pre` |
 
-All three can run side by side on one machine: pre and prod publish no ports that
-clash with dev. Each has its **own databases**. Pre never reuses the dev ones,
-because:
+Both run side by side. Pre has **its own databases**. Try risky changes in dev: a
+migration lands on pre's data, so test it there first, or on a copy (`seed` below).
+`deploy.sh` takes a backup before every deploy, so a bad one can be restored.
 
-- its migrations would change dev data;
-- Keycloak only imports a realm that doesn't exist yet, so pre would keep the dev
-  realm instead of testing the prod one;
-- a different `KC_HOSTNAME` changes the token issuer and would break dev sign-in.
-
-## Variables
-
-The compose files read these from the `--env-file` (`deploy/.env.pre` or
-`deploy/.env.prod`), and the services get them as environment:
+## Variables (`deploy/.env.pre`)
 
 | Variable | Used for |
 |---|---|
-| `PUBLIC_URL` | The browser's URL for the stack. Sets the tokens' issuer (`AUTH_ISSUER`), Keycloak's `KC_HOSTNAME` (`<url>/idp`), `CORS_ORIGINS` and the realm's redirect URIs. |
-| `PUBLIC_SCHEME` | `https` in prod, `http` in pre. Caddy passes it to Keycloak as `X-Forwarded-Proto`. |
+| `PUBLIC_URL` | The URL people use. It sets the tokens' issuer (`AUTH_ISSUER`), Keycloak's `KC_HOSTNAME` (`<url>/idp`), `CORS_ORIGINS` and the clients' redirect URIs (kept in sync by `keycloak-setup`). Sign-in only works on this URL. |
+| `PUBLIC_SCHEME` | `https` with the tunnel, `http` on localhost. Caddy passes it to Keycloak as `X-Forwarded-Proto`. |
+| `COMPOSE_PROFILES` | `tunnel` to run the `tailscale` service; empty for localhost only |
+| `WEB_PORT` | Caddy on `127.0.0.1` (default `8088`), for checks from this machine |
+| `TS_AUTHKEY` | Tailscale auth key, only needed for the node's first login |
 | `PRACTICE_DB_USER`, `PRACTICE_DB_PASSWORD`, `PRACTICE_DB_NAME` | The practice database and `PRACTICE_DATABASE_URL`. The password goes into a URL, so use letters and digits. |
 | `KEYCLOAK_DB_USER`, `KEYCLOAK_DB_PASSWORD` | Keycloak's database |
-| `KEYCLOAK_ADMIN_USER`, `KEYCLOAK_ADMIN_PASSWORD` | Keycloak's first admin (bootstrap) |
-| `KEYCLOAK_ADMIN_PORT` | Localhost port of the admin console: `8180` in prod, `8181` in pre |
-| `WEB_PORT` | Pre only: the host port for Caddy (`8088`) |
-| `TS_AUTHKEY` | Prod only: Tailscale auth key for the first login |
-| `TAG` | Prod only: the image tag. `deploy.sh` sets it. |
+| `KEYCLOAK_ADMIN_USER`, `KEYCLOAK_ADMIN_PASSWORD` | Keycloak's admin. `keycloak-setup` signs in with it on every start, so keep this user. |
+| `KEYCLOAK_ADMIN_PORT` | Localhost port of the admin console (default `8181`) |
+| `SEED_USERS` | Default users for `deploy.sh seed` |
+
+Database passwords only take effect when a volume is first created. See
+[changing passwords](#changing-passwords).
 
 The practice API's own variables (`AUTH_*`, `UVICORN_ROOT_PATH`, …) are derived from
-these in `deploy/compose.yml`, so the env files never set them directly. They're
-described in [configuration](../practice/technical/cross-cutting/configuration.md).
-`AUTH_JWKS_URL` points at Keycloak inside the Docker network, so fetching the
-signing keys doesn't go out through Funnel.
+these in `deploy/compose.yml`, so `.env.pre` never sets them directly. They're described
+in [configuration](../practice/technical/cross-cutting/configuration.md). `AUTH_JWKS_URL`
+points at Keycloak inside the Docker network, so fetching the signing keys doesn't go
+out through the tunnel. `deploy.sh` sets two more itself: `TAG`, the deployed commit's
+short SHA, which tags the images; and `DICT_RELEASE`, the latest `shodoukan-db`
+release.
 
-## Pre
+## First-time setup
 
-```bash
-cp deploy/.env.pre.example deploy/.env.pre   # once
-deploy/pre.sh up       # build from the working tree and start; waits for the smoke test
-deploy/pre.sh down     # stop (data kept, nothing running)
-deploy/pre.sh reset    # delete pre's data: the next up migrates from zero and imports the realm
-deploy/pre.sh seed kl4ws  # copy dev users into pre: accounts with passwords, their data (then migrated)
-deploy/pre.sh logs practice-api   # or any compose command
-```
-
-Then open `http://localhost:8088`, register a user, and go through the app. The realm
-starts without users.
-
-`seed` needs the dev stack running. It copies the dev realm users you name, either as
-arguments or in `SEED_USERS` in `deploy/.env.pre`. With neither, it copies all of them.
-
-- **Their Keycloak accounts,** with ids and password hashes. It exports them with
-  `kc.sh export`, because the admin API doesn't return password hashes, and adds them to
-  pre's realm with a partial import. A pre user with the same username is overwritten.
-- **Their practice data.** It copies the dev practice database over pre's and deletes
-  every other user, whose rows cascade. Then it migrates the database, which tests new
-  migrations on real data.
-
-Since `users.id` is the token's `sub`, the copied users sign in to pre with their dev
-passwords and find their own data. Only users are copied: pre keeps the prod realm's
-settings and clients. Users seeded earlier stay in pre's realm; run `reset` before
-`seed` to start from only the ones you name.
-
-Run pre before merging anything that touches the Dockerfiles, the compose files, the
-realm or a migration.
-
-## Prod: first-time setup
-
-On the host (today the developer's PC under WSL2; a spare Linux machine works the
-same way):
+On the host (today the developer's PC under WSL2; any Linux machine with Docker works
+the same way):
 
 1. **Docker Engine.** Use Docker Engine inside the distro, not Docker Desktop. If
    Docker Desktop is installed, turn its WSL integration off (Settings → Resources →
-   WSL integration). Otherwise it replaces `/var/run/docker.sock` and its
+   WSL integration). Otherwise it replaces `/var/run/docker.sock`, and its
    `/usr/local/lib/docker/cli-plugins` links can hide `compose` and `buildx`.
 2. **WSL limits and uptime** (Windows only):
    - Cap the VM in `%UserProfile%\.wslconfig`:
@@ -148,95 +114,119 @@ same way):
      processors=2
      ```
    - WSL stops a distro when nothing holds it open. Add a Windows Task Scheduler task
-     "At log on" that runs `wsl.exe -d Ubuntu -- sleep infinity`, so the stack keeps
-     running while you're logged in.
-3. **Tailscale** (free, sign in with GitHub, no card):
-   - Create the account. In the admin console, enable **MagicDNS** and **HTTPS
-     certificates** (DNS page), and allow **Funnel** in the access controls: add the
-     `funnel` node attribute. The console offers it the first time.
+     "At log on" that runs `wsl.exe -d Ubuntu -- sleep infinity`, so pre keeps running
+     while you're logged in.
+3. **Env file:** `cp deploy/.env.pre.example deploy/.env.pre` and set the passwords.
+   Use `PUBLIC_URL=http://localhost:8088` until the tunnel is ready.
+4. **First deploy:** `deploy/deploy.sh`. Check it on `http://localhost:8088`.
+5. **Tailscale** (free, sign in with Google, Microsoft, Apple or GitHub, no card):
+   - Create the account and install Tailscale on your own devices. Pre is only
+     reachable from devices on the tailnet.
+   - In the admin console, enable **MagicDNS** and **HTTPS certificates** (DNS page).
+     Don't enable Funnel: pre must not be public.
    - Create an auth key (Settings → Keys).
-   - The node registers as `shodoukan`, so the URL is
-     `https://shodoukan.<tailnet>.ts.net`. Disable key expiry for that node in the
-     Machines page.
-4. **Env file:** `cp deploy/.env.prod.example deploy/.env.prod`, then set:
-   - `PUBLIC_URL` to the Funnel URL;
-   - long random passwords;
-   - `TS_AUTHKEY`.
-5. **Images:** the first run of the "Publish practice images" workflow creates three
-   GHCR packages, and they start out private. Make each one public: GitHub → your
-   profile → Packages → package → Package settings → Change visibility. Then
-   `docker pull` needs no login. The alternative is
-   `docker login ghcr.io` with a token that has the `read:packages` scope.
-6. **Deploy:** `deploy/deploy.sh`.
-   - Check the URL from a phone on mobile data. That proves Funnel is really
-     public.
-   - After the first login the node state is kept in the `tailscale-state` volume,
-     so you can clear `TS_AUTHKEY`.
+   - In `deploy/.env.pre`, set:
+     - `COMPOSE_PROFILES=tunnel` and `TS_AUTHKEY`;
+     - `PUBLIC_URL=https://shodoukan.<tailnet>.ts.net` (the tailnet name is on the DNS
+       page) and `PUBLIC_SCHEME=https`.
+   - Run `deploy/deploy.sh`. The node registers as `shodoukan`. In the Machines page,
+     disable key expiry for it. Its state is kept in the `tailscale-state` volume, so
+     `TS_AUTHKEY` can be cleared afterwards.
+6. **Your account:** create it in the admin console (see [Inviting people](#inviting-people)),
+   or copy your dev user with `deploy/deploy.sh seed <username>`.
 
-## Prod: operations
+## Inviting people
+
+Two steps per person, both reversible:
+
+1. **Network access.** In the Tailscale admin console, open Machines → `shodoukan` →
+   Share, and send the invite link to their email.
+   - They install Tailscale on their phone (iOS/Android) or computer, sign in with
+     their own free account, and accept the invite.
+   - While Tailscale is on, `https://shodoukan.<tailnet>.ts.net` opens in any browser.
+     A phone can only run one VPN at a time.
+   - They only see that node: it's the Tailscale container, which serves nothing but
+     the web.
+   - To revoke access, remove the share.
+2. **An account.** Registration is closed: `keycloak-setup` turns it off on every start.
+   - In the admin console, open the `shodoukan` realm → Users → Add user, set a
+     temporary password under Credentials, and send it to them.
+   - Keycloak asks them for a new password at their first sign-in.
+   - To remove someone, disable or delete the user.
+
+## Operations
 
 ### Deploy and roll back
 
-A merge to `main` triggers two things:
-
-- CI deploys the dictionary to Render.
-- Once CI passes, `practice-publish.yml` pushes `shodoukan-practice-api`,
-  `shodoukan-practice-web` and `shodoukan-keycloak` to GHCR, tagged `latest` and with
-  the 7-character commit SHA.
-
-Then, on the host:
-
 ```bash
-git pull                     # deploy/ files (compose, Caddyfile) come from the checkout
-deploy/deploy.sh             # pull latest, migrate, restart, smoke test
-deploy/deploy.sh 1a2b3c4     # deploy (or roll back to) a commit's images
-deploy/deploy.sh logs keycloak
-deploy/deploy.sh ps
+deploy/deploy.sh                      # deploy origin/main
+deploy/deploy.sh 1a2b3c4              # deploy (or roll back to) a commit, branch or tag
+deploy/deploy.sh saul205/52_deployment   # try a branch on pre before merging
+deploy/deploy.sh ps                   # any compose command: logs -f keycloak, stop, exec ...
 ```
 
-`deploy.sh` pulls the images and runs `up -d`. `practice-migrate` runs
-`alembic upgrade head` before `practice-api` starts. The script then waits until `/`,
-`/practice-api/health` and `/idp/realms/shodoukan` answer.
+A deploy runs these steps:
 
-Migrations are append-only and never run backwards. Rolling the images back past a
-migration leaves a newer schema under older code: restore a backup taken before the
-upgrade instead.
+1. Checks out the ref in a separate worktree (`~/.cache/shodoukan-deploy`). Your
+   checkout is never touched, and pre only runs committed code.
+2. Builds the images, tagged with the commit's short SHA.
+3. Backs up both databases, if they're running.
+4. Runs `up -d`. `practice-migrate` runs `alembic upgrade head` before `practice-api`
+   starts, and `keycloak-setup` reapplies the Keycloak settings.
+5. Waits until `/`, `/practice-api/health` and `/idp/realms/shodoukan` answer.
+
+Migrations are append-only and never run backwards. Rolling back past a migration
+leaves a newer schema under older code: restore the backup taken before the deploy
+instead.
+
+Old images pile up, one set per deployed commit. Clean them with
+`docker image prune` (dangling) or `docker image rm shodoukan-pre/<image>:<sha>`.
 
 ### Monthly dictionary refresh
 
-`shodoukan-db` publishes a new dictionary at the start of each month. On the 2nd:
+`shodoukan-db` publishes a new dictionary at the start of each month.
 
-- `scheduled.yml` redeploys the Render API, whose image build downloads the latest
-  release.
-- `practice-publish.yml` rebuilds the practice images. Run `deploy/deploy.sh` on the
-  host afterwards to pick them up.
+- **Pre:** every deploy asks GitHub for the latest release and passes it to the build
+  (`DICT_RELEASE`). The dictionary has its own build stage, so a new release is
+  downloaded on the next deploy, and code changes alone never download it again.
+- **Render:** `scheduled.yml` redeploys the API on the 2nd of each month.
 
 Imported library items are snapshots, so a refresh never changes users' data.
 
-### Keep-alive
+### Copying dev users into pre (`seed`)
 
-The free Render web service sleeps after 15 minutes without traffic, and waking it
-takes 30–60 s. `scheduled.yml` pings `$DICT_API_URL/health` every 10 minutes. One
-always-on service uses about 744 of the 750 free instance hours a month, so **don't
-add a second free web service**: the static site uses no instance hours. GitHub pauses
-scheduled workflows after 60 days without repository activity. Re-enable it from the
-Actions tab, or use an external pinger such as cron-job.org (free, no card).
+```bash
+deploy/deploy.sh seed kl4ws     # or set SEED_USERS in deploy/.env.pre
+```
+
+`seed` **replaces all of pre's practice data**. If pre has users, it asks you to type
+`replace`, and it backs up first. It needs the dev stack running. It copies the dev
+realm users you name, or all of them if you name none:
+
+- **Their Keycloak accounts,** with ids and password hashes. It exports them with
+  `kc.sh export`, because the admin API doesn't return password hashes, and adds them to
+  pre's realm with a partial import. A pre user with the same username is overwritten.
+- **Their practice data.** It copies the dev practice database over pre's and deletes
+  every other user, whose rows cascade. Then it migrates the database.
+
+Since `users.id` is the token's `sub`, the copied users sign in to pre with their dev
+passwords and find their own data. Pre keeps its own realm settings and clients.
 
 ### Backups
 
-`practice-db-backup` and `keycloak-db-backup` dump each database nightly into their
-own volume (`practice-backups`, `keycloak-backups`), with 7 daily and 4 weekly dumps
-kept. Each volume has `last/`, `daily/`, `weekly/` and `monthly/` folders, and
-`last/<db>-latest.sql.gz` points at the newest dump.
+`practice-db-backup` and `keycloak-db-backup` dump each database nightly into their own
+volume (`practice-backups`, `keycloak-backups`), with 7 daily and 4 weekly dumps kept.
+Each volume has `last/`, `daily/`, `weekly/` and `monthly/` folders, and
+`last/<db>-latest.sql.gz` points at the newest dump. `deploy.sh` also takes one before
+every deploy and seed.
 
 ```bash
-# Take one now
-deploy/deploy.sh exec practice-db-backup /backup.sh
-# Copy the dumps off the machine (e.g. to Windows)
-docker run --rm -v shodoukan-prod_practice-backups:/backups:ro \
+deploy/deploy.sh backup
+# Copy the dumps off the machine (e.g. to a synced Windows folder)
+docker run --rm -v shodoukan-pre_practice-backups:/backups:ro \
   -v /mnt/c/Users/<you>/shodoukan-backups:/out alpine cp -rL /backups/. /out/practice/
 # Restore the practice DB from the latest dump into an empty schema
-set -a; . deploy/.env.prod; set +a
+set -a; . deploy/.env.pre; set +a
 deploy/deploy.sh stop practice-api
 deploy/deploy.sh exec -T practice-db psql -U "$PRACTICE_DB_USER" -d "$PRACTICE_DB_NAME" \
   -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
@@ -246,47 +236,56 @@ deploy/deploy.sh start practice-api
 ```
 
 Keycloak's database restores the same way: use `keycloak-db-backup`, the `keycloak`
-database and `KEYCLOAK_DB_USER`, with Keycloak stopped. In pre, use `deploy/pre.sh`
-and the `shodoukan-pre_*` volumes.
+database and `KEYCLOAK_DB_USER`, with Keycloak stopped.
+
+### Changing passwords
+
+Postgres stores a user's password when its volume is created and then ignores
+`POSTGRES_PASSWORD`. Editing `.env.pre` alone makes the API fail with "password
+authentication failed". Change the password in the database first, then in the
+`.env`, then redeploy. Inside the container, `psql` needs no password:
+
+```bash
+set -a; . deploy/.env.pre; set +a
+deploy/deploy.sh exec practice-db psql -U "$PRACTICE_DB_USER" -d "$PRACTICE_DB_NAME" \
+  -c "ALTER USER \"$PRACTICE_DB_USER\" PASSWORD '<new>'"
+# edit deploy/.env.pre, then:
+deploy/deploy.sh up -d
+```
+
+Keycloak's admin password works the same way: `KC_BOOTSTRAP_ADMIN_*` only applies on
+the very first start. Change it in the admin console, then in `.env.pre`.
 
 ### Keycloak admin
 
-The admin console and the master realm are never public: Caddy answers 404 for them.
-They're only reachable on this machine:
+The admin console and the master realm are never served on `PUBLIC_URL`: Caddy
+answers 404 for them. They're only on `http://localhost:8181/idp/admin`, on this
+machine. Sign in with `KEYCLOAK_ADMIN_USER` / `KEYCLOAK_ADMIN_PASSWORD`.
 
-- prod: `http://localhost:8180/idp/admin`
-- pre: `http://localhost:8181/idp/admin`
+Keycloak can't take some settings at startup, so after every start the one-shot
+`keycloak-setup` service runs `docker/keycloak/setup.sh` (idempotent):
 
-Sign in with `KEYCLOAK_ADMIN_USER` / `KEYCLOAK_ADMIN_PASSWORD`. Two settings keep the
-admin traffic on localhost:
+- **Closes registration** in the `shodoukan` realm.
+- **Points the clients' redirect URIs and web origins at `PUBLIC_URL`.** The realm file
+  is only imported once, so a realm created under another URL would otherwise keep the
+  old one.
+- **Moves the master realm's sign-in to the admin URL.** `KC_HOSTNAME_ADMIN` only moves
+  the console itself, and its login form would otherwise post to the public URL, where
+  Caddy blocks it.
 
-- `KC_HOSTNAME_ADMIN` serves the console itself there.
-- The master realm's own frontend URL serves its sign-in there. Without it, the
-  console's login form would post to the public URL, which Caddy blocks. Keycloak has
-  no option for this at startup, so the one-shot `keycloak-setup` service sets it with
-  `kcadm.sh` after Keycloak is healthy, on every start (it's idempotent).
-
-`keycloak-setup` signs in with the admin credentials from the env file. Keep that
-admin user, and if you change its password in the console, update the env file too.
-Otherwise `keycloak-setup` only logs a warning, and on a fresh database the sign-in
-breaks again.
-
-The realm file (`docker/keycloak/prod/realm-shodoukan.json`) is imported only when the
-realm doesn't exist yet. Later changes to the file don't reach a running prod realm:
-apply them in the console, or with `kcadm.sh` as in
-[configuration](../practice/technical/cross-cutting/configuration.md#keycloak).
+The script signs in with the admin credentials from `.env.pre`. If they stop matching
+it only logs a warning, but those settings are no longer applied.
 
 ### Moving to another machine
 
-1. On the old host, take backups (above) and run `deploy/deploy.sh down`.
+1. On the old host, take a backup and copy the dumps off it, then run
+   `deploy/deploy.sh down`.
 2. Remove the old `shodoukan` node in the Tailscale admin console, so the new one gets
-   the same name and URL.
+   the same name and URL. Shares are per node, so share it with your friends again.
 3. On the new host:
    - Install Docker Engine.
-   - Clone the repo and copy `deploy/.env.prod`, with a new `TS_AUTHKEY`.
+   - Clone the repo and copy `deploy/.env.pre`, with a new `TS_AUTHKEY`.
    - Run `deploy/deploy.sh`, then restore the dumps.
-4. The images are amd64. For an ARM device such as a Raspberry Pi, add
-   `platforms: linux/amd64,linux/arm64` to `practice-publish.yml`.
 
 ## Render
 
@@ -304,6 +303,13 @@ This already exists.
 - Deploy hook → GitHub secret `RENDER_HOOK_DICT_API`.
 - Its public URL (without a trailing slash) → GitHub **variable** `DICT_API_URL`, used
   by the keep-alive.
+
+The free instance sleeps after 15 minutes without traffic, and waking it takes 30–60 s.
+`scheduled.yml` pings `$DICT_API_URL/health` every 10 minutes. One always-on service
+uses about 744 of the 750 free instance hours a month, so **don't add a second free web
+service**: the static site uses no instance hours. GitHub pauses scheduled workflows
+after 60 days without repository activity. Re-enable it from the Actions tab, or use an
+external pinger such as cron-job.org (free, no card).
 
 ### Dictionary web (static site)
 
@@ -325,9 +331,8 @@ skips this step.
 | Workflow | When | Does |
 |---|---|---|
 | `ci.yml` | push / PR to `main` or `develop` | Backend tests and migrations; frontend tests and builds; builds all four images (no push). On `main` pushes, triggers the two Render deploy hooks. |
-| `practice-publish.yml` | CI passed on `main`; the 2nd of each month; manually | Builds and pushes the three practice images to GHCR |
 | `scheduled.yml` | Every 10 min; the 2nd of each month | Pings the Render API; redeploys it monthly |
 
 Secrets: `RENDER_HOOK_DICT_API`, `RENDER_HOOK_DICT_WEB`. Variable: `DICT_API_URL`.
-`GITHUB_TOKEN` is used for GHCR and for the release lookup in `shodoukan-setup`.
-Nothing from GitHub runs on the practice host.
+Nothing from GitHub runs on the pre host: pre is deployed by hand with
+`deploy/deploy.sh`.

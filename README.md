@@ -109,19 +109,16 @@ Free of charge, split in two:
 
 - **Dictionary** (`shodoukan-api` and the `shodoukan-web` static SPA): Render. Every
   push to `main` that passes CI triggers their deploy hooks.
-- **Practice stack** (practice API, PostgreSQL, Keycloak, practice SPA): self-hosted
-  with docker compose, published through Tailscale Funnel. CI publishes the images to
-  GHCR and `deploy/deploy.sh` deploys them on the host.
-
-Try the practice stack locally as it runs in production (pre) on
-<http://localhost:8088>:
+- **Practice stack** (practice API, PostgreSQL, Keycloak, practice SPA): "pre",
+  self-hosted with docker compose and shared privately through Tailscale. It's only
+  reachable by the people the node is shared with, and accounts are invite-only.
 
 ```bash
-cp deploy/.env.pre.example deploy/.env.pre
-deploy/pre.sh up      # build and start; deploy/pre.sh down when done
+cp deploy/.env.pre.example deploy/.env.pre   # once, then set the passwords
+deploy/deploy.sh                             # build origin/main and (re)start pre
 ```
 
-Setup, operations, backups and rollbacks: [deployment](docs/technical/deployment.md).
+Setup, inviting people, backups and rollbacks: [deployment](docs/technical/deployment.md).
 
 ---
 
