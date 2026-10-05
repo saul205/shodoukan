@@ -39,6 +39,7 @@ FastAPI application that exposes the library over HTTP. See [packages/shodoukan-
 | GET | `/entries/by-kanji/{literal}` | Get entries that contain a kanji |
 | GET | `/kanji/search` | Search kanji |
 | GET | `/kanji/{literal}` | Get kanji by literal |
+| GET | `/health` | Liveness check |
 
 Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` for pagination.
 
@@ -58,9 +59,10 @@ study sessions graded on the server (`/exercises/{id}/sessions`,
 `/exercise-sessions`), their history and statistics (`/exercises/{id}/statistics`,
 `/statistics`). See the [practice app documentation](docs/practice/README.md).
 
-### Web interface *(planned)*
+### `shodoukan-web` — Dictionary frontend *(in progress)*
 
-Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
+Dictionary lookup UI in the style of [Jisho](https://jisho.org/): a Nuxt 3 SPA,
+published as a static site. See the [frontend docs](docs/technical/frontend.md).
 
 ### `shodoukan-practice-web` — Practice frontend *(in progress)*
 
@@ -101,22 +103,25 @@ The database is downloaded automatically during the image build. The API will be
 
 ---
 
-## Deployment (Render)
+## Deployment
 
-Every push to `main` that passes CI is deployed automatically to Render.
+Free of charge, split in two:
 
-### First-time setup
+- **Dictionary** (`shodoukan-api` and the `shodoukan-web` static SPA): Render. Every
+  push to `main` that passes CI triggers their deploy hooks.
+- **Practice stack** (practice API, PostgreSQL, Keycloak, practice SPA): self-hosted
+  with docker compose, published through Tailscale Funnel. CI publishes the images to
+  GHCR and `deploy/deploy.sh` deploys them on the host.
 
-1. Create a new **Web Service** on [Render](https://render.com) pointing to this repository.
-2. Set the build command to `docker build` (Render detects the Dockerfile automatically).
-3. Add the following environment variables in the Render dashboard:
+Try the practice stack locally as it runs in production (pre) on
+<http://localhost:8088>:
 
-| Variable | Value |
-|----------|-------|
-| `CORS_ORIGINS` | Your frontend domain, e.g. `https://shodoukan.onrender.com` |
-| `SHODOUKAN_DEBUG` | `0` |
+```bash
+cp deploy/.env.pre.example deploy/.env.pre
+deploy/pre.sh up      # build and start; deploy/pre.sh down when done
+```
 
-After that, every push to `main` triggers a new deploy.
+Setup, operations, backups and rollbacks: [deployment](docs/technical/deployment.md).
 
 ---
 

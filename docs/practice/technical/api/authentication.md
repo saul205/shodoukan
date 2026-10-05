@@ -103,7 +103,24 @@ those would need an id-mapping column again. See
 
 ## Production
 
-Use the same code with a different provider configuration: a self-hosted Keycloak
-(with its own database, HTTPS, no `shodoukan-dev-cli`, no dev user) or a managed OpenID
-Connect provider. Only `AUTH_ISSUER`, `AUTH_AUDIENCE` and the frontend's client
-settings change.
+Pre and prod run a self-hosted Keycloak behind the same host as the app
+([deployment](../../../technical/deployment.md)):
+
+- `docker/keycloak/Dockerfile`: an optimized build (`start --optimized`) for
+  PostgreSQL, under the path `/idp` (`KC_HTTP_RELATIVE_PATH`), with `KC_HOSTNAME =
+  <PUBLIC_URL>/idp` and `KC_PROXY_HEADERS=xforwarded` behind Caddy.
+- `docker/keycloak/prod/realm-shodoukan.json`, imported on first start: no
+  `shodoukan-dev-cli`, no `dev` user. It has two public PKCE clients,
+  `shodoukan-practice-web` (redirect `${PUBLIC_URL}/*`) and `shodoukan-practice-docs`
+  for the Swagger UI (`${PUBLIC_URL}/practice-api/docs/oauth2-redirect`). Both have the
+  `shodoukan-practice` audience mapper. `${PUBLIC_URL}` is filled from the environment
+  at import time.
+- The API uses `AUTH_ISSUER=<PUBLIC_URL>/idp/realms/shodoukan` (the tokens' `iss`),
+  but fetches the keys from Keycloak inside the Docker network (`AUTH_JWKS_URL`).
+- The admin console and the master realm are only served on a localhost port
+  (`KC_HOSTNAME_ADMIN`); Caddy answers 404 for them on the public URL.
+- Keycloak marks its cookies `Secure`. Browsers send those to `http://localhost`, so
+  pre works over HTTP, but HTTP clients in scripts may not.
+
+Moving to a managed OpenID Connect provider would only change `AUTH_ISSUER`,
+`AUTH_AUDIENCE` and the frontend's client settings.

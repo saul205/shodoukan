@@ -156,6 +156,11 @@ Returns a single kanji by its character.
 | `200 OK` | `Kanji` | Kanji found. |
 | `404 Not Found` | `{"detail": "Kanji not found"}` | Unknown character. |
 
+### `GET /health`
+
+Liveness check: `200 {"status": "ok"}` without touching the database. The scheduled
+keep-alive ping and Docker healthchecks use it ([deployment](deployment.md#keep-alive)).
+
 ---
 
 ## Schemas

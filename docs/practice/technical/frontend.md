@@ -52,6 +52,14 @@ It needs the practice API on `:8001` and Keycloak on `:8080` (see
 | `NUXT_PUBLIC_AUTH_ISSUER` | `http://localhost:8080/realms/shodoukan` |
 | `NUXT_PUBLIC_AUTH_CLIENT_ID` | `shodoukan-practice-web` |
 
+Deployed, the app is generated as static files (`nuxt generate`) and served by Caddy at
+the site root (`deploy/web/Dockerfile`, [deployment](../../technical/deployment.md)). The
+build sets same-host paths, `NUXT_PUBLIC_API_BASE=/practice-api` and
+`NUXT_PUBLIC_AUTH_ISSUER=/idp/realms/shodoukan`, so one build works on any host. The
+auth plugin resolves a relative issuer against the page's origin (`resolveAuthority`
+in `app/utils/auth-authority.ts`), because `oidc-client-ts` needs an absolute
+authority.
+
 ## Sign-in
 
 Every screen requires sign-in; only `/auth/callback` is public.

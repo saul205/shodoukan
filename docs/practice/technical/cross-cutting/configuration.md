@@ -14,13 +14,15 @@ Environment variables, the local PostgreSQL, and how the app connects.
 | `AUTH_AUDIENCE` | API | Recommended. Tokens must carry it in `aud`; locally `shodoukan-practice`. |
 | `AUTH_JWKS_URL` | API | Optional. Defaults to `<AUTH_ISSUER>/protocol/openid-connect/certs`. |
 | `CORS_ORIGINS` | API | Comma-separated browser origins allowed to call the API; default `http://localhost:3001` (the practice frontend). Shared with `shodoukan-api`, so a value covering both apps lists both origins. |
-| `AUTH_SWAGGER_CLIENT_ID` | API docs | Optional. Client the Swagger UI signs in with; default `shodoukan-web`. |
+| `AUTH_SWAGGER_CLIENT_ID` | API docs | Optional. Client the Swagger UI signs in with; default `shodoukan-web` (deployed: `shodoukan-practice-docs`). |
+| `UVICORN_ROOT_PATH` | API container | The path prefix the proxy strips (`/practice-api` when deployed), so the docs and OpenAPI URLs include it. Read by uvicorn. |
 | `KEYCLOAK_PORT` | compose | Optional host port for Keycloak; default `8080`. Changing it also changes the issuer URL. |
 | `NUXT_PUBLIC_API_BASE`, `NUXT_PUBLIC_AUTH_ISSUER`, `NUXT_PUBLIC_AUTH_CLIENT_ID` | practice frontend | Optional; defaults match the local setup. See [frontend](../frontend.md#running). |
 | `SHODOUKAN_DB_PATH` | dictionary (`shodoukan` library) | Optional. Path to the dictionary SQLite; defaults to `~/.local/share/shodoukan/shodoukan.sqlite`. |
 
-Real values live in the gitignored `.env.dev` (local) or the deployment's secret
-settings. Keycloak and its database have their own file; see [Keycloak](#keycloak). [`.env.example`](../../../../.env.example) documents every variable with
+Real values live in the gitignored `.env.dev` (local). Deployed (pre and prod),
+`deploy/compose.yml` derives the API's variables from a few in `deploy/.env.pre` /
+`deploy/.env.prod`; see [deployment](../../../technical/deployment.md#variables). Keycloak and its database have their own file; see [Keycloak](#keycloak). [`.env.example`](../../../../.env.example) documents every variable with
 placeholder values.
 
 ## Local PostgreSQL
@@ -121,9 +123,12 @@ dictionary SQLite on disk:
 
 - **Locally:** `shodoukan-setup` downloads it to the default path, or set
   `SHODOUKAN_DB_PATH`. `Dictionary()` also downloads it on first use if it's missing.
-- **In a deployment:** download it at image build time with `shodoukan-setup`, as
-  `packages/shodoukan-api/Dockerfile` does, or mount it. There's no practice
-  Dockerfile yet.
+- **Deployed:** `packages/shodoukan-practice/Dockerfile` downloads it at image build
+  time with `shodoukan-setup` (as the `shodoukan-api` image does) and sets
+  `SHODOUKAN_DB_PATH`. Images are rebuilt monthly to pick up a new release
+  ([deployment](../../../technical/deployment.md#monthly-dictionary-refresh)).
+  `shodoukan-setup` sends `GITHUB_TOKEN`, when set, to avoid GitHub's anonymous rate
+  limit; the Dockerfile reads it from the optional `github_token` build secret.
 
 The file is read-only and published monthly by `shodoukan-db`. Imported items are
 snapshots, so a dictionary update never changes what users already have.

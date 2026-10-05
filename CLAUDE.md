@@ -32,6 +32,8 @@ packages/
   shodoukan-ui/        Shared Vue component library (EntryCard, KanjiCard, SearchBar, ...), own Tailwind build
   shodoukan-web/       Nuxt 3 dictionary frontend (docs/technical/frontend.md)
   shodoukan-practice-web/  Nuxt 4 + Nuxt UI practice frontend on :3001, Keycloak sign-in (docs/practice/technical/frontend.md)
+deploy/                Self-hosted practice stack: compose (pre and prod), Caddy, Tailscale, pre.sh / deploy.sh (docs/technical/deployment.md)
+docker/keycloak/       Dev realm; production Keycloak image and realm (prod/)
 tests/
   shodoukan/           Backend unit + integration tests
   shodoukan-api/       API route tests
@@ -60,6 +62,7 @@ See `docs/index.md` for the full documentation index. Quick reference:
 | `docs/technical/api.md` | Full REST API reference: endpoints, schemas, priority tags |
 | `docs/technical/search.md` | Search architecture: query classification, pipelines, scoring formulas |
 | `docs/technical/frontend.md` | Frontend architecture, components, responsive layout, Tailwind conventions |
+| `docs/technical/deployment.md` | Deployment: Render (dictionary), self-hosted practice stack (`deploy/`, pre and prod), CI/CD, backups |
 | `docs/practice/README.md` | Practice app entry point: status and map of its docs |
 | `docs/practice/technical/frontend.md` | Practice frontend: sign-in flow, API client, screens, tests |
 | `docs/practice/technical/README.md` | Practice app technical docs index, plus the "where to document what" table |

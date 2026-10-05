@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **repo:** Deployment, at no cost. The dictionary API and web stay on Render
+  (static site plus a kept-awake API, deployed by CI). The practice stack (API,
+  PostgreSQL, Keycloak, practice SPA) runs self-hosted with docker compose behind
+  Tailscale Funnel on one URL: `/`, `/practice-api/`, `/idp/`. It comes with a pre
+  environment on `localhost:8088` (`deploy/pre.sh up|down|reset|seed`), nightly
+  database backups, `deploy/deploy.sh` to deploy or roll back published images, and a
+  monthly rebuild that picks up the new dictionary. See
+  `docs/technical/deployment.md`.
+- **repo:** CI runs on `develop` too, builds every deployable image, and publishes the
+  practice images to GHCR (`practice-publish.yml`).
+- **shodoukan-api**, **shodoukan-practice:** `GET /health`.
+- **shodoukan-practice:** A Dockerfile for the API, with the dictionary baked in; it
+  also runs the migrations.
+- **shodoukan:** `shodoukan-setup` sends `GITHUB_TOKEN` when set, avoiding GitHub's
+  anonymous rate limit.
+
 - **shodoukan-practice-web:** Statistics: each exercise's page shows its totals,
   accuracy per direction and the items missed most; "Estadísticas" shows them over
   every exercise, with the answers per day over the last 7, 30 or 90 days, a table
@@ -85,6 +101,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-web:** The dictionary frontend is a static SPA (`ssr: false`, `nuxt
+  generate`), published on a Render Static Site.
+- **shodoukan-practice-web:** The identity provider URL can be relative to the site
+  (`/idp/realms/shodoukan`).
 - **shodoukan-practice-web:** The dictionary's kanji page shows the meanings larger,
   filling the height of the kanji, with its strokes, grade and the rest below them.
 - **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi

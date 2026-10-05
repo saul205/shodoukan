@@ -104,4 +104,10 @@ them on `http://localhost`, while scripted HTTP clients have to forward them by 
 
 A separate `frontend` job installs the pnpm workspace (`--frozen-lockfile`), builds and
 tests `shodoukan-ui`, and runs the practice frontend's Vitest suite and `nuxt
-typecheck`. See [frontend](frontend.md#tests).
+typecheck`. See [frontend](frontend.md#tests). It also typechecks and generates the
+dictionary frontend.
+
+A `docker-build` job builds every deployable image (practice API, practice web,
+Keycloak, dictionary API) without pushing, so a broken Dockerfile fails the PR. CI runs
+on pushes and PRs to `main` and `develop`; publishing and deploying are described in
+[deployment](../../technical/deployment.md#cicd-summary).
