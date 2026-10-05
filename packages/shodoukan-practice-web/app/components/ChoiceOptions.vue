@@ -2,12 +2,14 @@
 import type { ChoiceOption } from '~/models/practice'
 
 // The options of a choice card, numbered for the keyboard, all the same size:
-// rows of equal height (the tallest option's, at least two lines), one column
-// on phones and two above. Very long texts are cut at three lines (the whole
-// text is the tooltip). Once answered (`correct` known), the right one turns
-// green and the picked one, if wrong, red; options that came from an item get
-// a detail button in their corner, so nothing moves. `compact` is the
-// smaller list of a session review.
+// rows of equal height (the tallest option's), in two columns. Phones get one
+// column, easier to read and tap, unless the texts are short (two big boxes
+// per row read better) or it wouldn't fit the screen: 7–8 options, or 5–6 on
+// a short screen (see `columns`). Very long texts
+// are cut at three lines (the whole text is the tooltip). Once answered
+// (`correct` known), the right one turns green and the picked one, if wrong,
+// red; options that came from an item get a detail button in their corner, so
+// nothing moves. `compact` is the smaller list of a session review.
 const props = defineProps<{
   options: ChoiceOption[]
   picked: number | null
@@ -19,6 +21,21 @@ const props = defineProps<{
 const emit = defineEmits<{ 'pick': [index: number]; 'open-item': [itemId: number] }>()
 
 const answered = computed(() => props.correct !== null)
+
+// Short enough for half a phone's width: a kanji, a kana word, "eat".
+const SHORT_TEXT = { japanese: 6, other: 12 }
+const short = computed(() => {
+  const limit = props.japanese ? SHORT_TEXT.japanese : SHORT_TEXT.other
+  return props.options.every(option => option.text.length <= limit)
+})
+
+const columns = computed(() => {
+  if (props.compact) return 'grid-cols-1 sm:grid-cols-2'
+  const count = props.options.length
+  if (count >= 7 || short.value) return 'grid-cols-2'
+  if (count >= 5) return 'grid-cols-1 sm:grid-cols-2 [@media(max-height:40rem)]:grid-cols-2'
+  return 'grid-cols-1 sm:grid-cols-2'
+})
 
 function color(index: number) {
   if (!answered.value) return 'neutral'
@@ -36,16 +53,16 @@ function state(index: number) {
 </script>
 
 <template>
-  <div class="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+  <div class="grid auto-rows-fr gap-2 sm:gap-3" :class="columns" data-testid="options">
     <div v-for="(option, index) in options" :key="index" class="relative">
       <UButton
         :color="color(index)"
         :variant="answered && state(index) !== 'other' ? 'soft' : 'outline'"
         :disabled="disabled && !answered"
         :size="compact ? 'md' : 'xl'"
-        class="h-full w-full justify-center px-10 text-center whitespace-normal"
+        class="h-full w-full justify-center px-8 text-center whitespace-normal sm:px-10"
         :class="[
-          compact ? 'min-h-10' : 'min-h-14 sm:min-h-16',
+          compact ? 'min-h-10' : 'min-h-12 sm:min-h-16',
           { 'opacity-60': state(index) === 'other', 'pointer-events-none': answered },
         ]"
         :title="option.text"

@@ -100,7 +100,7 @@ button, title and actions).
 | `/exercises` | The user's exercises as cards: item kind, collections (by name; "Sin colecciones" when they were all deleted) and directions; the name opens the exercise; Empezar, edit, delete (`ConfirmModal`; past sessions are kept). `OpenSessionAlert` on top (also on the home page): "Continuar" for the open session |
 | `/exercises/:id?page=` | One exercise: its definition (kind, collections, directions, back, options), "Empezar" or, if the open session is this exercise's, "Continuar", "Editar", its **statistics** once it has answers (`GET /exercises/{id}/statistics`: `TotalsTiles`, accuracy per direction as `AccuracyBar`s, the items missed most as `MissedItems`, which open `ItemDetailModal`), and its session history: a `UTable` of `GET /exercise-sessions?exercise_id=` (10 per page, `UPagination`; date, duration, answered, accuracy, open or finished) whose rows open the session |
 | `/statistics?days=&tab=` | "Estadísticas": `GET /statistics` with `days` (7, 30 by default, or 90; a select) and `tz`, this browser's time zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`). `TotalsTiles`, the activity of each day as an `ActivityChart` (CSS bars, right answers under wrong ones, scaled to the busiest day; a text summary for screen readers), a `UTable` per exercise (sessions, accuracy, last time; a row opens the exercise) and the words / kanji missed most in tabs (`tab=kanji`). An empty state when nothing was answered yet. No chart library |
-| `/exercise-sessions/:id?filter=` | Play a session (below). A finished one shows its result (answered, right, accuracy, date, duration) with "Practicar otra vez", then the **review**: each answered question collapsed to one line (`ReviewQuestion`, a `UCollapsible`: number, verdict, prompt → right answer, the wrong pick struck through, the time) that opens to the card as it was played (the compact `StudyCard` and `ChoiceOptions` with the pick and the right one marked), "Desplegar todas" / "Plegar todas", all or only the missed and skipped (`filter=missed`). The back button goes to the exercise, or to the list if it was deleted |
+| `/exercise-sessions/:id?filter=` | Play a session (below). A finished one shows its result (answered, right, accuracy, date, duration) with "Practicar otra vez", then the **review**: each answered question collapsed to one line (`ReviewQuestion`, a `UCollapsible`: number, verdict, prompt → right answer, the wrong pick struck through, the time) that opens to the card as it was played (the compact `StudyCard`, its back only, and `ChoiceOptions` with the pick and the right one marked), "Desplegar todas" / "Plegar todas", all or only the missed and skipped (`filter=missed`). The back button goes to the exercise, or to the list if it was deleted |
 | `/exercises/new`, `/exercises/:id/edit` | `ExerciseForm` (below) in a card; saving goes back to the list |
 | `/collections/:kind/:id?q=&active=&page=` | A collection's items with search (`LibrarySearchInput`, `in_collection` on the API side), the same active filter as the library (inactive ones are listed, marked, unless filtered out) and paging; add from the library (`LibraryPickerModal`: its own search, `not_in_collection` so only what can still be added is listed, selection kept across searches), remove; items open the detail page with `?collection=<id>` for the back link (`useBackLink()`) |
 
@@ -153,8 +153,9 @@ player for the question's `type` comes from the registry in
 `components/exercise-players/index.ts` (`card.choice` → `ChoiceCardPlayer`); a player
 takes `question` and `busy` and emits `answer(answer, responseMs)`, `next` and
 `open-item(itemId)`. `ChoiceCardPlayer` is a `StudyCard` (front: the prompt fields with
-their labels and what's asked; back once answered: the question's `back` and "Ver
-detalle") over `ChoiceOptions` (keys 1–N, then the right option green and a wrong pick
+their labels and what's asked; once answered it turns to the back, composed from the
+question's `back`: the prompt fields as the headline, the asked field in green, the
+other back fields smaller, and "Ver detalle") over `ChoiceOptions` (keys 1–N, then the right option green and a wrong pick
 red, with "detail" buttons on options that came from an item); Enter goes on.
 "Saltar" (or S / Escape) answers `{type: "skip"}`: a miss, shown with only the right
 option marked and the verdict "Saltada". The shortcuts are a window `keydown` listener that
@@ -165,11 +166,22 @@ Enter: Enter means "next" only from the page itself or an option
 measures `response_ms` from when the question is shown. The layout stays put: the page uses
 `AppPanel fill` (the content stretches to the panel's height), and in the player the
 options and a bottom row (a key hint, then the verdict and "Siguiente") take their
-height while the card takes the rest. The card has two halves that are always there
-(the back shows a placeholder until answered and scrolls inside if long), the options
-are rows of equal height (`auto-rows-fr`, at least two lines, long texts cut at three)
-with their detail buttons in a corner, so answering or going on resizes nothing. Text
-grows with the screen; phones get one column of options. `next: null` shows "No quedan
+height while the card takes the rest. The card shows one face at a time (front, then
+the back after a short flip). Its minimum height, from the front on, is the back's
+estimated height: the page loads the exercise (`getExercise`) for its `back_fields`
+and passes them to the player as `backFields`, and `StudyCard` adds up the rows the
+back will have (prompt fields, answer, extras) at phone line heights, so turning
+doesn't resize it. A back longer than estimated (values that wrap) grows the card
+and shrinks the options to their minimum; it doesn't scroll inside the card. The
+options are rows of equal height (`auto-rows-fr`, long
+texts cut at three lines) with their detail buttons in a corner, so answering or going
+on resizes nothing. The goal is that a session never scrolls on a phone: there the card
+and the options share the height 2:3 (`flex-[2_1_0%]` / `flex-[3_1_0%]`, neither
+below its content), so the options grow into the room the card doesn't need, and
+they go in one column, two when the texts are short (≤ 6 characters for a Japanese
+answer, 12 otherwise) or when one column wouldn't fit (7–8 options, or 5–6 on a
+screen under 40rem tall). From `sm` the card takes the rest. Text grows with the
+screen. `next: null` shows "No quedan
 preguntas" with "Terminar"; an answer that finished the session (its exercise was
 deleted) reloads it into its result; a 409 (answered in another tab, closed or idle
 meanwhile) reloads the session with a toast. `ItemDetailModal` (`useOverlay()`) loads

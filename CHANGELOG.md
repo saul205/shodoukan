@@ -85,6 +85,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-practice-web:** Fits phones better. On a dictionary word or kanji
+  page the import buttons take their own row below it (and stack on very narrow
+  screens), so the meanings keep the width. During an exercise the card shows only
+  its front, then turns to show only its back: the prompt as the headline, the
+  answer, then the other fields smaller. The card keeps room for its back from
+  the start, so turning it doesn't resize it (a longer back grows it). Options
+  grow into the room the card doesn't need, in one column on phones (two with
+  short texts, 7–8 options or on short screens), so a session fits a phone screen
+  without scrolling.
 - **shodoukan-practice-web:** The dictionary's kanji page shows the meanings larger,
   filling the height of the kanji, with its strokes, grade and the rest below them.
 - **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi

@@ -39,4 +39,28 @@ describe('ChoiceOptions', () => {
     await details[1]!.trigger('click')
     expect(wrapper.emitted('open-item')).toEqual([[11]])
   })
+
+  it('uses one column on phones for long options', async () => {
+    const long = ['to eat something', 'water (cold, fresh)', 'sun; sunshine; day'].map(text => ({ text, item_id: null }))
+    const wrapper = await mountSuspended(ChoiceOptions, { props: { options: long, picked: null, correct: null } })
+
+    expect(wrapper.find('[data-testid="options"]').classes()).toContain('grid-cols-1')
+  })
+
+  it('uses two columns on phones for short options', async () => {
+    const wrapper = await mountSuspended(ChoiceOptions, { props: { options, picked: null, correct: null, japanese: true } })
+
+    const classes = wrapper.find('[data-testid="options"]').classes()
+    expect(classes).toContain('grid-cols-2')
+    expect(classes).not.toContain('grid-cols-1')
+  })
+
+  it('uses two columns on phones with 7 or 8 options', async () => {
+    const eight = Array.from({ length: 8 }, (_, i) => ({ text: `o${i}`, item_id: null }))
+    const wrapper = await mountSuspended(ChoiceOptions, { props: { options: eight, picked: null, correct: null } })
+
+    const classes = wrapper.find('[data-testid="options"]').classes()
+    expect(classes).toContain('grid-cols-2')
+    expect(classes).not.toContain('grid-cols-1')
+  })
 })
