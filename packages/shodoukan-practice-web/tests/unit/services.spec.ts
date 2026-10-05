@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { addToCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
 import { searchDictionary } from '../../app/services/dictionary'
 import { answerQuestion, finishSession, getSession, listSessions, startSession } from '../../app/services/exercise-sessions'
+import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
 import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
   addGloss,
@@ -124,6 +125,16 @@ describe('practice API services', () => {
       }],
       ['/exercise-sessions/5/finish', { method: 'POST' }],
       ['/exercise-sessions', { query: { status: 'open', limit: 1 } }],
+    ])
+  })
+
+  it('statistics use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    await getExerciseStatistics(api, 2)
+    await getPracticeStatistics(api, 30, 'Europe/Madrid')
+    expect(calls).toEqual([
+      ['/exercises/2/statistics'],
+      ['/statistics', { query: { days: 30, tz: 'Europe/Madrid' } }],
     ])
   })
 })

@@ -66,7 +66,8 @@ Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
 
 Nuxt 4 + Nuxt UI app for the practice API on <http://localhost:3001>: sign in with
 Keycloak, then search the dictionary and import, customise your library (meanings,
-notes, readings) and group it into collections. See the
+notes, readings), group it into collections, and practise them with exercises, with a
+history, a review of each session and statistics. See the
 [frontend docs](docs/practice/technical/frontend.md).
 
 ---

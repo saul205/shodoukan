@@ -296,3 +296,72 @@ export interface SessionQuery extends PageQuery {
   /** Open (the one to resume) or finished, idle ones included. */
   status?: SessionStatus
 }
+
+/** Answer counts; `accuracy` is right over answered (0–1), null with no answers. */
+export interface AnswerTotals {
+  /** Sessions with at least one answer. */
+  sessions: number
+  answered: number
+  correct: number
+  accuracy: number | null
+  mean_response_ms: number | null
+}
+
+export interface DirectionStatistics {
+  /** The shown fields, in a fixed order. */
+  prompt_fields: StudyField[]
+  answer_field: StudyField
+  answered: number
+  correct: number
+  accuracy: number | null
+}
+
+/** An item answered wrong, named as it is now in the library. */
+export interface MissedItem {
+  item_id: number
+  /** A word's usual form, or the kanji. */
+  label: string
+  /** A word's reading, when `label` isn't it. */
+  reading: string | null
+  answered: number
+  wrong: number
+}
+
+export interface ExerciseStatistics {
+  exercise_id: number
+  item_kind: ItemKind
+  totals: AnswerTotals
+  /** Most answered first. */
+  directions: DirectionStatistics[]
+  /** Most misses first. */
+  most_missed: MissedItem[]
+}
+
+export interface DayActivity {
+  /** YYYY-MM-DD, in the requested time zone. */
+  day: string
+  answered: number
+  correct: number
+}
+
+export interface ExerciseSummary {
+  exercise_id: number
+  /** Its current name. */
+  exercise_name: string
+  item_kind: ItemKind
+  sessions: number
+  answered: number
+  correct: number
+  accuracy: number | null
+  last_answered_at: string
+}
+
+export interface PracticeStatistics {
+  totals: AnswerTotals
+  /** Every day of the window, oldest first; today is the last. */
+  activity: DayActivity[]
+  /** Exercises with answers, most recently answered first. */
+  exercises: ExerciseSummary[]
+  most_missed_entries: MissedItem[]
+  most_missed_kanji: MissedItem[]
+}

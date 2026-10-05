@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import type { TableColumn, TableRow } from '@nuxt/ui'
+import ItemDetailModal from '~/components/ItemDetailModal.vue'
 import type { SessionSummary } from '~/models/practice'
 import { listCollections } from '~/services/collections'
 import { listSessions } from '~/services/exercise-sessions'
 import { getExercise } from '~/services/exercises'
+import { getExerciseStatistics } from '~/services/statistics'
 import { apiStatus } from '~/utils/api-error'
 import { accuracyPercent, formatDateTime, formatDuration } from '~/utils/session-format'
 import { directionLabel, FIELD_LABELS, ITEM_KIND_LABELS } from '~/utils/study-fields'
 
 // One exercise: what it studies, "Empezar" (or "Continuar" if its session is
-// the open one) and its session history, newest first, paged in the URL
+// the open one), its statistics (totals, accuracy per direction, the items
+// missed most) and its session history, newest first, paged in the URL
 // (?page=). A row opens the session: its review, or the session itself if
 // it's still open.
 
@@ -48,6 +51,18 @@ const { data: history, status: historyStatus } = useAsyncData(
   () => listSessions(api, { exercise_id: id.value, limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }),
   { watch: [id, page] },
 )
+
+const { data: statistics } = useAsyncData(
+  () => `exercise-statistics-${id.value}`,
+  () => getExerciseStatistics(api, id.value),
+  { watch: [id] },
+)
+
+const overlay = useOverlay()
+function openItem(itemId: number) {
+  if (!exercise.value) return
+  overlay.create(ItemDetailModal).open({ kind: exercise.value.item_kind, itemId, returnTo: route.fullPath })
+}
 
 const resumable = computed(() => (openSession.value?.exercise_id === id.value ? openSession.value : null))
 
@@ -142,6 +157,27 @@ function openSessionRow(_event: Event, row: TableRow<SessionSummary>) {
           <dd class="text-toned">{{ exercise.settings.option_count }} por tarjeta</dd>
         </dl>
       </UCard>
+
+      <section v-if="statistics?.totals.answered" aria-labelledby="statistics" class="space-y-3" data-testid="exercise-statistics">
+        <h2 id="statistics" class="text-sm font-semibold uppercase tracking-wide text-muted">Estadísticas</h2>
+        <TotalsTiles :totals="statistics.totals" />
+        <div class="grid gap-3 lg:grid-cols-2">
+          <UCard :ui="{ body: 'space-y-3' }">
+            <h3 class="text-sm font-medium text-highlighted">Acierto por dirección</h3>
+            <AccuracyBar
+              v-for="direction in statistics.directions"
+              :key="directionLabel({ prompt: direction.prompt_fields, answer: direction.answer_field })"
+              :label="directionLabel({ prompt: direction.prompt_fields, answer: direction.answer_field })"
+              :correct="direction.correct"
+              :answered="direction.answered"
+            />
+          </UCard>
+          <UCard :ui="{ body: 'space-y-2' }">
+            <h3 class="text-sm font-medium text-highlighted">Los que más fallas</h3>
+            <MissedItems :items="statistics.most_missed" @open-item="openItem" />
+          </UCard>
+        </div>
+      </section>
 
       <section aria-labelledby="history" class="space-y-3">
         <h2 id="history" class="text-sm font-semibold uppercase tracking-wide text-muted">Historial</h2>

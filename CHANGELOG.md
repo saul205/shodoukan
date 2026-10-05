@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice-web:** Statistics: each exercise's page shows its totals,
+  accuracy per direction and the items missed most; "Estadísticas" shows them over
+  every exercise, with the answers per day over the last 7, 30 or 90 days, a table
+  per exercise and the words and kanji missed most. Missed items open their detail.
 - **shodoukan-practice-web:** Exercise history: each exercise has its own page with
   what it studies, "Empezar" or "Continuar", and its sessions (date, duration,
   accuracy). A finished session shows its result and a card-by-card review, one

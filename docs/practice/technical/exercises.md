@@ -315,12 +315,12 @@ In `shodoukan-practice-web`:
     "Continuar" notice when a session is open (also on the home page) **(built)**.
   - `exercises/new.vue` and `exercises/[id]/edit.vue` **(built)**.
   - `exercises/[id]/index.vue`: the exercise's summary and session history
-    **(built)**, and its statistics (#43).
+    **(built)**, and its statistics **(built)**.
   - `exercise-sessions/[id].vue`: play an open session **(built)**; a finished one
     shows its result and the review **(built)** (each answered question as
     it was, filter "solo falladas").
   - `statistics/index.vue`: totals, activity of the last 30 days, a table per
-    exercise, most missed words and kanji.
+    exercise, most missed words and kanji **(built)**.
 - **Components:**
   - `ExerciseForm` with several collections of one kind, a `DirectionsEditor` (rows
     of prompt fields → answer field) and back-field checkboxes; the field list
@@ -334,11 +334,12 @@ In `shodoukan-practice-web`:
     asked item or a wrong option's). It reuses view-only `EntryDetail` /
     `KanjiDetail`, extracted from `app/pages/library/entries/[id].vue` and
     `app/pages/library/kanji/[id].vue` **(built)**.
-  - `StatTile`, `AccuracyBar`, `ActivityChart`: Nuxt UI and CSS, no chart library.
+  - `StatTile`, `AccuracyBar`, `ActivityChart`: Nuxt UI and CSS, no chart library
+    **(built)**.
 - A registry `question type → player component` picks the player for each exercise
   type (`components/exercise-players/`) **(built**; details in
   [frontend](frontend.md#screens)**)**.
-- "Ejercicios" **(built)** and "Estadísticas" in the sidebar (`app/layouts/default.vue`).
+- "Ejercicios" and "Estadísticas" in the sidebar **(built)** (`app/layouts/default.vue`).
 
 Example of a `card.choice` question, direction *literal → kunyomi*:
 
@@ -367,6 +368,6 @@ go in the order 3 → A → 4 → 5 → C.
 | A | History and statistics (backend), #42 **(built)** | Session summaries (history, the open session), statistics per exercise and overall, question `type` |
 | 4 | Playing a choice session (frontend), #32 **(built)** | Start and resume, `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
 | 5 | History and review (frontend), #33 **(built)** | Session history per exercise, reviewing a past session |
-| C | Statistics (frontend), #43 | Statistics per exercise and the "Estadísticas" page |
+| C | Statistics (frontend), #43 **(built)** | Statistics per exercise and the "Estadísticas" page |
 | 6 | Library distractors, #34 | `distractor_source = "library"` |
 | — | Future types | `card.flip`, `card.typed`, `card.handwriting`, `sentence.gap` |

@@ -9,6 +9,7 @@ const items: NavigationMenuItem[] = [
   { label: 'Mi librería', icon: 'i-lucide-library-big', to: '/library' },
   { label: 'Mis colecciones', icon: 'i-lucide-folders', to: '/collections' },
   { label: 'Ejercicios', icon: 'i-lucide-dumbbell', to: '/exercises' },
+  { label: 'Estadísticas', icon: 'i-lucide-chart-column', to: '/statistics' },
 ]
 
 const userMenu = computed<DropdownMenuItem[][]>(() => [
