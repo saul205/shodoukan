@@ -1,8 +1,10 @@
 import { UserManager, WebStorageStateStore, type User } from 'oidc-client-ts'
+import { resolveAuthority } from '~/utils/auth-authority'
 
 /**
  * OpenID Connect sign-in (authorization code + PKCE) against the identity
- * provider in `authIssuer` (Keycloak locally). Tokens are kept in
+ * provider in `authIssuer` (Keycloak locally; a path like `/idp/realms/...`
+ * when deployed behind the same host). Tokens are kept in
  * sessionStorage and renewed in the background with the refresh token.
  */
 export default defineNuxtPlugin(async () => {
@@ -10,7 +12,7 @@ export default defineNuxtPlugin(async () => {
   const origin = window.location.origin
 
   const manager = new UserManager({
-    authority: config.authIssuer,
+    authority: resolveAuthority(config.authIssuer, origin),
     client_id: config.authClientId,
     redirect_uri: `${origin}/auth/callback`,
     post_logout_redirect_uri: `${origin}/`,

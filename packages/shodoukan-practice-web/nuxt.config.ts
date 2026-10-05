@@ -8,6 +8,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   devServer: { port: 3001 },
   // Overridable with NUXT_PUBLIC_API_BASE, NUXT_PUBLIC_AUTH_ISSUER, NUXT_PUBLIC_AUTH_CLIENT_ID.
+  // The deployed build uses same-host paths (/practice-api, /idp/realms/shodoukan).
   runtimeConfig: {
     public: {
       apiBase: 'http://localhost:8001',

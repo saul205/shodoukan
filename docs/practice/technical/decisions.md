@@ -495,3 +495,79 @@ like any miss, the solution is shown, and accuracy isn't inflated by leaving out
 hard cards. It's one more member of the answer union, so the next-question rules and
 the statistics, which only read `is_correct`, needed no change, and there's no
 separate endpoint.
+
+## Deployment split: dictionary on Render, practice self-hosted
+
+Everything has to run for free, with no card and no paid domain. The dictionary (API
+and web) is public, read-only and stateless, so it stays on Render's free tier: public
+traffic and crawlers never reach our machine, and it's up when that machine is off.
+The practice stack needs PostgreSQL and Keycloak (about 1 GB of RAM), and no free host
+fits that: Render's free Postgres expires after 30 days and its 512 MB instances sleep,
+and Fly.io no longer has a free tier. It runs with docker compose on a machine of ours
+instead. It doesn't depend on Render, because it reads the dictionary in-process (see
+"The dictionary is used in-process behind a port"). Rejected: everything self-hosted,
+which would put public dictionary traffic on a home PC; an Oracle Cloud free VM, which
+needs a card. Details: [deployment](../../technical/deployment.md).
+
+## Tailscale Funnel with path routing, Keycloak at /idp
+
+The self-hosted stack is published with Tailscale Funnel: an outbound tunnel that
+needs no router ports, works behind CGNAT, includes HTTPS and is free without a card.
+Funnel gives one hostname, so Caddy routes by path: `/` (SPA), `/practice-api/`, `/idp/`.
+Everything is same-origin, so CORS is never needed and one SPA build works on any
+host. Keycloak is at `/idp`, not `/auth`, because the SPA's own `/auth/callback` route
+would sit under the same prefix. Rejected: DuckDNS with router port forwarding, which
+fails behind CGNAT and exposes the home IP.
+
+## The dictionary is baked into images and refreshed monthly
+
+Both APIs download the dictionary SQLite at image build time instead of loading it at
+runtime. It only changes with the monthly `shodoukan-db` release, so there's nothing to
+reload in between. Images stay immutable: rolling back an image rolls back the data
+too, nothing downloads at container start, and the file stays read-only. A scheduled
+workflow rebuilds both on the 2nd of each month.
+
+## Frontends are static SPAs
+
+The dictionary frontend was rendered on the server, but its pages fetch data in
+watchers that SSR doesn't await, so the server only produced a "loading" page.
+Switching it to `ssr: false` loses nothing. Both apps are now generated as static
+files: the dictionary on a Render Static Site, which doesn't use the 750 free instance
+hours and never sleeps, and the practice SPA served by Caddy. No Node process runs in
+production. On the free tier, SSR would mean a second web service, which would exhaust
+the instance hours and add a second cold start.
+
+## Practice deploys are pulled by hand
+
+CI builds and publishes the practice images to GHCR, and the host deploys them with
+`deploy/deploy.sh`. A self-hosted GitHub runner on the host would deploy automatically,
+but it runs repository code on a personal machine of a public repo. We deferred it:
+adding one later only means a job that calls the same script.
+
+## One pre environment, shared through a private Tailscale tunnel
+
+Reverses "Tailscale Funnel with path routing" (the path routing stays) and "Practice
+deploys are pulled by hand".
+
+Until the app is deployed anywhere, everything served from this machine is pre. Running
+a pre and a prod side by side on one PC was ceremony, so there's one self-hosted
+environment. Friends use it, so it must be stable and keep their data.
+
+- `deploy/deploy.sh` builds a commit (default `origin/main`) in a separate git
+  worktree, so pre only runs committed code and the working checkout is never touched.
+- It backs up both databases before every deploy, and `seed` asks before replacing
+  data.
+- Images are built on the host. Publishing them to GHCR from CI added a workflow and
+  public packages for one consumer; any git ref deploys or rolls back just as well.
+
+Access is private. `tailscale serve`, without Funnel, makes the stack reachable only
+from our tailnet and from the people we share the `shodoukan` node with. They install
+the free Tailscale app on a phone or computer. The node is its own container, so
+sharing it exposes nothing else of the machine. On top of that, the realm is
+invite-only.
+
+Rejected:
+
+- **Funnel with closed registration.** No app to install, but the login page would be
+  public.
+- **Cloudflare Tunnel with Access.** It needs a paid domain.

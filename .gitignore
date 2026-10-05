@@ -153,9 +153,10 @@ activemq-data/
 
 # Environments
 .env
-.env.dev
-.env.prod
-.env.keycloak
+# Any .env.<name> (dev, prod, keycloak, deploy/.env.pre, ...); only the
+# documented examples are tracked.
+.env.*
+!.env*.example
 .envrc
 .venv
 env/

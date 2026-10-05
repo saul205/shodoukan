@@ -22,6 +22,7 @@ from .routes import (
     exercise_router,
     exercise_session_router,
     exercise_statistics_router,
+    health_router,
     kanji_collection_router,
     library_router,
     practice_entry_router,
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
+    app.include_router(health_router)
     app.include_router(dictionary_router)
     app.include_router(library_router)
     app.include_router(practice_entry_router)
