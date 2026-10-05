@@ -189,7 +189,11 @@ Old images pile up, one set per deployed commit. Clean them with
 - **Pre:** every deploy asks GitHub for the latest release and passes it to the build
   (`DICT_RELEASE`). The dictionary has its own build stage, so a new release is
   downloaded on the next deploy, and code changes alone never download it again.
-- **Render:** `scheduled.yml` redeploys the API on the 2nd of each month.
+- **Render:** `scheduled.yml` redeploys the API on the 2nd of each month. Its
+  Dockerfile fetches the dictionary with `ADD` from the latest release's download URL.
+  BuildKit checks a remote `ADD` on every build and keeps the cached layer only while
+  the file is unchanged. A new release therefore lands on the next build, even with
+  Render's build cache.
 
 Imported library items are snapshots, so a refresh never changes users' data.
 

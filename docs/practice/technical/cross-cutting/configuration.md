@@ -127,8 +127,9 @@ dictionary SQLite on disk:
   (default `latest`), and sets `SHODOUKAN_DB_PATH`. The stage is cached per release,
   so code changes don't download it again; `deploy/deploy.sh` passes the latest release
   ([deployment](../../../technical/deployment.md#monthly-dictionary-refresh)).
-  `shodoukan-setup` (used by the `shodoukan-api` image and locally) sends
-  `GITHUB_TOKEN`, when set, to avoid GitHub's anonymous rate limit.
+  Neither image calls the GitHub API: they download from the release's URL, so
+  there's no rate limit. Locally, `shodoukan-setup` does call the API, and sends
+  `GITHUB_TOKEN`, when set, to avoid the anonymous rate limit.
 
 The file is read-only and published monthly by `shodoukan-db`. Imported items are
 snapshots, so a dictionary update never changes what users already have.

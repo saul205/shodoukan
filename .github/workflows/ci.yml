@@ -122,7 +122,6 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: false
-          secrets: github_token=${{ secrets.GITHUB_TOKEN }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
