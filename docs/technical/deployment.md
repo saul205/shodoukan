@@ -106,24 +106,27 @@ cp deploy/.env.pre.example deploy/.env.pre   # once
 deploy/pre.sh up       # build from the working tree and start; waits for the smoke test
 deploy/pre.sh down     # stop (data kept, nothing running)
 deploy/pre.sh reset    # delete pre's data: the next up migrates from zero and imports the realm
-deploy/pre.sh seed     # copy dev into pre: practice DB (then migrated) and the realm's users
+deploy/pre.sh seed kl4ws  # copy dev users into pre: accounts with passwords, their data (then migrated)
 deploy/pre.sh logs practice-api   # or any compose command
 ```
 
 Then open `http://localhost:8088`, register a user, and go through the app. The realm
 starts without users.
 
-`seed` needs the dev stack running. It copies two things from dev:
+`seed` needs the dev stack running. It copies the dev realm users you name, either as
+arguments or in `SEED_USERS` in `deploy/.env.pre`. With neither, it copies all of them.
 
-- **The practice database.** It replaces pre's, then migrates it, which tests new
-  migrations on real data.
-- **The dev realm's users,** with their ids and password hashes. It exports them with
+- **Their Keycloak accounts,** with ids and password hashes. It exports them with
   `kc.sh export`, because the admin API doesn't return password hashes, and adds them to
   pre's realm with a partial import. A pre user with the same username is overwritten.
+- **Their practice data.** It copies the dev practice database over pre's and deletes
+  every other user, whose rows cascade. Then it migrates the database, which tests new
+  migrations on real data.
 
-Since `users.id` is the token's `sub`, dev users sign in to pre with their dev
+Since `users.id` is the token's `sub`, the copied users sign in to pre with their dev
 passwords and find their own data. Only users are copied: pre keeps the prod realm's
-settings and clients.
+settings and clients. Users seeded earlier stay in pre's realm; run `reset` before
+`seed` to start from only the ones you name.
 
 Run pre before merging anything that touches the Dockerfiles, the compose files, the
 realm or a migration.
