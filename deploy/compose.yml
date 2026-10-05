@@ -109,6 +109,32 @@ services:
     # The JVM sizes its heap from this limit (70% by default).
     mem_limit: 768m
 
+  # One-shot, after Keycloak is up: moves the master realm (the admin
+  # console's sign-in) to the localhost admin URL. Without it the console's
+  # login form posts to the public URL, where Caddy hides the master realm.
+  # Idempotent; it only warns if the admin credentials no longer match.
+  keycloak-setup:
+    image: ghcr.io/saul205/shodoukan-keycloak:${TAG:-latest}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        K=/opt/keycloak/bin/kcadm.sh; C=/tmp/kcadm.config;
+        $$K config credentials --config $$C --server http://keycloak:8080/idp
+        --realm master --user "$$ADMIN_USER" --password "$$ADMIN_PASSWORD" &&
+        $$K update realms/master --config $$C -s "attributes.frontendUrl=$$ADMIN_URL" &&
+        echo "master realm served on $$ADMIN_URL" ||
+        echo "WARNING: couldn't configure the master realm (admin credentials changed?)";
+        exit 0
+    environment:
+      ADMIN_USER: ${KEYCLOAK_ADMIN_USER:?}
+      ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      ADMIN_URL: http://localhost:${KEYCLOAK_ADMIN_PORT:?}/idp
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: "no"
+    mem_limit: 256m
+
   keycloak-db:
     <<: *restart
     image: postgres:16-alpine

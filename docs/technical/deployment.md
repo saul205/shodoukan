@@ -46,7 +46,7 @@ Files:
 
 | Path | What |
 |---|---|
-| `deploy/compose.yml` | The shared stack. Publishes no ports. |
+| `deploy/compose.yml` | The shared stack. Publishes no ports. Includes the one-shots `practice-migrate` and `keycloak-setup`. |
 | `deploy/compose.pre.yml` | Pre: builds from the working tree, web on `127.0.0.1:8088`, project `shodoukan-pre` |
 | `deploy/compose.prod.yml` | Prod: GHCR images (`TAG`), adds `tailscale`, project `shodoukan-prod` |
 | `deploy/Caddyfile`, `deploy/web/Dockerfile` | Caddy routing; the image that bundles Caddy and the SPA |
@@ -236,13 +236,24 @@ and the `shodoukan-pre_*` volumes.
 ### Keycloak admin
 
 The admin console and the master realm are never public: Caddy answers 404 for them.
-Keycloak's `KC_HOSTNAME_ADMIN` puts the console on this machine only:
+They're only reachable on this machine:
 
 - prod: `http://localhost:8180/idp/admin`
 - pre: `http://localhost:8181/idp/admin`
 
-Sign in with `KEYCLOAK_ADMIN_USER` / `KEYCLOAK_ADMIN_PASSWORD`. After the first login,
-create a permanent admin user and delete the bootstrap one.
+Sign in with `KEYCLOAK_ADMIN_USER` / `KEYCLOAK_ADMIN_PASSWORD`. Two settings keep the
+admin traffic on localhost:
+
+- `KC_HOSTNAME_ADMIN` serves the console itself there.
+- The master realm's own frontend URL serves its sign-in there. Without it, the
+  console's login form would post to the public URL, which Caddy blocks. Keycloak has
+  no option for this at startup, so the one-shot `keycloak-setup` service sets it with
+  `kcadm.sh` after Keycloak is healthy, on every start (it's idempotent).
+
+`keycloak-setup` signs in with the admin credentials from the env file. Keep that
+admin user, and if you change its password in the console, update the env file too.
+Otherwise `keycloak-setup` only logs a warning, and on a fresh database the sign-in
+breaks again.
 
 The realm file (`docker/keycloak/prod/realm-shodoukan.json`) is imported only when the
 realm doesn't exist yet. Later changes to the file don't reach a running prod realm:
