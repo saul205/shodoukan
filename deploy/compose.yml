@@ -1,40 +1,71 @@
-# The practice stack, shared by pre and prod. Never used alone: combine it
-# with compose.pre.yml (built from the working tree, on localhost) or
-# compose.prod.yml (published images, behind Tailscale Funnel). Use
-# deploy/pre.sh and deploy/deploy.sh rather than calling compose directly.
+# Pre: the practice stack served from this machine, shared with the people we
+# choose through Tailscale (nothing is public). Run it through
+# deploy/deploy.sh, which builds it from main in a separate worktree.
 # Docs: docs/technical/deployment.md.
 #
-# Nothing here publishes a port; the overrides decide what is reachable.
+# Reachable:
+#   PUBLIC_URL                     everything: SPA at /, API at /practice-api,
+#                                  Keycloak at /idp (Caddy, service "web")
+#   http://localhost:WEB_PORT      the same, from this machine only
+#   http://localhost:KEYCLOAK_ADMIN_PORT/idp/admin   Keycloak's admin console
+# Sign-in only works on PUBLIC_URL (tokens and redirects use it).
+name: shodoukan-pre
 
 x-restart: &restart
   restart: unless-stopped
 
+# The practice API's environment, shared with the migrations.
+x-practice-api-env: &practice-api-env
+  PRACTICE_DATABASE_URL: postgresql+psycopg://${PRACTICE_DB_USER:?}:${PRACTICE_DB_PASSWORD:?}@practice-db:5432/${PRACTICE_DB_NAME:?}
+  # Tokens carry the public issuer; their keys are fetched inside the
+  # Docker network instead of going out through the public URL.
+  AUTH_ISSUER: ${PUBLIC_URL:?}/idp/realms/shodoukan
+  AUTH_AUDIENCE: shodoukan-practice
+  AUTH_JWKS_URL: http://keycloak:8080/idp/realms/shodoukan/protocol/openid-connect/certs
+  AUTH_SWAGGER_CLIENT_ID: shodoukan-practice-docs
+  CORS_ORIGINS: ${PUBLIC_URL:?}
+  UVICORN_ROOT_PATH: /practice-api
+
+# Nightly dumps, 7 daily and 4 weekly, one volume per database.
+x-backup-env: &backup-env
+  SCHEDULE: "@daily"
+  BACKUP_KEEP_DAYS: 7
+  BACKUP_KEEP_WEEKS: 4
+  BACKUP_KEEP_MONTHS: 0
+
 services:
+  # Caddy: the SPA's static files, plus /practice-api and /idp proxied.
   web:
     <<: *restart
-    image: ghcr.io/saul205/shodoukan-practice-web:${TAG:-latest}
+    image: shodoukan-pre/practice-web:${TAG:-local}
+    build:
+      context: ..
+      dockerfile: deploy/web/Dockerfile
     environment:
       PUBLIC_SCHEME: ${PUBLIC_SCHEME:?set PUBLIC_SCHEME (http or https)}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8088}:80"
     depends_on:
       practice-api:
         condition: service_started
       keycloak:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     mem_limit: 128m
 
   practice-api:
     <<: *restart
-    image: ghcr.io/saul205/shodoukan-practice-api:${TAG:-latest}
-    environment: &practice-api-env
-      PRACTICE_DATABASE_URL: postgresql+psycopg://${PRACTICE_DB_USER:?}:${PRACTICE_DB_PASSWORD:?}@practice-db:5432/${PRACTICE_DB_NAME:?}
-      # Tokens carry the public issuer; their keys are fetched inside the
-      # Docker network instead of going out through the public URL.
-      AUTH_ISSUER: ${PUBLIC_URL:?}/idp/realms/shodoukan
-      AUTH_AUDIENCE: shodoukan-practice
-      AUTH_JWKS_URL: http://keycloak:8080/idp/realms/shodoukan/protocol/openid-connect/certs
-      AUTH_SWAGGER_CLIENT_ID: shodoukan-practice-docs
-      CORS_ORIGINS: ${PUBLIC_URL:?}
-      UVICORN_ROOT_PATH: /practice-api
+    image: shodoukan-pre/practice-api:${TAG:-local}
+    build:
+      context: ..
+      dockerfile: packages/shodoukan-practice/Dockerfile
+      args:
+        DICT_RELEASE: ${DICT_RELEASE:-latest}
+    environment: *practice-api-env
     depends_on:
       practice-migrate:
         condition: service_completed_successfully
@@ -48,7 +79,7 @@ services:
 
   # One-shot: brings the schema up to date before the API starts.
   practice-migrate:
-    image: ghcr.io/saul205/shodoukan-practice-api:${TAG:-latest}
+    image: shodoukan-pre/practice-api:${TAG:-local}
     command: ["alembic", "-c", "packages/shodoukan-practice/alembic.ini", "upgrade", "head"]
     environment: *practice-api-env
     depends_on:
@@ -75,7 +106,10 @@ services:
 
   keycloak:
     <<: *restart
-    image: ghcr.io/saul205/shodoukan-keycloak:${TAG:-latest}
+    image: shodoukan-pre/keycloak:${TAG:-local}
+    build:
+      context: ..
+      dockerfile: docker/keycloak/Dockerfile
     environment:
       KC_DB_URL_HOST: keycloak-db
       KC_DB_URL_DATABASE: keycloak
@@ -91,6 +125,8 @@ services:
       KC_PROXY_HEADERS: xforwarded
       # Filled into the realm's redirect URIs on its first import.
       PUBLIC_URL: ${PUBLIC_URL:?}
+    ports:
+      - "127.0.0.1:${KEYCLOAK_ADMIN_PORT:?}:8080"
     depends_on:
       keycloak-db:
         condition: service_healthy
@@ -109,26 +145,16 @@ services:
     # The JVM sizes its heap from this limit (70% by default).
     mem_limit: 768m
 
-  # One-shot, after Keycloak is up: moves the master realm (the admin
-  # console's sign-in) to the localhost admin URL. Without it the console's
-  # login form posts to the public URL, where Caddy hides the master realm.
-  # Idempotent; it only warns if the admin credentials no longer match.
+  # One-shot, after Keycloak is up: invite-only realm, client URLs from
+  # PUBLIC_URL, admin sign-in on localhost (docker/keycloak/setup.sh).
   keycloak-setup:
-    image: ghcr.io/saul205/shodoukan-keycloak:${TAG:-latest}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >-
-        K=/opt/keycloak/bin/kcadm.sh; C=/tmp/kcadm.config;
-        $$K config credentials --config $$C --server http://keycloak:8080/idp
-        --realm master --user "$$ADMIN_USER" --password "$$ADMIN_PASSWORD" &&
-        $$K update realms/master --config $$C -s "attributes.frontendUrl=$$ADMIN_URL" &&
-        echo "master realm served on $$ADMIN_URL" ||
-        echo "WARNING: couldn't configure the master realm (admin credentials changed?)";
-        exit 0
+    image: shodoukan-pre/keycloak:${TAG:-local}
+    entrypoint: ["/opt/keycloak/bin/shodoukan-setup.sh"]
     environment:
       ADMIN_USER: ${KEYCLOAK_ADMIN_USER:?}
       ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
       ADMIN_URL: http://localhost:${KEYCLOAK_ADMIN_PORT:?}/idp
+      PUBLIC_URL: ${PUBLIC_URL:?}
     depends_on:
       keycloak:
         condition: service_healthy
@@ -151,20 +177,15 @@ services:
       retries: 10
     mem_limit: 256m
 
-  # Nightly dumps (7 daily, 4 weekly) into a volume per database; see the
-  # runbook for copying them off the machine and restoring.
   practice-db-backup:
     <<: *restart
     image: prodrigestivill/postgres-backup-local:16
-    environment: &backup-env
+    environment:
+      <<: *backup-env
       POSTGRES_HOST: practice-db
       POSTGRES_DB: ${PRACTICE_DB_NAME:?}
       POSTGRES_USER: ${PRACTICE_DB_USER:?}
       POSTGRES_PASSWORD: ${PRACTICE_DB_PASSWORD:?}
-      SCHEDULE: "@daily"
-      BACKUP_KEEP_DAYS: 7
-      BACKUP_KEEP_WEEKS: 4
-      BACKUP_KEEP_MONTHS: 0
     volumes:
       - practice-backups:/backups
     depends_on:
@@ -188,8 +209,32 @@ services:
         condition: service_healthy
     mem_limit: 64m
 
+  # The tunnel: serves web over HTTPS on the tailnet as
+  # https://shodoukan.<tailnet>.ts.net, reachable only by our devices and the
+  # people the node is shared with (no Funnel: nothing is public). It's its
+  # own node, so sharing it exposes nothing else of this machine. Enabled
+  # with COMPOSE_PROFILES=tunnel.
+  tailscale:
+    <<: *restart
+    profiles: [tunnel]
+    image: tailscale/tailscale:stable
+    hostname: shodoukan
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}  # only needed for the first login
+      TS_HOSTNAME: shodoukan
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./tailscale/serve.json:/config/serve.json:ro
+    depends_on:
+      - web
+    mem_limit: 128m
+
 volumes:
   practice-db-data:
   keycloak-db-data:
   practice-backups:
   keycloak-backups:
+  tailscale-state:

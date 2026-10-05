@@ -127,8 +127,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   # The dictionary (API and static web) lives on Render; its deploy hooks
-  # make Render rebuild from main. The practice stack is published by
-  # practice-publish.yml once this workflow succeeds.
+  # make Render rebuild from main. The practice stack is deployed by hand on
+  # its host (deploy/deploy.sh), which builds it from main.
   deploy:
     name: Deploy dictionary to Render
     needs: [test, frontend, docker-build]

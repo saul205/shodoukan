@@ -3,7 +3,7 @@
   "displayName": "Shodoukan",
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": true,
+  "registrationAllowed": false,
   "registrationEmailAsUsername": false,
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": false,
@@ -15,7 +15,7 @@
     {
       "clientId": "shodoukan-practice-web",
       "name": "Shodoukan practice web",
-      "description": "Public client (authorization code + PKCE) for the practice frontend, served at the site root.",
+      "description": "Public client (authorization code + PKCE) for the practice frontend, served at the site root. Redirect URIs are kept in sync with PUBLIC_URL by the setup script.",
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",
