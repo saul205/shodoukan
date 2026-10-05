@@ -22,7 +22,7 @@ describe('ItemDetailModal', () => {
       is_active: true, notes: null, created_at: '', updated_at: '',
     })
     const wrapper = await mountSuspended(ItemDetailModal, {
-      props: { kind: 'kanji', itemId: 7, sessionId: 5, open: true },
+      props: { kind: 'kanji', itemId: 7, returnTo: '/exercise-sessions/5?filter=missed', open: true },
       attachTo: document.body,
     })
     await flushPromises()
@@ -31,7 +31,7 @@ describe('ItemDetailModal', () => {
     await flushPromises()
 
     expect(wrapper.emitted('close')).toHaveLength(1)
-    expect(navigate).toHaveBeenCalledWith({ path: '/library/kanji/7', query: { session: 5 } })
+    expect(navigate).toHaveBeenCalledWith({ path: '/library/kanji/7', query: { from: '/exercise-sessions/5?filter=missed' } })
   })
 })
 
@@ -47,8 +47,16 @@ describe('useBackLink', () => {
     return back!.value
   }
 
-  it('goes back to the session the item was opened from', async () => {
-    expect(await backFrom('/library/kanji/7?session=5')).toEqual({ to: '/exercise-sessions/5', label: 'Volver a la sesión' })
+  it('goes back to the session the item was opened from, with its filter', async () => {
+    const from = encodeURIComponent('/exercise-sessions/5?filter=missed')
+    expect(await backFrom(`/library/kanji/7?from=${from}`))
+      .toEqual({ to: '/exercise-sessions/5?filter=missed', label: 'Volver a la sesión' })
     expect((await backFrom('/library/kanji/7?collection=3')).label).toBe('Volver a la colección')
+  })
+
+  it('never goes back outside the app or to other pages through ?from', async () => {
+    for (const from of ['https://evil.example/exercise-sessions/5', '//evil.example', '/collections/kanji/3']) {
+      expect((await backFrom(`/library/kanji/7?from=${encodeURIComponent(from)}`)).label).toBe('Volver a la librería')
+    }
   })
 })
