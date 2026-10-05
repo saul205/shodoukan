@@ -129,7 +129,7 @@ async function finish() {
 
 function openItem(itemId: number) {
   if (!session.value) return
-  overlay.create(ItemDetailModal).open({ kind: session.value.item_kind, itemId })
+  overlay.create(ItemDetailModal).open({ kind: session.value.item_kind, itemId, sessionId: id.value })
 }
 </script>
 

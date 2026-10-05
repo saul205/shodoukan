@@ -60,7 +60,9 @@ right ones.
    and shows the back. The picked option turns red if it was wrong, and the right one
    green.
 4. From the back the user can open the item's full detail in a window, without
-   leaving the session; the wrong options can open theirs too.
+   leaving the session; the wrong options can open theirs too. From there, "Abrir en
+   la librería" goes to the item's library page (to edit it, for instance), and its
+   back button returns to the session where it was.
 5. "Saltar" (or the S key) skips a card the user doesn't know: it counts as a miss,
    the card turns over showing the right option, and it comes back a few cards
    later like any missed one.

@@ -173,7 +173,10 @@ preguntas" with "Terminar"; an answer that finished the session (its exercise wa
 deleted) reloads it into its result; a 409 (answered in another tab, closed or idle
 meanwhile) reloads the session with a toast. `ItemDetailModal` (`useOverlay()`) loads
 the library item and shows `EntryDetail` / `KanjiDetail` view-only plus its notes, with
-a link to the library page in a new tab; an item no longer in the library says so.
+"Abrir en la librería", which goes to the item's library page in the same window with
+`?session=<id>`: its back button (`useBackLink()`) returns to the session, which picks
+up where it was (or to its review, if finished). An item no longer in the library
+says so.
 
 The detail is a page, not a modal: it has its own URL, the back button works, and it
 has room for editing. List state (tab, filter, page, query) lives in the URL for the
