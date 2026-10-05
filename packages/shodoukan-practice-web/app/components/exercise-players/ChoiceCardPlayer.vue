@@ -39,13 +39,19 @@ function elapsed() {
 
 const skipped = computed(() => props.question.answer?.type === 'skip')
 
+// Where the shortcuts never apply: typing, a dialog (the item detail), or an
+// open menu or select list (the sidebar's), whose keys are their own.
+const OWN_KEYS = 'input, textarea, select, [contenteditable], [role="dialog"], [role="menu"], [role="listbox"], [role="combobox"]'
+
 function onKey(event: KeyboardEvent) {
-  // Not while typing, or while a dialog (the item detail) is open.
-  const typing = event.target instanceof Element
-    && event.target.closest('input, textarea, [contenteditable], [role="dialog"]')
-  if (event.repeat || typing) return
+  if (event.defaultPrevented || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return
+  const target = event.target instanceof Element ? event.target : null
+  if (target?.closest(OWN_KEYS)) return
   if (props.question.answered) {
-    if (event.key === 'Enter') {
+    // Enter on a focused control ("Terminar", a link, a detail button) is that
+    // control's; it means "next" only from the page itself or an option.
+    const free = !target || target === document.body || target.closest('[data-option-shortcuts]')
+    if (event.key === 'Enter' && free) {
       event.preventDefault()
       emit('next')
     }

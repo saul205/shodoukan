@@ -155,7 +155,11 @@ their labels and what's asked; back once answered: the question's `back` and "Ve
 detalle") over `ChoiceOptions` (keys 1–N, then the right option green and a wrong pick
 red, with "detail" buttons on options that came from an item); Enter goes on.
 "Saltar" (or S / Escape) answers `{type: "skip"}`: a miss, shown with only the right
-option marked and the verdict "Saltada". It
+option marked and the verdict "Saltada". The shortcuts are a window `keydown` listener that
+stands aside for keys with Ctrl/Cmd/Alt, for inputs, dialogs and open menus or select
+lists, and lets a focused control ("Terminar", a link, a detail button) keep its
+Enter: Enter means "next" only from the page itself or an option
+(`data-option-shortcuts`). It
 measures `response_ms` from when the question is shown. The layout stays put: the page uses
 `AppPanel fill` (the content stretches to the panel's height), and in the player the
 options and a bottom row (a key hint, then the verdict and "Siguiente") take their

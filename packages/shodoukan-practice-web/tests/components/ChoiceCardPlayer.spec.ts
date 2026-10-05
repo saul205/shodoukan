@@ -9,8 +9,8 @@ import { graded, question } from '../fixtures-sessions'
 mockNuxtImport('useAuth', () => signedInAuth)
 enableAutoUnmount(afterEach)
 
-function press(key: string) {
-  window.dispatchEvent(new KeyboardEvent('keydown', { key }))
+function press(key: string, init: KeyboardEventInit = {}, target: EventTarget = window) {
+  target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
 }
 
 describe('ChoiceCardPlayer', () => {
@@ -74,5 +74,41 @@ describe('ChoiceCardPlayer', () => {
     const states = wrapper.findAll('[data-testid="option"]').map(o => o.attributes('data-state'))
     expect(states).toEqual(['correct', 'other', 'other', 'other'])
     expect(wrapper.find('[data-testid="skip"]').exists()).toBe(false)
+  })
+
+  it('leaves Enter to a focused control, but not to an option', async () => {
+    const wrapper = await mountSuspended(ChoiceCardPlayer, {
+      props: { question: graded(question(1), 2) },
+      attachTo: document.body,
+    })
+    const elsewhere = document.createElement('button')
+    document.body.append(elsewhere)
+
+    press('Enter', {}, elsewhere)
+    expect(wrapper.emitted('next')).toBeUndefined()
+
+    press('Enter', {}, wrapper.find('[data-testid="option"]').element)
+    expect(wrapper.emitted('next')).toEqual([[]])
+    elsewhere.remove()
+  })
+
+  it('ignores shortcuts with modifiers or inside menus and lists', async () => {
+    const wrapper = await mountSuspended(ChoiceCardPlayer, {
+      props: { question: question(1) },
+      attachTo: document.body,
+    })
+    const list = document.createElement('div')
+    list.setAttribute('role', 'listbox')
+    const item = document.createElement('div')
+    list.append(item)
+    document.body.append(list)
+
+    press('s', { ctrlKey: true })
+    press('s', { metaKey: true })
+    press('Escape', {}, item)
+    press('2', {}, item)
+
+    expect(wrapper.emitted('answer')).toBeUndefined()
+    list.remove()
   })
 })

@@ -46,6 +46,7 @@ function state(index: number) {
         :title="option.text"
         :aria-pressed="picked === index"
         :data-state="state(index)"
+        data-option-shortcuts
         data-testid="option"
         @click="answered || emit('pick', index)"
       >
