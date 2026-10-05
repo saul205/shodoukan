@@ -25,6 +25,8 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `domain/test_notes_value.py` | Notes cleaning and length limit |
 | `domain/test_timestamped_entity.py` | Timestamp defaults, `touch()` |
 | `domain/test_collection_service.py` | `ensure_combinable` |
+| `domain/test_study_field_service.py` | Reading study fields from words and kanji (enabled parts, meaning language), comparison keys (kana, glosses), `entry_label` |
+| `domain/test_choice_question_service.py` | Building the next question: deck per round, missed items back after `REVIEW_GAP`, no item twice in a row, distractors that are never a valid answer, pools too small |
 | `infrastructure/test_base_orm.py` | `UtcDateTime`: naive UTC stored, aware UTC read, naive rejected, no DB default |
 | `infrastructure/test_*_orm.py` | Constraints, cascades, `position` ordering |
 | `infrastructure/test_*_mapper.py` | `to_domain(to_db(entity)) == entity` without a database |
@@ -40,11 +42,17 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `application/test_collection_commands.py` | Collection commands: create, duplicate names, update and `updated_at`, delete keeps items, idempotent membership, other users' collections and items not found |
 | `application/test_collection_queries.py` | Listing and getting collections, owner scoping |
 | `application/test_practice_entry_commands.py`, `test_practice_kanji_commands.py` | Customisation use cases: notes, active, enabled, own meanings, dictionary meanings rejected, other users' items, removal from the library |
+| `application/test_exercise_commands.py`, `test_exercise_queries.py` | Exercise definitions: create, update, delete, list and get; collections of the right kind and owner; settings checked against the item kind |
+| `application/test_exercise_session_commands.py` | Starting (closes the user's open session, pool too small), answering (grading, the next question, idle and finished sessions, stale question ids), finishing |
+| `application/test_exercise_statistics_queries.py` | Statistics per exercise and overall: missed items named from the library (removed ones dropped), activity per day in the user's time zone, not found, window bounds |
 | `application/test_user_commands.py` | `EnsureUser`: existing identity, first request creates, no duplicates |
 | `api/test_library_routes.py` | The library endpoints through `TestClient`: listing (newest first, total, paging, `active`, owner scoping, ids usable in collections), search (`q`, romaji, `meaning_lang`, `not_in_collection` and its `404`, `q` length), import (201/200/404/422/401), import status (only the user's imports, limits, validation), user creation on first request, CORS preflight |
 | `api/test_collection_routes.py` | The collection endpoints: create/get/list/update/delete, name validation and `409`, items (add, list, page, search, remove), other users' collections `404`, `401`, CORS for `DELETE` |
 | `api/test_practice_entry_routes.py`, `test_practice_kanji_routes.py` | Library item endpoints: detail, notes (and validation), active, enabled per part, own meanings, 409 for dictionary meanings, collections of an item, removal, other users' items `404`, `401` |
 | `api/test_dictionary_routes.py` | `GET /dictionary/search` and the detail routes: public, the same shape as shodoukan-api, pagination, validation, 404s, and that results can be imported |
+| `api/test_exercise_routes.py` | The exercise endpoints: CRUD, validation, other users' exercises and collections `404` |
+| `api/test_exercise_session_routes.py` | Session endpoints: start, solutions hidden until answered, answer and next, finish, `409`s, the question `type`, listing the history and the open session |
+| `api/test_exercise_statistics_routes.py` | `GET /exercises/{id}/statistics` and `GET /statistics`: figures after playing, empty statistics, `404`, bad `tz` / `days` `422` |
 | `api/test_user_routes.py` | `GET /users/me`, and the OAuth2 login declared in the OpenAPI schema |
 | `api/test_auth.py` | `TokenVerifier`: identity, expiry, issuer, signature, audience, configuration |
 
@@ -72,8 +80,11 @@ same name in folders that aren't packages.
   `get_dictionary_gateway` and `get_token_verifier` overridden).
 - Helper modules next to `conftest.py`:
   - `factories.py`: `USER_ID` / `OTHER_USER_ID` (fixed UUIDs), `make_entry`,
-    `make_kanji`, `make_*_collection`, `NOW`, and
-    `TIMESTAMPS` for ORM rows built directly;
+    `make_kanji`, `make_*_collection`, `make_entry_exercise` / `make_kanji_exercise`,
+    `choice_settings((prompt, answer), ...)`, `make_session` / `make_question`,
+    `make_answered_session(user_id, exercise_id, [answered(item_id, correct, at,
+    ...)])` (a session with only answered questions, for history and statistics),
+    `NOW`, and `TIMESTAMPS` for ORM rows built directly;
   - `tokens.py`: `ISSUER`, `DEFAULT_SUBJECT`, `TokenFactory`, `bearer(token)`.
 
 ## Against the real Keycloak

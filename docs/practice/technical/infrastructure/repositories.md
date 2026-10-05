@@ -12,6 +12,9 @@ The implementations of the [repository ports](../domain/repository-ports.md). Co
 | `sqlalchemy_practice_kanji_repository.py` | `SqlAlchemyPracticeKanjiRepository` | `PracticeKanjiRepository` |
 | `sqlalchemy_entry_collection_repository.py` | `SqlAlchemyEntryCollectionRepository` | `EntryCollectionRepository` |
 | `sqlalchemy_kanji_collection_repository.py` | `SqlAlchemyKanjiCollectionRepository` | `KanjiCollectionRepository` |
+| `sqlalchemy_exercise_repository.py` | `SqlAlchemyExerciseRepository` | `ExerciseRepository` |
+| `sqlalchemy_exercise_session_repository.py` | `SqlAlchemyExerciseSessionRepository` | `ExerciseSessionRepository` |
+| `sqlalchemy_exercise_statistics_repository.py` | `SqlAlchemyExerciseStatisticsRepository` | `ExerciseStatisticsRepository` (read-only) |
 
 Each class inherits its Protocol explicitly, so mypy checks it at the class
 definition. The prefix names the library, not the engine: the same code runs on
@@ -118,3 +121,61 @@ Membership is read and written directly on the link tables:
 
 The entry and kanji collection repositories are near-identical on purpose. There's no
 shared generic base until a third collection kind shows what to abstract.
+
+## Exercises
+
+`SqlAlchemyExerciseRepository` loads an exercise with both link tables
+(`selectinload`) and maps the one of its kind. The collection links are child rows of
+the exercise, so `update` replaces them through `merge` like any nested item: links
+with the same `(exercise_id, collection_id)` are updated (their `position`), new ones
+inserted, missing ones deleted. `update` and `delete` check that the stored exercise
+belongs to the same user (`EntityNotFoundError` otherwise). A deleted collection drops
+out of its exercises through the FK cascade, with no repository code.
+
+## Exercise sessions
+
+`SqlAlchemyExerciseSessionRepository` loads a session with its questions
+(`selectinload`); the mapper splits them into the active one (no answer) and the
+history. `add` inserts the session and its first question in one flush; `update`
+merges the session: answered questions are updated in place (they keep their ids), a
+new active question is inserted, and one dropped by `finish` is deleted
+(`delete-orphan`). `list_open` filters on `finished_at IS NULL` and locks the rows.
+`add` inserts in a savepoint and turns a violation of the one-open-session-per-user
+index into `SessionAlreadyOpenError`.
+Removing an item or an exercise sets the questions' and sessions' references to NULL
+in the database (`SET NULL`), with no repository code.
+
+Writes to a session are serialized. `get_for_update` reads it with
+`SELECT ... FOR UPDATE` on the session row, so a concurrent answer or finish waits for
+the first transaction and then reads what it stored (SQLite, used in tests, has no
+row locks). As a backstop, `UNIQUE(session_id, position)` on `exercise_questions`
+stops two writers from storing the same next question: `update` flushes in a
+savepoint and turns that violation into `QuestionNotActiveError`, re-raising any other
+`IntegrityError`.
+
+The history (`list_summaries` / `count_summaries`) reads session rows only: `answered`
+and `score` are correlated `COUNT` subqueries over `exercise_questions`, so no
+question is loaded. `status` is the idle rule in SQL: **open** is
+`finished_at IS NULL AND updated_at >= now - IDLE_TIMEOUT`, **finished** the rest, so a
+summary and `ExerciseSession.ended_at` agree
+([decisions](../decisions.md#one-idle-rule-for-sessions-and-their-summaries)).
+Newest first: `created_at` descending, then `id`.
+
+## Exercise statistics
+
+`SqlAlchemyExerciseStatisticsRepository` is read-only: SQL aggregates (`COUNT`, `SUM`
+of `CASE`s, `AVG(response_ms)`) over `exercise_questions` joined to
+`exercise_sessions`, answered questions only, filtered by the session's `user_id` (and
+`exercise_id` when an exercise is given). No migration was needed: the question
+snapshot columns are what it groups by.
+
+- `by_direction` groups by `CAST(prompt_fields AS TEXT)` and `answer_field`, since
+  PostgreSQL can't `GROUP BY` a `json` column; the rows are then merged in Python into
+  `frozenset`s, so the same fields in another order count as one direction.
+- `most_missed_entries` / `most_missed_kanji` group by `entry_id` / `kanji_id` (NULL
+  ones, items that left the library, are skipped), keep those with a wrong answer and
+  order by misses, then fewest answers, then id.
+- `by_exercise` joins `exercises`, so sessions of deleted exercises drop out and the
+  name is the current one.
+- `answers_since` returns the raw `answered_at` / `is_correct` pairs; the use case
+  groups them by day ([decisions](../decisions.md#activity-per-day-is-grouped-in-python)).

@@ -8,6 +8,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice-web:** Statistics: each exercise's page shows its totals,
+  accuracy per direction and the items missed most; "Estadísticas" shows them over
+  every exercise, with the answers per day over the last 7, 30 or 90 days, a table
+  per exercise and the words and kanji missed most. Missed items open their detail.
+- **shodoukan-practice-web:** Exercise history: each exercise has its own page with
+  what it studies, "Empezar" or "Continuar", and its sessions (date, duration,
+  accuracy). A finished session shows its result and a card-by-card review, one
+  collapsible line per card, all or only the missed ones.
+- **shodoukan-practice:** Skip a question with `{"type": "skip"}` as the answer: it
+  counts as a miss, comes back as a review and returns its solution.
+- **shodoukan-practice-web:** Play exercises: "Empezar" opens a session with one card
+  at a time; pick an option with a click or its number key, see the back with the
+  right option in green and a wrong pick in red, open any item's detail without
+  leaving, skip a card ("Saltar", counted as a miss) and go on with "Siguiente" or
+  Enter. The card and options fill the screen and don't move when answering. "Continuar" (on the exercise list and
+  the home page) resumes the open session; "Terminar" shows how it went.
+- **shodoukan-practice:** Session history and statistics. `GET /exercise-sessions`
+  lists the user's sessions, newest first, without their questions, filtered by
+  exercise and by `status` (`open` or `finished`; `status=open&limit=1` is the session
+  to resume). `GET /exercises/{id}/statistics` gives an exercise's totals, accuracy
+  per direction and most missed items; `GET /statistics?days=30&tz=...` gives the
+  same over every exercise, the answers of each day in the user's time zone, a
+  summary per exercise, and the words and kanji missed most. Missed items are named
+  as they are now in the library. Every question in a session response now carries
+  its `type` (`"card.choice"`).
+- **shodoukan-practice-web:** "Ejercicios": list, create, edit and delete exercises.
+  The form picks one or more collections of words or kanji, the directions (fields
+  shown → field asked), what the back of the card shows and the number of options,
+  and checks the same rules as the API before saving.
+- **shodoukan-practice:** Exercise sessions to study an exercise for as long as the
+  user likes: `POST /exercises/{id}/sessions` starts one with its first question,
+  `POST /exercise-sessions/{id}/answer` grades the active question and returns the
+  next, `POST /exercise-sessions/{id}/finish` ends it, and `GET
+  /exercise-sessions/{id}` reads it back. Every item comes up once per round, missed
+  ones come back a few cards later, and idle sessions close on their own. A wrong
+  option is never also a right answer (shared readings, homophones, synonyms,
+  katakana/hiragana), words are asked by their usual form, and solutions stay hidden
+  until answered. Sessions keep a snapshot of every question for history and
+  statistics.
+- **shodoukan-practice:** Saved exercises (`/exercises`: create, list, get, replace,
+  delete). An exercise studies words or kanji from the user's collections; its
+  settings are a choice card with directions (fields shown → field asked), back-of-card
+  fields, number of options and questions per session. Sessions come next.
 - **shodoukan-practice:** Search the library and collections: `q` (spelling, reading,
   romaji converted to kana, or meaning) and `meaning_lang` on `GET /library/entries`,
   `GET /library/kanji` and `GET /collections/{kind}/{id}/items`, best match first;

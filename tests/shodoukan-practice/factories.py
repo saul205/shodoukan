@@ -3,9 +3,18 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
+    ChoiceCardSettings,
+    ChoiceOption,
+    Direction,
     EntryCollection,
+    EntryExercise,
+    ExerciseQuestion,
+    ExerciseSession,
     KanjiCollection,
+    KanjiExercise,
+    OptionAnswer,
     PracticeEntry,
     PracticeExample,
     PracticeExampleSentence,
@@ -16,6 +25,7 @@ from shodoukan_practice.domain.entities import (
     PracticeReading,
     PracticeReadingItem,
     PracticeSense,
+    ShownField,
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -194,4 +204,164 @@ def make_entry_collection(user_id: UUID, name: str = "verbs") -> EntryCollection
 def make_kanji_collection(user_id: UUID, name: str = "N5") -> KanjiCollection:
     return KanjiCollection(
         id=None, user_id=user_id, name=name, created_at=NOW, updated_at=NOW
+    )
+
+
+def choice_settings(
+    *directions: tuple[tuple[str, ...], str], **extra: object
+) -> ChoiceCardSettings:
+    """`ChoiceCardSettings` from `(prompt_fields, answer_field)` pairs."""
+    return ChoiceCardSettings.model_validate(
+        {
+            "directions": [
+                {"prompt": prompt, "answer": answer} for prompt, answer in directions
+            ],
+            **extra,
+        }
+    )
+
+
+def make_entry_exercise(
+    user_id: UUID, collection_ids: tuple[int, ...] = (), name: str = "Verbs"
+) -> EntryExercise:
+    """Meaning → writing and writing → meaning; reading on the back."""
+    return EntryExercise(
+        id=None,
+        user_id=user_id,
+        name=name,
+        collection_ids=collection_ids,
+        settings=ChoiceCardSettings(
+            directions=(
+                Direction(prompt=("meaning",), answer="writing"),
+                Direction(prompt=("writing",), answer="meaning"),
+            ),
+            back_fields=("reading",),
+        ),
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def make_kanji_exercise(
+    user_id: UUID, collection_ids: tuple[int, ...] = (), name: str = "N5 kanji"
+) -> KanjiExercise:
+    """Literal → kun'yomi, literal → on'yomi, kun'yomi → literal."""
+    return KanjiExercise(
+        id=None,
+        user_id=user_id,
+        name=name,
+        collection_ids=collection_ids,
+        settings=choice_settings(
+            (("literal",), "kunyomi"),
+            (("literal",), "onyomi"),
+            (("kunyomi",), "literal"),
+            back_fields=["meaning"],
+        ),
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def make_question(
+    position: int, item_id: int | None = None, question_id: int | None = None
+) -> ExerciseQuestion:
+    """Literal → kun'yomi for 食; option 0 is right."""
+    return ExerciseQuestion(
+        id=question_id,
+        position=position,
+        item_id=item_id,
+        prompt_fields=("literal",),
+        answer_field="kunyomi",
+        prompt=(ShownField(field="literal", values=("食",)),),
+        options=(
+            ChoiceOption(text="た.べる", item_id=item_id),
+            ChoiceOption(text="みず", item_id=None),
+            ChoiceOption(text="やま", item_id=None),
+        ),
+        correct_option=0,
+        back=(
+            ShownField(field="literal", values=("食",)),
+            ShownField(field="kunyomi", values=("た.べる", "く.う")),
+        ),
+    )
+
+
+def make_session(
+    user_id: UUID,
+    exercise_id: int | None = None,
+    item_id: int | None = None,
+    *,
+    question_id: int | None = 1,
+) -> ExerciseSession:
+    """A kanji session started now (sessions go idle), with an active question
+    (id `question_id`, None as if not stored yet) and no history."""
+    now = utc_now()
+    return ExerciseSession(
+        id=None,
+        user_id=user_id,
+        exercise_id=exercise_id,
+        exercise_name="N5 kanji",
+        item_kind="kanji",
+        meaning_lang="en",
+        current=make_question(0, item_id, question_id),
+        created_at=now,
+        updated_at=now,
+    )
+
+
+# (item id, right?, answered at, prompt fields, answer field)
+Answer = tuple[int | None, bool, datetime, tuple[str, ...], str]
+
+
+def answered(
+    item_id: int | None,
+    correct: bool,
+    at: datetime,
+    prompt: tuple[str, ...] = ("literal",),
+    answer: str = "kunyomi",
+) -> Answer:
+    return (item_id, correct, at, prompt, answer)
+
+
+def make_answered_session(
+    user_id: UUID,
+    exercise_id: int | None,
+    answers: list[Answer],
+    *,
+    item_kind: str = "kanji",
+    started_at: datetime | None = None,
+    last_activity_at: datetime | None = None,
+    finished_at: datetime | None = None,
+    response_ms: int | None = 1000,
+) -> ExerciseSession:
+    """A session whose history is `answers` (no active question). It starts at
+    the first answer and was last active at the last one unless told."""
+    history = []
+    for position, (item_id, correct, at, prompt, answer_field) in enumerate(answers):
+        question = make_question(position, item_id).model_copy(
+            update={
+                "prompt_fields": prompt,
+                "answer_field": answer_field,
+                "answer": OptionAnswer(option=0 if correct else 1),
+                "is_correct": correct,
+                "answered_at": at,
+                "response_ms": response_ms,
+            }
+        )
+        history.append(question)
+    first = answers[0][2] if answers else utc_now()
+    last = answers[-1][2] if answers else first
+    return ExerciseSession.model_validate(
+        {
+            "id": None,
+            "user_id": user_id,
+            "exercise_id": exercise_id,
+            "exercise_name": "N5 kanji",
+            "item_kind": item_kind,
+            "meaning_lang": "en",
+            "history": history,
+            "finished_at": finished_at,
+            "created_at": started_at or first,
+            "updated_at": last_activity_at or last,
+        }
     )

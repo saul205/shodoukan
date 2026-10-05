@@ -23,6 +23,9 @@ The contracts the domain depends on, all `typing.Protocol`s, one per file:
 
 ## `UserRepository`
 
+`lock(user_id)` locks the user's row for the transaction, to serialize changes that
+span several of their rows (starting an exercise session).
+
 | Method | Returns |
 |---|---|
 | `get(user_id)` | `User \| None` (`user_id` is the identity provider's user id, a UUID) |
@@ -79,6 +82,54 @@ and the user still needs to find the item to manage it.
 | `item_ids(collections)` | distinct ids of the **active** items across the collections |
 | `add(collection)` / `update(collection)` | the stored collection; `CollectionNameTakenError` if the user already has a collection of that kind with that name |
 | `delete(collection)` | removes the collection and its links; the items stay |
+
+## `ExerciseRepository`
+
+| Method | Returns / behavior |
+|---|---|
+| `get(id, user_id)` | the exercise (an `EntryExercise` or `KanjiExercise`) or `None` |
+| `list_for_user(user_id)` | the user's exercises, by name |
+| `add(exercise)` | the stored exercise, with its id |
+| `update(exercise)` | replaces its fields and collections; `EntityNotFoundError` if missing or another user's |
+| `delete(exercise)` | removes the exercise and its collection links; the collections stay |
+
+## `ExerciseSessionRepository`
+
+| Method | Returns / behavior |
+|---|---|
+| `get(id, user_id)` | the session with its active question and history, or `None` |
+| `get_for_update(id, user_id)` | `get`, locking the session until the transaction ends; used by the use cases that change it |
+| `list_open(user_id)` | the user's sessions with no `finished_at` (one at most, normally), locked for the transaction |
+| `list_summaries(user_id, now, *, exercise_id, status, limit, offset)` | the history: `SessionSummary`s, newest first, optionally of one exercise and only `"open"` or `"finished"` at `now` (idle ones count as finished); paginated |
+| `count_summaries(user_id, now, *, exercise_id, status)` | how many sessions `list_summaries` pages through |
+| `add(session)` | the stored session; its questions get their ids; `SessionAlreadyOpenError` if the user has another open session |
+| `update(session)` | stores answers, the new active question and the state; a dropped active question is deleted; `EntityNotFoundError` if missing or another user's; `QuestionNotActiveError` if another request stored the next question first |
+
+`SessionSummary` is a frozen read model defined with the port: a session without its
+questions (`id`, `exercise_id`, `exercise_name`, `item_kind`, `started_at`,
+`last_activity_at`, `finished_at` as stored, `answered`, `score`). Its `ended_at(now)`
+applies the same idle rule as `ExerciseSession.ended_at` (`session_end`). Why read
+models come from ports: [decisions](../decisions.md#read-models-for-history-and-statistics-come-from-ports).
+
+## `ExerciseStatisticsRepository`
+
+Read-only aggregates over the answered questions of the user's sessions
+(`exercise_statistics_repository.py`). Sessions are the statistics: nothing is
+stored twice, every figure is computed when asked. Methods taking an optional
+`exercise: Exercise` are scoped to it; without it, to every session of the user.
+
+| Method | Returns |
+|---|---|
+| `totals(user_id, exercise)` | `AnswerTotals(sessions, answered, correct, mean_response_ms)`; `sessions` counts those with at least one answer |
+| `by_direction(user_id, exercise)` | `DirectionTotals(prompt_fields, answer_field, answered, correct)` per direction, most answered first |
+| `most_missed_entries(user_id, exercise, limit)` / `most_missed_kanji(...)` | `ItemTotals(item_id, answered, wrong)` for items answered wrong at least once, most misses first (then fewest answers); questions whose item left the library don't count |
+| `by_exercise(user_id)` | `ExerciseTotals(exercise_id, exercise_name, item_kind, sessions, answered, correct, last_answered_at)` per exercise with answers, most recently answered first, under its current name; deleted exercises are left out |
+| `answers_since(user_id, since)` | `AnswerMoment(answered_at, is_correct)` for each answer since `since`, oldest first |
+
+The read models are frozen and defined with the port. `DirectionTotals.prompt_fields`
+is a `frozenset`: a direction is the same whatever the order of its shown fields. The
+most missed are split per item kind so entry and kanji ids can't mix (see
+[decisions](../decisions.md#directions-are-grouped-as-sets-most-missed-is-split-per-kind)).
 
 ## `DictionaryGateway`
 

@@ -281,6 +281,153 @@ within the collection exactly as in [the library](#get-libraryentries-and-get-li
 | `409` | The user already has a collection of that kind with that name (`POST`, `PUT`) |
 | `422` | Invalid body, name, `limit` or `offset` |
 
+## Exercises
+
+Saved exercise definitions; design in [exercises](../exercises.md). Code:
+`routes/exercise_routes.py`, `schemas/exercise_schemas.py`. All need a token; another
+user's exercise or collection is a `404`.
+
+| Method | Route | Use case | Success |
+|---|---|---|---|
+| `GET` | `/exercises` | `ListExercises` | `200` `list[ExerciseResponse]`, by name |
+| `POST` | `/exercises` | `CreateExercise` | `201` `ExerciseResponse` |
+| `GET` | `/exercises/{exercise_id}` | `GetExercise` | `200` `ExerciseResponse` |
+| `PUT` | `/exercises/{exercise_id}` | `UpdateExercise` | `200` `ExerciseResponse` |
+| `DELETE` | `/exercises/{exercise_id}` | `DeleteExercise` | `204` (the collections stay) |
+
+`POST` takes a `NewExerciseRequest`; `PUT` an `ExerciseRequest`, the same without
+`item_kind` (it can't change; a sent one is ignored), and replaces every field:
+
+```json
+{
+  "item_kind": "kanji",
+  "name": "N5 kanji",
+  "description": null,
+  "collection_ids": [3],
+  "settings": {
+    "type": "card.choice",
+    "directions": [
+      { "prompt": ["literal"], "answer": "kunyomi" },
+      { "prompt": ["kunyomi"], "answer": "literal" }
+    ],
+    "back_fields": ["meaning"],
+    "option_count": 4
+  }
+}
+```
+
+- `name`: stripped, 1–100 characters. `collection_ids`: at least one, collections of
+  the exercise's kind.
+- `settings` is the domain's settings model as JSON, keyed by `type` (`card.choice`
+  only for now). Omitted settings take their defaults (`back_fields` `[]`,
+  `option_count` `4`, `distractor_source` `"collection"`). A `question_count` sent by
+  older clients is ignored.
+- Fields: `writing`, `reading`, `meaning` for `entries`; `literal`, `onyomi`,
+  `kunyomi`, `meaning` for `kanji`.
+
+`ExerciseResponse`: `id`, `name`, `description`, `item_kind`, `collection_ids` (empty if
+its collections were deleted: it can't run until it gets one), `settings` with every
+default filled in, `created_at`, `updated_at`.
+
+| Status | When |
+|---|---|
+| `401` | Missing or invalid token |
+| `404` | No such exercise, or a collection that isn't one of the user's of that kind |
+| `422` | Invalid body: name, no collection, unknown `type`, no direction, a direction asking for a field it shows, a repeated direction or back field, `option_count` outside 2–8, or a field of the other item kind |
+
+## Exercise sessions
+
+Studying an exercise; design in [exercises](../exercises.md#sessions-built). Code:
+`routes/exercise_session_routes.py`, `schemas/exercise_session_schemas.py`. All need a
+token; another user's exercise or session is a `404`.
+
+| Method | Route | Use case | Success |
+|---|---|---|---|
+| `POST` | `/exercises/{exercise_id}/sessions` | `StartExerciseSession` | `201` `SessionResponse` with its first active question |
+| `GET` | `/exercise-sessions` | `ListExerciseSessions` | `200` `SessionSummaryPageResponse` |
+| `GET` | `/exercise-sessions/{session_id}` | `GetExerciseSession` | `200` `SessionResponse` |
+| `POST` | `/exercise-sessions/{session_id}/answer` | `AnswerExerciseQuestion` | `200` `AnswerResponse` |
+| `POST` | `/exercise-sessions/{session_id}/finish` | `FinishExerciseSession` | `200` `SessionResponse`, idempotent |
+
+Starting takes `{"meaning_lang": "en"}`: the language of meanings as the items store
+it (2–3 lower-case letters; `eng` for entries, `en` for kanji, like `meaning_lang` on
+the library lists); it finishes the user's open session, of any exercise (one at a
+time).
+Answering takes
+`{"question_id": 12, "answer": {"type": "option", "option": 2}, "response_ms": 1500}`:
+`question_id` must be the active question's, and `response_ms` is optional (0 to
+2147483647, what its 32-bit column holds). `{"type": "skip"}` as the answer skips the
+question: it's graded as a miss and returned with its solution, like any answer.
+
+Listing is the history: the user's sessions, newest first, **without their
+questions**. Query: `exercise_id` (one exercise's sessions; an unknown or deleted one
+isn't a `404`, since sessions outlive their exercise), `status` (`open` or
+`finished`; idle sessions are finished), `limit` (1–100, default 20), `offset`
+(default 0). `status=open&limit=1` is the session to resume. A
+`SessionSummaryPageResponse` is `items`, `total` (across every page), `limit` and
+`offset`; each `SessionSummaryResponse` has `id`, `exercise_id` (null if deleted),
+`exercise_name`, `item_kind`, `started_at`, `last_activity_at`, `finished_at` (the
+effective one, as in `SessionResponse`), `answered` and `score`.
+
+`SessionResponse`: `id`, `exercise_id` (null if the exercise was deleted),
+`exercise_name`, `item_kind`, `meaning_lang`, `started_at`, `last_activity_at`,
+`finished_at` (also set, to the last activity, for a session idle over 30 minutes),
+`answered`, `score`, `current` (the active question; null once finished) and
+`history` (the answered questions, in order). Each `QuestionResponse` has `type`
+(always `"card.choice"` for now, so the client picks the player by type; it becomes a
+stored column with a second type), `id`, `position`, `prompt_fields`, `answer_field`, `prompt` (`[{field, values}]`), `options`
+(`[{text, item_id}]`) and `answered`. **The active question hides its solution:**
+`item_id`, `correct_option`, `back`, `answer`, `is_correct`, `answered_at` and
+`response_ms` are null, and so is each option's `item_id`. `AnswerResponse`: the graded
+question (`answered`) with its solution, the `next` active question (null if the pool
+can't make another, or if the exercise was deleted, which finishes the session),
+`answered_count`, `score` and `finished_at`.
+
+| Status | When |
+|---|---|
+| `401` | Missing or invalid token |
+| `404` | No such exercise or session for this user |
+| `409` | Starting: another session was started at the same moment. Answering: the session is finished, or idle for over 30 minutes; `question_id` isn't the active question (answered already, e.g. a double click) |
+| `422` | Invalid body or `meaning_lang`; an option the question doesn't have; or the exercise's collections have too few usable items (`ExercisePoolTooSmallError`, with the reason in `detail`). Listing: `status`, `limit` or `offset` out of range |
+
+## Exercise statistics
+
+How the user does, computed from the answered questions on every request
+([design](../exercises.md#history-and-statistics-built-42)). Code:
+`routes/exercise_statistics_routes.py`, `schemas/exercise_statistics_schemas.py`.
+Read-only; both need a token.
+
+| Method | Route | Use case | Success |
+|---|---|---|---|
+| `GET` | `/exercises/{exercise_id}/statistics` | `GetExerciseStatistics` | `200` `ExerciseStatisticsResponse` |
+| `GET` | `/statistics?days=30&tz=UTC` | `GetPracticeStatistics` | `200` `PracticeStatisticsResponse` |
+
+`accuracy` is `correct / answered` (0 to 1), null when nothing was answered, so
+clients needn't divide. `TotalsResponse`: `sessions` (with at least one answer),
+`answered`, `correct`, `accuracy`, `mean_response_ms` (null if no answer was timed).
+`MissedItemResponse`: `item_id` (the library id), `label` (a word's usual form, or the
+kanji), `reading` (a word's reading when `label` is a spelling, else null),
+`answered`, `wrong`; most misses first, at most 10, items no longer in the library
+left out.
+
+- **Per exercise:** `exercise_id`, `item_kind`, `totals`, `directions` (most answered
+  first; each `prompt_fields` sorted, `answer_field`, `answered`, `correct`,
+  `accuracy`; the same fields in another order are one direction) and `most_missed`
+  (items of the exercise's kind).
+- **Overall:** `days` (1–365, default 30) and `tz` (an IANA time zone, default `UTC`).
+  `totals`, `activity` (one `{day, answered, correct}` per day of the window in `tz`,
+  oldest first, today last, days without answers included), `exercises` (per exercise
+  with answers, most recently answered first, under its current name; deleted ones
+  left out: `exercise_id`, `exercise_name`, `item_kind`, `sessions`, `answered`,
+  `correct`, `accuracy`, `last_answered_at`), `most_missed_entries` and
+  `most_missed_kanji`.
+
+| Status | When |
+|---|---|
+| `401` | Missing or invalid token |
+| `404` | Per exercise: no such exercise for this user |
+| `422` | Overall: unknown time zone, or `days` out of range |
+
 ## Conventions
 
 - **Schemas** (`schemas/<subject>_schemas.py`) are separate from domain entities, so the
@@ -293,7 +440,14 @@ within the collection exactly as in [the library](#get-libraryentries-and-get-li
   [configuration](../cross-cutting/configuration.md).
 - **Domain errors → HTTP** (exception handlers in `app.py`):
   `DictionaryItemNotFoundError` and `EntityNotFoundError` → `404`,
-  `CollectionNameTakenError` and `OriginalDataError` → `409`. Authentication errors are raised as `HTTPException`s in `deps.py`.
+  `CollectionNameTakenError`, `OriginalDataError`, `QuestionNotActiveError` and
+  `SessionFinishedError` → `409`,
+  `ExercisePoolTooSmallError` and `InvalidAnswerError` → `422` (message in `detail`). Authentication errors are raised as `HTTPException`s in `deps.py`.
+- **Entity validation → `422`.** A Pydantic `ValidationError` raised inside a use case
+  (an entity built or changed against its rules, e.g. exercise settings with fields of
+  the other item kind) is answered `422` with `detail` shaped like FastAPI's request
+  validation errors (without `input` or `url`). Response serialisation errors are a
+  different exception and stay `500`.
 
 ## Transactions
 
@@ -313,6 +467,10 @@ committed is rolled back when the session closes.
 | `get_dictionary_gateway` | `ShodoukanDictionaryGateway` over a cached `Dictionary()` |
 | `get_import_entry` / `get_import_kanji` / `get_import_status` / `get_list_library_entries` / `get_list_library_kanji` | use cases with SQLAlchemy repositories on the request's session |
 | `get_<use case>` for collections (`get_create_entry_collection`, `get_add_kanji_to_collection`, ...) | one factory per collection use case, with the collection and item repositories on the request's session |
+| `get_list_exercises`, `get_get_exercise`, `get_create_exercise`, `get_update_exercise`, `get_delete_exercise` | exercise use cases, with the exercise and both collection repositories on the request's session |
+| `get_start_exercise_session`, `get_answer_exercise_question`, `get_finish_exercise_session`, `get_get_exercise_session` | session use cases: exercises, sessions, both collection and both item repositories on the request's session (a fresh `random.Random` per start) |
+| `get_list_exercise_sessions` | the history, over the session repository |
+| `get_get_exercise_statistics`, `get_get_practice_statistics` | statistics use cases: the statistics repository and both item repositories (plus the exercise repository per exercise) on the request's session |
 | `get_get_library_entry`, `get_set_entry_notes`, `get_add_kanji_meaning`, ... | one factory per library item use case, on the request's session |
 | `get_search_dictionary`, `get_get_dictionary_entry`, `get_get_dictionary_kanji`, `get_list_entries_for_kanji`, `get_list_kanji_for_entry` | dictionary use cases over the gateway (no session, no user) |
 

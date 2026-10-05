@@ -1,4 +1,5 @@
 import { SUPPORTED_LANGUAGES, glossLang } from 'shodoukan-ui'
+import type { ItemKind } from '~/models/practice'
 
 const STORAGE_KEY = 'shodoukan:meaning-lang'
 
@@ -23,7 +24,12 @@ export function useMeaningLang() {
 
   const options = SUPPORTED_LANGUAGES.map(l => ({ label: l.label, value: l.code }))
 
-  return { lang, glossCode, options }
+  /** The language as items of a kind store it: "eng" for words, "en" for kanji. */
+  function codeFor(kind: ItemKind): string {
+    return kind === 'entries' ? glossCode.value : lang.value
+  }
+
+  return { lang, glossCode, options, codeFor }
 }
 
 function readStored(): string | null {

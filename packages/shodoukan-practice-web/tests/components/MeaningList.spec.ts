@@ -56,4 +56,13 @@ describe('MeaningList', () => {
 
     expect(wrapper.emitted('edit')).toEqual([[2, 'to wolf down']])
   })
+
+  it('lists only the shown meanings, with no controls, in view-only mode', async () => {
+    const wrapper = await mountSuspended(MeaningList, { props: { meanings, viewOnly: true } })
+
+    const rows = wrapper.findAll('[data-testid="meaning"]')
+    expect(rows.map(row => row.text())).toEqual(['to eat'])
+    expect(wrapper.find('[role="switch"]').exists()).toBe(false)
+    expect(wrapper.find('form').exists()).toBe(false)
+  })
 })

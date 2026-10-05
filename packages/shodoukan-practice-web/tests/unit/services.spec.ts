@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addToCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
 import { searchDictionary } from '../../app/services/dictionary'
+import { answerQuestion, finishSession, getSession, listSessions, startSession } from '../../app/services/exercise-sessions'
+import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
+import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
   addGloss,
   getImportStatus,
@@ -75,6 +78,63 @@ describe('practice API services', () => {
       ['/library/entries', { query: { q: 'taberu', meaning_lang: 'eng', not_in_collection: 3, limit: 20, offset: 0 } }],
       ['/library/kanji', { query: { q: '兄弟', active: true } }],
       ['/collections/kanji/4/items', { query: { q: 'eat', meaning_lang: 'en' } }],
+    ])
+  })
+
+  it('exercises use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    const input = {
+      name: 'Verbos',
+      description: null,
+      collection_ids: [1],
+      settings: {
+        type: 'card.choice' as const,
+        directions: [{ prompt: ['writing' as const], answer: 'meaning' as const }],
+        back_fields: [],
+        option_count: 4,
+        distractor_source: 'collection' as const,
+      },
+    }
+    await listExercises(api)
+    await getExercise(api, 7)
+    await createExercise(api, { ...input, item_kind: 'entries' })
+    await updateExercise(api, 7, input)
+    await deleteExercise(api, 7)
+    expect(calls).toEqual([
+      ['/exercises'],
+      ['/exercises/7'],
+      ['/exercises', { method: 'POST', body: { ...input, item_kind: 'entries' } }],
+      ['/exercises/7', { method: 'PUT', body: input }],
+      ['/exercises/7', { method: 'DELETE' }],
+    ])
+  })
+
+  it('exercise sessions use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    await startSession(api, 2, 'eng')
+    await getSession(api, 5)
+    await answerQuestion(api, 5, 9, { type: 'option', option: 1 }, 1500)
+    await finishSession(api, 5)
+    await listSessions(api, { status: 'open', limit: 1 })
+    expect(calls).toEqual([
+      ['/exercises/2/sessions', { method: 'POST', body: { meaning_lang: 'eng' } }],
+      ['/exercise-sessions/5'],
+      ['/exercise-sessions/5/answer', {
+        method: 'POST',
+        body: { question_id: 9, answer: { type: 'option', option: 1 }, response_ms: 1500 },
+      }],
+      ['/exercise-sessions/5/finish', { method: 'POST' }],
+      ['/exercise-sessions', { query: { status: 'open', limit: 1 } }],
+    ])
+  })
+
+  it('statistics use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    await getExerciseStatistics(api, 2)
+    await getPracticeStatistics(api, 30, 'Europe/Madrid')
+    expect(calls).toEqual([
+      ['/exercises/2/statistics'],
+      ['/statistics', { query: { days: 30, tz: 'Europe/Madrid' } }],
     ])
   })
 })
