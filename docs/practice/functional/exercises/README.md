@@ -117,8 +117,9 @@ the practice API and their screens come next.
   exercise list or the home page, as long as it isn't idle.
 - **History:** opening an exercise (its name in the list) shows what it studies and
   its past sessions, newest first (date, duration, questions answered, accuracy, open
-  or finished). Any of them opens: a finished session shows its result and a review of
-  every card as it was played (the pick, the right option, how long it took), or only
+  or finished). Any of them opens: a finished session shows its result and a review:
+  one line per card (the question, the right answer, the wrong pick struck through,
+  how long it took) that unfolds into the card as it was played; all of them, or only
   the missed and skipped ones. Sessions of a deleted exercise can still be reviewed.
 - **Statistics:** for each exercise, its accuracy overall and per direction, and the
   items missed most; a statistics page shows the same over all exercises (words and

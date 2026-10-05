@@ -64,6 +64,13 @@ const missedCount = computed(() => session.value?.history.filter(q => !q.is_corr
 const reviewed = computed(() =>
   (session.value?.history ?? []).filter(q => !onlyMissed.value || !q.is_correct),
 )
+// Which review questions are open, by id; all start collapsed.
+const expanded = ref<Record<number, boolean>>({})
+const allExpanded = computed(() => reviewed.value.length > 0 && reviewed.value.every(q => expanded.value[q.id]))
+function expandAll(open: boolean) {
+  expanded.value = Object.fromEntries(reviewed.value.map(q => [q.id, open]))
+}
+
 const reviewTabs = computed(() => [
   { label: `Todas (${session.value?.history.length ?? 0})`, value: 'all' },
   { label: `Falladas (${missedCount.value})`, value: 'missed' },
@@ -186,6 +193,17 @@ function openItem(itemId: number) {
         <section v-if="session.history.length" aria-labelledby="review" class="space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <h2 id="review" class="text-sm font-semibold uppercase tracking-wide text-muted">Repaso</h2>
+            <UButton
+              v-if="reviewed.length"
+              :label="allExpanded ? 'Plegar todas' : 'Desplegar todas'"
+              :icon="allExpanded ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              class="ml-auto"
+              data-testid="expand-all"
+              @click="expandAll(!allExpanded)"
+            />
             <UTabs
               :model-value="onlyMissed ? 'missed' : 'all'"
               :items="reviewTabs"
@@ -196,12 +214,15 @@ function openItem(itemId: number) {
             />
           </div>
           <p v-if="!reviewed.length" class="text-sm text-muted">No fallaste ninguna.</p>
-          <ReviewQuestion
-            v-for="item in reviewed"
-            :key="item.id"
-            :question="item"
-            @open-item="openItem"
-          />
+          <div class="space-y-2">
+            <ReviewQuestion
+              v-for="item in reviewed"
+              :key="item.id"
+              v-model:open="expanded[item.id]"
+              :question="item"
+              @open-item="openItem"
+            />
+          </div>
         </section>
       </div>
 

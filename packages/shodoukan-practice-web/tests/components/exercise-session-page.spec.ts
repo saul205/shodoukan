@@ -99,6 +99,15 @@ describe('exercise session page', () => {
     const verdicts = all.findAll('[data-testid="review-verdict"]').map(v => v.text())
     expect(verdicts).toEqual(['Correcta', 'Fallada', 'Saltada'])
     expect(all.find('[data-testid="result-when"]').text()).toContain('12 min')
+    expect(all.findAll('[data-testid="review-summary"]')[1]!.text()).toBe('水→た.べるみず')
+    expect(all.find('[data-testid="review-detail"]').exists()).toBe(false) // collapsed
+
+    await all.findAll('[data-testid="review-toggle"]')[1]!.trigger('click')
+    await flushPromises()
+    expect(all.findAll('[data-testid="review-detail"]')).toHaveLength(1)
+    await all.find('[data-testid="expand-all"]').trigger('click')
+    await flushPromises()
+    expect(all.findAll('[data-testid="review-detail"]')).toHaveLength(3)
 
     clearNuxtData()
     const missed = await mountPage('/exercise-sessions/5?filter=missed')
