@@ -11,6 +11,7 @@ from shodoukan_practice.domain.entities import (
 )
 from shodoukan_practice.domain.services import (
     entry_card,
+    entry_label,
     gloss_key,
     kana_key,
     kanji_card,
@@ -116,3 +117,21 @@ def test_kanji_card() -> None:
     assert [v.text for v in card.get("kunyomi")] == ["た.べる", "く.う"]
     assert card.keys("kunyomi") == {"たべる", "くう"}
     assert [v.text for v in card.get("meaning")] == ["eat"]
+
+
+def _stored_word(spelling: str | None, reading: str) -> PracticeEntry:
+    word = make_word(USER_ID, 1, spelling, reading, [("to eat", "eng")])
+    return word.model_copy(update={"id": 1})
+
+
+def test_entry_label_is_the_usual_form_and_its_reading() -> None:
+    assert entry_label(_stored_word("食べる", "たべる")) == ("食べる", "たべる")
+    assert entry_label(_stored_word(None, "すし")) == ("すし", None)
+
+
+def test_entry_label_follows_what_the_user_disabled() -> None:
+    word = _stored_word("食べる", "たべる")
+    word.kanji_readings[0].enabled = False
+    assert entry_label(word) == ("たべる", None)
+    word.readings[0].enabled = False
+    assert entry_label(word) == ("食べる", None)  # all hidden: the dictionary's

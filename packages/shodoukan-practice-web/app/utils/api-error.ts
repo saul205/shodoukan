@@ -1,8 +1,13 @@
 import { FetchError } from 'ofetch'
 
-/** The HTTP status of a failed API call, if it got a response. */
+/**
+ * The HTTP status of a failed API call, if it got a response. Also reads it
+ * through `useAsyncData`'s error, which wraps the original one in `cause`.
+ */
 export function apiStatus(error: unknown): number | undefined {
-  return error instanceof FetchError ? error.statusCode ?? error.response?.status : undefined
+  if (error instanceof FetchError) return error.statusCode ?? error.response?.status
+  if (error instanceof Error && error.cause !== undefined) return apiStatus(error.cause)
+  return undefined
 }
 
 /** A message to show the user for a failed API call. */

@@ -20,6 +20,18 @@ const sections = [
     icon: 'i-lucide-folders',
     to: '/collections',
   },
+  {
+    title: 'Ejercicios',
+    description: 'Practica tus colecciones con tarjetas: elige qué se muestra y qué se pregunta.',
+    icon: 'i-lucide-dumbbell',
+    to: '/exercises',
+  },
+  {
+    title: 'Estadísticas',
+    description: 'Cuánto practicas, cómo vas en cada ejercicio y qué palabras y kanji fallas más.',
+    icon: 'i-lucide-chart-column',
+    to: '/statistics',
+  },
 ]
 </script>
 
@@ -32,6 +44,8 @@ const sections = [
         </h1>
         <p class="mt-1 text-muted">¿Por dónde quieres empezar?</p>
       </div>
+
+      <OpenSessionAlert />
 
       <UPageGrid class="lg:grid-cols-3">
         <UPageCard

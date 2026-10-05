@@ -2,9 +2,10 @@
 
 [← Functional documentation](../README.md)
 
-How a user practises the words and kanji of their collections. Saving exercises and
-running sessions are built in the practice API; the screens to create and play them,
-and the history, come in the next phases (see the
+How a user practises the words and kanji of their collections. Exercises are created,
+managed and played in the practice app ("Ejercicios"); the history and the
+statistics are built in the practice API, and their screens come in the next phases
+(see the
 [design](../../technical/exercises.md#phases)).
 
 ## What an exercise is
@@ -14,8 +15,8 @@ kind of exercise** it is, and **what is studied**. The user creates it once and 
 it as often as they like; each run is a **session**, and every session is kept so the
 user can look back at how it went.
 
-An exercise works on either words or kanji, never both, like collections. For now it
-uses one collection; several collections of the same kind will come later.
+An exercise works on either words or kanji, never both, like collections. It draws
+from one or more collections of that kind; an item in several of them counts once.
 
 ## Kinds of exercise
 
@@ -47,18 +48,27 @@ question and its answer: for example the reading and the meaning.
 
 ## Playing a choice card
 
-Starting an exercise opens a **session**, and the user studies for as long as they
-like: there's no set number of questions. Meanings are shown in the language chosen
-in the sidebar.
+"Empezar" on an exercise opens a **session**, and the user studies for as long as
+they like: there's no set number of questions. Meanings are shown in the language
+chosen in the sidebar when the session starts. The header counts the answers and the
+right ones.
 
 1. An active item from the collection is shown with the fields of the direction.
 2. Below it, the options: the right one and wrong ones taken from other items of the
    collection.
-3. The user picks one. The card turns over and shows the back. The picked option turns
-   red if it was wrong, and the right one green.
+3. The user picks one, with a click or its number key (1–4…). The card turns over
+   and shows the back. The picked option turns red if it was wrong, and the right one
+   green.
 4. From the back the user can open the item's full detail in a window, without
-   leaving the session.
-5. The next card comes, until the user stops.
+   leaving the session; the wrong options can open theirs too. From there, "Abrir en
+   la librería" goes to the item's library page (to edit it, for instance), and its
+   back button returns to the session where it was.
+5. "Saltar" (or the S key) skips a card the user doesn't know: it counts as a miss,
+   the card turns over showing the right option, and it comes back a few cards
+   later like any missed one.
+6. "Siguiente" (or Enter) brings the next card, until the user stops with "Terminar".
+   If the collections no longer have enough active items for another card, the
+   session says so and can be finished.
 
 **Which item comes next.** Every item of the collection comes up once, in random
 order, before any repeats; then a new round starts, shuffled again. An item answered
@@ -88,28 +98,49 @@ the user has enabled, which is the usual one; the back of the card shows them al
 be asked another form, disable the first one in the library. Kanji are different: each
 on'yomi and kun'yomi is worth learning, so any of them can be asked.
 
-**Ending a session.** The session ends when the user leaves it (finishing it or
-leaving the page). If that doesn't get through (the app is closed, the connection is
-lost), it ends on its own when any exercise is started again or after 30 minutes
-without activity, counted until the last answer. Until then the user can come back to
-it and find the same card waiting. The card on screen when it ends isn't counted.
+**Ending a session.** The session ends when the user finishes it ("Terminar"). Leaving
+the page doesn't end it: until then, "Continuar" on the exercise list or the home page
+brings the user back to the same card. It ends on its own when any exercise is started
+again (the app asks first) or after 30 minutes without activity, counted until the
+last answer. The card on screen when it ends isn't counted. A finished session shows
+how it went and offers to practise again.
 
 Each card is answered once: a second click on another option doesn't change the
 answer.
 
-## History (next phases)
+## History and statistics
 
 Every session keeps each question as it was shown, the option picked and whether it
-was right, so the user can review past sessions and see which items they miss most.
-Editing or removing an item later doesn't change past sessions.
+was right. Editing or removing an item later doesn't change past sessions.
+
+- **Continue:** a session left open (the tab was closed) can be resumed from the
+  exercise list or the home page, as long as it isn't idle.
+- **History:** opening an exercise (its name in the list) shows what it studies and
+  its past sessions, newest first (date, duration, questions answered, accuracy, open
+  or finished). Any of them opens: a finished session shows its result and a review:
+  one line per card (the question, the right answer, the wrong pick struck through,
+  how long it took) that unfolds into the card as it was played; all of them, or only
+  the missed and skipped ones. Sessions of a deleted exercise can still be reviewed.
+- **Statistics:** each exercise's page shows, once it has answers, its totals
+  (sessions, answers, accuracy, mean time), its accuracy per direction and the items
+  missed most (each opens its detail). "Estadísticas" in the sidebar shows the same
+  over all exercises (words and kanji missed most apart), plus the answers of each of
+  the last 7, 30 or 90 days, counted in the user's time zone, and a summary per
+  exercise. Missed items show their current name
+  in the library; items removed from it aren't listed, and neither are deleted
+  exercises in the per-exercise summary.
 
 ## Managing exercises
 
-- **Create** an exercise with a name, an optional description, a collection, the
+- **Create** an exercise with a name, an optional description, its collections, the
   directions, the back fields and the number of options.
 - **See** their exercises, sorted by name.
 - **Edit** any of it except whether it holds words or kanji.
-- **Delete** it. Its past sessions will be kept in the history.
+- The form checks the same rules before saving: at least one collection and one
+  direction, no direction asking a field it shows, no repeated direction. Switching
+  between words and kanji while creating starts the collections and fields over,
+  since they belong to one kind.
+- **Delete** it. Its past sessions are kept in the history.
 
 Deleting a collection removes it from its exercises; an exercise with no collection
 left can't be started until it gets one.

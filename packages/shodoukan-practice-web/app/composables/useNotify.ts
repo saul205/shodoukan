@@ -8,8 +8,9 @@ export function useNotify() {
     toast.add({ title, description, color: 'success', icon: 'i-lucide-circle-check' })
   }
 
-  function failure(error: unknown, title = 'No se ha podido guardar') {
-    toast.add({ title, description: apiErrorMessage(error), color: 'error', icon: 'i-lucide-circle-alert' })
+  /** `fallback` describes failures the server answered (not a 404 or no connection). */
+  function failure(error: unknown, title = 'No se ha podido guardar', fallback?: string) {
+    toast.add({ title, description: apiErrorMessage(error, fallback), color: 'error', icon: 'i-lucide-circle-alert' })
   }
 
   return { success, failure }

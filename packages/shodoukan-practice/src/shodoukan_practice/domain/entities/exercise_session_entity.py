@@ -11,12 +11,12 @@ card), so a session reads the same later even if its items are edited or
 removed from the library. The history is also the statistics. See
 docs/practice/technical/exercises.md.
 
-`answer` is a union discriminated by `type`, like exercise settings; only
-`OptionAnswer` (choice cards) exists for now.
+`answer` is a union discriminated by `type`, like exercise settings: an
+`OptionAnswer` (choice cards) or a `SkipAnswer`, which counts as a miss.
 """
 
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -58,9 +58,17 @@ class OptionAnswer(BaseModel):
     option: int = Field(ge=0)
 
 
-# Answers of every exercise type. With a second type this becomes
-# `Annotated[OptionAnswer | TextAnswer, Field(discriminator="type")]`.
-ExerciseAnswer = OptionAnswer
+class SkipAnswer(BaseModel):
+    """The user skipped the question: it counts as a miss (it comes back as a
+    review, and the solution is shown), like answering "I don't know"."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: Literal["skip"] = "skip"
+
+
+# Answers of every exercise type, by `type`.
+ExerciseAnswer = Annotated[OptionAnswer | SkipAnswer, Field(discriminator="type")]
 
 
 class ExerciseQuestion(BaseModel):
@@ -88,6 +96,22 @@ class ExerciseQuestion(BaseModel):
 # A session nobody touched for this long counts as finished at its last activity.
 IDLE_TIMEOUT = timedelta(minutes=30)
 
+# How history lists filter sessions: still open (closed nor idle), or ended.
+SessionStatus = Literal["open", "finished"]
+
+
+def session_end(
+    finished_at: datetime | None, last_activity: datetime, now: datetime
+) -> datetime | None:
+    """When a session ended: when it was closed, or its last activity if it's
+    been idle longer than `IDLE_TIMEOUT`; None while it's open. The one rule
+    for sessions and their summaries alike."""
+    if finished_at is not None:
+        return finished_at
+    if now - last_activity > IDLE_TIMEOUT:
+        return last_activity
+    return None
+
 
 class ExerciseSession(TimestampedEntity):
     """`created_at` is when it started, `updated_at` its last activity and
@@ -112,11 +136,7 @@ class ExerciseSession(TimestampedEntity):
 
     def ended_at(self, now: datetime) -> datetime | None:
         """When it ended: closed, or idle since its last activity; None if open."""
-        if self.finished_at is not None:
-            return self.finished_at
-        if now - self.updated_at > IDLE_TIMEOUT:
-            return self.updated_at
-        return None
+        return session_end(self.finished_at, self.updated_at, now)
 
     def ask(self, question: ExerciseQuestion) -> None:
         """Make `question` the active one. Raises `SessionFinishedError` if the
@@ -139,18 +159,21 @@ class ExerciseSession(TimestampedEntity):
         another one (a double click, a stale tab) is rejected with
         `QuestionNotActiveError`. Raises `SessionFinishedError` if the session
         is closed or idle (nothing changes) and `InvalidAnswerError` for an
-        option it doesn't have.
+        option it doesn't have. A `SkipAnswer` is graded as a miss.
         """
         self._require_open()
         question = self.current
         if question is None or question.id != question_id:
             raise QuestionNotActiveError(f"question {question_id} isn't the active one")
-        if answer.option >= len(question.options):
-            raise InvalidAnswerError(
-                f"question {question_id} has no option {answer.option}"
-            )
+        if isinstance(answer, OptionAnswer):
+            if answer.option >= len(question.options):
+                raise InvalidAnswerError(
+                    f"question {question_id} has no option {answer.option}"
+                )
+            question.is_correct = answer.option == question.correct_option
+        else:
+            question.is_correct = False  # skipped: a miss
         question.answer = answer
-        question.is_correct = answer.option == question.correct_option
         question.answered_at = utc_now()
         question.response_ms = response_ms
         self.history.append(question)

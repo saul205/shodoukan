@@ -433,3 +433,65 @@ partial unique index (`user_id WHERE finished_at IS NULL`) backs the rule in the
 database; its migration first closed the extra open sessions left by the per-exercise
 rule. Answering and finishing lock only the session, never the user, so there's no
 lock-order deadlock.
+
+## Read models for history and statistics come from ports
+
+This **extends** "Repositories, not separate finders" in "Library search is one
+module over the item repositories", which said to revisit when lists return a lighter
+read model. The session history and the statistics do: `SessionSummary` (a session
+without its questions) and the statistics' `AnswerTotals`, `DirectionTotals`,
+`ItemTotals`, `ExerciseTotals` and `AnswerMoment`. They're frozen Pydantic models
+defined with their port in `domain/repositories/`, like the dictionary read models
+with their gateway, and returned by repository methods: the history by
+`ExerciseSessionRepository.list_summaries` / `count_summaries`, the statistics by a
+new read-only `ExerciseStatisticsRepository`. It keeps the repository role and name
+rather than a new "reader" or "finder" role: one kind of port for everything the
+database answers, and use cases still depend only on the port.
+
+## Statistics are SQL aggregates, computed on request
+
+Following "Exercise sessions are the statistics", every figure (totals, accuracy per
+direction, most missed items, per exercise) is a `GROUP BY` over the answered
+`exercise_questions` joined to their session for the owner, run on every request.
+Nothing is precomputed or cached, so there's nothing to keep in sync and no
+migration was needed. The most missed items take their name from the **current**
+library item (a word's usual form as asked, `entry_label`), not the snapshot, and
+items that left the library aren't listed.
+
+## One idle rule for sessions and their summaries
+
+A session is open while `finished_at` is NULL and it was active within
+`IDLE_TIMEOUT` (see "An idle session isn't closed by an answer"). The history lists
+summaries without loading sessions, so the rule exists twice: `session_end`
+(shared by `ExerciseSession.ended_at` and `SessionSummary.ended_at`) and its SQL form
+in the repository's `status` filter (`finished_at IS NULL AND updated_at >= now -
+IDLE_TIMEOUT`). Both take `now` from the caller, so a summary and the full session
+agree on whether it's open.
+
+## Activity per day is grouped in Python
+
+Answers per day must follow the user's day, not UTC's. Grouping by local date in SQL
+needs different time zone functions in PostgreSQL and SQLite (used in tests), so the
+repository returns the window's raw `answered_at` / `is_correct` pairs
+(`answers_since`) and the use case buckets them with `zoneinfo` in the requested
+`tz`. The window is capped at 365 days, and every day of it is returned, empty ones
+included.
+
+## Directions are grouped as sets; most missed is split per kind
+
+A direction's shown fields are a JSON list, and PostgreSQL can't `GROUP BY` a `json`
+column. Rows are grouped by its text (`CAST(prompt_fields AS TEXT)`) and merged in
+Python into `frozenset`s, so `[reading, meaning]` and `[meaning, reading]` count as one
+direction. The most missed items are two methods, `most_missed_entries` and
+`most_missed_kanji`, rather than one with a kind argument: entry and kanji ids come
+from different tables, and a single list could mix them (see "Ports take typed
+entities, not ids").
+
+## Skipping is a miss
+
+A question can be skipped (`{"type": "skip"}` as the answer). It's graded as wrong,
+not dropped: skipping is usually "I don't know", so the item comes back as a review
+like any miss, the solution is shown, and accuracy isn't inflated by leaving out the
+hard cards. It's one more member of the answer union, so the next-question rules and
+the statistics, which only read `is_correct`, needed no change, and there's no
+separate endpoint.

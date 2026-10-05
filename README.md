@@ -52,8 +52,11 @@ tags) to practise with. Built so far: the domain, PostgreSQL persistence, sign-i
 through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
 (`GET /dictionary/search`), and importing entries and kanji (`POST /library/entries`,
 `POST /library/kanji`), grouping them into collections (`/collections/entries`,
-`/collections/kanji`), and searching the library and its collections (`q` on the list
-endpoints). See the [practice app documentation](docs/practice/README.md).
+`/collections/kanji`), searching the library and its collections (`q` on the list
+endpoints), and exercises: saved choice-card exercises (`/exercises`), open-ended
+study sessions graded on the server (`/exercises/{id}/sessions`,
+`/exercise-sessions`), their history and statistics (`/exercises/{id}/statistics`,
+`/statistics`). See the [practice app documentation](docs/practice/README.md).
 
 ### Web interface *(planned)*
 
@@ -63,7 +66,8 @@ Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
 
 Nuxt 4 + Nuxt UI app for the practice API on <http://localhost:3001>: sign in with
 Keycloak, then search the dictionary and import, customise your library (meanings,
-notes, readings) and group it into collections. See the
+notes, readings), group it into collections, and practise them with exercises, with a
+history, a review of each session and statistics. See the
 [frontend docs](docs/practice/technical/frontend.md).
 
 ---

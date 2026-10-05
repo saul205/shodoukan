@@ -7,7 +7,7 @@ solution ahead.
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -19,6 +19,7 @@ from ...domain.entities import (
     ShownField,
     StudyField,
 )
+from ...domain.repositories import SessionSummary
 
 # The largest value the `response_ms` column (a 32-bit INTEGER) can hold.
 RESPONSE_MS_MAX = 2_147_483_647
@@ -41,7 +42,7 @@ class AnswerRequest(BaseModel):
     question_id: int = Field(description="The active question's id.")
     answer: ExerciseAnswer = Field(
         description='The answer, by type. Choice cards: `{"type": "option", '
-        '"option": <index>}`.'
+        '"option": <index>}`; `{"type": "skip"}` skips it, which counts as a miss.'
     )
     response_ms: int | None = Field(
         default=None,
@@ -59,6 +60,9 @@ class OptionResponse(BaseModel):
 
 
 class QuestionResponse(BaseModel):
+    # The exercise type, to pick how the question is played. Every question
+    # is a choice card for now; with a second type it becomes a stored column.
+    type: Literal["card.choice"] = "card.choice"
     id: int
     position: int
     prompt_fields: list[StudyField]
@@ -153,3 +157,41 @@ class AnswerResponse(BaseModel):
     answered_count: int
     score: int
     finished_at: datetime | None
+
+
+class SessionSummaryResponse(BaseModel):
+    """A session in the history: its figures, without its questions."""
+
+    id: int
+    exercise_id: int | None = Field(description="Null if the exercise was deleted.")
+    exercise_name: str
+    item_kind: ItemKind
+    started_at: datetime
+    last_activity_at: datetime
+    finished_at: datetime | None = Field(
+        description="When it was closed, or its last activity if it's been idle "
+        "too long; null while it's open."
+    )
+    answered: int
+    score: int
+
+    @classmethod
+    def of(cls, summary: SessionSummary, now: datetime) -> "SessionSummaryResponse":
+        return cls(
+            id=summary.id,
+            exercise_id=summary.exercise_id,
+            exercise_name=summary.exercise_name,
+            item_kind=summary.item_kind,
+            started_at=summary.started_at,
+            last_activity_at=summary.last_activity_at,
+            finished_at=summary.ended_at(now),
+            answered=summary.answered,
+            score=summary.score,
+        )
+
+
+class SessionSummaryPageResponse(BaseModel):
+    items: list[SessionSummaryResponse]
+    total: int  # sessions matching the request, across every page
+    limit: int
+    offset: int

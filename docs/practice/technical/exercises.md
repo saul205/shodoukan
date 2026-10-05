@@ -247,7 +247,8 @@ review; that id isn't updated if the item is later removed.
 
 The queryable columns (`item_id`, `answer_field`, `is_correct`, `answered_at`, ...) are
 what statistics filter and group by. `answer` is a discriminated union like
-`settings`: `{type: "option", option}` now; later `{type: "text", text}`,
+`settings`: `{type: "option", option}` and `{type: "skip"}` (a miss) now; later
+`{type: "text", text}`,
 `{type: "self_grade", knew}` and `{type: "strokes", strokes}`.
 
 The snapshot keeps a past session readable exactly as it was, even after the item is
@@ -272,35 +273,73 @@ Details: [endpoints](api/endpoints.md#exercises).
 | Method | Route | Body / result |
 |---|---|---|
 | `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its first active question, **without** the solution (item, correct option, back) |
-| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
+| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
 | `GET` | `/exercise-sessions/{id}` | The session: its active question (without solution) and its history (with) |
 | `POST` | `/exercise-sessions/{id}/finish` | Close it; idempotent |
-| `GET` | `/exercises/{id}/sessions` | History, one row per session with its score (phase 5) |
 
 Details: [endpoints](api/endpoints.md#exercise-sessions).
+
+### History and statistics (built, #42)
+
+| Method | Route | Result |
+|---|---|---|
+| `GET` | `/exercise-sessions?exercise_id=&status=open\|finished&limit=&offset=` | Paged session summaries, newest first, without questions: exercise, start, last activity, effective `finished_at`, answered, score. `status=open&limit=1` is the session to resume ("Continuar") |
+| `GET` | `/exercises/{id}/statistics` | The exercise's totals (sessions, answers, right, accuracy, mean response time), accuracy per direction, most missed items |
+| `GET` | `/statistics?days=30&tz=Europe/Madrid` | The same over every exercise (most missed words and kanji apart), plus answers per day in the user's time zone and a summary per exercise |
+
+- **Open** means `finished_at IS NULL` and active within `IDLE_TIMEOUT`, the rule of
+  `ExerciseSession.ended_at` written in SQL, so a summary and a full session agree.
+- Aggregates are SQL `GROUP BY`s over `exercise_questions` joined to
+  `exercise_sessions` (sessions are the statistics; nothing is stored twice). The
+  most missed items show the item's **current** label from the library; items that
+  left it (`item_id` null) aren't listed.
+- Answers per day are grouped in Python with `zoneinfo` over the `answered_at` of the
+  window (at most 365 days), so SQLite and PostgreSQL agree and days follow the
+  user's time zone.
+- Each question in a response carries `type` (`"card.choice"` today), so the frontend
+  picks the player by type. It's a constant until a second type needs a column.
+
+Details: [endpoints](api/endpoints.md#exercise-statistics), [use
+cases](application/use-cases.md#queries-queriesexercise_statistics_queriespy) and
+[repositories](infrastructure/repositories.md#exercise-statistics).
 
 The server generates the questions and grades the answers, so statistics don't depend
 on the client and library-wide distractors (later) need no paging in the browser.
 
-## Frontend (phases 3–5)
+## Frontend (phases 3–5 and statistics)
 
 In `shodoukan-practice-web`:
 
-- **Pages:** `exercises/index.vue` (list, start, edit), `exercises/new.vue` and
-  `exercises/[id]/edit.vue`, `exercises/[id]/index.vue` (summary and history),
-  `exercise-sessions/[id].vue` (play, then review).
+- **Pages:**
+  - `exercises/index.vue`: the list, with Empezar, Editar and Eliminar, and a
+    "Continuar" notice when a session is open (also on the home page) **(built)**.
+  - `exercises/new.vue` and `exercises/[id]/edit.vue` **(built)**.
+  - `exercises/[id]/index.vue`: the exercise's summary and session history
+    **(built)**, and its statistics **(built)**.
+  - `exercise-sessions/[id].vue`: play an open session **(built)**; a finished one
+    shows its result and the review **(built)** (each answered question as
+    it was, filter "solo falladas").
+  - `statistics/index.vue`: totals, activity of the last 30 days, a table per
+    exercise, most missed words and kanji **(built)**.
 - **Components:**
-  - `ExerciseForm` with a `DirectionsEditor` (rows of prompt fields → answer field)
-    and back-field checkboxes; the field list depends on the item kind.
+  - `ExerciseForm` with several collections of one kind, a `DirectionsEditor` (rows
+    of prompt fields → answer field) and back-field checkboxes; the field list
+    depends on the item kind (`utils/study-fields.ts`) **(built**, see
+    [frontend](frontend.md#screens)**)**.
   - `StudyCard`: front and back of a card. The back shows the prompt, the answer and
-    the chosen `back_fields`.
-  - `ChoiceOptions`: the options; once answered, the picked one is red if wrong, the
-    correct one green.
-  - `ItemDetailModal`: opens the item's full detail without leaving the session. It
-    reuses `EntryDetail` / `KanjiDetail`, extracted from
-    `app/pages/library/entries/[id].vue` and `app/pages/library/kanji/[id].vue`.
-- A registry `type → component` picks the player for each exercise type.
-- "Ejercicios" in the sidebar (`app/layouts/default.vue`).
+    the chosen `back_fields` **(built)**.
+  - `ChoiceOptions`: the options, keys 1–N; once answered, the picked one is red if
+    wrong, the correct one green **(built)**.
+  - `ItemDetailModal`: opens an item's full detail without leaving the session (the
+    asked item or a wrong option's). It reuses view-only `EntryDetail` /
+    `KanjiDetail`, extracted from `app/pages/library/entries/[id].vue` and
+    `app/pages/library/kanji/[id].vue` **(built)**.
+  - `StatTile`, `AccuracyBar`, `ActivityChart`: Nuxt UI and CSS, no chart library
+    **(built)**.
+- A registry `question type → player component` picks the player for each exercise
+  type (`components/exercise-players/`) **(built**; details in
+  [frontend](frontend.md#screens)**)**.
+- "Ejercicios" and "Estadísticas" in the sidebar **(built)** (`app/layouts/default.vue`).
 
 Example of a `card.choice` question, direction *literal → kunyomi*:
 
@@ -318,14 +357,17 @@ Options:                         Options:
 Branches: `saul205/27_add-the-interactive-exercises-to-the-practice-app` is the
 umbrella. The choice card (#28) is `saul205/28_select-between-x-options-exercise`:
 phase 1 was built on it, and each later phase is a branch off it
-(`saul205/<issue>_<description>`) that merges back with a PR.
+(`saul205/<issue>_<description>`) that merges back with a PR. The remaining phases
+go in the order 3 → A → 4 → 5 → C.
 
 | # | Phase | Scope |
 |---|---|---|
 | 1 | Exercise definitions (backend) **(built)** | Entity, settings union, storage, CRUD use cases and routes |
 | 2 | Exercise sessions (backend) **(built)** | Field reading and comparison keys, question builder with the distractor rule, sessions and answers storage, session routes |
-| 3 | Exercise list and creation (frontend) | Exercises pages, `ExerciseForm`, `DirectionsEditor`, one collection |
-| 4 | Playing a choice session (frontend) | `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
-| 5 | History and review (statistics) | Session history per exercise, reviewing a past session, accuracy per item |
-| 6 | Several collections and library distractors | Pick several collections in the form (the backend already accepts them), `distractor_source = "library"` |
+| 3 | Exercise list and creation (frontend), #31 **(built)** | Exercises pages, `ExerciseForm` with several collections, `DirectionsEditor` |
+| A | History and statistics (backend), #42 **(built)** | Session summaries (history, the open session), statistics per exercise and overall, question `type` |
+| 4 | Playing a choice session (frontend), #32 **(built)** | Start and resume, `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
+| 5 | History and review (frontend), #33 **(built)** | Session history per exercise, reviewing a past session |
+| C | Statistics (frontend), #43 **(built)** | Statistics per exercise and the "Estadísticas" page |
+| 6 | Library distractors, #34 | `distractor_source = "library"` |
 | — | Future types | `card.flip`, `card.typed`, `card.handwriting`, `sentence.gap` |

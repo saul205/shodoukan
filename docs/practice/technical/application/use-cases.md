@@ -264,3 +264,39 @@ One exercise, or `EntityNotFoundError` if it's missing or another user's.
 One of the user's sessions with its active question and history, or
 `EntityNotFoundError`. It doesn't write: the API reports an idle session as finished
 (`ended_at`) without storing it.
+
+### `ListExerciseSessions(sessions).execute(user_id, now, *, exercise_id=None, status=None, limit=20, offset=0)`
+
+The user's session history, newest first, as `SessionSummaryPage(items, total, limit,
+offset)` of `SessionSummary`s (`list_summaries` plus `count_summaries`).
+`exercise_id` filters without checking the exercise exists: sessions outlive their
+exercise, so an unknown or deleted one lists what's left, not a 404. `status="open"`
+finds the session to resume (at most one); open or finished is decided at `now`,
+idle sessions counting as finished.
+
+## Queries (`queries/exercise_statistics_queries.py`)
+
+Aggregates come from the [`ExerciseStatisticsRepository`](../domain/repository-ports.md#exercisestatisticsrepository);
+these use cases add what the user sees them with: the items' current names and the
+answers per day in the user's time zone.
+
+The most missed items are returned as `MissedItem(item_id, label, reading, answered,
+wrong)`, named from the **current** library item (`get_many` on the entry or kanji
+repository): a word by `entry_label` (its usual form, and its reading), a kanji by
+its literal (`reading` is `None`). Items no longer in the library are dropped. At
+most `MOST_MISSED_LIMIT` (10) per list.
+
+### `GetExerciseStatistics(exercises, statistics, entries, kanji).execute(user_id, exercise_id)`
+
+`ExerciseStatistics(exercise, totals, directions, most_missed)` for one exercise;
+`most_missed` holds items of the exercise's kind. `EntityNotFoundError` if the
+exercise is missing or another user's.
+
+### `GetPracticeStatistics(statistics, entries, kanji).execute(user_id, now, days, tz)`
+
+`PracticeStatistics(totals, activity, exercises, most_missed_entries,
+most_missed_kanji)` over every session. `activity` is one `DayActivity(day, answered,
+correct)` per day of the last `days` days in `tz` (a `ZoneInfo`), today included and
+oldest first, days without answers too. It's bucketed in Python over
+`answers_since` (from midnight of the first day in `tz`), so SQLite and PostgreSQL
+agree. `ValueError` unless `1 <= days <= MAX_ACTIVITY_DAYS` (365).

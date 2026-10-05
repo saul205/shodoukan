@@ -53,4 +53,11 @@ describe('ReadingChips', () => {
 
     expect(emitted()).toBeUndefined()
   })
+
+  it('shows only the shown readings, not as buttons, in view-only mode', async () => {
+    const wrapper = await mountSuspended(ReadingChips, { props: { readings, viewOnly: true } })
+
+    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect(wrapper.text()).toBe('あに')
+  })
 })

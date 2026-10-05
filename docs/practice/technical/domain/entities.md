@@ -90,9 +90,10 @@ items or its exercise change:
   `prompt_fields`, `answer_field`;
 - `prompt` and `back`: `ShownField(field, values)`, what the front and the back show;
 - `options`: `ChoiceOption(text, item_id)`, with `correct_option` as an index;
-- `answer` (`OptionAnswer(type="option", option)`; `ExerciseAnswer` becomes a union
-  discriminated by `type` with the next exercise type), `is_correct`, `answered_at`,
-  `response_ms` (measured by the client). All `None` until answered.
+- `answer`: `ExerciseAnswer`, a union discriminated by `type`:
+  `OptionAnswer(type="option", option)` or `SkipAnswer(type="skip")`, which is graded
+  as a miss ([decisions](../decisions.md#skipping-is-a-miss)). Then `is_correct`,
+  `answered_at`, `response_ms` (measured by the client). All `None` until answered.
 
 `ask` and `answer` raise `SessionFinishedError` on a finished **or idle** session,
 and change nothing then. Methods:
@@ -110,8 +111,15 @@ and change nothing then. Methods:
   a left session isn't activity. Idempotent.
 - `ended_at(now)`: `finished_at`, or the last activity if idle for more than
   `IDLE_TIMEOUT` (30 minutes), or `None`. `close_if_idle(now)` makes that permanent
-  (closing isn't activity: `updated_at` stays).
+  (closing isn't activity: `updated_at` stays). It delegates to the module function
+  `session_end(finished_at, last_activity, now)`, the one idle rule, which the
+  history's `SessionSummary` uses too (see
+  [ports](repository-ports.md#exercisesessionrepository)).
 - `answered` and `score` count the history and its right answers.
+
+`SessionStatus = Literal["open", "finished"]` is how the history filters sessions
+(idle ones are `"finished"`). `IDLE_TIMEOUT`, `SessionStatus` and `session_end` are
+exported from `domain.entities`.
 
 ## Timestamps and `touch()`
 

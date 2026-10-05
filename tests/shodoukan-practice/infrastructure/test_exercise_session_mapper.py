@@ -1,6 +1,6 @@
 from factories import USER_ID, make_question, make_session
 
-from shodoukan_practice.domain.entities import OptionAnswer
+from shodoukan_practice.domain.entities import OptionAnswer, SkipAnswer
 from shodoukan_practice.infrastructure.db.mappers import (
     exercise_session_to_db,
     exercise_session_to_domain,
@@ -46,3 +46,13 @@ def test_snapshot_is_plain_json() -> None:
     assert row.prompt == [{"field": "literal", "values": ["食"]}]
     assert row.options[0] == {"text": "た.べる", "item_id": 7}
     assert row.answer is None
+
+
+def test_round_trip_keeps_a_skipped_question() -> None:
+    session = make_session(USER_ID, item_id=7)
+    session.answer(1, SkipAnswer())
+
+    row = exercise_session_to_db(session)
+
+    assert row.questions[0].answer == {"type": "skip"}
+    assert exercise_session_to_domain(row) == session
