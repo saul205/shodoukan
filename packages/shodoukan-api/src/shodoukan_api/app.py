@@ -20,6 +20,13 @@ def create_app() -> FastAPI:
     app.include_router(search.router, prefix="/search", tags=["search"])
     app.include_router(entries.router, prefix="/entries", tags=["entries"])
     app.include_router(kanji.router, prefix="/kanji", tags=["kanji"])
+
+    # Liveness check for the Render keep-alive ping and Docker healthchecks;
+    # it doesn't touch the database, so it stays cheap.
+    @app.get("/health", tags=["health"])
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
     return app
 
 
