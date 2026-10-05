@@ -45,7 +45,7 @@ backup() {
   local service
   for service in practice-db-backup keycloak-db-backup; do
     if is_running "$service"; then
-      compose exec -T "$service" /backup.sh >/dev/null
+      compose exec -T "$service" /backup.sh </dev/null >/dev/null
       echo "✓ backup: ${service%-backup}"
     fi
   done
@@ -56,7 +56,7 @@ backup() {
 smoke_test() {
   local path deadline=$((SECONDS + 240))
   for path in / /practice-api/health /idp/realms/shodoukan; do
-    until compose exec -T web wget -q -O /dev/null "http://127.0.0.1${path}" 2>/dev/null; do
+    until compose exec -T web wget -q -O /dev/null "http://127.0.0.1${path}" </dev/null 2>/dev/null; do
       if ((SECONDS > deadline)); then
         echo "✗ ${path} is not answering; see: deploy/deploy.sh logs" >&2
         return 1
@@ -110,10 +110,11 @@ seed() {
   compose up -d practice-db keycloak --wait
   local existing
   existing=$(compose exec -T practice-db psql -U "$PRACTICE_DB_USER" -d "$PRACTICE_DB_NAME" \
-    -tAc "SELECT string_agg(username, ', ') FROM users" 2>/dev/null || true)
+    -tAc "SELECT string_agg(username, ', ') FROM users" </dev/null 2>/dev/null || true)
   if [[ -n $existing ]]; then
     echo "This replaces every user's data in pre (now: ${existing})."
-    read -r -p "Type 'replace' to continue: " answer
+    local answer=""
+    read -r -p "Type 'replace' to continue: " answer || true
     [[ $answer == replace ]] || { echo "Cancelled."; return 1; }
     backup
   fi
