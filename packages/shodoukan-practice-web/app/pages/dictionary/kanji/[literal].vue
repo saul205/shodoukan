@@ -85,7 +85,7 @@ const stats = computed(() => {
             </div>
           </dl>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex w-full flex-wrap items-center justify-center gap-2 sm:w-auto sm:self-start">
           <UButton
             v-if="status.kanji.value.has(kanji.literal)"
             :to="`/library/kanji/${status.kanji.value.get(kanji.literal)}`"
