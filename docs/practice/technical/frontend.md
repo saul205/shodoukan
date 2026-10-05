@@ -174,8 +174,10 @@ deleted) reloads it into its result; a 409 (answered in another tab, closed or i
 meanwhile) reloads the session with a toast. `ItemDetailModal` (`useOverlay()`) loads
 the library item and shows `EntryDetail` / `KanjiDetail` view-only plus its notes, with
 "Abrir en la librería", which goes to the item's library page in the same window with
-`?session=<id>`: its back button (`useBackLink()`) returns to the session, which picks
-up where it was (or to its review, if finished). An item no longer in the library
+`?from=<the session page's path>`: its back button (`useBackLink()`, which only takes
+`/exercise-sessions/...` paths, through `safeReturnPath`) returns to the session, which
+picks up where it was, or to its review with the same filter; which review questions
+were open is kept per session in `useState`. An item no longer in the library
 says so.
 
 The detail is a page, not a modal: it has its own URL, the back button works, and it

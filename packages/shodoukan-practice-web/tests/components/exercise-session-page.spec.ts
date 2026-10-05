@@ -109,6 +109,11 @@ describe('exercise session page', () => {
     await flushPromises()
     expect(all.findAll('[data-testid="review-detail"]')).toHaveLength(3)
 
+    // Coming back (from the library) keeps them open.
+    all.unmount()
+    const again = await mountPage()
+    expect(again.findAll('[data-testid="review-detail"]')).toHaveLength(3)
+
     clearNuxtData()
     const missed = await mountPage('/exercise-sessions/5?filter=missed')
     expect(missed.findAll('[data-testid="review-question"]')).toHaveLength(2)

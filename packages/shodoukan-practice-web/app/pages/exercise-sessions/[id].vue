@@ -64,8 +64,14 @@ const missedCount = computed(() => session.value?.history.filter(q => !q.is_corr
 const reviewed = computed(() =>
   (session.value?.history ?? []).filter(q => !onlyMissed.value || !q.is_correct),
 )
-// Which review questions are open, by id; all start collapsed.
-const expanded = ref<Record<number, boolean>>({})
+// Which review questions are open, by id; all start collapsed. Kept per
+// session for the app's lifetime, so going to an item's library page and
+// back keeps them open (the filter is in the URL).
+const expandedBySession = useState<Record<number, Record<number, boolean>>>('session-review-expanded', () => ({}))
+const expanded = computed<Record<number, boolean>>({
+  get: () => (expandedBySession.value[id.value] ??= {}),
+  set: value => (expandedBySession.value[id.value] = value),
+})
 const allExpanded = computed(() => reviewed.value.length > 0 && reviewed.value.every(q => expanded.value[q.id]))
 function expandAll(open: boolean) {
   expanded.value = Object.fromEntries(reviewed.value.map(q => [q.id, open]))
@@ -129,7 +135,7 @@ async function finish() {
 
 function openItem(itemId: number) {
   if (!session.value) return
-  overlay.create(ItemDetailModal).open({ kind: session.value.item_kind, itemId, sessionId: id.value })
+  overlay.create(ItemDetailModal).open({ kind: session.value.item_kind, itemId, returnTo: route.fullPath })
 }
 </script>
 
