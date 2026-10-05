@@ -1,0 +1,83 @@
+{
+  "realm": "shodoukan",
+  "displayName": "Shodoukan",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "shodoukan-practice-web",
+      "name": "Shodoukan practice web",
+      "description": "Public client (authorization code + PKCE) for the practice frontend, served at the site root.",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "${PUBLIC_URL}/*"
+      ],
+      "webOrigins": [
+        "${PUBLIC_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${PUBLIC_URL}/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "practice-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "shodoukan-practice",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "shodoukan-practice-docs",
+      "name": "Shodoukan practice API docs",
+      "description": "Public client (authorization code + PKCE) for the practice API's Swagger UI.",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "${PUBLIC_URL}/practice-api/docs/oauth2-redirect"
+      ],
+      "webOrigins": [
+        "${PUBLIC_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "practice-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "shodoukan-practice",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ]
+}

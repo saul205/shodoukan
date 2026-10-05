@@ -1,0 +1,169 @@
+# The practice stack, shared by pre and prod. Never used alone: combine it
+# with compose.pre.yml (built from the working tree, on localhost) or
+# compose.prod.yml (published images, behind Tailscale Funnel). Use
+# deploy/pre.sh and deploy/deploy.sh rather than calling compose directly.
+# Docs: docs/technical/deployment.md.
+#
+# Nothing here publishes a port; the overrides decide what is reachable.
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  web:
+    <<: *restart
+    image: ghcr.io/saul205/shodoukan-practice-web:${TAG:-latest}
+    environment:
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:?set PUBLIC_SCHEME (http or https)}
+    depends_on:
+      practice-api:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    mem_limit: 128m
+
+  practice-api:
+    <<: *restart
+    image: ghcr.io/saul205/shodoukan-practice-api:${TAG:-latest}
+    environment: &practice-api-env
+      PRACTICE_DATABASE_URL: postgresql+psycopg://${PRACTICE_DB_USER:?}:${PRACTICE_DB_PASSWORD:?}@practice-db:5432/${PRACTICE_DB_NAME:?}
+      # Tokens carry the public issuer; their keys are fetched inside the
+      # Docker network instead of going out through the public URL.
+      AUTH_ISSUER: ${PUBLIC_URL:?}/idp/realms/shodoukan
+      AUTH_AUDIENCE: shodoukan-practice
+      AUTH_JWKS_URL: http://keycloak:8080/idp/realms/shodoukan/protocol/openid-connect/certs
+      AUTH_SWAGGER_CLIENT_ID: shodoukan-practice-docs
+      CORS_ORIGINS: ${PUBLIC_URL:?}
+      UVICORN_ROOT_PATH: /practice-api
+    depends_on:
+      practice-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 384m
+
+  # One-shot: brings the schema up to date before the API starts.
+  practice-migrate:
+    image: ghcr.io/saul205/shodoukan-practice-api:${TAG:-latest}
+    command: ["alembic", "-c", "packages/shodoukan-practice/alembic.ini", "upgrade", "head"]
+    environment: *practice-api-env
+    depends_on:
+      practice-db:
+        condition: service_healthy
+    restart: "no"
+    mem_limit: 256m
+
+  practice-db:
+    <<: *restart
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${PRACTICE_DB_USER:?}
+      POSTGRES_PASSWORD: ${PRACTICE_DB_PASSWORD:?}
+      POSTGRES_DB: ${PRACTICE_DB_NAME:?}
+    volumes:
+      - practice-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+
+  keycloak:
+    <<: *restart
+    image: ghcr.io/saul205/shodoukan-keycloak:${TAG:-latest}
+    environment:
+      KC_DB_URL_HOST: keycloak-db
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:?}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:?}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      # Public URL (tokens' issuer, login pages) and a separate admin URL that
+      # only exists on localhost; Caddy hides the admin console publicly.
+      KC_HOSTNAME: ${PUBLIC_URL:?}/idp
+      KC_HOSTNAME_ADMIN: http://localhost:${KEYCLOAK_ADMIN_PORT:?}/idp
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      # Filled into the realm's redirect URIs on its first import.
+      PUBLIC_URL: ${PUBLIC_URL:?}
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl: talk HTTP to the management port directly.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"UP"' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    # The JVM sizes its heap from this limit (70% by default).
+    mem_limit: 768m
+
+  keycloak-db:
+    <<: *restart
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${KEYCLOAK_DB_USER:?}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?}
+      POSTGRES_DB: keycloak
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+
+  # Nightly dumps (7 daily, 4 weekly) into a volume per database; see the
+  # runbook for copying them off the machine and restoring.
+  practice-db-backup:
+    <<: *restart
+    image: prodrigestivill/postgres-backup-local:16
+    environment: &backup-env
+      POSTGRES_HOST: practice-db
+      POSTGRES_DB: ${PRACTICE_DB_NAME:?}
+      POSTGRES_USER: ${PRACTICE_DB_USER:?}
+      POSTGRES_PASSWORD: ${PRACTICE_DB_PASSWORD:?}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 0
+    volumes:
+      - practice-backups:/backups
+    depends_on:
+      practice-db:
+        condition: service_healthy
+    mem_limit: 64m
+
+  keycloak-db-backup:
+    <<: *restart
+    image: prodrigestivill/postgres-backup-local:16
+    environment:
+      <<: *backup-env
+      POSTGRES_HOST: keycloak-db
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: ${KEYCLOAK_DB_USER:?}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?}
+    volumes:
+      - keycloak-backups:/backups
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    mem_limit: 64m
+
+volumes:
+  practice-db-data:
+  keycloak-db-data:
+  practice-backups:
+  keycloak-backups:

@@ -1,0 +1,31 @@
+# Prod: published images (ghcr.io, tag TAG) behind Tailscale Funnel at
+# https://shodoukan.<tailnet>.ts.net. Run it through deploy/deploy.sh.
+name: shodoukan-prod
+
+services:
+  keycloak:
+    # The admin console, only on this machine (KC_HOSTNAME_ADMIN).
+    ports:
+      - "127.0.0.1:${KEYCLOAK_ADMIN_PORT}:8080"
+
+  # Publishes the web service on the internet over an outbound tunnel: no
+  # router ports, works behind CGNAT, HTTPS certificate included.
+  tailscale:
+    restart: unless-stopped
+    image: tailscale/tailscale:stable
+    hostname: shodoukan
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}  # only needed for the first login
+      TS_HOSTNAME: shodoukan
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./tailscale/serve.json:/config/serve.json:ro
+    depends_on:
+      - web
+    mem_limit: 128m
+
+volumes:
+  tailscale-state:
