@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   test:
@@ -89,13 +89,61 @@ jobs:
           pnpm --filter shodoukan-practice-web test
           pnpm --filter shodoukan-practice-web typecheck
 
+      - name: Build dictionary frontend
+        run: |
+          pnpm --filter shodoukan-web typecheck
+          pnpm --filter shodoukan-web generate
+
+  # Builds every deployable image (without pushing) so a broken Dockerfile
+  # shows up in the PR, not at deploy time.
+  docker-build:
+    name: Docker build (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: dictionary-api
+            dockerfile: packages/shodoukan-api/Dockerfile
+          - image: practice-api
+            dockerfile: packages/shodoukan-practice/Dockerfile
+          - image: practice-web
+            dockerfile: deploy/web/Dockerfile
+          - image: keycloak
+            dockerfile: docker/keycloak/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          secrets: github_token=${{ secrets.GITHUB_TOKEN }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # The dictionary (API and static web) lives on Render; its deploy hooks
+  # make Render rebuild from main. The practice stack is published by
+  # practice-publish.yml once this workflow succeeds.
   deploy:
-    name: Deploy to Render
-    needs: test
+    name: Deploy dictionary to Render
+    needs: [test, frontend, docker-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Render Deploy
-        # El comando curl "llama" a Render para que empiece el build
+      - name: Deploy dictionary API
+        run: curl -fsS -X POST "${{ secrets.RENDER_HOOK_DICT_API }}"
+
+      - name: Deploy dictionary web
+        env:
+          HOOK: ${{ secrets.RENDER_HOOK_DICT_WEB }}
         run: |
-          curl -f "${{ secrets.DEPLOY_HOOK }}"
+          if [ -z "$HOOK" ]; then
+            echo "RENDER_HOOK_DICT_WEB isn't set yet; skipping the static site."
+          else
+            curl -fsS -X POST "$HOOK"
+          fi
