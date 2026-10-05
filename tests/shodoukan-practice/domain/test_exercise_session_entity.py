@@ -7,6 +7,7 @@ from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     ExerciseSession,
     OptionAnswer,
+    SkipAnswer,
     session_end,
 )
 from shodoukan_practice.domain.entities.exercise_session_entity import IDLE_TIMEOUT
@@ -152,3 +153,14 @@ def test_session_end_is_the_close_or_the_last_activity_once_idle() -> None:
     assert session_end(None, now - timedelta(minutes=1), now) is None
     idle_since = now - IDLE_TIMEOUT - timedelta(seconds=1)
     assert session_end(None, idle_since, now) == idle_since
+
+
+def test_skipping_is_graded_as_a_miss() -> None:
+    session = make_session(USER_ID, item_id=7)
+
+    skipped = session.answer(1, SkipAnswer(), response_ms=300)
+
+    assert skipped.answer == SkipAnswer()
+    assert skipped.is_correct is False
+    assert session.history == [skipped]
+    assert (session.answered, session.score) == (1, 0)

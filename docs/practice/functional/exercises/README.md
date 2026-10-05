@@ -2,10 +2,10 @@
 
 [← Functional documentation](../README.md)
 
-How a user practises the words and kanji of their collections. Exercises are created
-and managed in the practice app ("Ejercicios"); running sessions, the history and
-the statistics are built in the practice API, and the screens to play sessions and to
-see the history and the statistics come in the next phases (see the
+How a user practises the words and kanji of their collections. Exercises are created,
+managed and played in the practice app ("Ejercicios"); the history and the
+statistics are built in the practice API, and their screens come in the next phases
+(see the
 [design](../../technical/exercises.md#phases)).
 
 ## What an exercise is
@@ -48,18 +48,25 @@ question and its answer: for example the reading and the meaning.
 
 ## Playing a choice card
 
-Starting an exercise opens a **session**, and the user studies for as long as they
-like: there's no set number of questions. Meanings are shown in the language chosen
-in the sidebar.
+"Empezar" on an exercise opens a **session**, and the user studies for as long as
+they like: there's no set number of questions. Meanings are shown in the language
+chosen in the sidebar when the session starts. The header counts the answers and the
+right ones.
 
 1. An active item from the collection is shown with the fields of the direction.
 2. Below it, the options: the right one and wrong ones taken from other items of the
    collection.
-3. The user picks one. The card turns over and shows the back. The picked option turns
-   red if it was wrong, and the right one green.
+3. The user picks one, with a click or its number key (1–4…). The card turns over
+   and shows the back. The picked option turns red if it was wrong, and the right one
+   green.
 4. From the back the user can open the item's full detail in a window, without
-   leaving the session.
-5. The next card comes, until the user stops.
+   leaving the session; the wrong options can open theirs too.
+5. "Saltar" (or the S key) skips a card the user doesn't know: it counts as a miss,
+   the card turns over showing the right option, and it comes back a few cards
+   later like any missed one.
+6. "Siguiente" (or Enter) brings the next card, until the user stops with "Terminar".
+   If the collections no longer have enough active items for another card, the
+   session says so and can be finished.
 
 **Which item comes next.** Every item of the collection comes up once, in random
 order, before any repeats; then a new round starts, shuffled again. An item answered
@@ -89,11 +96,12 @@ the user has enabled, which is the usual one; the back of the card shows them al
 be asked another form, disable the first one in the library. Kanji are different: each
 on'yomi and kun'yomi is worth learning, so any of them can be asked.
 
-**Ending a session.** The session ends when the user leaves it (finishing it or
-leaving the page). If that doesn't get through (the app is closed, the connection is
-lost), it ends on its own when any exercise is started again or after 30 minutes
-without activity, counted until the last answer. Until then the user can come back to
-it and find the same card waiting. The card on screen when it ends isn't counted.
+**Ending a session.** The session ends when the user finishes it ("Terminar"). Leaving
+the page doesn't end it: until then, "Continuar" on the exercise list or the home page
+brings the user back to the same card. It ends on its own when any exercise is started
+again (the app asks first) or after 30 minutes without activity, counted until the
+last answer. The card on screen when it ends isn't counted. A finished session shows
+how it went and offers to practise again.
 
 Each card is answered once: a second click on another option doesn't change the
 answer.
@@ -103,7 +111,7 @@ answer.
 Every session keeps each question as it was shown, the option picked and whether it
 was right. Editing or removing an item later doesn't change past sessions. The history
 and the statistics below are available in the practice API; their screens come in
-the next phases.
+the next phases (continuing a session is already in the app).
 
 - **Continue:** a session left open (the tab was closed) can be resumed from the
   exercise list or the home page, as long as it isn't idle.

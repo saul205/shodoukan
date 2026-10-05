@@ -39,6 +39,8 @@ const sections = [
         <p class="mt-1 text-muted">¿Por dónde quieres empezar?</p>
       </div>
 
+      <OpenSessionAlert />
+
       <UPageGrid class="lg:grid-cols-2 xl:grid-cols-4">
         <UPageCard
           v-for="section in sections"

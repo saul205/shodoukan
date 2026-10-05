@@ -486,3 +486,12 @@ direction. The most missed items are two methods, `most_missed_entries` and
 `most_missed_kanji`, rather than one with a kind argument: entry and kanji ids come
 from different tables, and a single list could mix them (see "Ports take typed
 entities, not ids").
+
+## Skipping is a miss
+
+A question can be skipped (`{"type": "skip"}` as the answer). It's graded as wrong,
+not dropped: skipping is usually "I don't know", so the item comes back as a review
+like any miss, the solution is shown, and accuracy isn't inflated by leaving out the
+hard cards. It's one more member of the answer union, so the next-question rules and
+the statistics, which only read `is_correct`, needed no change, and there's no
+separate endpoint.

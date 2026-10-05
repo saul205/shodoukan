@@ -325,3 +325,40 @@ def test_list_sessions_rejects_an_unknown_status(
 ) -> None:
     response = client.get("/exercise-sessions?status=idle", headers=headers)
     assert response.status_code == 422
+
+
+def test_skipping_shows_the_solution_and_counts_as_a_miss(
+    client: TestClient, headers: dict[str, str], exercise_id: int
+) -> None:
+    started = _start(client, headers, exercise_id)
+    current = started["current"]
+
+    response = client.post(
+        f"/exercise-sessions/{started['id']}/answer",
+        json={"question_id": current["id"], "answer": {"type": "skip"}},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    graded = body["answered"]
+    assert graded["answer"] == {"type": "skip"}
+    assert graded["is_correct"] is False
+    assert graded["correct_option"] == _right_option(current)
+    assert graded["back"] is not None
+    assert body["next"] is not None
+    assert (body["answered_count"], body["score"]) == (1, 0)
+
+
+def test_an_unknown_answer_type_is_rejected(
+    client: TestClient, headers: dict[str, str], exercise_id: int
+) -> None:
+    started = _start(client, headers, exercise_id)
+
+    response = client.post(
+        f"/exercise-sessions/{started['id']}/answer",
+        json={"question_id": started["current"]["id"], "answer": {"type": "guess"}},
+        headers=headers,
+    )
+
+    assert response.status_code == 422

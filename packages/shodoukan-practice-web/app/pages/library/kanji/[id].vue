@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { KanjiStrokeAnimator, KanjiStrokeGrid } from 'shodoukan-ui'
 import ConfirmModal from '~/components/ConfirmModal.vue'
-import type { PracticeKanji, PracticeReadingItem } from '~/models/practice'
+import type { PracticeKanji } from '~/models/practice'
 import {
   addKanjiMeaning,
   editKanjiMeaning,
@@ -20,7 +19,7 @@ const route = useRoute()
 const api = useApi()
 const notify = useNotify()
 const overlay = useOverlay()
-const { lang, options: languages } = useMeaningLang()
+const { lang } = useMeaningLang()
 const back = useBackLink('kanji')
 
 const id = computed(() => Number(route.params.id))
@@ -28,18 +27,6 @@ const { item: kanji, status, saving, save } = useEditableItem<PracticeKanji>(
   () => `library-kanji-${id.value}`,
   () => getLibraryKanji(api, id.value),
 )
-
-const languageLabel = computed(() => languages.find(l => l.value === lang.value)?.label ?? lang.value)
-const meanings = computed(() => kanji.value?.meanings.filter(m => m.lang === lang.value) ?? [])
-
-const readingGroups = computed<{ label: string; items: PracticeReadingItem[] }[]>(() => {
-  if (!kanji.value) return []
-  return [
-    { label: 'Kun\'yomi', items: kanji.value.kun_readings },
-    { label: 'On\'yomi', items: kanji.value.on_readings },
-    { label: 'Nanori', items: kanji.value.nanori },
-  ].filter(group => group.items.length)
-})
 
 async function remove() {
   const confirmed = await overlay.create(ConfirmModal).open({
@@ -90,77 +77,14 @@ async function remove() {
 
     <div v-else class="grid gap-8 lg:grid-cols-3">
       <div class="space-y-8 lg:col-span-2">
-        <!-- Kanji with its data below and its readings beside it, then the stroke
-             order across; one column on phones (kanji, data, readings, strokes). -->
-        <div class="grid gap-x-8 gap-y-6 sm:grid-cols-[auto_1fr]">
-          <span class="font-japanese text-8xl leading-none font-bold text-highlighted">{{ kanji.literal }}</span>
-
-          <dl class="grid grid-cols-2 content-start gap-x-4 gap-y-2 text-sm">
-            <div>
-              <dt class="text-xs uppercase tracking-wide text-dimmed">Trazos</dt>
-              <dd class="text-toned">{{ kanji.stroke_count }}</dd>
-            </div>
-            <div v-if="kanji.grade">
-              <dt class="text-xs uppercase tracking-wide text-dimmed">Grado</dt>
-              <dd class="text-toned">{{ kanji.grade }}</dd>
-            </div>
-            <div v-if="kanji.jlpt">
-              <dt class="text-xs uppercase tracking-wide text-dimmed">JLPT</dt>
-              <dd class="text-toned">N{{ kanji.jlpt }}</dd>
-            </div>
-          </dl>
-
-          <section aria-labelledby="readings" class="space-y-3 sm:col-start-2 sm:row-span-2 sm:row-start-1">
-            <h2 id="readings" class="text-sm font-semibold uppercase tracking-wide text-muted">Lecturas</h2>
-            <div v-for="group in readingGroups" :key="group.label" class="flex items-start gap-3">
-              <span class="w-20 shrink-0 pt-1.5 text-xs uppercase tracking-wide text-dimmed">{{ group.label }}</span>
-              <ReadingChips
-                :readings="group.items"
-                :disabled="saving"
-                @toggle="(readingId, enabled) => save(() => setKanjiPartEnabled(api, id, 'readings', readingId, enabled))"
-              />
-            </div>
-          </section>
-
-          <section aria-labelledby="strokes" class="space-y-3 sm:col-span-2">
-            <h2 id="strokes" class="text-sm font-semibold uppercase tracking-wide text-muted">Orden de trazos</h2>
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <KanjiStrokeAnimator
-                :key="kanji.literal"
-                :literal="kanji.literal"
-                :size="128"
-                play-label="Reproducir"
-                playing-label="Reproduciendo…"
-              />
-              <div class="flex-1">
-                <KanjiStrokeGrid
-                  :key="kanji.literal"
-                  :literal="kanji.literal"
-                  cell-size="4.5rem"
-                  loading-label="Cargando el orden de trazos…"
-                  unavailable-label="Orden de trazos no disponible."
-                />
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <section aria-labelledby="meanings" class="space-y-3">
-          <div class="flex items-baseline justify-between gap-2">
-            <h2 id="meanings" class="text-sm font-semibold uppercase tracking-wide text-muted">Significados</h2>
-            <span class="text-xs text-dimmed">en {{ languageLabel }} · cámbialo en el menú lateral</span>
-          </div>
-          <UCard>
-            <MeaningList
-              :meanings="meanings"
-              :disabled="saving"
-              @toggle="(meaningId, enabled) => save(() => setKanjiPartEnabled(api, id, 'meanings', meaningId, enabled))"
-              @add="text => save(() => addKanjiMeaning(api, id, text, lang))"
-              @edit="(meaningId, text) => save(() => editKanjiMeaning(api, id, meaningId, text))"
-              @remove="meaningId => save(() => removeKanjiMeaning(api, id, meaningId))"
-            />
-          </UCard>
-        </section>
+        <KanjiDetail
+          :kanji="kanji"
+          :saving="saving"
+          @toggle="(part, itemId, enabled) => save(() => setKanjiPartEnabled(api, id, part, itemId, enabled))"
+          @add-meaning="text => save(() => addKanjiMeaning(api, id, text, lang))"
+          @edit-meaning="(meaningId, text) => save(() => editKanjiMeaning(api, id, meaningId, text))"
+          @remove-meaning="meaningId => save(() => removeKanjiMeaning(api, id, meaningId))"
+        />
       </div>
 
       <aside class="space-y-6">

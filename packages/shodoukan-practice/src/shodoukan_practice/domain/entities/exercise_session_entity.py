@@ -11,12 +11,12 @@ card), so a session reads the same later even if its items are edited or
 removed from the library. The history is also the statistics. See
 docs/practice/technical/exercises.md.
 
-`answer` is a union discriminated by `type`, like exercise settings; only
-`OptionAnswer` (choice cards) exists for now.
+`answer` is a union discriminated by `type`, like exercise settings: an
+`OptionAnswer` (choice cards) or a `SkipAnswer`, which counts as a miss.
 """
 
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -58,9 +58,17 @@ class OptionAnswer(BaseModel):
     option: int = Field(ge=0)
 
 
-# Answers of every exercise type. With a second type this becomes
-# `Annotated[OptionAnswer | TextAnswer, Field(discriminator="type")]`.
-ExerciseAnswer = OptionAnswer
+class SkipAnswer(BaseModel):
+    """The user skipped the question: it counts as a miss (it comes back as a
+    review, and the solution is shown), like answering "I don't know"."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: Literal["skip"] = "skip"
+
+
+# Answers of every exercise type, by `type`.
+ExerciseAnswer = Annotated[OptionAnswer | SkipAnswer, Field(discriminator="type")]
 
 
 class ExerciseQuestion(BaseModel):
@@ -151,18 +159,21 @@ class ExerciseSession(TimestampedEntity):
         another one (a double click, a stale tab) is rejected with
         `QuestionNotActiveError`. Raises `SessionFinishedError` if the session
         is closed or idle (nothing changes) and `InvalidAnswerError` for an
-        option it doesn't have.
+        option it doesn't have. A `SkipAnswer` is graded as a miss.
         """
         self._require_open()
         question = self.current
         if question is None or question.id != question_id:
             raise QuestionNotActiveError(f"question {question_id} isn't the active one")
-        if answer.option >= len(question.options):
-            raise InvalidAnswerError(
-                f"question {question_id} has no option {answer.option}"
-            )
+        if isinstance(answer, OptionAnswer):
+            if answer.option >= len(question.options):
+                raise InvalidAnswerError(
+                    f"question {question_id} has no option {answer.option}"
+                )
+            question.is_correct = answer.option == question.correct_option
+        else:
+            question.is_correct = False  # skipped: a miss
         question.answer = answer
-        question.is_correct = answer.option == question.correct_option
         question.answered_at = utc_now()
         question.response_ms = response_ms
         self.history.append(question)
