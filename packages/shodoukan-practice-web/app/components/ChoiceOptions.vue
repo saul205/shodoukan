@@ -6,13 +6,15 @@ import type { ChoiceOption } from '~/models/practice'
 // on phones and two above. Very long texts are cut at three lines (the whole
 // text is the tooltip). Once answered (`correct` known), the right one turns
 // green and the picked one, if wrong, red; options that came from an item get
-// a detail button in their corner, so nothing moves.
+// a detail button in their corner, so nothing moves. `compact` is the
+// smaller list of a session review.
 const props = defineProps<{
   options: ChoiceOption[]
   picked: number | null
   correct: number | null
   japanese?: boolean
   disabled?: boolean
+  compact?: boolean
 }>()
 const emit = defineEmits<{ 'pick': [index: number]; 'open-item': [itemId: number] }>()
 
@@ -40,9 +42,12 @@ function state(index: number) {
         :color="color(index)"
         :variant="answered && state(index) !== 'other' ? 'soft' : 'outline'"
         :disabled="disabled && !answered"
-        size="xl"
-        class="h-full min-h-14 w-full justify-center px-10 text-center whitespace-normal sm:min-h-16"
-        :class="{ 'opacity-60': state(index) === 'other', 'pointer-events-none': answered }"
+        :size="compact ? 'md' : 'xl'"
+        class="h-full w-full justify-center px-10 text-center whitespace-normal"
+        :class="[
+          compact ? 'min-h-10' : 'min-h-14 sm:min-h-16',
+          { 'opacity-60': state(index) === 'other', 'pointer-events-none': answered },
+        ]"
         :title="option.text"
         :aria-pressed="picked === index"
         :data-state="state(index)"
@@ -50,10 +55,12 @@ function state(index: number) {
         data-testid="option"
         @click="answered || emit('pick', index)"
       >
-        <UKbd :value="String(index + 1)" class="absolute top-1/2 left-3 hidden -translate-y-1/2 sm:inline-flex" />
+        <UKbd v-if="!compact" :value="String(index + 1)" class="absolute top-1/2 left-3 hidden -translate-y-1/2 sm:inline-flex" />
         <span
           class="line-clamp-3"
-          :class="japanese ? 'font-japanese text-lg sm:text-xl lg:text-2xl' : 'text-base sm:text-lg lg:text-xl'"
+          :class="compact
+            ? (japanese ? 'font-japanese text-base' : 'text-sm')
+            : (japanese ? 'font-japanese text-lg sm:text-xl lg:text-2xl' : 'text-base sm:text-lg lg:text-xl')"
         >{{ option.text }}</span>
       </UButton>
       <UButton

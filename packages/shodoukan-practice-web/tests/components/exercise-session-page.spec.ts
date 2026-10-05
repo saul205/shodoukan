@@ -12,9 +12,9 @@ const { api } = vi.hoisted(() => ({ api: vi.fn() }))
 mockNuxtImport('useAuth', () => signedInAuth)
 mockNuxtImport('useApi', () => () => api)
 
-async function mountPage() {
+async function mountPage(route = '/exercise-sessions/5') {
   const { default: Page } = await import('../../app/pages/exercise-sessions/[id].vue')
-  const wrapper = await mountSuspended(Page, { route: '/exercise-sessions/5' })
+  const wrapper = await mountSuspended(Page, { route })
   await flushPromises()
   return wrapper
 }
@@ -80,5 +80,28 @@ describe('exercise session page', () => {
 
     expect(loads).toBe(2)
     expect(wrapper.find('[data-testid="result"]').text()).toContain('3 respondidas · 2 acertadas · 67%')
+  })
+
+  it('reviews a finished session, or only its missed questions', async () => {
+    const right = graded(question(1), 0)
+    const wrong = { ...graded(question(2, '水'), 1), position: 1 }
+    const skipped = { ...graded(question(3, '火'), 0), position: 2, answer: { type: 'skip' as const }, is_correct: false }
+    const finished = session({
+      current: null,
+      history: [right, wrong, skipped],
+      answered: 3,
+      score: 1,
+      finished_at: '2026-10-05T09:12:00Z',
+    })
+    api.mockResolvedValue(finished)
+
+    const all = await mountPage()
+    const verdicts = all.findAll('[data-testid="review-verdict"]').map(v => v.text())
+    expect(verdicts).toEqual(['Correcta', 'Fallada', 'Saltada'])
+    expect(all.find('[data-testid="result-when"]').text()).toContain('12 min')
+
+    clearNuxtData()
+    const missed = await mountPage('/exercise-sessions/5?filter=missed')
+    expect(missed.findAll('[data-testid="review-question"]')).toHaveLength(2)
   })
 })

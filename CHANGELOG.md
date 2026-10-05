@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice-web:** Exercise history: each exercise has its own page with
+  what it studies, "Empezar" or "Continuar", and its sessions (date, duration,
+  accuracy). A finished session shows its result and a card-by-card review, all or
+  only the missed ones.
 - **shodoukan-practice:** Skip a question with `{"type": "skip"}` as the answer: it
   counts as a miss, comes back as a review and returns its solution.
 - **shodoukan-practice-web:** Play exercises: "Empezar" opens a session with one card

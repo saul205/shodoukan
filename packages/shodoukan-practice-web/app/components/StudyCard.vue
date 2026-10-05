@@ -7,8 +7,9 @@ import { FIELD_LABELS } from '~/utils/study-fields'
 // back (a placeholder until answered; then the prompt, the answer and the
 // exercise's back fields, scrolling inside if long). It fills the height its
 // parent gives it; Japanese fields use the Japanese font, larger on larger
-// screens.
-defineProps<{ question: ExerciseQuestion }>()
+// screens. `compact` is the smaller card of a session review, sized by its
+// content.
+defineProps<{ question: ExerciseQuestion; compact?: boolean }>()
 defineEmits<{ 'open-item': [itemId: number] }>()
 
 function japanese(field: ShownField) {
@@ -25,14 +26,17 @@ function joined(field: ShownField) {
     :ui="{ root: 'flex flex-col', body: 'flex min-h-0 flex-1 flex-col gap-4 sm:gap-6' }"
     data-testid="study-card"
   >
-    <div class="flex flex-1 flex-col items-center justify-center gap-3 text-center sm:gap-4">
+    <div
+      class="flex flex-col items-center justify-center text-center"
+      :class="compact ? 'gap-1' : 'flex-1 gap-3 sm:gap-4'"
+    >
       <div v-for="field in question.prompt" :key="field.field" data-testid="prompt">
         <p class="text-xs uppercase tracking-wide text-dimmed sm:text-sm">{{ FIELD_LABELS[field.field] }}</p>
         <p
           class="text-highlighted"
           :class="japanese(field)
-            ? 'font-japanese text-5xl font-bold sm:text-6xl lg:text-7xl'
-            : 'text-2xl font-medium sm:text-3xl lg:text-4xl'"
+            ? ['font-japanese font-bold', compact ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-6xl lg:text-7xl']
+            : ['font-medium', compact ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl lg:text-4xl']"
         >
           {{ joined(field) }}
         </p>
@@ -42,14 +46,16 @@ function joined(field: ShownField) {
 
     <USeparator />
 
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto" data-testid="back-area">
+    <div class="flex min-h-0 flex-col" :class="{ 'flex-1 overflow-y-auto': !compact }" data-testid="back-area">
       <template v-if="question.answered && question.back">
         <dl class="my-auto grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]" data-testid="back">
           <template v-for="field in question.back" :key="field.field">
             <dt class="text-xs uppercase tracking-wide text-dimmed sm:pt-1.5 sm:text-sm">{{ FIELD_LABELS[field.field] }}</dt>
             <dd
               class="text-default"
-              :class="japanese(field) ? 'font-japanese text-lg sm:text-xl lg:text-2xl' : 'text-base sm:text-lg lg:text-xl'"
+              :class="japanese(field)
+                ? ['font-japanese', compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl']
+                : compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg lg:text-xl'"
             >
               {{ joined(field) }}
             </dd>

@@ -314,10 +314,10 @@ In `shodoukan-practice-web`:
   - `exercises/index.vue`: the list, with Empezar, Editar and Eliminar, and a
     "Continuar" notice when a session is open (also on the home page) **(built)**.
   - `exercises/new.vue` and `exercises/[id]/edit.vue` **(built)**.
-  - `exercises/[id]/index.vue`: the exercise's summary, session history and
-    statistics.
+  - `exercises/[id]/index.vue`: the exercise's summary and session history
+    **(built)**, and its statistics (#43).
   - `exercise-sessions/[id].vue`: play an open session **(built)**; a finished one
-    shows its result, and in phase 5 opens in review mode (each answered question as
+    shows its result and the review **(built)** (each answered question as
     it was, filter "solo falladas").
   - `statistics/index.vue`: totals, activity of the last 30 days, a table per
     exercise, most missed words and kanji.
@@ -366,7 +366,7 @@ go in the order 3 → A → 4 → 5 → C.
 | 3 | Exercise list and creation (frontend), #31 **(built)** | Exercises pages, `ExerciseForm` with several collections, `DirectionsEditor` |
 | A | History and statistics (backend), #42 **(built)** | Session summaries (history, the open session), statistics per exercise and overall, question `type` |
 | 4 | Playing a choice session (frontend), #32 **(built)** | Start and resume, `StudyCard`, `ChoiceOptions`, back of the card, `ItemDetailModal` (extract `EntryDetail` / `KanjiDetail`) |
-| 5 | History and review (frontend), #33 | Session history per exercise, reviewing a past session |
+| 5 | History and review (frontend), #33 **(built)** | Session history per exercise, reviewing a past session |
 | C | Statistics (frontend), #43 | Statistics per exercise and the "Estadísticas" page |
 | 6 | Library distractors, #34 | `distractor_source = "library"` |
 | — | Future types | `card.flip`, `card.typed`, `card.handwriting`, `sentence.gap` |
