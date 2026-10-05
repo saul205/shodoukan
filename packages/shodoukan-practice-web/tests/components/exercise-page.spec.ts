@@ -5,6 +5,7 @@ import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { clearNuxtData } from '#app'
 import type { Exercise, SessionSummary } from '../../app/models/practice'
 import { signedInAuth } from '../fakes'
+import { missed, totals } from '../fixtures-statistics'
 
 const { api } = vi.hoisted(() => ({ api: vi.fn() }))
 
@@ -43,9 +44,18 @@ function summary(id: number, overrides: Partial<SessionSummary> = {}): SessionSu
   }
 }
 
-function respond(history: SessionSummary[], open: SessionSummary | null) {
+function respond(history: SessionSummary[], open: SessionSummary | null, answered = 0) {
   api.mockImplementation(async (url: string, options?: { query?: Record<string, unknown> }) => {
     if (url === '/exercises/2') return exercise
+    if (url === '/exercises/2/statistics') {
+      return {
+        exercise_id: 2,
+        item_kind: 'kanji',
+        totals: totals({ answered, correct: answered ? 3 : 0 }),
+        directions: answered ? [{ prompt_fields: ['literal'], answer_field: 'kunyomi', answered, correct: 3, accuracy: 3 / answered }] : [],
+        most_missed: answered ? [missed(7, '食')] : [],
+      }
+    }
     if (url === '/collections/kanji') return [{ id: 3, name: 'Kanji N5', description: null, created_at: '', updated_at: '' }]
     if (url === '/exercise-sessions' && options?.query?.status === 'open')
       return { items: open ? [open] : [], total: open ? 1 : 0, limit: 1, offset: 0 }
@@ -97,5 +107,24 @@ describe('exercise page', () => {
     const wrapper = await mountPage()
 
     expect(wrapper.find('[data-testid="start"]').exists()).toBe(true)
+  })
+
+  it('shows its statistics once it has answers', async () => {
+    respond([summary(7)], null, 4)
+
+    const wrapper = await mountPage()
+
+    const block = wrapper.find('[data-testid="exercise-statistics"]')
+    expect(block.text()).toContain("Kanji → Kun'yomi")
+    expect(block.text()).toContain('75% · 3/4')
+    expect(block.findAll('[data-testid="missed-item"]')).toHaveLength(1)
+  })
+
+  it('hides the statistics while it has no answers', async () => {
+    respond([], null)
+
+    const wrapper = await mountPage()
+
+    expect(wrapper.find('[data-testid="exercise-statistics"]').exists()).toBe(false)
   })
 })

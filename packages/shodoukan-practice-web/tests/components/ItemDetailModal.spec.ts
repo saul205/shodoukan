@@ -52,6 +52,9 @@ describe('useBackLink', () => {
     expect(await backFrom(`/library/kanji/7?from=${from}`))
       .toEqual({ to: '/exercise-sessions/5?filter=missed', label: 'Volver a la sesión' })
     expect((await backFrom('/library/kanji/7?collection=3')).label).toBe('Volver a la colección')
+    expect((await backFrom(`/library/kanji/7?from=${encodeURIComponent('/exercises/2')}`)).label).toBe('Volver al ejercicio')
+    expect((await backFrom(`/library/kanji/7?from=${encodeURIComponent('/statistics?tab=kanji')}`)))
+      .toEqual({ to: '/statistics?tab=kanji', label: 'Volver a las estadísticas' })
   })
 
   it('never goes back outside the app or to other pages through ?from', async () => {

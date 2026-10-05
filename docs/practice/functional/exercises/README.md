@@ -111,9 +111,7 @@ answer.
 ## History and statistics
 
 Every session keeps each question as it was shown, the option picked and whether it
-was right. Editing or removing an item later doesn't change past sessions. Continuing
-a session, the history and the review are in the app; the statistics are available in
-the practice API and their screens come next.
+was right. Editing or removing an item later doesn't change past sessions.
 
 - **Continue:** a session left open (the tab was closed) can be resumed from the
   exercise list or the home page, as long as it isn't idle.
@@ -123,10 +121,12 @@ the practice API and their screens come next.
   one line per card (the question, the right answer, the wrong pick struck through,
   how long it took) that unfolds into the card as it was played; all of them, or only
   the missed and skipped ones. Sessions of a deleted exercise can still be reviewed.
-- **Statistics:** for each exercise, its accuracy overall and per direction, and the
-  items missed most; a statistics page shows the same over all exercises (words and
-  kanji missed most apart), plus the answers of each of the last days, counted in the
-  user's time zone, and a summary per exercise. Missed items show their current name
+- **Statistics:** each exercise's page shows, once it has answers, its totals
+  (sessions, answers, accuracy, mean time), its accuracy per direction and the items
+  missed most (each opens its detail). "Estadísticas" in the sidebar shows the same
+  over all exercises (words and kanji missed most apart), plus the answers of each of
+  the last 7, 30 or 90 days, counted in the user's time zone, and a summary per
+  exercise. Missed items show their current name
   in the library; items removed from it aren't listed, and neither are deleted
   exercises in the per-exercise summary.
 

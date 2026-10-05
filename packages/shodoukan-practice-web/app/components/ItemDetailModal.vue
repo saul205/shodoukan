@@ -5,8 +5,8 @@ import { apiStatus } from '~/utils/api-error'
 
 // A library item's full detail, view-only, without leaving the session.
 // Opened with `useOverlay()`. "Abrir en la librería" goes to the item's page
-// in the same window; its back button returns to `returnTo` (the session
-// page's path, `?from=`), which picks up where it was.
+// in the same window; its back button returns to `returnTo` (the opening
+// page's path, `?from=`: a session picks up where it was).
 const props = defineProps<{ kind: ItemKind; itemId: number; returnTo?: string }>()
 const emit = defineEmits<{ close: [] }>()
 
