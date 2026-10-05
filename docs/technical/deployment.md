@@ -106,14 +106,27 @@ cp deploy/.env.pre.example deploy/.env.pre   # once
 deploy/pre.sh up       # build from the working tree and start; waits for the smoke test
 deploy/pre.sh down     # stop (data kept, nothing running)
 deploy/pre.sh reset    # delete pre's data: the next up migrates from zero and imports the realm
-deploy/pre.sh seed     # copy the dev practice DB into pre and migrate it (tests a migration on real data)
+deploy/pre.sh seed     # copy dev into pre: practice DB (then migrated) and the realm's users
 deploy/pre.sh logs practice-api   # or any compose command
 ```
 
-Then open `http://localhost:8088`, register a user, and go through the app. The
-realm has no seeded users. Seeded data belongs to dev-realm users, so after `seed`
-you sign in as a new user. Run pre before merging anything that touches the
-Dockerfiles, the compose files, the realm or a migration.
+Then open `http://localhost:8088`, register a user, and go through the app. The realm
+starts without users.
+
+`seed` needs the dev stack running. It copies two things from dev:
+
+- **The practice database.** It replaces pre's, then migrates it, which tests new
+  migrations on real data.
+- **The dev realm's users,** with their ids and password hashes. It exports them with
+  `kc.sh export`, because the admin API doesn't return password hashes, and adds them to
+  pre's realm with a partial import. A pre user with the same username is overwritten.
+
+Since `users.id` is the token's `sub`, dev users sign in to pre with their dev
+passwords and find their own data. Only users are copied: pre keeps the prod realm's
+settings and clients.
+
+Run pre before merging anything that touches the Dockerfiles, the compose files, the
+realm or a migration.
 
 ## Prod: first-time setup
 

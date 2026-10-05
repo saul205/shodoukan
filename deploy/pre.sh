@@ -6,8 +6,9 @@
 #   deploy/pre.sh down    stop; nothing runs, data is kept
 #   deploy/pre.sh reset   stop and delete pre's data (next up starts clean:
 #                         migrations from zero, realm imported again)
-#   deploy/pre.sh seed    copy the dev practice database into pre and migrate
-#                         it, to test new migrations on existing data
+#   deploy/pre.sh seed    copy dev into pre: the practice database (then
+#                         migrated, to test new migrations on existing data)
+#                         and the dev realm's users with their passwords
 #   deploy/pre.sh logs [service] | ps | <any compose command>
 set -euo pipefail
 
@@ -37,7 +38,35 @@ seed() {
   docker exec "$dev_container" pg_dump -U "$dev_user" -d "$dev_db" -Fc --no-owner --no-privileges \
     | compose exec -T practice-db pg_restore -U "$PRACTICE_DB_USER" -d "$PRACTICE_DB_NAME" --no-owner
   compose run --rm practice-migrate
-  echo "Seeded. Its users belong to the dev realm, so sign in to pre with a new user."
+  seed_users
+  echo "Seeded. Dev users sign in to pre with their dev passwords."
+}
+
+# Copies the dev realm's users (ids and password hashes) into pre's realm, so
+# they can sign in and own the practice data copied above (users.id is the
+# token's sub). Only users: pre keeps its own realm settings and clients.
+# The admin API doesn't return password hashes, hence kc.sh export.
+seed_users() {
+  local dev_keycloak=shodoukan-keycloak-1
+  compose up -d keycloak --wait
+  echo "Copying the dev realm's users from ${dev_keycloak} into pre..."
+  docker exec "$dev_keycloak" sh -c '
+    f=/tmp/seed-users.json
+    /opt/keycloak/bin/kc.sh export --realm shodoukan --users same_file --file "$f" \
+      --http-management-port=9876 >/dev/null 2>&1 && cat "$f"; status=$?
+    rm -f "$f"; exit $status' \
+    | python3 -c 'import json, sys
+realm = json.load(sys.stdin)
+users = [u for u in realm.get("users", []) if not u["username"].startswith("service-account-")]
+print(json.dumps({"ifResourceExists": "OVERWRITE", "users": users}))' \
+    | compose exec -T keycloak sh -c '
+      K=/opt/keycloak/bin/kcadm.sh; C=/tmp/kcadm-seed.config
+      $K config credentials --config $C --server http://localhost:8080/idp --realm master \
+        --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null &&
+      $K create partialImport --config $C -r shodoukan -f - -o' \
+    | python3 -c 'import json, sys
+r = json.load(sys.stdin)
+print("Users: %s added, %s overwritten" % (r["added"], r["overwritten"]))'
 }
 
 case "${1:-}" in
