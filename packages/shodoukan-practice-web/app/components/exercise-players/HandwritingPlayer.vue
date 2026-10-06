@@ -44,13 +44,20 @@ function skip() {
   emit('answer', { type: 'skip' }, elapsed())
 }
 
+// Not while the drawing is being sent: the server grades what was sent, and
+// the result colours those strokes by their numbers.
 function undo() {
-  if (!props.question.answered) strokes.value = strokes.value.slice(0, -1)
+  if (!props.busy && !props.question.answered) strokes.value = strokes.value.slice(0, -1)
 }
 
 function clear() {
-  if (!props.question.answered) strokes.value = []
+  if (!props.busy && !props.question.answered) strokes.value = []
 }
+
+// What the server takes (MAX_STROKES, MAX_STROKE_POINTS in the practice API).
+const MAX_STROKES = 40
+const MAX_STROKE_POINTS = 300
+const atLimit = computed(() => strokes.value.length >= MAX_STROKES)
 
 function elapsed() {
   return Math.round(performance.now() - shownAt.value)
@@ -156,9 +163,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
             v-model="strokes"
             :size="`${padSize}px`"
             :disabled="busy"
+            :max-strokes="MAX_STROKES"
+            :max-points="MAX_STROKE_POINTS"
           />
         </div>
       </div>
+
+      <p v-if="atLimit" class="shrink-0 text-center text-sm text-warning" data-testid="stroke-limit">
+        Has llegado al máximo de {{ MAX_STROKES }} trazos: deshaz o borra para seguir.
+      </p>
 
       <div class="flex min-h-10 shrink-0 flex-wrap items-center gap-2" data-testid="bottom-row">
         <UButton

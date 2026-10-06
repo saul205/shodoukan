@@ -228,6 +228,9 @@ says so.
 strip (`StudyCard compact`: the prompt and "¿Kanji?") and `KanjiDrawingPad` (from
 `shodoukan-ui`) takes the rest of the height as the largest square that fits, so
 it's comfortable on a phone and a session never scrolls, on a phone or a PC: a
+drawing is capped at what the API takes (40 strokes of up to 300 points:
+`maxStrokes` / `maxPoints`, with a notice at the limit), and undo and clear do nothing
+while a drawing is being sent, so the strokes graded are the ones on screen. A
 `ResizeObserver` measures the box it sits in, and the pad is absolutely positioned
 inside it, so its own size can't grow the box (a flex child sized by its content
 would, and the pad would follow). It isn't drawn until the box is measured. Below it: undo

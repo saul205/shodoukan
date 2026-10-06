@@ -128,4 +128,24 @@ describe('HandwritingPlayer', () => {
     expect(comparison.props('size')).toBe('376px') // two squares in 800, under a caption in 400
     expect(comparison.props('phoneSize')).toBe('360px')
   })
+
+  it("doesn't undo or clear while the drawing is being sent", async () => {
+    const wrapper = await mountWithDrawing([STROKE, STROKE])
+    await wrapper.setProps({ busy: true })
+
+    press('Backspace')
+    press('z', { ctrlKey: true })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findComponent(KanjiDrawingPad).props('modelValue')).toHaveLength(2)
+  })
+
+  it('caps the drawing at what the server takes, and says so', async () => {
+    const wrapper = await mountWithDrawing(Array.from({ length: 40 }, () => STROKE))
+
+    const pad = wrapper.findComponent(KanjiDrawingPad)
+    expect(pad.props('maxStrokes')).toBe(40)
+    expect(pad.props('maxPoints')).toBe(300)
+    expect(wrapper.get('[data-testid="stroke-limit"]').text()).toContain('40 trazos')
+  })
 })
