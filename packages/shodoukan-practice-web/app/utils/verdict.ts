@@ -30,6 +30,8 @@ export const STROKE_STATUS_COLORS: Record<StrokeStatus, string | undefined> = {
   ok: 'var(--ui-success)',
   reversed: 'var(--ui-warning)',
   out_of_order: 'var(--ui-warning)',
+  too_long: 'var(--ui-warning)',
+  too_short: 'var(--ui-warning)',
   imprecise: 'var(--ui-warning)',
   extra: 'var(--ui-error)',
   missing: 'var(--ui-error)',
@@ -46,6 +48,10 @@ export function strokeProblem(feedback: StrokeFeedback): string | null {
       return `Trazo ${drawn}: en sentido contrario.`
     case 'out_of_order':
       return `Trazo ${drawn}: fuera de orden (es el ${reference}.º).`
+    case 'too_long':
+      return `Trazo ${drawn}: demasiado largo.`
+    case 'too_short':
+      return `Trazo ${drawn}: demasiado corto.`
     case 'imprecise':
       return `Trazo ${drawn}: poco preciso.`
     case 'extra':

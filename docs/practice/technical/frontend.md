@@ -236,13 +236,13 @@ something is drawn), which sends `{type: "strokes", strokes}` in KanjiVG's space
 with no conversion. Once answered the drawing is what matters, not the card: the
 verdict ("¡Correcto!", "Mejorable" with the score, "Fallada") and "Siguiente", then
 `StrokeComparison` and what was wrong with each stroke ("Trazo 3: en sentido
-contrario."). The card (its back) is a "Ver tarjeta" collapsible on phones and a
+contrario.", "Trazo 2: demasiado largo."). The card (its back) is a "Ver tarjeta" collapsible on phones and a
 column beside the drawing from `lg`; "Ver detalle" there opens the item, whose kanji
 page has the stroke order animation. The comparison is sized the same way, on the room the verdict row,
 the stroke problems and the card leave (two squares side by side from `sm`, one on a
 phone); only the card's column may scroll. `StrokeComparison` draws the drawing (each stroke
-coloured by its grade: green, amber for backwards, out of order or imprecise, red for
-extra) next to the matched KanjiVG kanji (numbered, strokes not drawn in red), both
+coloured by its grade: green, amber for backwards, out of order, too long or short, or
+imprecise, red for extra) next to the matched KanjiVG kanji (numbered, strokes not drawn in red), both
 with `KanjiStrokeDiagram`; on a phone one square shows them overlaid (the reference
 as a faint `ghost`), or each in turn.
 

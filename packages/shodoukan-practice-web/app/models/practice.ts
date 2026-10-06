@@ -283,10 +283,11 @@ export interface ReferenceKanji {
 
 /**
  * How a drawn stroke compares to the reference: right; drawn backwards; out
- * of order; too far from its reference stroke; one the reference doesn't have;
- * one not drawn.
+ * of order; too long or too short for the rest of the kanji; too far from its
+ * reference stroke; one the reference doesn't have; one not drawn.
  */
-export type StrokeStatus = 'ok' | 'reversed' | 'out_of_order' | 'imprecise' | 'extra' | 'missing'
+export type StrokeStatus =
+  | 'ok' | 'reversed' | 'out_of_order' | 'too_long' | 'too_short' | 'imprecise' | 'extra' | 'missing'
 
 /** A stroke's grade; `drawn` and `reference` are stroke indexes (null for extra / missing). */
 export interface StrokeFeedback {

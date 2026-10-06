@@ -17,5 +17,7 @@ describe('strokeProblem', () => {
     expect(strokeProblem({ drawn: 0, reference: 0, status: 'ok' })).toBeNull()
     expect(strokeProblem({ drawn: 2, reference: 1, status: 'out_of_order' })).toBe('Trazo 3: fuera de orden (es el 2.º).')
     expect(strokeProblem({ drawn: null, reference: 3, status: 'missing' })).toBe('Falta el trazo 4.')
+    expect(strokeProblem({ drawn: 1, reference: 1, status: 'too_long' })).toBe('Trazo 2: demasiado largo.')
+    expect(strokeProblem({ drawn: 0, reference: 0, status: 'too_short' })).toBe('Trazo 1: demasiado corto.')
   })
 })
