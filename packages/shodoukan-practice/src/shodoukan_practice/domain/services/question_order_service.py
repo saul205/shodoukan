@@ -5,8 +5,9 @@ own question (options, references, ...) around the item picked here.
 
 **Which item comes next** is worked out from the session's history alone:
 
-1. items answered wrong come back once `REVIEW_GAP` questions went by, but
-   never twice in a row, so many misses can't keep the deck from moving on;
+1. items answered wrong (or drawn only close enough) come back once
+   `REVIEW_GAP` questions went by, but never twice in a row, so many misses
+   can't keep the deck from moving on;
 2. then the deck: every item once per round, in random order, before any
    repeats (a round ends when every item of the pool was asked in it);
 3. then any other item, if the ones above can't make a question.
@@ -99,8 +100,8 @@ def back(
 
 
 def _due_for_review(history: Sequence[ExerciseQuestion]) -> list[int]:
-    """Items whose last answer was wrong, at least `REVIEW_GAP` questions ago,
-    oldest first."""
+    """Items whose last answer needs a review (it was missed, or a drawing
+    only close enough), at least `REVIEW_GAP` questions ago, oldest first."""
     last_seen: dict[int, int] = {}
     for index, question in enumerate(history):
         if question.item_id is not None:
@@ -108,17 +109,17 @@ def _due_for_review(history: Sequence[ExerciseQuestion]) -> list[int]:
     due = [
         (index, item_id)
         for item_id, index in last_seen.items()
-        if history[index].is_correct is False and len(history) - index >= REVIEW_GAP
+        if history[index].needs_review and len(history) - index >= REVIEW_GAP
     ]
     return [item_id for _, item_id in sorted(due)]
 
 
 def _is_review(history: Sequence[ExerciseQuestion], index: int) -> bool:
-    """Whether question `index` asked again an item missed the last time."""
+    """Whether question `index` asked again an item due for review."""
     item_id = history[index].item_id
     for earlier in reversed(history[:index]):
         if earlier.item_id == item_id:
-            return earlier.is_correct is False
+            return earlier.needs_review
     return False
 
 

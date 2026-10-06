@@ -21,6 +21,7 @@ from shodoukan_practice.application.commands import (
 from shodoukan_practice.application.queries import GetExerciseSession
 from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
+    ChoiceQuestion,
     EntryCollection,
     Exercise,
     ExerciseSession,
@@ -145,7 +146,7 @@ def _reply(
     """Answer the session's active question, right or wrong."""
     assert session.id is not None and session.current is not None
     current = session.current
-    assert current.id is not None
+    assert isinstance(current, ChoiceQuestion) and current.id is not None
     option = current.correct_option
     if not right:
         option = (option + 1) % len(current.options)
@@ -167,6 +168,7 @@ def test_start_asks_the_first_question(
     assert started.history == []
     assert started.current is not None
     assert started.current.id is not None
+    assert isinstance(started.current, ChoiceQuestion)
     assert len(started.current.options) == 4
     assert started.finished_at is None
     got = GetExerciseSession(SqlAlchemyExerciseSessionRepository(session))

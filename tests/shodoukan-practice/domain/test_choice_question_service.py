@@ -6,7 +6,7 @@ from factories import choice_settings
 
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
-    ExerciseQuestion,
+    ChoiceQuestion,
     OptionAnswer,
 )
 from shodoukan_practice.domain.exceptions import ExercisePoolTooSmallError
@@ -58,7 +58,7 @@ def word(item_id: int, writing: str | None, reading: str, *glosses: str) -> Stud
     )
 
 
-def _texts(question: ExerciseQuestion) -> list[str]:
+def _texts(question: ChoiceQuestion) -> list[str]:
     return [option.text for option in question.options]
 
 
@@ -68,9 +68,9 @@ def _play(
     rng: Random,
     count: int,
     wrong: frozenset[int] = frozenset(),
-) -> list[ExerciseQuestion]:
+) -> list[ChoiceQuestion]:
     """A session of `count` questions, answering right except for `wrong` items."""
-    history: list[ExerciseQuestion] = []
+    history: list[ChoiceQuestion] = []
     for _ in range(count):
         question = build_next_question(cards, settings, history, rng)
         option = question.correct_option
@@ -89,7 +89,7 @@ def _play(
 
 def _build(
     cards: list[StudyCard], settings: ChoiceCardSettings, seeds: range = range(30)
-) -> list[ExerciseQuestion]:
+) -> list[ChoiceQuestion]:
     """Questions from many sessions, so a rule must hold whatever the dice say."""
     return [q for seed in seeds for q in _play(cards, settings, Random(seed), 8)]
 

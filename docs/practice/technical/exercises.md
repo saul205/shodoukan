@@ -240,7 +240,7 @@ until it gets one.
 | Table | Columns |
 |---|---|
 | `exercise_sessions` | `id`, `user_id`, `exercise_id` (→ `exercises`, `SET NULL` on delete, so history survives), `exercise_name` (snapshot), `item_kind`, `meaning_lang`, `created_at` (the start), `updated_at`, `finished_at` |
-| `exercise_questions` | `id`, `session_id` (cascade), `position`, `entry_id` / `kanji_id` (one of them, by the session's kind; `SET NULL` when the item leaves the library), `prompt_fields`, `answer_field`, `prompt` / `options` / `back` (JSON snapshot), `correct_option`, `answer` (JSON, SQL `NULL` until answered), `is_correct`, `answered_at`, `response_ms` |
+| `exercise_questions` | `id`, `session_id` (cascade), `position`, `type`, `entry_id` / `kanji_id` (one of them, by the session's kind; `SET NULL` when the item leaves the library), `prompt_fields`, `answer_field`, `prompt` / `back` (JSON snapshot), `details` (JSON: what only the type has), `answer` (JSON, SQL `NULL` until answered), `is_correct`, `answered_at`, `response_ms` |
 
 The active question and the history share `exercise_questions`: the active one is the
 row with no answer. Finishing a session deletes that row.
@@ -249,10 +249,12 @@ Each option keeps the id of the item it came from, for opening its detail from t
 review; that id isn't updated if the item is later removed.
 
 The queryable columns (`item_id`, `answer_field`, `is_correct`, `answered_at`, ...) are
-what statistics filter and group by. `answer` is a discriminated union like
-`settings`: `{type: "option", option}` and `{type: "skip"}` (a miss) now; later
-`{type: "text", text}`,
-`{type: "self_grade", knew}` and `{type: "strokes", strokes}`.
+what statistics filter and group by. `details` holds what only the
+question's type has: `{options, correct_option}` for a choice card, `{references,
+grade}` for a handwriting card ([decisions](decisions.md#questions-are-a-union-too-with-what-each-type-adds-in-one-json-column)).
+`answer` is a discriminated union like `settings`: `{type: "option", option}`,
+`{type: "strokes", strokes}` and `{type: "skip"}` (a miss) now; later
+`{type: "text", text}` and `{type: "self_grade", knew}`.
 
 The snapshot keeps a past session readable exactly as it was, even after the item is
 edited or deleted.

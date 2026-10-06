@@ -7,11 +7,13 @@ from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
     ChoiceOption,
+    ChoiceQuestion,
     Direction,
     EntryCollection,
     EntryExercise,
-    ExerciseQuestion,
     ExerciseSession,
+    HandwritingGrade,
+    HandwritingQuestion,
     KanjiCollection,
     KanjiExercise,
     OptionAnswer,
@@ -25,7 +27,11 @@ from shodoukan_practice.domain.entities import (
     PracticeReading,
     PracticeReadingItem,
     PracticeSense,
+    ReferenceKanji,
+    ReferenceStroke,
     ShownField,
+    StrokeFeedback,
+    Verdict,
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -264,9 +270,9 @@ def make_kanji_exercise(
 
 def make_question(
     position: int, item_id: int | None = None, question_id: int | None = None
-) -> ExerciseQuestion:
+) -> ChoiceQuestion:
     """Literal → kun'yomi for 食; option 0 is right."""
-    return ExerciseQuestion(
+    return ChoiceQuestion(
         id=question_id,
         position=position,
         item_id=item_id,
@@ -286,12 +292,62 @@ def make_question(
     )
 
 
+# 一 as KanjiVG draws it: one stroke, left to right.
+ICHI_PATH = "M11,54.25c3.19,0.62,6.25,0.75,9.73,0.5c20.64-1.5,50.39-5.12,68.58-5.24"
+
+
+def make_reference(literal: str = "一") -> ReferenceKanji:
+    """A reference kanji with one horizontal stroke."""
+    return ReferenceKanji(
+        literal=literal,
+        strokes=(
+            ReferenceStroke(
+                path=ICHI_PATH,
+                label=(4.25, 50.5),
+                points=tuple((11.0 + 8 * i, 54.0) for i in range(11)),
+            ),
+        ),
+    )
+
+
+def make_handwriting_question(
+    position: int,
+    item_id: int | None = None,
+    question_id: int | None = None,
+    references: tuple[ReferenceKanji, ...] | None = None,
+) -> HandwritingQuestion:
+    """Meaning → literal for 一."""
+    return HandwritingQuestion(
+        id=question_id,
+        position=position,
+        item_id=item_id,
+        prompt_fields=("meaning",),
+        answer_field="literal",
+        prompt=(ShownField(field="meaning", values=("one",)),),
+        back=(
+            ShownField(field="meaning", values=("one",)),
+            ShownField(field="literal", values=("一",)),
+        ),
+        references=references or (make_reference(),),
+    )
+
+
+def make_grade(verdict: Verdict = "correct", matched: str = "一") -> HandwritingGrade:
+    return HandwritingGrade(
+        score={"correct": 95, "close": 70, "wrong": 20}[verdict],
+        verdict=verdict,
+        matched=matched,
+        strokes=(StrokeFeedback(drawn=0, reference=0, status="ok"),),
+    )
+
+
 def make_session(
     user_id: UUID,
     exercise_id: int | None = None,
     item_id: int | None = None,
     *,
     question_id: int | None = 1,
+    handwriting: bool = False,
 ) -> ExerciseSession:
     """A kanji session started now (sessions go idle), with an active question
     (id `question_id`, None as if not stored yet) and no history."""
@@ -303,7 +359,11 @@ def make_session(
         exercise_name="N5 kanji",
         item_kind="kanji",
         meaning_lang="en",
-        current=make_question(0, item_id, question_id),
+        current=(
+            make_handwriting_question(0, item_id, question_id)
+            if handwriting
+            else make_question(0, item_id, question_id)
+        ),
         created_at=now,
         updated_at=now,
     )

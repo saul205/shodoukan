@@ -55,8 +55,12 @@ Mapping rules:
 - Exercise `settings` are dumped to JSON-compatible dicts and validated back through
   a `TypeAdapter` of `ExerciseSettings`, so a stored type picks its settings class.
 - A session question's `item_id` goes to `entry_id` or `kanji_id` by the session's
-  `item_kind`, and comes back from the same column. Its prompt, options, back and
-  answer are dumped to JSON-compatible lists and dicts and validated back with
-  `TypeAdapter`s; `item_kind` and the fields are narrowed to their `Literal`s.
+  `item_kind`, and comes back from the same column. Its prompt, back and answer are
+  dumped to JSON-compatible lists and dicts and validated back with `TypeAdapter`s;
+  `item_kind` and the fields are narrowed to their `Literal`s. Its `type` picks the
+  question class (`ChoiceQuestion`, `HandwritingQuestion`; an unknown one raises
+  `ValueError`), and the fields only that class has (`options` and
+  `correct_option`; `references` and `grade`) go to `details`, validated by the
+  class on the way back.
 - `origin` strings are narrowed back to the domain's `Literal` type. Unknown values
   raise `ValueError`, and the `CHECK` constraint prevents them anyway.

@@ -30,11 +30,11 @@ from ..deps import (
 from ..schemas import (
     AnswerRequest,
     AnswerResponse,
-    QuestionResponse,
     SessionResponse,
     SessionSummaryPageResponse,
     SessionSummaryResponse,
     StartSessionRequest,
+    question_response,
 )
 
 _UNAUTHORIZED: dict[int | str, dict[str, Any]] = {
@@ -148,8 +148,8 @@ def answer_exercise_question(
     )
     session.commit()
     return AnswerResponse(
-        answered=QuestionResponse.of(answered),
-        next=QuestionResponse.of(next_question) if next_question else None,
+        answered=question_response(answered),
+        next=question_response(next_question) if next_question else None,
         answered_count=updated.answered,
         score=updated.score,
         finished_at=updated.finished_at,

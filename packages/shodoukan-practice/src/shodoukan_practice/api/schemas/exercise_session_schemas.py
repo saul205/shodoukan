@@ -1,21 +1,28 @@
 """Request and response models for exercise sessions.
 
-The active question shows only what the card's front shows: its prompt and
-the options' texts. Its item, right option and back, and the options' items,
+The active question shows only what the card's front shows: its prompt, and
+a choice card's option texts. Its item and back, a choice card's right option
+and the options' items, and a handwriting card's reference strokes and grade,
 appear once it's answered (in the history), so a client can't read the
-solution ahead.
+solution ahead. Questions are a union keyed by `type`, so the client picks
+how to play each one.
 """
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
 from ...domain.entities import (
+    ChoiceQuestion,
     ExerciseAnswer,
     ExerciseQuestion,
     ExerciseSession,
+    HandwritingGrade,
+    HandwritingQuestion,
     ItemKind,
+    Point,
+    ReferenceKanji,
     ShownField,
     StudyField,
 )
@@ -42,7 +49,10 @@ class AnswerRequest(BaseModel):
     question_id: int = Field(description="The active question's id.")
     answer: ExerciseAnswer = Field(
         description='The answer, by type. Choice cards: `{"type": "option", '
-        '"option": <index>}`; `{"type": "skip"}` skips it, which counts as a miss.'
+        '"option": <index>}`. Handwriting cards: `{"type": "strokes", "strokes": '
+        "[[[x, y], ...], ...]}`, the strokes in the order drawn, in KanjiVG's "
+        "109-unit square (a margin of 6 around it is allowed). "
+        '`{"type": "skip"}` skips either, which counts as a miss.'
     )
     response_ms: int | None = Field(
         default=None,
@@ -59,51 +69,117 @@ class OptionResponse(BaseModel):
     )
 
 
-class QuestionResponse(BaseModel):
-    # The exercise type, to pick how the question is played. Every question
-    # is a choice card for now; with a second type it becomes a stored column.
-    type: Literal["card.choice"] = "card.choice"
+class _QuestionResponse(BaseModel):
     id: int
     position: int
     prompt_fields: list[StudyField]
     answer_field: StudyField
     prompt: list[ShownField]
-    options: list[OptionResponse]
     answered: bool
     # The solution: null until the question is answered.
     item_id: int | None
-    correct_option: int | None
     back: list[ShownField] | None
     answer: ExerciseAnswer | None
     is_correct: bool | None
     answered_at: datetime | None
     response_ms: int | None
 
-    @classmethod
-    def of(cls, question: ExerciseQuestion) -> "QuestionResponse":
+    @staticmethod
+    def _common(question: ExerciseQuestion) -> dict[str, Any]:
         assert question.id is not None
         answered = question.answered
+        return {
+            "id": question.id,
+            "position": question.position,
+            "prompt_fields": list(question.prompt_fields),
+            "answer_field": question.answer_field,
+            "prompt": list(question.prompt),
+            "answered": answered,
+            "item_id": question.item_id if answered else None,
+            "back": list(question.back) if answered else None,
+            "answer": question.answer,
+            "is_correct": question.is_correct,
+            "answered_at": question.answered_at,
+            "response_ms": question.response_ms,
+        }
+
+
+class ChoiceQuestionResponse(_QuestionResponse):
+    type: Literal["card.choice"] = "card.choice"
+    options: list[OptionResponse]
+    correct_option: int | None
+
+    @classmethod
+    def of(cls, question: ChoiceQuestion) -> "ChoiceQuestionResponse":
+        answered = question.answered
         return cls(
-            id=question.id,
-            position=question.position,
-            prompt_fields=list(question.prompt_fields),
-            answer_field=question.answer_field,
-            prompt=list(question.prompt),
+            **cls._common(question),
             options=[
                 OptionResponse(
                     text=option.text, item_id=option.item_id if answered else None
                 )
                 for option in question.options
             ],
-            answered=answered,
-            item_id=question.item_id if answered else None,
             correct_option=question.correct_option if answered else None,
-            back=list(question.back) if answered else None,
-            answer=question.answer,
-            is_correct=question.is_correct,
-            answered_at=question.answered_at,
-            response_ms=question.response_ms,
         )
+
+
+class ReferenceStrokeResponse(BaseModel):
+    path: str = Field(description="SVG path of the stroke's centre line (KanjiVG).")
+    label: Point | None = Field(description="Where the stroke's number goes.")
+
+
+class ReferenceKanjiResponse(BaseModel):
+    literal: str
+    strokes: list[ReferenceStrokeResponse]
+
+    @classmethod
+    def of(cls, reference: ReferenceKanji) -> "ReferenceKanjiResponse":
+        return cls(
+            literal=reference.literal,
+            strokes=[
+                ReferenceStrokeResponse(path=s.path, label=s.label)
+                for s in reference.strokes
+            ],
+        )
+
+
+class HandwritingQuestionResponse(_QuestionResponse):
+    type: Literal["card.handwriting"] = "card.handwriting"
+    references: list[ReferenceKanjiResponse] | None = Field(
+        description="The kanji it accepts, with their strokes; null until answered."
+    )
+    grade: HandwritingGrade | None = Field(
+        description="How the drawing compares to the closest accepted kanji; null "
+        "until answered, and when skipped."
+    )
+
+    @classmethod
+    def of(cls, question: HandwritingQuestion) -> "HandwritingQuestionResponse":
+        answered = question.answered
+        return cls(
+            **cls._common(question),
+            references=(
+                [ReferenceKanjiResponse.of(r) for r in question.references]
+                if answered
+                else None
+            ),
+            grade=question.grade,
+        )
+
+
+QuestionResponse = Annotated[
+    ChoiceQuestionResponse | HandwritingQuestionResponse,
+    Field(discriminator="type"),
+]
+
+
+def question_response(
+    question: ExerciseQuestion,
+) -> ChoiceQuestionResponse | HandwritingQuestionResponse:
+    if isinstance(question, ChoiceQuestion):
+        return ChoiceQuestionResponse.of(question)
+    return HandwritingQuestionResponse.of(question)
 
 
 class SessionResponse(BaseModel):
@@ -143,8 +219,8 @@ class SessionResponse(BaseModel):
             finished_at=finished_at,
             answered=session.answered,
             score=session.score,
-            current=QuestionResponse.of(current) if current else None,
-            history=[QuestionResponse.of(q) for q in session.history],
+            current=question_response(current) if current else None,
+            history=[question_response(q) for q in session.history],
         )
 
 

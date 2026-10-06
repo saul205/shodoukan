@@ -20,6 +20,7 @@ from random import Random
 from ..entities import (
     ChoiceCardSettings,
     ChoiceOption,
+    ChoiceQuestion,
     Direction,
     ExerciseQuestion,
     StudyField,
@@ -42,7 +43,7 @@ def build_next_question(
     settings: ChoiceCardSettings,
     history: Sequence[ExerciseQuestion],
     rng: Random,
-) -> ExerciseQuestion:
+) -> ChoiceQuestion:
     """The next question, positioned after `history`, without an id.
 
     Raises `ExercisePoolTooSmallError` if the pool is too small or no item can
@@ -65,7 +66,7 @@ def _question(
     settings: ChoiceCardSettings,
     rng: Random,
     position: int,
-) -> ExerciseQuestion | None:
+) -> ChoiceQuestion | None:
     """A question about `card`, trying its directions in random order."""
     directions = [d for d in settings.directions if can_ask(card, d)]
     rng.shuffle(directions)
@@ -75,7 +76,7 @@ def _question(
             continue
         correct = options[0]
         rng.shuffle(options)
-        return ExerciseQuestion(
+        return ChoiceQuestion(
             id=None,
             position=position,
             item_id=card.item_id,

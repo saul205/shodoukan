@@ -496,6 +496,47 @@ hard cards. It's one more member of the answer union, so the next-question rules
 the statistics, which only read `is_correct`, needed no change, and there's no
 separate endpoint.
 
+## Questions are a union too, with what each type adds in one JSON column
+
+Extends "Exercise settings are JSON behind a discriminated union" to the questions.
+
+Every exercise type shares what statistics and the review read: the item, the prompt
+and back, the answer, right or wrong, when and how long. Those stay real columns. What
+only one type has (a choice card's options and right option; a handwriting card's
+reference strokes and grade; later a sentence's gaps or a typed answer's accepted
+values) is always read whole and never queried by its parts, so it goes in one JSON
+column, `details`, next to a `type` column. The domain has one class per type
+(`ChoiceQuestion`, `HandwritingQuestion`) in a union keyed by `type`, which validates
+`details` on the way back.
+
+Rejected:
+
+- **A column per type-specific field.** Each new type would add columns that are
+  empty for every other type.
+- **A child table per type.** One more table, join and mapper per type, for data that
+  is never queried apart.
+
+The choice cards' `options` and `correct_option` moved into `details` (migration
+`33f2afbdd7cf`), so no column is left empty.
+
+## A drawing is graded by a service and recorded by the session
+
+Grading a drawing is a sizeable algorithm (see
+[exercises](exercises.md#handwriting)), so it's a domain service,
+`handwriting_grading_service`, not a method of the question: entities don't depend on
+services. The use case runs it on the question's references and passes the grade to
+`ExerciseSession.answer`, as it passes `build_next_question`'s result to `ask`. The
+session keeps the invariants: the answer must be of the question's type, a drawing
+needs a grade of a kanji the question accepts, and it decides `is_correct` from the
+verdict. Choice cards are still graded inline: comparing two indexes needs no service.
+
+## A drawing "close" enough counts, and comes back
+
+A drawing graded `close` (right kanji, but a stroke out of order, backwards, or a bit
+off) counts as right, so the score and accuracy don't punish a nearly right drawing,
+but its item comes back as a review like a miss (`needs_review`). The grade keeps the
+verdict, so the review can show it apart.
+
 ## Stroke order comes from KanjiVG, without a hanzi-writer fallback
 
 Both dictionaries draw stroke order from KanjiVG, which the dictionary database ships

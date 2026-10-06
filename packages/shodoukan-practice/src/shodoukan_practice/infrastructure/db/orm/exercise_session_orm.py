@@ -1,8 +1,11 @@
 """Exercise sessions and their questions: the statistics store.
 
-A question keeps its prompt, options and back as JSON (a snapshot: always
-read whole), and the data statistics filter by as real columns (item,
-fields, right or wrong, when, how long). The item is `entry_id` or `kanji_id`
+A question keeps its prompt and back as JSON (a snapshot: always read
+whole), and the data statistics filter by as real columns (item, fields,
+right or wrong, when, how long). What only one question type has goes in
+`details`, JSON keyed by `type`: a choice card's options and right option, a
+handwriting card's reference strokes and grade. A new type adds a member to
+that union, not columns. The item is `entry_id` or `kanji_id`
 depending on the session's `item_kind`, so each has a real foreign key; both
 are set to NULL when the item leaves the library. Deleting the exercise sets
 `exercise_id` to NULL: the history stays.
@@ -69,10 +72,14 @@ class ExerciseSessionORM(Base):
     )
 
 
+QUESTION_TYPES = ("card.choice", "card.handwriting")
+
+
 class ExerciseQuestionORM(Base):
     __tablename__ = "exercise_questions"
     __table_args__ = (
         CheckConstraint("entry_id IS NULL OR kanji_id IS NULL", name="one_item"),
+        CheckConstraint(in_check("type", QUESTION_TYPES), name="type"),
         # One question per position: two answers racing to ask the next one
         # can't both store it.
         UniqueConstraint("session_id", "position"),
@@ -83,6 +90,7 @@ class ExerciseQuestionORM(Base):
         ForeignKey("exercise_sessions.id", ondelete="CASCADE"), index=True
     )
     position: Mapped[int]
+    type: Mapped[str] = mapped_column(String(32))
     entry_id: Mapped[int | None] = mapped_column(
         ForeignKey("practice_entries.id", ondelete="SET NULL"), index=True
     )
@@ -92,9 +100,9 @@ class ExerciseQuestionORM(Base):
     prompt_fields: Mapped[list[str]] = mapped_column(JSON)
     answer_field: Mapped[str] = mapped_column(String(16))
     prompt: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
-    options: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
-    correct_option: Mapped[int]
     back: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    # What the question's type adds (see the module docs).
+    details: Mapped[dict[str, Any]] = mapped_column(JSON)
     # SQL NULL until answered (not a JSON null), so it can be filtered on.
     answer: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
     is_correct: Mapped[bool | None]

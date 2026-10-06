@@ -380,12 +380,19 @@ effective one, as in `SessionResponse`), `answered` and `score`.
 `exercise_name`, `item_kind`, `meaning_lang`, `started_at`, `last_activity_at`,
 `finished_at` (also set, to the last activity, for a session idle over 30 minutes),
 `answered`, `score`, `current` (the active question; null once finished) and
-`history` (the answered questions, in order). Each `QuestionResponse` has `type`
-(always `"card.choice"` for now, so the client picks the player by type; it becomes a
-stored column with a second type), `id`, `position`, `prompt_fields`, `answer_field`, `prompt` (`[{field, values}]`), `options`
-(`[{text, item_id}]`) and `answered`. **The active question hides its solution:**
-`item_id`, `correct_option`, `back`, `answer`, `is_correct`, `answered_at` and
-`response_ms` are null, and so is each option's `item_id`. `AnswerResponse`: the graded
+`history` (the answered questions, in order). Each question is a union keyed by
+`type`, so the client picks the player by type. Every question has `id`, `position`,
+`prompt_fields`, `answer_field`, `prompt` (`[{field, values}]`), `answered`, and the
+solution fields `item_id`, `back`, `answer`, `is_correct`, `answered_at` and
+`response_ms`.
+
+- `"card.choice"` adds `options` (`[{text, item_id}]`) and `correct_option`.
+- `"card.handwriting"` adds `references` (`[{literal, strokes: [{path, label}]}]`,
+  the KanjiVG strokes of every kanji it accepts) and `grade` (`{score, verdict,
+  matched, strokes: [{drawn, reference, status}]}`; null when skipped).
+
+**The active question hides its solution:** the solution fields are null, and so are
+`correct_option` and each option's `item_id`, or `references` and `grade`. `AnswerResponse`: the graded
 question (`answered`) with its solution, the `next` active question (null if the pool
 can't make another, or if the exercise was deleted, which finishes the session),
 `answered_count`, `score` and `finished_at`.

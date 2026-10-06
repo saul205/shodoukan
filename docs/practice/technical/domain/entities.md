@@ -82,28 +82,46 @@ A saved exercise. The design (types, sessions, statistics) is in
 
 An open-ended study session of an exercise: one active question (`current`) and the
 answered ones (`history`). Its questions are built by the
-[question service](services-and-errors.md#services-domainservices). Each
-`ExerciseQuestion` is a snapshot of the card, so the session reads the same after its
-items or its exercise change:
+[question services](services-and-errors.md#services-domainservices).
+`ExerciseQuestion` is a union discriminated by `type`, like the settings:
+`ChoiceQuestion` (`card.choice`) and `HandwritingQuestion` (`card.handwriting`), on a
+shared `QuestionBase`. Each is a snapshot of the card, so the session reads the same
+after its items or its exercise change:
 
 - `item_id` (the item asked about; `None` once it leaves the library),
   `prompt_fields`, `answer_field`;
 - `prompt` and `back`: `ShownField(field, values)`, what the front and the back show;
-- `options`: `ChoiceOption(text, item_id)`, with `correct_option` as an index;
+- choice cards: `options`, `ChoiceOption(text, item_id)`, with `correct_option` as an
+  index;
+- handwriting cards: `references`, the kanji it accepts (at least one):
+  `ReferenceKanji(literal, strokes)`, each stroke a `ReferenceStroke(path, label,
+  points)` from KanjiVG (the path to draw it, its number's place, its centre line as
+  points to grade against); and `grade`, a `HandwritingGrade(score, verdict, matched,
+  strokes)` once drawn: a 0–100 score, `correct` / `close` / `wrong`, the accepted
+  kanji it's closest to, and a `StrokeFeedback(drawn, reference, status)` per stroke;
 - `answer`: `ExerciseAnswer`, a union discriminated by `type`:
-  `OptionAnswer(type="option", option)` or `SkipAnswer(type="skip")`, which is graded
-  as a miss ([decisions](../decisions.md#skipping-is-a-miss)). Then `is_correct`,
-  `answered_at`, `response_ms` (measured by the client). All `None` until answered.
+  `OptionAnswer(type="option", option)`, `StrokesAnswer(type="strokes", strokes)` (the
+  drawing: up to `MAX_STROKES` strokes of up to `MAX_STROKE_POINTS` points each,
+  inside `CANVAS_SIZE` plus `CANVAS_MARGIN`) or `SkipAnswer(type="skip")`, which is
+  graded as a miss ([decisions](../decisions.md#skipping-is-a-miss)). Then
+  `is_correct`, `answered_at`, `response_ms` (measured by the client). All `None`
+  until answered.
+- `needs_review`: whether its item comes back as a review: a miss, or a drawing
+  graded `close`.
 
 `ask` and `answer` raise `SessionFinishedError` on a finished **or idle** session,
 and change nothing then. Methods:
 
 - `ask(question)`: makes it the active question, positioned after the history;
   `QuestionNotActiveError` if one is active already.
-- `answer(question_id, answer, response_ms)`: grades the active question and moves it
-  to the history. `question_id` must be the active one's (`QuestionNotActiveError`
-  otherwise: a double click, a stale tab); `InvalidAnswerError` for an option it
-  doesn't have.
+- `answer(question_id, answer, response_ms, grade=None)`: grades the active question
+  and moves it to the history. `question_id` must be the active one's
+  (`QuestionNotActiveError` otherwise: a double click, a stale tab);
+  `InvalidAnswerError` for an answer of another type or an option it doesn't have. A
+  drawing is graded by `handwriting_grading_service`, which the caller runs and
+  passes as `grade` (required for a drawing, refused otherwise; `ValueError`, a
+  programming error); it's right unless the verdict is `wrong`. See
+  [decisions](../decisions.md#a-drawing-is-graded-by-a-service-and-recorded-by-the-session).
 - `finish()`: the user closes it now; drops the active question; idempotent.
 - `close_at_last_activity()`: closes a session the user left (another one started,
   or idle), with `finished_at = updated_at`. It drops the active question but
