@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   order, imprecise, extra, missing). Any kanji of the collections that fits the prompt
   is right. "Close" counts as right but comes back as a review. Kanji without a stroke
   order aren't asked.
+- **shodoukan-ui:** `KanjiDrawingPad`, a square to draw a kanji in KanjiVG's space;
+  `KanjiStrokeDiagram` takes per-stroke `colors`, a faint `ghost` underneath, `numbers`
+  and a CSS `size`; `pointsToPath` and `simplifyStroke` for drawn strokes.
 - **shodoukan:** `Dictionary.literals_with_strokes(literals)` tells which characters have
   a stroke order without reading the drawings, and `shodoukan.path_points`
   flattens a stroke's path into evenly spaced points (for comparing

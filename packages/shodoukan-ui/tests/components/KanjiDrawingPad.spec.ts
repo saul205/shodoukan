@@ -1,0 +1,75 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import KanjiDrawingPad from '../../src/components/KanjiDrawingPad.vue'
+import type { StrokePoint } from '../../src/utils/strokes'
+
+// The pad is 121 px wide on screen and its viewBox is 121 units (-6 to 115),
+// so a pixel is a unit: clientX 6 is x 0.
+beforeEach(() => {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+    left: 0, top: 0, width: 121, height: 121, right: 121, bottom: 121, x: 0, y: 0, toJSON: () => ({}),
+  })
+})
+afterEach(() => vi.restoreAllMocks())
+
+// jsdom has no PointerEvent: a mouse event with the pointer's own fields.
+function pointer(type: string, x: number, y: number, init: { isPrimary?: boolean } = {}) {
+  const event = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true })
+  return Object.assign(event, { pointerId: 1, isPrimary: init.isPrimary ?? true })
+}
+
+async function draw(wrapper: ReturnType<typeof mount>, points: [number, number][], init: { isPrimary?: boolean } = {}) {
+  const svg = wrapper.get('svg').element
+  const [first, ...rest] = points
+  svg.dispatchEvent(pointer('pointerdown', first![0], first![1], init))
+  for (const [x, y] of rest) svg.dispatchEvent(pointer('pointermove', x, y, init))
+  const last = points[points.length - 1]!
+  svg.dispatchEvent(pointer('pointerup', last[0], last[1], init))
+  await wrapper.vm.$nextTick()
+}
+
+describe('KanjiDrawingPad', () => {
+  it('adds each stroke, simplified, in KanjiVG units', async () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [] } })
+
+    await draw(wrapper, [[16, 60], [36, 60], [56, 60.2], [96, 60]])
+
+    const strokes = wrapper.emitted('update:modelValue')![0]![0] as StrokePoint[][]
+    expect(strokes).toEqual([[[10, 54], [90, 54]]])
+    expect(wrapper.emitted('stroke-end')![0]).toEqual([[[10, 54], [90, 54]]])
+  })
+
+  it('draws the strokes it holds', () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [[[10, 54], [90, 54]], [[50, 10]]] } })
+
+    expect(wrapper.findAll('[data-stroke]').map(p => p.attributes('d'))).toEqual(['M10,54 L90,54', 'M50,10 l0,0'])
+  })
+
+  it('keeps points on the canvas', async () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [] } })
+
+    await draw(wrapper, [[-50, 60], [500, 60]])
+
+    expect(wrapper.emitted('update:modelValue')![0]![0]).toEqual([[[-6, 54], [115, 54]]])
+  })
+
+  it('ignores a second finger and a disabled pad', async () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [] } })
+    await draw(wrapper, [[10, 10], [50, 50]], { isPrimary: false })
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+
+    await wrapper.setProps({ disabled: true })
+    await draw(wrapper, [[10, 10], [50, 50]])
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
+
+  it('undoes the last stroke and clears them all', async () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [[[1, 1]], [[2, 2]]] } })
+    const pad = wrapper.vm as unknown as { undo: () => void; clear: () => void }
+
+    pad.undo()
+    pad.clear()
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[[[[1, 1]]]], [[]]])
+  })
+})

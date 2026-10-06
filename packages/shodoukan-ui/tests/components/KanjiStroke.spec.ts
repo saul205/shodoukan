@@ -4,7 +4,7 @@ import KanjiStrokeAnimator from '../../src/components/KanjiStrokeAnimator.vue'
 import KanjiStrokeDiagram from '../../src/components/KanjiStrokeDiagram.vue'
 import KanjiStrokeGrid from '../../src/components/KanjiStrokeGrid.vue'
 import type { KanjiStroke } from '../../src/models/kanji'
-import { strokeStart } from '../../src/utils/strokes'
+import { pointsToPath, simplifyStroke, strokeStart } from '../../src/utils/strokes'
 
 // 人: two strokes, as the API returns them.
 const strokes: KanjiStroke[] = [
@@ -102,5 +102,33 @@ describe('KanjiStrokeDiagram', () => {
     expect(numbers.map(t => t.text())).toEqual(['1', '2'])
     expect(numbers[1].attributes()).toMatchObject({ x: '62.5', y: '49.5' })
     expect(wrapper.get('svg').attributes('style')).toContain('width: 120px')
+  })
+})
+
+describe('KanjiStrokeDiagram options', () => {
+  it('colours strokes, draws a ghost underneath, and can hide numbers', () => {
+    const wrapper = mount(KanjiStrokeDiagram, {
+      props: { strokes, size: '100%', colors: [undefined, 'red'], ghost: [strokes[0]!], numbers: false },
+    })
+
+    expect(wrapper.findAll('[data-ghost] path')).toHaveLength(1)
+    const drawn = wrapper.findAll('path').slice(1)
+    expect(drawn[0]!.attributes('style')).toBeUndefined()
+    expect(drawn[1]!.attributes('style')).toContain('stroke: red')
+    expect(wrapper.findAll('text')).toHaveLength(0)
+    expect(wrapper.get('svg').attributes('style')).toContain('width: 100%')
+  })
+})
+
+describe('drawn strokes', () => {
+  it('become paths', () => {
+    expect(pointsToPath([[1, 2], [3, 4]])).toBe('M1,2 L3,4')
+    expect(pointsToPath([[1, 2]])).toBe('M1,2 l0,0')
+    expect(pointsToPath([])).toBe('')
+  })
+
+  it('are simplified and rounded', () => {
+    expect(simplifyStroke([[0, 0], [5, 0.2], [10, 0], [10, 10]])).toEqual([[0, 0], [10, 0], [10, 10]])
+    expect(simplifyStroke([[1.234, 5.678], [1.21, 5.66]])).toEqual([[1.2, 5.7]])
   })
 })
