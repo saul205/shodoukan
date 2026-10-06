@@ -219,6 +219,79 @@ Pure domain services, testable with a seeded `random.Random`:
 Tests cover every ambiguity: shared kun'yomi, shared on'yomi, homophones, synonyms,
 same spelling.
 
+## Handwriting
+
+A `card.handwriting` question shows the front and asks the user to draw the kanji
+(`answer_field` is always `literal`). The drawing is sent as strokes, in the order
+drawn, each a list of points (`StrokesAnswer`), and graded on the server against the
+KanjiVG strokes of the kanji, as the dictionary draws its stroke order.
+
+### The drawing space
+
+Points are in KanjiVG's own space, a 109-unit square (`CANVAS_SIZE`), the space the
+frontend's stroke components draw in. The canvas shows a margin of 6 around it
+(`CANVAS_MARGIN`), and points must stay inside the square plus the margin. A drawing
+has up to 40 strokes (`MAX_STROKES`) of up to 300 points (`MAX_STROKE_POINTS`); the
+client simplifies each stroke before sending it. Stored as is in `answer`, the
+drawing is a few kilobytes of JSON, and the review draws it again from it. There's no
+image: vectors draw sharply at any size and are what grading needs.
+
+### Grading
+
+`handwriting_grading_service.grade_drawing(drawing, references)` compares the drawing
+with each kanji the question accepts and keeps the closest. The use case passes the
+grade to the session ([decisions](decisions.md#a-drawing-is-graded-by-a-service-and-recorded-by-the-session)).
+
+1. **Normalize.** The drawing and the reference are each centred on their bounding
+   box and scaled by its longer side (`stroke_geometry_service.normalize`), so where
+   and how big it was drawn doesn't count. Distances are then in kanji sizes: 0.1 is
+   a tenth of the kanji. Each stroke is resampled to 16 evenly spaced points.
+2. **The picture.** A chamfer distance between every point of both, blind to strokes
+   and order, turned into a 0 to 1 likeness (`1 - distance / SHAPE_SCALE`).
+3. **The strokes.** The distance between two strokes is the mean of their point
+   distance and their furthest-apart ends (a stroke too short or too long counts even
+   on the right line). Each drawn stroke is paired with the reference stroke it
+   resembles most, closest pairs first, each used once, up to `STROKE_MATCH`; drawn
+   backwards still pairs. Then each stroke gets a status:
+
+   | Status | Meaning |
+   |---|---|
+   | `ok` | Paired, in order, the right way, within `STROKE_OK` |
+   | `reversed` | Drawn backwards |
+   | `out_of_order` | Outside the longest run of reference strokes in writing order, so swapping two strokes is one mistake, not a cascade |
+   | `imprecise` | Paired, but further than `STROKE_OK` |
+   | `extra` | A drawn stroke with no pair |
+   | `missing` | A reference stroke not drawn |
+
+4. **The verdict.**
+   - `correct`: every stroke `ok`, and the picture likeness ≥ `SHAPE_OK`.
+   - `close`: likeness ≥ `SHAPE_CLOSE`, and at most one stroke extra or missing, and
+     none for kanji under 5 strokes (三 without a stroke is 二). It counts as right
+     but comes back as a review
+     ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)).
+   - `wrong` otherwise.
+
+   `score` (0 to 100) is the mean of the picture likeness and the strokes' likeness
+   (each pair `1 - distance / STROKE_MATCH`, over the larger stroke count). It's shown
+   to the user; the verdict doesn't depend on it.
+
+| Constant | Value |
+|---|---|
+| `STROKE_SAMPLES` | 16 |
+| `STROKE_OK` | 0.12 |
+| `STROKE_MATCH` | 0.25 |
+| `SHAPE_SCALE` | 0.2 |
+| `SHAPE_OK` / `SHAPE_CLOSE` | 0.6 / 0.4 |
+| `ALLOWED_COUNT_ERRORS` / `COUNT_TOLERANCE_FROM` | 1 / 5 strokes |
+
+The values were tuned on KanjiVG strokes of about 25 kanji drawn with noise (moved,
+resized to 70–110 %, each stroke up to 3–5 units off, points shaking by 1.5–2.5): the
+references drawn that way are `correct`, a reversed stroke, two swapped or one left
+out are `close`, and other kanji are `wrong`, or `close` for near twins (未 for 末,
+士 for 土), never `correct`. They should be checked against real drawings once
+people use it. `tests/shodoukan-practice/domain/test_handwriting_grading_service.py`
+keeps those cases.
+
 ## Storage
 
 ### Exercise definitions (built)

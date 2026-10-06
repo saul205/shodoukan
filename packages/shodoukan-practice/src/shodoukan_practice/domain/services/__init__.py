@@ -2,6 +2,7 @@
 
 from .choice_question_service import build_next_question
 from .collection_service import ensure_combinable
+from .handwriting_grading_service import grade_drawing
 from .question_order_service import (
     MIN_POOL_SIZE,
     REVIEW_GAP,
@@ -40,6 +41,7 @@ __all__ = [
     "fits_prompt",
     "front",
     "gloss_key",
+    "grade_drawing",
     "kana_key",
     "kanji_card",
 ]

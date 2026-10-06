@@ -59,6 +59,20 @@ asked. Directions are tried in random order, and distractors are picked so that
 **none is a valid answer** ([the rule](../exercises.md#the-rule)). Raises
 `ExercisePoolTooSmallError` if the pool is too small or no question can be built.
 
+### `stroke_geometry_service`
+
+Pure geometry on strokes (tuples of points): `normalize` (centred on the bounding box,
+scaled by its longer side), `resample(stroke, n)` (evenly spaced points),
+`mean_distance` (pairwise, so direction counts) and `chamfer` (as pictures, ignoring
+order). SVG paths are never parsed here: reference strokes arrive as points.
+
+### `handwriting_grading_service.grade_drawing(drawing, references)`
+
+Grades a `StrokesAnswer` against each accepted `ReferenceKanji` and returns the
+closest `HandwritingGrade` (score, verdict, matched kanji, a status per stroke).
+`ValueError` with no references. Algorithm and thresholds:
+[exercises](../exercises.md#grading).
+
 ## Exceptions (`domain/exceptions.py`)
 
 | Exception | Base | Raised when |

@@ -26,6 +26,8 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `domain/test_timestamped_entity.py` | Timestamp defaults, `touch()` |
 | `domain/test_collection_service.py` | `ensure_combinable` |
 | `domain/test_study_field_service.py` | Reading study fields from words and kanji (enabled parts, meaning language), comparison keys (kana, glosses), `entry_label` |
+| `domain/test_stroke_geometry_service.py` | Normalizing, resampling and comparing strokes |
+| `domain/test_handwriting_grading_service.py` | Grading drawings against real KanjiVG strokes: shaky drawings are right; a reversed stroke, two swapped or one missing are close; other kanji are wrong; the closest accepted kanji grades it |
 | `domain/test_choice_question_service.py` | Building the next question: deck per round, missed items back after `REVIEW_GAP`, no item twice in a row, distractors that are never a valid answer, pools too small |
 | `infrastructure/test_base_orm.py` | `UtcDateTime`: naive UTC stored, aware UTC read, naive rejected, no DB default |
 | `infrastructure/test_*_orm.py` | Constraints, cascades, `position` ordering |
