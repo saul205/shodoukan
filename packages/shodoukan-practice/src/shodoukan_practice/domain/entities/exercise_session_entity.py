@@ -117,10 +117,18 @@ class ReferenceKanji(BaseModel):
 
 
 # How a drawn stroke compares to the reference: right; right place and
-# shape but drawn backwards; right but out of order; too far from its
-# reference stroke; one the reference doesn't have; one not drawn.
+# shape but drawn backwards; right but out of order; too long or too short
+# for the rest of the kanji; too far from its reference stroke; one the
+# reference doesn't have; one not drawn.
 StrokeStatus = Literal[
-    "ok", "reversed", "out_of_order", "imprecise", "extra", "missing"
+    "ok",
+    "reversed",
+    "out_of_order",
+    "too_long",
+    "too_short",
+    "imprecise",
+    "extra",
+    "missing",
 ]
 # Right; right enough to count, but to practise again; wrong.
 Verdict = Literal["correct", "close", "wrong"]

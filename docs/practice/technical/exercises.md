@@ -259,8 +259,11 @@ image: vectors draw sharply at any size and are what grading needs.
 ### Grading
 
 `handwriting_grading_service.grade_drawing(drawing, references)` compares the drawing
-with each kanji the question accepts and keeps the closest. The use case passes the
-grade to the session ([decisions](decisions.md#a-drawing-is-graded-by-a-service-and-recorded-by-the-session)).
+with the kanji the question accepts and keeps the closest. Only those whose stroke
+count is within one of the drawing's are compared, since no other can be close; the
+asked kanji always is, so there's always a grade (a reading prompt such as コウ can
+accept dozens of kanji). The use case passes the grade to the session
+([decisions](decisions.md#a-drawing-is-graded-by-a-service-and-recorded-by-the-session)).
 
 1. **Normalize.** The drawing and the reference are each centred on their bounding
    box and scaled by its longer side (`stroke_geometry_service.normalize`), so where
@@ -269,26 +272,36 @@ grade to the session ([decisions](decisions.md#a-drawing-is-graded-by-a-service-
 2. **The picture.** A chamfer distance between every point of both, blind to strokes
    and order, turned into a 0 to 1 likeness (`1 - distance / SHAPE_SCALE`).
 3. **The strokes.** The distance between two strokes is the mean of their point
-   distance and their furthest-apart ends (a stroke too short or too long counts even
-   on the right line). Each drawn stroke is paired with the reference stroke it
-   resembles most, closest pairs first, each used once, up to `STROKE_MATCH`; drawn
-   backwards still pairs. Then each stroke gets a status:
+   distance and their furthest-apart ends. Each drawn stroke is paired with the
+   reference stroke it resembles most, closest pairs first, each used once, up to
+   `STROKE_MATCH`; drawn backwards still pairs.
+4. **The lengths.** Each paired stroke's share of the drawing's total length is
+   compared with its reference stroke's share of the kanji's: proportions between
+   strokes, not sizes. It's off when the shares differ by more than
+   `LENGTH_TOLERANCE` times **and** by more than `LENGTH_MIN_SHARE_GAP` of the total
+   (the gap keeps a short stroke's natural wobble from counting). Dots (reference
+   strokes under `MIN_LENGTH_CHECKED`) aren't checked. This is what tells 未 from 末.
+5. **A status per stroke**, the first that applies:
 
    | Status | Meaning |
    |---|---|
-   | `ok` | Paired, in order, the right way, within `STROKE_OK` |
-   | `reversed` | Drawn backwards |
    | `out_of_order` | Outside the longest run of reference strokes in writing order, so swapping two strokes is one mistake, not a cascade |
+   | `reversed` | Drawn backwards |
+   | `too_long` / `too_short` | Its length is off for the rest of the kanji (step 4) |
    | `imprecise` | Paired, but further than `STROKE_OK` |
+   | `ok` | None of the above |
    | `extra` | A drawn stroke with no pair |
    | `missing` | A reference stroke not drawn |
 
-4. **The verdict.**
-   - `correct`: every stroke `ok`, and the picture likeness ≥ `SHAPE_OK`.
-   - `close`: likeness ≥ `SHAPE_CLOSE`, and at most one stroke extra or missing, and
-     none for kanji under 5 strokes (三 without a stroke is 二). It counts as right
-     but comes back as a review
-     ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)).
+6. **The verdict**, lenient on purpose
+   ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)):
+   - `correct`: likeness ≥ `SHAPE_OK`, and no stroke out of order, backwards, of the
+     wrong length, extra or missing. Up to a third of the strokes may be `imprecise`:
+     they show as warnings.
+   - `close`: likeness ≥ `SHAPE_CLOSE`; at most one stroke extra or missing, and none
+     for kanji under 5 strokes (三 without a stroke is 二); at most two thirds of the
+     strokes imprecise; and problems on at most half of them (an imprecise stroke
+     counts half). It counts as right but comes back as a review.
    - `wrong` otherwise.
 
    `score` (0 to 100) is the mean of the picture likeness and the strokes' likeness
@@ -303,14 +316,30 @@ grade to the session ([decisions](decisions.md#a-drawing-is-graded-by-a-service-
 | `SHAPE_SCALE` | 0.2 |
 | `SHAPE_OK` / `SHAPE_CLOSE` | 0.6 / 0.4 |
 | `ALLOWED_COUNT_ERRORS` / `COUNT_TOLERANCE_FROM` | 1 / 5 strokes |
+| `LENGTH_TOLERANCE` / `LENGTH_MIN_SHARE_GAP` / `MIN_LENGTH_CHECKED` | 1.35 / 0.045 / 0.1 |
+| `IMPRECISE_CORRECT_SHARE` / `IMPRECISE_CLOSE_SHARE` | ⅓ / ⅔ |
+| `PROBLEM_CLOSE_SHARE` / `IMPRECISE_WEIGHT` | ½ / ½ |
 
-The values were tuned on KanjiVG strokes of about 25 kanji drawn with noise (moved,
-resized to 70–110 %, each stroke up to 3–5 units off, points shaking by 1.5–2.5): the
-references drawn that way are `correct`, a reversed stroke, two swapped or one left
-out are `close`, and other kanji are `wrong`, or `close` for near twins (未 for 末,
-士 for 土), never `correct`. They should be checked against real drawings once
-people use it. `tests/shodoukan-practice/domain/test_handwriting_grading_service.py`
-keeps those cases.
+**Calibration.** The values were tuned on the KanjiVG strokes of 24 kanji drawn with
+noise (moved, resized to 70–110 %, each stroke up to 3–5 units off, points shaking by
+1.5–2.5), and on pairs of similar kanji drawn one for the other:
+
+- **The right kanji drawn with noise** is `correct`; only a very sloppy 2- or
+  3-stroke one (入, 土) drops to `close`. Length noise reaches a ratio of 1.40 on 1 %
+  of strokes, but never with a share gap over 0.04 (0 of 1,220 strokes).
+- **A stroke backwards, two swapped or one missing** is `close`.
+- **Kanji that differ only in stroke lengths** (未 / 末, 天 / 夫) are `close` with
+  length warnings, which tells the learner what to fix. With noise, 夫 for 天 can
+  still pass as `correct`.
+- **Kanji where most strokes are off** (土 / 士) are `wrong`.
+- **One stroke more or less in a kanji of 5 strokes or more** (木 for 本, 王 for 玉,
+  休 / 体, 問 for 間, 鳥 for 烏) is `close`, by design: it can't be told from
+  forgetting a stroke.
+- **Other kanji** are `wrong`.
+
+The values should be checked against real drawings once people use it.
+`tests/shodoukan-practice/domain/test_handwriting_grading_service.py` keeps these
+cases.
 
 ## Storage
 

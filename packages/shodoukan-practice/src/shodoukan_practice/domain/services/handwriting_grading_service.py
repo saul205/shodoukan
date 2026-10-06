@@ -13,14 +13,25 @@ counts, not where or how big it was drawn. Two things are compared:
   out of order are the ones outside the longest run of reference strokes in
   writing order, so swapping two strokes is one mistake, not a cascade. A
   drawn stroke left unpaired is `extra`; a reference one, `missing`.
+- **The lengths**: each paired stroke's share of the drawing's total length
+  against its reference's share of the kanji's, so proportions count, not
+  sizes. Off by more than `LENGTH_TOLERANCE` times, and by more than
+  `LENGTH_MIN_SHARE_GAP` of the total, is `too_long` / `too_short`: 未 and 末
+  differ only there. The gap keeps a short stroke's natural wobble from
+  counting. Strokes shorter than `MIN_LENGTH_CHECKED` (dots) aren't checked.
 
-The verdict:
+The verdict leans to the learner (it's a balance: see
+docs/practice/technical/decisions.md):
 
-- `correct`: every stroke matches, in order and direction, and the picture is
-  close (`SHAPE_OK`);
-- `close`: the picture is close enough (`SHAPE_CLOSE`), and at most
+- `correct`: the picture is close (`SHAPE_OK`), every stroke is there, in
+  order, the right way and the right length; a few may be `imprecise` (up to
+  `IMPRECISE_CORRECT_SHARE` of them), shown as warnings;
+- `close`: the picture is close enough (`SHAPE_CLOSE`), at most
   `ALLOWED_COUNT_ERRORS` strokes are extra or missing (none for kanji of fewer
-  than `COUNT_TOLERANCE_FROM` strokes: 二 drawn as 三 is another kanji);
+  than `COUNT_TOLERANCE_FROM` strokes: 二 drawn as 三 is another kanji), and
+  at most `PROBLEM_CLOSE_SHARE` of the strokes have a problem (an imprecise
+  one counts half) and at most `IMPRECISE_CLOSE_SHARE` are imprecise: past
+  that, it's another kanji (土 for 士);
 - `wrong` otherwise.
 
 `score` (0 to 100) mixes the picture and the strokes, for the user's eyes only;
@@ -32,6 +43,7 @@ docs/practice/technical/exercises.md#handwriting.
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 
 from ..entities import (
     HandwritingGrade,
@@ -54,6 +66,24 @@ SHAPE_OK = 0.6
 SHAPE_CLOSE = 0.4
 ALLOWED_COUNT_ERRORS = 1
 COUNT_TOLERANCE_FROM = 5
+# A stroke's share of the total length may be this many times its reference's
+# share, or this many times smaller.
+LENGTH_TOLERANCE = 1.35
+LENGTH_MIN_SHARE_GAP = 0.045
+# Shorter reference strokes (in kanji sizes) aren't length-checked.
+MIN_LENGTH_CHECKED = 0.1
+# Shares of strokes: imprecise ones a correct drawing may have (of the
+# reference's), and strokes with a problem a close one may have (imprecise
+# ones weigh `IMPRECISE_WEIGHT`).
+IMPRECISE_CORRECT_SHARE = 1 / 3
+IMPRECISE_CLOSE_SHARE = 2 / 3
+PROBLEM_CLOSE_SHARE = 1 / 2
+IMPRECISE_WEIGHT = 1 / 2
+
+# Problems that keep a drawing from being correct.
+_MISTAKES = frozenset(
+    {"reversed", "out_of_order", "too_long", "too_short", "extra", "missing"}
+)
 
 _VERDICT_RANK: dict[Verdict, int] = {"correct": 2, "close": 1, "wrong": 0}
 
@@ -61,11 +91,19 @@ _VERDICT_RANK: dict[Verdict, int] = {"correct": 2, "close": 1, "wrong": 0}
 def grade_drawing(
     drawing: StrokesAnswer, references: Sequence[ReferenceKanji]
 ) -> HandwritingGrade:
-    """The grade against the closest of `references` (at least one)."""
+    """The grade against the closest of `references` (at least one; the first
+    is the kanji asked). Only references whose stroke count is within
+    `ALLOWED_COUNT_ERRORS` of the drawing's are compared, since no other can be
+    close; the first always is, so there's always a grade."""
     if not references:
         raise ValueError("a drawing is graded against at least one kanji")
     drawn = _prepare(drawing.strokes)
-    grades = [_grade_one(drawn, r) for r in references]
+    candidates = [
+        r
+        for i, r in enumerate(references)
+        if i == 0 or abs(len(r.strokes) - len(drawn)) <= ALLOWED_COUNT_ERRORS
+    ]
+    grades = [_grade_one(drawn, r) for r in candidates]
     return max(grades, key=lambda g: (_VERDICT_RANK[g.verdict], g.score))
 
 
@@ -89,14 +127,30 @@ def _grade_one(drawn: list[Stroke], reference: ReferenceKanji) -> HandwritingGra
     )
     pairs = _pair(drawn, expected)
     in_order = _longest_ordered_run(pairs)
+    drawn_lengths = [_length(s) for s in drawn]
+    expected_lengths = [_length(s) for s in expected]
+    drawn_total = sum(drawn_lengths) or 1.0
+    expected_total = sum(expected_lengths) or 1.0
 
     feedback: list[StrokeFeedback] = []
     for pair in pairs:
         status: StrokeStatus = "ok"
+        drawn_share = drawn_lengths[pair.drawn] / drawn_total
+        expected_share = expected_lengths[pair.reference] / expected_total
+        length_ratio = 1.0
+        if (
+            expected_lengths[pair.reference] >= MIN_LENGTH_CHECKED
+            and abs(drawn_share - expected_share) > LENGTH_MIN_SHARE_GAP
+        ):
+            length_ratio = drawn_share / expected_share
         if pair not in in_order:
             status = "out_of_order"
         elif pair.reversed:
             status = "reversed"
+        elif length_ratio > LENGTH_TOLERANCE:
+            status = "too_long"
+        elif length_ratio < 1 / LENGTH_TOLERANCE:
+            status = "too_short"
         elif pair.distance > STROKE_OK:
             status = "imprecise"
         feedback.append(
@@ -119,7 +173,7 @@ def _grade_one(drawn: list[Stroke], reference: ReferenceKanji) -> HandwritingGra
 
     return HandwritingGrade(
         score=max(0, min(100, score)),
-        verdict=_verdict(shape, feedback, len(expected)),
+        verdict=_verdict(shape, feedback, len(drawn), len(expected)),
         matched=reference.literal,
         strokes=tuple(feedback),
     )
@@ -178,15 +232,34 @@ def _longest_ordered_run(pairs: list[_Pair]) -> set[_Pair]:
 
 
 def _verdict(
-    shape: float, feedback: list[StrokeFeedback], reference_strokes: int
+    shape: float,
+    feedback: list[StrokeFeedback],
+    drawn_strokes: int,
+    reference_strokes: int,
 ) -> Verdict:
-    count_errors = sum(1 for f in feedback if f.status in ("extra", "missing"))
-    if shape >= SHAPE_OK and all(f.status == "ok" for f in feedback):
+    mistakes = sum(1 for f in feedback if f.status in _MISTAKES)
+    imprecise = sum(1 for f in feedback if f.status == "imprecise")
+    if (
+        shape >= SHAPE_OK
+        and mistakes == 0
+        and imprecise <= IMPRECISE_CORRECT_SHARE * reference_strokes
+    ):
         return "correct"
+    count_errors = sum(1 for f in feedback if f.status in ("extra", "missing"))
     allowed = ALLOWED_COUNT_ERRORS if reference_strokes >= COUNT_TOLERANCE_FROM else 0
-    if shape >= SHAPE_CLOSE and count_errors <= allowed:
+    problems = mistakes + IMPRECISE_WEIGHT * imprecise
+    if (
+        shape >= SHAPE_CLOSE
+        and count_errors <= allowed
+        and imprecise <= IMPRECISE_CLOSE_SHARE * reference_strokes
+        and problems <= PROBLEM_CLOSE_SHARE * max(drawn_strokes, reference_strokes)
+    ):
         return "close"
     return "wrong"
+
+
+def _length(stroke: Stroke) -> float:
+    return sum(math.dist(a, b) for a, b in pairwise(stroke))
 
 
 def _likeness(distance: float, scale: float) -> float:

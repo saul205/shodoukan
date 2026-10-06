@@ -560,6 +560,19 @@ off) counts as right, so the score and accuracy don't punish a nearly right draw
 but its item comes back as a review like a miss (`needs_review`). The grade keeps the
 verdict, so the review can show it apart.
 
+The grading leans to the learner, because being too strict discourages beginners:
+
+- A few **imprecise** strokes (up to a third) don't stop a drawing from being
+  `correct` when the whole matches; the warnings are enough.
+- **Stroke lengths** that are off for the rest of the kanji (judged by proportions,
+  not size) make it `close` at most, with a warning on each such stroke. Kanji such as
+  未 / 末 differ only there, and it's an easy mistake.
+- **Many problem strokes** (most of them imprecise, or problems on more than half)
+  make it `wrong`: that's another kanji (土 for 士).
+
+These came from a review of PR #60, which drew similar kanji for each other. The
+thresholds and their calibration are in [exercises](exercises.md#grading).
+
 ## Stroke order comes from KanjiVG, without a hanzi-writer fallback
 
 Both dictionaries draw stroke order from KanjiVG, which the dictionary database ships

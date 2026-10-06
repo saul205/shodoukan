@@ -52,6 +52,40 @@ PATHS = {
         "M13,87.83c3.94,1.01,7.72,0.96,11.75,0.72c18.41-1.07,41.27-3.39,61.12-4.07"
         "c3.63-0.13,7.2-0.1,10.75,0.78",
     ],
+    "未": [
+        "M30.13,30.77c2.62,0.48,5.01,0.34,7.25,0.03c10.24-1.4,24.97-3.2,34.89-4.19"
+        "c2.11-0.21,4.61-0.24,6.45-0.01",
+        "M16.69,51.25c3.17,0.89,6.12,0.81,9.34,0.39c13.85-1.77,40.22-4.64,56.98-5.88"
+        "c3.16-0.23,6.05-0.29,9.18,0.24",
+        "M52.66,11c1.17,1.17,1.92,2.62,1.92,4.25c0,5.16-0.03,55.71-0.04,77"
+        "c0,3.47,0,6.16,0,7.75",
+        "M51.5,49.25c0,1.12-0.66,2.62-1.5,3.88C41.92,65.24,25.89,81.18,12.75,87.5",
+        "M56.12,49.75c5.62,6.25,20.25,20.5,30.33,28.93c2.53,2.11,5.04,3.82,8.42,5.07",
+    ],
+    "末": [
+        "M17.75,31.2c3.38,0.8,6.46,0.85,9.52,0.51c13.98-1.58,41.74-4.25,55.23-5"
+        "c3.05-0.17,6-0.3,9,0.34",
+        "M27.12,51.75c2.07,0.62,4.13,0.66,7.07,0.25c12.56-1.75,26.81-3.38,40.73-4.25"
+        "c2.96-0.19,5.1,0,6.96,0.25",
+        "M52.5,10.75c1.25,1.25,2.25,3,2.25,4.75c0,0.87,0,53.95,0,75.62"
+        "c0,4.12,0,7.1,0,8.38",
+        "M53.25,50.5c0,1.75-0.72,2.84-1.43,3.92C43.77,66.75,27.21,82.41,13.75,89",
+        "M55.62,51.88c4.35,5.37,20.9,21.25,28.87,28.51c2.47,2.25,4.68,4.01,7.76,5.37",
+    ],
+    "土": [
+        "M26.63,50.89c1.63,0.4,4.64,0.6,6.26,0.4C43.5,50,62.12,48,75.66,46.92"
+        "c2.71-0.22,4.36,0.19,5.72,0.39",
+        "M52.17,17.37c1.17,1.17,2.02,3.13,2.02,4.64c0,10.25,0.14,61.06,0.14,63.36",
+        "M15.38,87.73c2.12,0.54,6.01,0.73,8.12,0.54C46,86.25,69,84.62,90.34,83.79"
+        "c3.53-0.14,5.65,0.26,7.41,0.53",
+    ],
+    "士": [
+        "M13.13,54.98c3.87,0.9,7.66,0.43,11.36,0.16c18.76-1.39,44.96-3.08,61.9-3.32"
+        "c3.22-0.05,6.57,0.08,9.74,0.76",
+        "M52.25,17.25C53.31,18.31,54,19.88,54,21.5c0,1.03,0.25,58.62,0.25,66",
+        "M21.75,89.45c2.73,0.83,5.82,0.54,8.62,0.42c12.73-0.57,33.94-2.04,45.88-2.17"
+        "c2.97-0.03,5.83,0.21,8.75,0.74",
+    ],
 }
 
 Stroke = list[Point]
@@ -183,3 +217,62 @@ def test_a_tap_is_a_stroke_too() -> None:
 def test_needs_a_reference() -> None:
     with pytest.raises(ValueError):
         grade_drawing(drawn(strokes("二")), [])
+
+
+@pytest.mark.parametrize(("literal_drawn", "literal"), [("未", "末"), ("末", "未")])
+def test_twins_differing_in_stroke_lengths_are_close_with_a_warning(
+    literal_drawn: str, literal: str
+) -> None:
+    result = grade_drawing(drawn(strokes(literal_drawn)), [reference(literal)])
+
+    assert result.verdict == "close"
+    found = {f.status for f in result.strokes}
+    assert {"too_long", "too_short"} <= found
+
+
+@pytest.mark.parametrize(("literal_drawn", "literal"), [("土", "士"), ("士", "土")])
+def test_twins_where_most_strokes_are_off_are_wrong(
+    literal_drawn: str, literal: str
+) -> None:
+    exact = StrokesAnswer(strokes=tuple(tuple(s) for s in strokes(literal_drawn)))
+
+    assert grade_drawing(exact, [reference(literal)]).verdict == "wrong"
+
+
+def test_an_imprecise_stroke_doesnt_stop_a_right_drawing() -> None:
+    kanji = strokes("木")
+    kanji[2] = [(x + 15, y) for x, y in kanji[2]]  # the left sweep, off to the right
+
+    result = grade_drawing(drawn(kanji), [reference("木")])
+
+    assert result.verdict == "correct"
+    assert [f.status for f in result.strokes].count("imprecise") == 1
+
+
+def _off(kanji: list[Stroke], moves: dict[int, tuple[float, float]]) -> list[Stroke]:
+    return [
+        [(x + moves[i][0], y + moves[i][1]) for x, y in s] if i in moves else s
+        for i, s in enumerate(kanji)
+    ]
+
+
+def test_some_imprecise_strokes_are_close_all_of_them_wrong() -> None:
+    two_off = _off(strokes("土"), {0: (10, -10), 1: (-10, 5)})
+    all_off = _off(strokes("土"), {0: (10, -10), 1: (-10, 5), 2: (0, -10)})
+
+    two = grade_drawing(drawn(two_off), [reference("土")])
+    every = grade_drawing(drawn(all_off), [reference("土")])
+
+    assert two.verdict == "close"
+    assert [f.status for f in two.strokes].count("imprecise") == 2
+    assert every.verdict == "wrong"
+
+
+def test_only_kanji_with_about_as_many_strokes_are_compared() -> None:
+    # 二 has 2 strokes, so 本 (5) isn't compared; the asked kanji always is.
+    result = grade_drawing(drawn(strokes("二")), [reference("本"), reference("木")])
+
+    assert result.matched == "本"
+    assert result.verdict == "wrong"
+    two = grade_drawing(drawn(strokes("二")), [reference("木"), reference("二")])
+    assert (two.matched, two.verdict) == ("二", "correct")
