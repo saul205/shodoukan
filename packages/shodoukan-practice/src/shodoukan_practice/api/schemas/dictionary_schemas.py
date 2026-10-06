@@ -82,6 +82,18 @@ class DictionaryKanjiResponse(_Response):
     meanings: list[DictionaryKanjiMeaningResponse]
 
 
+class DictionaryKanjiStrokeResponse(_Response):
+    path: str
+    label: tuple[float, float] | None
+
+
+class DictionaryKanjiStrokesResponse(_Response):
+    """Same shape as shodoukan-api's `GET /kanji/{literal}/strokes`."""
+
+    literal: str
+    strokes: list[DictionaryKanjiStrokeResponse]
+
+
 class DictionaryEntryPageResponse(_Response):
     items: list[DictionaryEntryResponse]
     total: int

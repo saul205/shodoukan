@@ -2,11 +2,12 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from ...application.queries import (
     GetDictionaryEntry,
     GetDictionaryKanji,
+    GetDictionaryKanjiStrokes,
     ListEntriesForKanji,
     ListKanjiForEntry,
     SearchDictionary,
@@ -14,6 +15,7 @@ from ...application.queries import (
 from ..deps import (
     get_get_dictionary_entry,
     get_get_dictionary_kanji,
+    get_get_dictionary_kanji_strokes,
     get_list_entries_for_kanji,
     get_list_kanji_for_entry,
     get_search_dictionary,
@@ -22,6 +24,7 @@ from ..schemas import (
     DictionaryEntryPageResponse,
     DictionaryEntryResponse,
     DictionaryKanjiResponse,
+    DictionaryKanjiStrokesResponse,
     DictionarySearchResponse,
 )
 
@@ -92,6 +95,28 @@ def get_kanji(
 ) -> DictionaryKanjiResponse:
     """One dictionary kanji. Its `literal` is what `POST /library/kanji` takes."""
     return DictionaryKanjiResponse.model_validate(use_case.execute(literal))
+
+
+# Stroke order only changes with a new dictionary release.
+_STROKES_CACHE_CONTROL = "public, max-age=86400"
+
+
+@router.get(
+    "/kanji/{literal}/strokes",
+    response_model=DictionaryKanjiStrokesResponse,
+    responses=_NOT_FOUND,
+)
+def get_kanji_strokes(
+    literal: KanjiLiteral,
+    response: Response,
+    use_case: Annotated[
+        GetDictionaryKanjiStrokes, Depends(get_get_dictionary_kanji_strokes)
+    ],
+) -> DictionaryKanjiStrokesResponse:
+    """Stroke order (KanjiVG), for any character with a drawing."""
+    strokes = use_case.execute(literal)
+    response.headers["Cache-Control"] = _STROKES_CACHE_CONTROL
+    return DictionaryKanjiStrokesResponse.model_validate(strokes)
 
 
 @router.get(
