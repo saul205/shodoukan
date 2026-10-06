@@ -126,6 +126,15 @@ async function remove() {
       <UButton :to="backToLibrary" icon="i-lucide-arrow-left" color="neutral" variant="ghost" aria-label="Volver a mis colecciones" />
     </template>
     <template v-if="collection" #actions>
+      <UButton
+        v-if="kind === 'kanji'"
+        :to="{ path: '/practice', query: { collection: id } }"
+        icon="i-lucide-pen-line"
+        label="Practicar"
+        color="neutral"
+        variant="outline"
+        data-testid="practice-collection"
+      />
       <UButton label="Añadir" icon="i-lucide-plus" @click="addItems" />
       <UDropdownMenu
         :items="[

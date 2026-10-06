@@ -7,7 +7,10 @@ import HandwritingPlayer from '../../app/components/exercise-players/Handwriting
 import { signedInAuth } from '../fakes'
 import { drawingQuestion, drawn } from '../fixtures-sessions'
 
+const { openModal } = vi.hoisted(() => ({ openModal: vi.fn() }))
+
 mockNuxtImport('useAuth', () => signedInAuth)
+mockNuxtImport('useOverlay', () => () => ({ create: () => ({ open: openModal }) }))
 enableAutoUnmount(afterEach)
 
 // Every measured box is `room` (wide, like a desktop panel), as soon as it's observed.
@@ -99,6 +102,14 @@ describe('HandwritingPlayer', () => {
 
     press('Enter')
     expect(wrapper.emitted('next')).toEqual([[]])
+  })
+
+  it('opens the kanji asked for in a practice, over the session', async () => {
+    const wrapper = await mountSuspended(HandwritingPlayer, { props: { question: drawn(drawingQuestion(1), 'wrong') } })
+
+    await wrapper.get('[data-testid="practise"]').trigger('click')
+
+    expect(openModal).toHaveBeenCalledWith({ chars: ['一'] })
   })
 
   it('says a right drawing is right', async () => {

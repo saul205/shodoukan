@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { KanjiStrokeDiagram, pointsToPath } from 'shodoukan-ui'
+import PracticeModal from '~/components/PracticeModal.vue'
 import type { ExerciseQuestion } from '~/models/practice'
 import { formatResponseTime } from '~/utils/session-format'
 import { VERDICT_COLORS, VERDICT_LABELS, verdictOf } from '~/utils/verdict'
@@ -25,6 +26,14 @@ const handwriting = computed(() => (props.question.type === 'card.handwriting' ?
 const picked = computed(() => (props.question.answer?.type === 'option' ? props.question.answer.option : null))
 const drawing = computed(() => (props.question.answer?.type === 'strokes' ? props.question.answer.strokes : []))
 const thumbnail = computed(() => drawing.value.map(points => ({ path: pointsToPath(points), label: null })))
+
+// A handwriting question's kanji can be practised right there, over the review.
+const overlay = useOverlay()
+const asked = computed(() => handwriting.value?.references?.[0]?.literal ?? null)
+
+function practise() {
+  if (asked.value) overlay.create(PracticeModal).open({ chars: [asked.value] })
+}
 
 const japaneseAnswer = computed(() => props.question.answer_field !== 'meaning')
 const prompt = computed(() => props.question.prompt.map(field => field.values.join('、')).join(' · '))
@@ -100,6 +109,17 @@ const wrongText = computed(() => {
           size="8rem"
           compact
         />
+        <div v-if="asked" class="flex justify-end">
+          <UButton
+            :label="`Practicar ${asked}`"
+            icon="i-lucide-pen-line"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            data-testid="review-practise"
+            @click="practise"
+          />
+        </div>
       </div>
     </template>
   </UCollapsible>

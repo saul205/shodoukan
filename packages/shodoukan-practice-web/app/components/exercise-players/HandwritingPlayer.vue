@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { KanjiDrawingPad } from 'shodoukan-ui'
+import PracticeModal from '~/components/PracticeModal.vue'
 import type { DrawnPoint, ExerciseAnswer, HandwritingQuestion, StudyField } from '~/models/practice'
 import { MAX_STROKE_POINTS, MAX_STROKES } from '~/utils/drawing'
 import { strokeProblem, VERDICT_COLORS, verdictOf } from '~/utils/verdict'
@@ -59,6 +60,14 @@ const atLimit = computed(() => strokes.value.length >= MAX_STROKES)
 
 function elapsed() {
   return Math.round(performance.now() - shownAt.value)
+}
+
+// Practising the kanji asked for opens over the session, which stays as it is.
+const overlay = useOverlay()
+const asked = computed(() => props.question.references?.[0]?.literal ?? null)
+
+function practise() {
+  if (asked.value) overlay.create(PracticeModal).open({ chars: [asked.value] })
 }
 
 const verdict = computed(() => verdictOf(props.question))
@@ -215,6 +224,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           {{ VERDICT_TEXT[verdict] }}
           <span v-if="question.grade" class="ml-1 text-sm text-dimmed tabular-nums" data-testid="score">· {{ question.grade.score }}</span>
         </p>
+        <UButton
+          v-if="asked"
+          label="Practicar kanji"
+          icon="i-lucide-pen-line"
+          color="neutral"
+          variant="outline"
+          size="lg"
+          class="ml-auto"
+          data-testid="practise"
+          @click="practise"
+        />
         <UButton label="Siguiente" size="lg" data-testid="next" @click="emit('next')">
           <template #trailing>
             <UKbd value="enter" class="hidden sm:inline-flex" />
