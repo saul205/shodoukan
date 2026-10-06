@@ -326,8 +326,9 @@ In `shodoukan-practice-web`:
     of prompt fields → answer field) and back-field checkboxes; the field list
     depends on the item kind (`utils/study-fields.ts`) **(built**, see
     [frontend](frontend.md#screens)**)**.
-  - `StudyCard`: front and back of a card. The back shows the prompt, the answer and
-    the chosen `back_fields` **(built)**.
+  - `StudyCard`: front, then (once answered) the back alone. The back shows the
+    prompt as the headline, the answer, and the chosen `back_fields` smaller
+    **(built)**.
   - `ChoiceOptions`: the options, keys 1–N; once answered, the picked one is red if
     wrong, the correct one green **(built)**.
   - `ItemDetailModal`: opens an item's full detail without leaving the session (the
