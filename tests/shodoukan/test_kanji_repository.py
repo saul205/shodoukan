@@ -1,6 +1,7 @@
 import json
 
 import pytest
+
 from shodoukan.repositories.kanji import KanjiRepository
 
 
@@ -206,3 +207,11 @@ def test_get_strokes_of_a_compatibility_ideograph(engine):
 
 def test_get_strokes_missing(engine):
     assert KanjiRepository(engine).get_strokes("水") is None
+
+
+def test_literals_with_strokes(engine):
+    # 神 U+FA19 counts through its canonical form; 水 has no drawing.
+    found = KanjiRepository(engine).literals_with_strokes(["食", "神", "水"])
+
+    assert found == {"食", "神"}
+    assert KanjiRepository(engine).literals_with_strokes([]) == set()

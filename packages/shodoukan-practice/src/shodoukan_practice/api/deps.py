@@ -447,7 +447,9 @@ def get_delete_exercise(session: SessionDep) -> DeleteExercise:
 # --- Exercise sessions ---
 
 
-def get_start_exercise_session(session: SessionDep) -> StartExerciseSession:
+def get_start_exercise_session(
+    session: SessionDep, dictionary: DictionaryGatewayDep
+) -> StartExerciseSession:
     return StartExerciseSession(
         SqlAlchemyExerciseRepository(session),
         SqlAlchemyExerciseSessionRepository(session),
@@ -455,11 +457,14 @@ def get_start_exercise_session(session: SessionDep) -> StartExerciseSession:
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+        dictionary,
         SqlAlchemyUserRepository(session),
     )
 
 
-def get_answer_exercise_question(session: SessionDep) -> AnswerExerciseQuestion:
+def get_answer_exercise_question(
+    session: SessionDep, dictionary: DictionaryGatewayDep
+) -> AnswerExerciseQuestion:
     return AnswerExerciseQuestion(
         SqlAlchemyExerciseRepository(session),
         SqlAlchemyExerciseSessionRepository(session),
@@ -467,6 +472,7 @@ def get_answer_exercise_question(session: SessionDep) -> AnswerExerciseQuestion:
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+        dictionary,
     )
 
 

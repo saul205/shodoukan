@@ -35,7 +35,7 @@ changes.
 | `card.choice` | Card | Sees the front, picks the right answer among N options | Phase 1–5 |
 | `card.flip` | Card | Sees the front, flips the card, says whether they knew it | Future |
 | `card.typed` | Card | Types the answer (kana, meaning) | Future |
-| `card.handwriting` | Card | Draws the kanji; stroke data is checked or self-graded | Future |
+| `card.handwriting` | Card | Draws the kanji; the strokes are graded against KanjiVG | #37 **(built)** |
 | `sentence.gap` | Sentence | Fills the gaps of an example sentence with kanji, given the kana | Future |
 
 All card types share `CardSettings`:
@@ -50,6 +50,9 @@ All card types share `CardSettings`:
 |---|---|---|
 | `option_count` | 2–8 | 4 |
 | `distractor_source` | `"collection"` (later `"library"`) | `"collection"` |
+
+`HandwritingCardSettings` (`type = "card.handwriting"`) adds nothing, but every
+direction must ask for `literal`, so only kanji exercises use it.
 
 ## Sessions (built)
 
@@ -209,12 +212,134 @@ Pure domain services, testable with a seeded `random.Random`:
 - `domain/services/study_field_service.py`: reads a field's values from a
   `PracticeEntry` / `PracticeKanji`, and builds their comparison keys. Katakana to
   hiragana is a code-point shift, so the domain doesn't need the `KanaGateway`.
-- `domain/services/choice_question_service.py`: `build_next_question` picks the next
-  item (see [which item comes next](#which-item-comes-next)) and direction, the
-  answer value and the distractors, applying the rule above.
+- `domain/services/question_order_service.py`: which item comes next (see
+  [which item comes next](#which-item-comes-next)), shared by every card type, and
+  the card's front and back.
+- `domain/services/choice_question_service.py`: `build_next_question` picks the
+  direction, the answer value and the distractors for that item, applying the rule
+  above.
 
 Tests cover every ambiguity: shared kun'yomi, shared on'yomi, homophones, synonyms,
 same spelling.
+
+## Handwriting
+
+A `card.handwriting` question shows the front and asks the user to draw the kanji
+(`answer_field` is always `literal`). The drawing is sent as strokes, in the order
+drawn, each a list of points (`StrokesAnswer`), and graded on the server against the
+KanjiVG strokes of the kanji, as the dictionary draws its stroke order.
+
+### Questions
+
+`handwriting_question_service.draft_next_question` picks the item like every card type
+(`question_order_service`), among the kanji that **have a stroke order**: the use case
+asks the dictionary which literals do (`DictionaryGateway.literals_with_strokes`) and
+passes them in, and a pool with fewer than 2 of them can't start a session
+(`ExercisePoolTooSmallError`, `422`). KanjiVG covers every jōyō kanji.
+
+**Any kanji that fits the prompt is right**, by the same test as the
+[distractor rule](#the-rule): asked for the kanji read はし with 橋 and 箸 both in the
+pool, either is right. The draft lists the accepted kanji (the asked one first); the
+use case fetches their strokes (`DictionaryGateway.stroke_references`, with each
+stroke's centre line as points, computed by the anti-corruption mapper from KanjiVG's
+paths) and builds the `HandwritingQuestion`, which keeps them as its snapshot. The
+drawing is graded against the closest. Nothing else changes: back fields, missed
+items coming back, the deck.
+
+### The drawing space
+
+Points are in KanjiVG's own space, a 109-unit square (`CANVAS_SIZE`), the space the
+frontend's stroke components draw in. The canvas shows a margin of 6 around it
+(`CANVAS_MARGIN`), and points must stay inside the square plus the margin. A drawing
+has up to 40 strokes (`MAX_STROKES`) of up to 300 points (`MAX_STROKE_POINTS`); the
+client simplifies each stroke before sending it. Stored as is in `answer`, the
+drawing is a few kilobytes of JSON, and the review draws it again from it. There's no
+image: vectors draw sharply at any size and are what grading needs.
+
+### Grading
+
+`handwriting_grading_service.grade_drawing(drawing, references)` compares the drawing
+with the kanji the question accepts and keeps the closest. Only those whose stroke
+count is within one of the drawing's are compared, since no other can be close; the
+asked kanji always is, so there's always a grade (a reading prompt such as コウ can
+accept dozens of kanji). The use case passes the grade to the session
+([decisions](decisions.md#a-drawing-is-graded-by-a-service-and-recorded-by-the-session)).
+
+1. **Normalize.** The drawing and the reference are each centred on their bounding
+   box and scaled by its longer side (`stroke_geometry_service.normalize`), so where
+   and how big it was drawn doesn't count. Distances are then in kanji sizes: 0.1 is
+   a tenth of the kanji. Each stroke is resampled to 16 evenly spaced points.
+2. **The picture.** A chamfer distance between every point of both, blind to strokes
+   and order, turned into a 0 to 1 likeness (`1 - distance / SHAPE_SCALE`).
+3. **The strokes.** The distance between two strokes is the mean of their point
+   distance and their furthest-apart ends. Each drawn stroke is paired with the
+   reference stroke it resembles most, closest pairs first, each used once, up to
+   `STROKE_MATCH`; drawn backwards still pairs.
+4. **The lengths.** Each paired stroke's share of the drawing's total length is
+   compared with its reference stroke's share of the kanji's: proportions between
+   strokes, not sizes. It's off when the shares differ by more than
+   `LENGTH_TOLERANCE` times **and** by more than `LENGTH_MIN_SHARE_GAP` of the total
+   (the gap keeps a short stroke's natural wobble from counting). Dots (reference
+   strokes under `MIN_LENGTH_CHECKED`) aren't checked. This is what tells 未 from 末.
+5. **A status per stroke**, the first that applies:
+
+   | Status | Meaning |
+   |---|---|
+   | `out_of_order` | Outside the longest run of reference strokes in writing order, so swapping two strokes is one mistake, not a cascade |
+   | `reversed` | Drawn backwards |
+   | `too_long` / `too_short` | Its length is off for the rest of the kanji (step 4) |
+   | `imprecise` | Paired, but further than `STROKE_OK` |
+   | `ok` | None of the above |
+   | `extra` | A drawn stroke with no pair |
+   | `missing` | A reference stroke not drawn |
+
+6. **The verdict**, lenient on purpose
+   ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)):
+   - `correct`: likeness ≥ `SHAPE_OK`, and no stroke out of order, backwards, of the
+     wrong length, extra or missing. Up to a third of the strokes may be `imprecise`:
+     they show as warnings.
+   - `close`: likeness ≥ `SHAPE_CLOSE`; at most one stroke extra or missing, and none
+     for kanji under 5 strokes (三 without a stroke is 二); at most two thirds of the
+     strokes imprecise; and problems on at most half of them (an imprecise stroke
+     counts half). It counts as right but comes back as a review.
+   - `wrong` otherwise.
+
+   `score` (0 to 100) is the mean of the picture likeness and the strokes' likeness
+   (each pair `1 - distance / STROKE_MATCH`, over the larger stroke count). It's shown
+   to the user; the verdict doesn't depend on it.
+
+| Constant | Value |
+|---|---|
+| `STROKE_SAMPLES` | 16 |
+| `STROKE_OK` | 0.12 |
+| `STROKE_MATCH` | 0.25 |
+| `SHAPE_SCALE` | 0.2 |
+| `SHAPE_OK` / `SHAPE_CLOSE` | 0.6 / 0.4 |
+| `ALLOWED_COUNT_ERRORS` / `COUNT_TOLERANCE_FROM` | 1 / 5 strokes |
+| `LENGTH_TOLERANCE` / `LENGTH_MIN_SHARE_GAP` / `MIN_LENGTH_CHECKED` | 1.35 / 0.045 / 0.1 |
+| `IMPRECISE_CORRECT_SHARE` / `IMPRECISE_CLOSE_SHARE` | ⅓ / ⅔ |
+| `PROBLEM_CLOSE_SHARE` / `IMPRECISE_WEIGHT` | ½ / ½ |
+
+**Calibration.** The values were tuned on the KanjiVG strokes of 24 kanji drawn with
+noise (moved, resized to 70–110 %, each stroke up to 3–5 units off, points shaking by
+1.5–2.5), and on pairs of similar kanji drawn one for the other:
+
+- **The right kanji drawn with noise** is `correct`; only a very sloppy 2- or
+  3-stroke one (入, 土) drops to `close`. Length noise reaches a ratio of 1.40 on 1 %
+  of strokes, but never with a share gap over 0.04 (0 of 1,220 strokes).
+- **A stroke backwards, two swapped or one missing** is `close`.
+- **Kanji that differ only in stroke lengths** (未 / 末, 天 / 夫) are `close` with
+  length warnings, which tells the learner what to fix. With noise, 夫 for 天 can
+  still pass as `correct`.
+- **Kanji where most strokes are off** (土 / 士) are `wrong`.
+- **One stroke more or less in a kanji of 5 strokes or more** (木 for 本, 王 for 玉,
+  休 / 体, 問 for 間, 鳥 for 烏) is `close`, by design: it can't be told from
+  forgetting a stroke.
+- **Other kanji** are `wrong`.
+
+The values should be checked against real drawings once people use it.
+`tests/shodoukan-practice/domain/test_handwriting_grading_service.py` keeps these
+cases.
 
 ## Storage
 
@@ -237,7 +362,7 @@ until it gets one.
 | Table | Columns |
 |---|---|
 | `exercise_sessions` | `id`, `user_id`, `exercise_id` (→ `exercises`, `SET NULL` on delete, so history survives), `exercise_name` (snapshot), `item_kind`, `meaning_lang`, `created_at` (the start), `updated_at`, `finished_at` |
-| `exercise_questions` | `id`, `session_id` (cascade), `position`, `entry_id` / `kanji_id` (one of them, by the session's kind; `SET NULL` when the item leaves the library), `prompt_fields`, `answer_field`, `prompt` / `options` / `back` (JSON snapshot), `correct_option`, `answer` (JSON, SQL `NULL` until answered), `is_correct`, `answered_at`, `response_ms` |
+| `exercise_questions` | `id`, `session_id` (cascade), `position`, `type`, `entry_id` / `kanji_id` (one of them, by the session's kind; `SET NULL` when the item leaves the library), `prompt_fields`, `answer_field`, `prompt` / `back` (JSON snapshot), `details` (JSON: what only the type has), `answer` (JSON, SQL `NULL` until answered), `is_correct`, `answered_at`, `response_ms` |
 
 The active question and the history share `exercise_questions`: the active one is the
 row with no answer. Finishing a session deletes that row.
@@ -246,10 +371,12 @@ Each option keeps the id of the item it came from, for opening its detail from t
 review; that id isn't updated if the item is later removed.
 
 The queryable columns (`item_id`, `answer_field`, `is_correct`, `answered_at`, ...) are
-what statistics filter and group by. `answer` is a discriminated union like
-`settings`: `{type: "option", option}` and `{type: "skip"}` (a miss) now; later
-`{type: "text", text}`,
-`{type: "self_grade", knew}` and `{type: "strokes", strokes}`.
+what statistics filter and group by. `details` holds what only the
+question's type has: `{options, correct_option}` for a choice card, `{references,
+grade}` for a handwriting card ([decisions](decisions.md#questions-are-a-union-too-with-what-each-type-adds-in-one-json-column)).
+`answer` is a discriminated union like `settings`: `{type: "option", option}`,
+`{type: "strokes", strokes}` and `{type: "skip"}` (a miss) now; later
+`{type: "text", text}` and `{type: "self_grade", knew}`.
 
 The snapshot keeps a past session readable exactly as it was, even after the item is
 edited or deleted.
@@ -273,7 +400,7 @@ Details: [endpoints](api/endpoints.md#exercises).
 | Method | Route | Body / result |
 |---|---|---|
 | `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its first active question, **without** the solution (item, correct option, back) |
-| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
+| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option}, {type: "strokes", strokes} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
 | `GET` | `/exercise-sessions/{id}` | The session: its active question (without solution) and its history (with) |
 | `POST` | `/exercise-sessions/{id}/finish` | Close it; idempotent |
 
@@ -296,8 +423,8 @@ Details: [endpoints](api/endpoints.md#exercise-sessions).
 - Answers per day are grouped in Python with `zoneinfo` over the `answered_at` of the
   window (at most 365 days), so SQLite and PostgreSQL agree and days follow the
   user's time zone.
-- Each question in a response carries `type` (`"card.choice"` today), so the frontend
-  picks the player by type. It's a constant until a second type needs a column.
+- Each question in a response carries `type` (`"card.choice"` or
+  `"card.handwriting"`), so the frontend picks the player by type.
 
 Details: [endpoints](api/endpoints.md#exercise-statistics), [use
 cases](application/use-cases.md#queries-queriesexercise_statistics_queriespy) and
@@ -371,4 +498,6 @@ go in the order 3 → A → 4 → 5 → C.
 | 5 | History and review (frontend), #33 **(built)** | Session history per exercise, reviewing a past session |
 | C | Statistics (frontend), #43 **(built)** | Statistics per exercise and the "Estadísticas" page |
 | 6 | Library distractors, #34 | `distractor_source = "library"` |
-| — | Future types | `card.flip`, `card.typed`, `card.handwriting`, `sentence.gap` |
+| 7 | Handwriting (backend), #58 **(built)** | `card.handwriting`: KanjiVG references, grading, questions by type in storage |
+| 8 | Handwriting (frontend), #59 **(built)** | Drawing pad, the handwriting player, reviewing drawings |
+| — | Future types | `card.flip`, `card.typed`, `sentence.gap` |

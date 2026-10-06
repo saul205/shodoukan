@@ -325,8 +325,9 @@ user's exercise or collection is a `404`.
 
 - `name`: stripped, 1–100 characters. `collection_ids`: at least one, collections of
   the exercise's kind.
-- `settings` is the domain's settings model as JSON, keyed by `type` (`card.choice`
-  only for now). Omitted settings take their defaults (`back_fields` `[]`,
+- `settings` is the domain's settings model as JSON, keyed by `type`: `card.choice`,
+  or `card.handwriting` (kanji exercises; every direction's `answer` is `literal`, and
+  it has no options). Omitted settings take their defaults (`back_fields` `[]`,
   `option_count` `4`, `distractor_source` `"collection"`). A `question_count` sent by
   older clients is ignored.
 - Fields: `writing`, `reading`, `meaning` for `entries`; `literal`, `onyomi`,
@@ -364,7 +365,13 @@ Answering takes
 `{"question_id": 12, "answer": {"type": "option", "option": 2}, "response_ms": 1500}`:
 `question_id` must be the active question's, and `response_ms` is optional (0 to
 2147483647, what its 32-bit column holds). `{"type": "skip"}` as the answer skips the
-question: it's graded as a miss and returned with its solution, like any answer.
+question: it's graded as a miss and returned with its solution, like any answer. A
+handwriting card is answered with the drawing,
+`{"type": "strokes", "strokes": [[[x, y], ...], ...]}`: the strokes in the order
+drawn, in KanjiVG's 109-unit square, with a margin of 6 allowed around it (up to 40
+strokes of up to 300 points). An answer of the other type, or points off the canvas,
+is a `422`. Starting a handwriting exercise whose collections have fewer than 2
+kanji with a stroke order is a `422` too.
 
 Listing is the history: the user's sessions, newest first, **without their
 questions**. Query: `exercise_id` (one exercise's sessions; an unknown or deleted one
@@ -380,12 +387,19 @@ effective one, as in `SessionResponse`), `answered` and `score`.
 `exercise_name`, `item_kind`, `meaning_lang`, `started_at`, `last_activity_at`,
 `finished_at` (also set, to the last activity, for a session idle over 30 minutes),
 `answered`, `score`, `current` (the active question; null once finished) and
-`history` (the answered questions, in order). Each `QuestionResponse` has `type`
-(always `"card.choice"` for now, so the client picks the player by type; it becomes a
-stored column with a second type), `id`, `position`, `prompt_fields`, `answer_field`, `prompt` (`[{field, values}]`), `options`
-(`[{text, item_id}]`) and `answered`. **The active question hides its solution:**
-`item_id`, `correct_option`, `back`, `answer`, `is_correct`, `answered_at` and
-`response_ms` are null, and so is each option's `item_id`. `AnswerResponse`: the graded
+`history` (the answered questions, in order). Each question is a union keyed by
+`type`, so the client picks the player by type. Every question has `id`, `position`,
+`prompt_fields`, `answer_field`, `prompt` (`[{field, values}]`), `answered`, and the
+solution fields `item_id`, `back`, `answer`, `is_correct`, `answered_at` and
+`response_ms`.
+
+- `"card.choice"` adds `options` (`[{text, item_id}]`) and `correct_option`.
+- `"card.handwriting"` adds `references` (`[{literal, strokes: [{path, label}]}]`,
+  the KanjiVG strokes of every kanji it accepts) and `grade` (`{score, verdict,
+  matched, strokes: [{drawn, reference, status}]}`; null when skipped).
+
+**The active question hides its solution:** the solution fields are null, and so are
+`correct_option` and each option's `item_id`, or `references` and `grade`. `AnswerResponse`: the graded
 question (`answered`) with its solution, the `next` active question (null if the pool
 can't make another, or if the exercise was deleted, which finishes the session),
 `answered_count`, `score` and `finished_at`.

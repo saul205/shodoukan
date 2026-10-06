@@ -1,11 +1,18 @@
 import pytest
-from factories import NOW, USER_ID, choice_settings, make_entry_exercise
+from factories import (
+    NOW,
+    USER_ID,
+    choice_settings,
+    handwriting_settings,
+    make_entry_exercise,
+)
 from pydantic import ValidationError
 
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
     Direction,
     EntryExercise,
+    HandwritingCardSettings,
     KanjiExercise,
 )
 
@@ -133,3 +140,22 @@ def test_configure_replaces_the_settings() -> None:
     exercise.configure(settings)
     assert exercise.settings == settings
     assert exercise.updated_at > NOW
+
+
+def test_handwriting_always_asks_for_the_kanji() -> None:
+    settings = handwriting_settings(("meaning",), ("onyomi", "kunyomi"))
+    assert settings.type == "card.handwriting"
+
+    with pytest.raises(ValidationError, match="asks for the kanji"):
+        HandwritingCardSettings.model_validate(
+            {"directions": [{"prompt": ["literal"], "answer": "meaning"}]}
+        )
+
+
+def test_an_entry_exercise_cant_be_drawn() -> None:
+    exercise = make_entry_exercise(USER_ID)
+
+    with pytest.raises(ValidationError):
+        EntryExercise.model_validate(
+            {**exercise.model_dump(), "settings": handwriting_settings(("meaning",))}
+        )

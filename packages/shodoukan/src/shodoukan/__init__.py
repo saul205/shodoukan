@@ -13,6 +13,7 @@ from shodoukan.models.entry import (
 )
 from shodoukan.models.kanji import Kanji, KanjiMeaning, KanjiStroke, KanjiStrokes
 from shodoukan.models.search import SearchResult
+from shodoukan.utils.svg_path import path_points
 
 __all__ = [
     "CrossReference",
@@ -31,4 +32,5 @@ __all__ = [
     "Reading",
     "SearchResult",
     "Sense",
+    "path_points",
 ]

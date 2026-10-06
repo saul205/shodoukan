@@ -168,8 +168,17 @@ export interface ChoiceCardSettings {
   distractor_source: 'collection'
 }
 
+/** Draw the kanji: every direction asks for `literal` (kanji exercises only). */
+export interface HandwritingCardSettings {
+  type: 'card.handwriting'
+  directions: Direction[]
+  back_fields: StudyField[]
+}
+
 /** Settings by exercise type, discriminated by `type`. */
-export type ExerciseSettings = ChoiceCardSettings
+export type ExerciseSettings = ChoiceCardSettings | HandwritingCardSettings
+
+export type ExerciseType = ExerciseSettings['type']
 
 export interface Exercise {
   id: number
@@ -197,7 +206,7 @@ export interface NewExerciseInput extends ExerciseInput {
 }
 
 /** How a question is played; picks the player component. */
-export type QuestionType = 'card.choice'
+export type QuestionType = ExerciseType
 
 /** A field of the item as the card shows it, with all its values. */
 export interface ShownField {
@@ -222,30 +231,91 @@ export interface SkipAnswer {
   type: 'skip'
 }
 
+/** A point of a drawing, in KanjiVG's 109-unit square (a margin of 6 around it is allowed). */
+export type DrawnPoint = [number, number]
+
+/** The kanji as drawn: its strokes in the order drawn. */
+export interface StrokesAnswer {
+  type: 'strokes'
+  strokes: DrawnPoint[][]
+}
+
 /** Answers by type, discriminated by `type`. */
-export type ExerciseAnswer = OptionAnswer | SkipAnswer
+export type ExerciseAnswer = OptionAnswer | StrokesAnswer | SkipAnswer
 
 /**
- * A question of a session. Until it's answered the API hides its solution:
- * `item_id`, `correct_option`, `back` and the options' items are null.
+ * What every question of a session has. Until it's answered the API hides its
+ * solution: `item_id`, `back`, and each type's own (see below) are null.
  */
-export interface ExerciseQuestion {
-  type: QuestionType
+interface QuestionBase {
   id: number
   position: number
   prompt_fields: StudyField[]
   answer_field: StudyField
   prompt: ShownField[]
-  options: ChoiceOption[]
   answered: boolean
   item_id: number | null
-  correct_option: number | null
   back: ShownField[] | null
   answer: ExerciseAnswer | null
   is_correct: boolean | null
   answered_at: string | null
   response_ms: number | null
 }
+
+/** Pick the right option; `correct_option` and the options' items are null until answered. */
+export interface ChoiceQuestion extends QuestionBase {
+  type: 'card.choice'
+  options: ChoiceOption[]
+  correct_option: number | null
+}
+
+/** One stroke of a reference kanji (KanjiVG): its path and where its number goes. */
+export interface ReferenceStroke {
+  path: string
+  label: [number, number] | null
+}
+
+/** A kanji a handwriting question accepts, with its strokes in writing order. */
+export interface ReferenceKanji {
+  literal: string
+  strokes: ReferenceStroke[]
+}
+
+/**
+ * How a drawn stroke compares to the reference: right; drawn backwards; out
+ * of order; too long or too short for the rest of the kanji; too far from its
+ * reference stroke; one the reference doesn't have; one not drawn.
+ */
+export type StrokeStatus =
+  | 'ok' | 'reversed' | 'out_of_order' | 'too_long' | 'too_short' | 'imprecise' | 'extra' | 'missing'
+
+/** A stroke's grade; `drawn` and `reference` are stroke indexes (null for extra / missing). */
+export interface StrokeFeedback {
+  drawn: number | null
+  reference: number | null
+  status: StrokeStatus
+}
+
+/** Right; right enough to count, but to practise again; wrong. */
+export type Verdict = 'correct' | 'close' | 'wrong'
+
+/** How a drawing compares to the closest accepted kanji (`matched`). */
+export interface HandwritingGrade {
+  score: number // 0–100
+  verdict: Verdict
+  matched: string
+  strokes: StrokeFeedback[]
+}
+
+/** Draw the kanji; `references` and `grade` are null until answered (`grade` too when skipped). */
+export interface HandwritingQuestion extends QuestionBase {
+  type: 'card.handwriting'
+  references: ReferenceKanji[] | null
+  grade: HandwritingGrade | null
+}
+
+/** A question of a session, by type. */
+export type ExerciseQuestion = ChoiceQuestion | HandwritingQuestion
 
 export interface ExerciseSession {
   id: number

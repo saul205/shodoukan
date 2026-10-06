@@ -29,23 +29,62 @@ for glosses, `en` for kanji meanings). Keys are what values are compared by:
 is what can be asked or offered: only the first value of a word's `writing` and
 `reading` (`first_only`), every value otherwise. Details:
 [exercises](../exercises.md#reading-a-field-from-an-item).
+`kanji_literal(card)` is a kanji card's kanji (`None` for a word).
 
 `entry_label(entry)` names a word outside a card (in statistics): `(label, reading)`,
 its usual form as asked (`entry_card`'s first enabled spelling, else its first
 enabled reading) plus its reading when the label is a spelling. With every spelling
 and reading disabled, it falls back to the dictionary's first spelling or reading.
 
+### `question_order_service`
+
+What every card exercise type shares:
+
+- `items_in_order(eligible, history, rng)`: the items in the order to try them. Missed
+  items due for review come first (after `REVIEW_GAP` questions, never two reviews in
+  a row), then the deck (each item once per round), then any other; never the last
+  one again ([details](../exercises.md#which-item-comes-next)).
+- `eligible_items(cards, settings)` lists the items some direction can ask
+  (`can_ask`); `ensure_enough_items` raises `ExercisePoolTooSmallError` with fewer
+  than `MIN_POOL_SIZE` (2).
+- `fits_prompt(other, card, prompt)`: whether another item answers the same prompt
+  (the basis of [the distractor rule](../exercises.md#the-rule)).
+- `card_front(card, direction)` and `card_back(card, direction, settings)`: what the
+  card shows before and after answering.
+
 ### `choice_question_service.build_next_question(cards, settings, history, rng)`
 
 Builds a session's next choice-card question from the pool's cards and the session's
-history, with the injected `random.Random`. The item comes from missed items due for
-review (after `REVIEW_GAP` questions, never two reviews in a row), then the deck (each
-item once per round), then any other; never the last one again
-([details](../exercises.md#which-item-comes-next)). Directions are tried in random
-order, and distractors are picked so that **none is a valid answer**
-([the rule](../exercises.md#the-rule)). Raises `ExercisePoolTooSmallError` if fewer
-than `MIN_POOL_SIZE` (2) items can be asked about (`ensure_enough_items`), or no
-question can be built. `eligible_items` lists the items some direction can ask.
+history, with the injected `random.Random`: the first of the `items_in_order` that can be
+asked. Directions are tried in random order, and distractors are picked so that
+**none is a valid answer** ([the rule](../exercises.md#the-rule)). Raises
+`ExercisePoolTooSmallError` if the pool is too small or no question can be built.
+
+### `handwriting_question_service.draft_next_question(cards, settings, history, drawable, rng)`
+
+Picks the next handwriting question's item and direction among the kanji in
+`drawable` (those with a stroke order), as a `HandwritingDraft`: prompt, back and the
+accepted kanji (every pool kanji that fits the prompt, the asked one first).
+`draft.question(position, references)` turns it into the `HandwritingQuestion` once
+the caller has their strokes (`references` by literal): accepted kanji without
+strokes are left out, and the asked one must have them (`ExercisePoolTooSmallError`
+otherwise). `ensure_enough_drawable_items` raises
+`ExercisePoolTooSmallError` with fewer than 2 drawable kanji. See
+[exercises](../exercises.md#questions).
+
+### `stroke_geometry_service`
+
+Pure geometry on strokes (tuples of points): `normalize` (centred on the bounding box,
+scaled by its longer side), `resample(stroke, n)` (evenly spaced points),
+`mean_distance` (pairwise, so direction counts) and `chamfer` (as pictures, ignoring
+order). SVG paths are never parsed here: reference strokes arrive as points.
+
+### `handwriting_grading_service.grade_drawing(drawing, references)`
+
+Grades a `StrokesAnswer` against each accepted `ReferenceKanji` and returns the
+closest `HandwritingGrade` (score, verdict, matched kanji, a status per stroke).
+`ValueError` with no references. Algorithm and thresholds:
+[exercises](../exercises.md#grading).
 
 ## Exceptions (`domain/exceptions.py`)
 

@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 
 from shodoukan.db.connection import open_connection, resolve_path
@@ -82,6 +83,10 @@ class Dictionary:
     def get_kanji_strokes(self, literal: str) -> KanjiStrokes | None:
         """The stroke order of `literal` (KanjiVG), or `None` if it has none."""
         return self._kanji.get_strokes(literal)
+
+    def literals_with_strokes(self, literals: Iterable[str]) -> set[str]:
+        """Which of `literals` have a stroke order (KanjiVG)."""
+        return self._kanji.literals_with_strokes(literals)
 
     def search_kanji(
         self,

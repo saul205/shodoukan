@@ -29,7 +29,7 @@ The models that define these tables are described in
 | `exercises` | `users` | `item_kind` with `CHECK item_kind IN ('entries','kanji')`, `settings` JSON, `name` (not unique), `description` |
 | `exercise_entry_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `entry_collections`, index on `collection_id`, `position` |
 | `exercise_sessions` | `users` | partial unique index `uq_exercise_sessions_user_id_open` on `user_id` `WHERE finished_at IS NULL` (one open session per user); `exercise_id` → `exercises` (`SET NULL`), `exercise_name`, `item_kind` (CHECK), `meaning_lang`, `finished_at` (nullable) |
-| `exercise_questions` | `exercise_sessions` | `position`, `UNIQUE(session_id, position)`; `entry_id` → `practice_entries` / `kanji_id` → `practice_kanji`, both `SET NULL`, `CHECK entry_id IS NULL OR kanji_id IS NULL`; `prompt_fields`, `prompt`, `options`, `back`, `answer` JSON; `correct_option`, `is_correct`, `answered_at`, `response_ms` |
+| `exercise_questions` | `exercise_sessions` | `position`, `UNIQUE(session_id, position)`; `entry_id` → `practice_entries` / `kanji_id` → `practice_kanji`, both `SET NULL`, `CHECK entry_id IS NULL OR kanji_id IS NULL`; `type` (`CHECK` `card.choice` / `card.handwriting`); `prompt_fields`, `prompt`, `back`, `answer` JSON; `details` JSON, what only the type has (choice: `options`, `correct_option`; handwriting: `references`, `grade`); `is_correct`, `answered_at`, `response_ms` |
 | `exercise_kanji_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `kanji_collections`, index on `collection_id`, `position` |
 
 Every table except `users` and the link tables has an integer `id` primary key.

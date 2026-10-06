@@ -52,6 +52,11 @@ Once any environment is deployed, migrations are append-only.
 |---|---|
 | `4ea69ccc76fd` | Initial schema (squashed before the first deploy) |
 | `cc326135e923` | `notes` on `practice_entries`, `practice_senses`, `practice_kanji` |
+| `8ef13443cd30` | `exercises` and their collection link tables |
+| `08d07b56c263` | `exercise_sessions` and `exercise_questions` |
+| `f59399cff4a5` | One question per position in a session |
+| `bfad9df5a138` | One open session per user (closes the extra ones first) |
+| `33f2afbdd7cf` | Questions by `type`: a choice card's `options` and `correct_option` move into `details` (JSON); downgrading moves them back and deletes the questions and exercises of other types (handwriting), which the older code can't read |
 
 ## Safety nets
 

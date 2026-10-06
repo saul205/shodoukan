@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExerciseAnswer, ExerciseQuestion, StudyField } from '~/models/practice'
+import type { ChoiceQuestion, ExerciseAnswer, StudyField } from '~/models/practice'
 
 // Plays a choice card: the card, its options (click or keys 1–N) and a
 // bottom row that's always there ("Saltar", or S / Escape; then the verdict
@@ -9,7 +9,7 @@ import type { ExerciseAnswer, ExerciseQuestion, StudyField } from '~/models/prac
 // doesn't need; from `sm` the card takes what the options and the row leave.
 // Either way answering moves nothing and a phone never scrolls. It measures
 // the time to answer and emits; the session page talks to the API.
-const props = defineProps<{ question: ExerciseQuestion; busy?: boolean; backFields?: StudyField[] }>()
+const props = defineProps<{ question: ChoiceQuestion; busy?: boolean; backFields?: StudyField[] }>()
 const emit = defineEmits<{
   'answer': [answer: ExerciseAnswer, responseMs: number]
   'next': []

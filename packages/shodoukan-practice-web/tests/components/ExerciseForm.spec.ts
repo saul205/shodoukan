@@ -141,6 +141,35 @@ describe('ExerciseForm', () => {
     expect(collections.props('modelValue')).toEqual([])
   })
 
+  it('offers drawing the kanji only for kanji, which asks for the kanji and has no options', async () => {
+    const form = await mountForm()
+    expect(form.wrapper.find('[data-testid="exercise-type"]').exists()).toBe(false)
+
+    form.wrapper.findComponent(URadioGroup).vm.$emit('update:modelValue', 'kanji')
+    await flushPromises()
+    form.wrapper.findAllComponents(URadioGroup)[1]!.vm.$emit('update:modelValue', 'card.handwriting')
+    await flushPromises()
+
+    expect(form.wrapper.find('input[inputmode="numeric"]').exists()).toBe(false) // no option count
+    expect(form.wrapper.findComponent(DirectionsEditor).props('answerFields')).toEqual(['literal'])
+    await form.typeName('Escribir N5')
+    form.pickCollections([3])
+    await form.submit()
+
+    expect(form.posted()).toHaveLength(1)
+    const [url, options] = form.posted()[0]!
+    expect(url).toBe('/exercises')
+    expect(options.body).toMatchObject({
+      item_kind: 'kanji',
+      settings: {
+        type: 'card.handwriting',
+        directions: [{ prompt: ['meaning'], answer: 'literal' }],
+        back_fields: ['onyomi', 'kunyomi'],
+      },
+    })
+    expect(options.body.settings).not.toHaveProperty('option_count')
+  })
+
   it('edits an exercise without changing its kind', async () => {
     const form = await mountForm({ exercise: saved })
 

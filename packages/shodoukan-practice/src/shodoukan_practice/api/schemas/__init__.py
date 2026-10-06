@@ -12,12 +12,17 @@ from .exercise_schemas import ExerciseRequest, ExerciseResponse, NewExerciseRequ
 from .exercise_session_schemas import (
     AnswerRequest,
     AnswerResponse,
+    ChoiceQuestionResponse,
+    HandwritingQuestionResponse,
     OptionResponse,
     QuestionResponse,
+    ReferenceKanjiResponse,
+    ReferenceStrokeResponse,
     SessionResponse,
     SessionSummaryPageResponse,
     SessionSummaryResponse,
     StartSessionRequest,
+    question_response,
 )
 from .exercise_statistics_schemas import (
     DayActivityResponse,
@@ -52,6 +57,7 @@ __all__ = [
     "ActiveRequest",
     "AnswerRequest",
     "AnswerResponse",
+    "ChoiceQuestionResponse",
     "CollectionRequest",
     "CollectionResponse",
     "DayActivityResponse",
@@ -66,6 +72,7 @@ __all__ = [
     "ExerciseResponse",
     "ExerciseStatisticsResponse",
     "ExerciseSummaryResponse",
+    "HandwritingQuestionResponse",
     "ImportEntryRequest",
     "ImportKanjiRequest",
     "ImportStatusResponse",
@@ -86,6 +93,8 @@ __all__ = [
     "PracticeKanjiResponse",
     "PracticeStatisticsResponse",
     "QuestionResponse",
+    "ReferenceKanjiResponse",
+    "ReferenceStrokeResponse",
     "SearchText",
     "SessionResponse",
     "SessionSummaryPageResponse",
@@ -93,4 +102,5 @@ __all__ = [
     "StartSessionRequest",
     "TotalsResponse",
     "UserResponse",
+    "question_response",
 ]
