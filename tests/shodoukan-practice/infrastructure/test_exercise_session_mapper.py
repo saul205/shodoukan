@@ -91,5 +91,5 @@ def test_an_unknown_question_type_is_refused() -> None:
     row = exercise_session_to_db(make_session(USER_ID, item_id=7))
     row.questions[0].type = "card.flip"
 
-    with pytest.raises(ValueError, match="unknown question type"):
+    with pytest.raises(ValueError, match=r"card\.flip"):
         exercise_session_to_domain(row)

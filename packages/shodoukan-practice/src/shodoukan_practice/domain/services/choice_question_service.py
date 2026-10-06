@@ -27,13 +27,13 @@ from ..entities import (
 )
 from ..exceptions import ExercisePoolTooSmallError
 from .question_order_service import (
-    back,
     can_ask,
-    candidates,
+    card_back,
+    card_front,
     eligible_items,
     ensure_enough_items,
     fits_prompt,
-    front,
+    items_in_order,
 )
 from .study_field_service import FieldValue, StudyCard
 
@@ -51,7 +51,7 @@ def build_next_question(
     """
     ensure_enough_items(cards, settings)
     eligible = eligible_items(cards, settings)
-    for card in candidates(eligible, history, rng):
+    for card in items_in_order(eligible, history, rng):
         question = _question(card, cards, settings, rng, position=len(history))
         if question is not None:
             return question
@@ -82,10 +82,10 @@ def _question(
             item_id=card.item_id,
             prompt_fields=direction.prompt,
             answer_field=direction.answer,
-            prompt=front(card, direction),
+            prompt=card_front(card, direction),
             options=tuple(options),
             correct_option=options.index(correct),
-            back=back(card, direction, settings),
+            back=card_back(card, direction, settings),
         )
     return None
 

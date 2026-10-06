@@ -52,7 +52,7 @@ def test_the_draft_becomes_the_question() -> None:
         POOL, handwriting_settings(("meaning",)), [], DRAWABLE, Random(1)
     )
 
-    question = draft.question(3, [make_reference(draft.accepted[0])])
+    question = draft.question(3, {draft.accepted[0]: make_reference(draft.accepted[0])})
 
     assert question.position == 3
     assert question.item_id == draft.item_id
@@ -68,3 +68,24 @@ def test_a_pool_needs_two_kanji_with_a_stroke_order() -> None:
         ensure_enough_drawable_items(POOL, settings, frozenset({"水"}))
     with pytest.raises(ExercisePoolTooSmallError):
         draft_next_question(POOL, settings, [], frozenset({"水"}), Random(1))
+
+
+def test_accepted_kanji_without_strokes_are_left_out() -> None:
+    settings = handwriting_settings(("kunyomi",))
+    draft = next(
+        d
+        for seed in range(20)
+        if len(
+            (
+                d := draft_next_question(POOL, settings, [], DRAWABLE, Random(seed))
+            ).accepted
+        )
+        == 2
+    )
+    asked, other = draft.accepted
+
+    question = draft.question(0, {asked: make_reference(asked)})
+    assert [r.literal for r in question.references] == [asked]
+
+    with pytest.raises(ExercisePoolTooSmallError):
+        draft.question(0, {other: make_reference(other)})

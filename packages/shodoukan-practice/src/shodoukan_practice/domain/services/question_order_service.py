@@ -50,7 +50,7 @@ def ensure_enough_items(cards: Sequence[StudyCard], settings: CardSettings) -> N
         )
 
 
-def candidates(
+def items_in_order(
     eligible: Sequence[StudyCard], history: Sequence[ExerciseQuestion], rng: Random
 ) -> list[StudyCard]:
     """The eligible items in the order to try them (see the module docs)."""
@@ -83,13 +83,13 @@ def fits_prompt(
     return all(other.keys(field) & card.keys(field) for field in prompt)
 
 
-def front(card: StudyCard, direction: Direction) -> tuple[ShownField, ...]:
+def card_front(card: StudyCard, direction: Direction) -> tuple[ShownField, ...]:
     """The front of the card: what can be asked of each prompt field (a word's
     usual form)."""
     return tuple(_shown(card, f, front=True) for f in direction.prompt)
 
 
-def back(
+def card_back(
     card: StudyCard, direction: Direction, settings: CardSettings
 ) -> tuple[ShownField, ...]:
     """The back of the card: the prompt, the answer and the exercise's back

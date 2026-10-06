@@ -11,10 +11,10 @@ provenance (`source_name`, `source_id`).
 
 from uuid import UUID
 
+from shodoukan import path_points
 from shodoukan.models.entry import Entry, Example, Page, Sense
 from shodoukan.models.kanji import Kanji, KanjiStrokes
 from shodoukan.models.search import SearchResult
-from shodoukan.utils.svg_path import path_points
 
 from ...domain.entities import (
     PracticeEntry,

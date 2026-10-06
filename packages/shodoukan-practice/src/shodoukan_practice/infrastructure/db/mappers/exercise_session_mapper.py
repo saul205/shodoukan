@@ -4,8 +4,10 @@ The active question and the history share `exercise_questions`: the active
 one is the row with no answer. The question's item goes to `entry_id` or
 `kanji_id` by the session's item kind. Prompt, back and answer are stored as
 JSON-compatible lists and dicts, validated back into the domain's value
-objects. `type` picks the question class, and `details` holds the fields only
-that class has (`_DETAILS`), validated by it on the way back.
+objects. `type` picks the question class through the `ExerciseQuestion`
+union, as `settings` does for exercises, and `details` holds the fields only
+that class has (everything but `QuestionBase`'s), validated by it on the way
+back.
 """
 
 from typing import Any
@@ -13,12 +15,11 @@ from typing import Any
 from pydantic import TypeAdapter
 
 from ....domain.entities import (
-    ChoiceQuestion,
     ExerciseAnswer,
     ExerciseQuestion,
     ExerciseSession,
-    HandwritingQuestion,
     ItemKind,
+    QuestionBase,
     ShownField,
     StudyField,
 )
@@ -30,16 +31,9 @@ _fields = TypeAdapter[tuple[StudyField, ...]](tuple[StudyField, ...])
 _field = TypeAdapter[StudyField](StudyField)
 _item_kind = TypeAdapter[ItemKind](ItemKind)
 
-# The question class of each stored `type`, and the fields it keeps in
-# `details`.
-_CLASSES: dict[str, type[ChoiceQuestion] | type[HandwritingQuestion]] = {
-    "card.choice": ChoiceQuestion,
-    "card.handwriting": HandwritingQuestion,
-}
-_DETAILS = {
-    "card.choice": {"options", "correct_option"},
-    "card.handwriting": {"references", "grade"},
-}
+_question = TypeAdapter[ExerciseQuestion](ExerciseQuestion)
+# Stored in their own columns; every other field of a question is `details`.
+_COLUMNS = {*QuestionBase.model_fields, "type"}
 
 
 def exercise_session_to_domain(row: ExerciseSessionORM) -> ExerciseSession:
@@ -85,10 +79,8 @@ def exercise_session_to_db(entity: ExerciseSession) -> ExerciseSessionORM:
 def _question_to_domain(
     row: ExerciseQuestionORM, item_kind: ItemKind
 ) -> ExerciseQuestion:
-    question_class = _CLASSES.get(row.type)
-    if question_class is None:
-        raise ValueError(f"unknown question type {row.type!r}")
     common: dict[str, Any] = {
+        "type": row.type,
         "id": row.id,
         "position": row.position,
         "item_id": row.entry_id if item_kind == "entries" else row.kanji_id,
@@ -101,7 +93,7 @@ def _question_to_domain(
         "answered_at": row.answered_at,
         "response_ms": row.response_ms,
     }
-    return question_class.model_validate({**row.details, **common})
+    return _question.validate_python({**row.details, **common})
 
 
 def _question_to_db(
@@ -119,7 +111,7 @@ def _question_to_db(
         prompt=_shown.dump_python(question.prompt, mode="json"),
         type=question.type,
         back=_shown.dump_python(question.back, mode="json"),
-        details=question.model_dump(mode="json", include=_DETAILS[question.type]),
+        details=question.model_dump(mode="json", exclude=_COLUMNS),
         answer=_answer.dump_python(question.answer, mode="json"),
         is_correct=question.is_correct,
         answered_at=question.answered_at,

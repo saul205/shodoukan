@@ -313,7 +313,9 @@ the whole library. The cost is one request per answer. See
 Each question of a session stores a snapshot of its prompt, options and back, plus the
 answer and whether it was right. Reviewing a session and computing accuracy are
 queries over those rows. No separate statistics store is kept in sync, and the
-snapshot keeps old sessions readable after items change or are removed.
+snapshot keeps old sessions readable after items change or are removed. (What the
+snapshot holds besides the prompt and back depends on the question type: see
+[questions are a union too](#questions-are-a-union-too-with-what-each-type-adds-in-one-json-column).)
 
 ## Exercise settings are JSON behind a discriminated union
 
@@ -518,6 +520,27 @@ Rejected:
 
 The choice cards' `options` and `correct_option` moved into `details` (migration
 `33f2afbdd7cf`), so no column is left empty.
+
+## Handwriting questions read the dictionary when they're asked
+
+Narrows "The dictionary is used in-process behind a port", which says the practice app
+only needs the dictionary at import time.
+
+A handwriting question needs KanjiVG's strokes of every kanji it accepts, and the pool
+must leave out kanji without a stroke order. They're read from the dictionary when a
+question is built (start and every answer: `literals_with_strokes` over the pool, then
+`stroke_references` for the accepted kanji) and snapshotted in the question, rather
+than copied into the library at import time:
+
+- Strokes aren't the user's data: nothing in them is customised or disabled, unlike
+  readings and meanings.
+- Kanji imported before this feature would need a backfill, and every import would
+  carry a few kilobytes most users never draw.
+- The question's snapshot already keeps a session readable after the dictionary
+  changes.
+
+The cost is two in-process queries per question. With an HTTP adapter it would be
+two calls per answer, which batching (both calls take many literals) keeps bounded.
 
 ## A drawing is graded by a service and recorded by the session
 

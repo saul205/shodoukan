@@ -8,18 +8,17 @@ from .handwriting_question_service import (
     draft_next_question,
     drawable_items,
     ensure_enough_drawable_items,
-    literal,
 )
 from .question_order_service import (
     MIN_POOL_SIZE,
     REVIEW_GAP,
-    back,
     can_ask,
-    candidates,
+    card_back,
+    card_front,
     eligible_items,
     ensure_enough_items,
     fits_prompt,
-    front,
+    items_in_order,
 )
 from .study_field_service import (
     FieldValue,
@@ -29,6 +28,7 @@ from .study_field_service import (
     gloss_key,
     kana_key,
     kanji_card,
+    kanji_literal,
 )
 
 __all__ = [
@@ -37,10 +37,10 @@ __all__ = [
     "FieldValue",
     "HandwritingDraft",
     "StudyCard",
-    "back",
     "build_next_question",
     "can_ask",
-    "candidates",
+    "card_back",
+    "card_front",
     "draft_next_question",
     "drawable_items",
     "eligible_items",
@@ -50,10 +50,10 @@ __all__ = [
     "entry_card",
     "entry_label",
     "fits_prompt",
-    "front",
     "gloss_key",
     "grade_drawing",
+    "items_in_order",
     "kana_key",
     "kanji_card",
-    "literal",
+    "kanji_literal",
 ]

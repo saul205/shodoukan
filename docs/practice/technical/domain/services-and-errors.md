@@ -29,6 +29,7 @@ for glosses, `en` for kanji meanings). Keys are what values are compared by:
 is what can be asked or offered: only the first value of a word's `writing` and
 `reading` (`first_only`), every value otherwise. Details:
 [exercises](../exercises.md#reading-a-field-from-an-item).
+`kanji_literal(card)` is a kanji card's kanji (`None` for a word).
 
 `entry_label(entry)` names a word outside a card (in statistics): `(label, reading)`,
 its usual form as asked (`entry_card`'s first enabled spelling, else its first
@@ -39,7 +40,7 @@ and reading disabled, it falls back to the dictionary's first spelling or readin
 
 What every card exercise type shares:
 
-- `candidates(eligible, history, rng)`: the items in the order to try them. Missed
+- `items_in_order(eligible, history, rng)`: the items in the order to try them. Missed
   items due for review come first (after `REVIEW_GAP` questions, never two reviews in
   a row), then the deck (each item once per round), then any other; never the last
   one again ([details](../exercises.md#which-item-comes-next)).
@@ -48,13 +49,13 @@ What every card exercise type shares:
   than `MIN_POOL_SIZE` (2).
 - `fits_prompt(other, card, prompt)`: whether another item answers the same prompt
   (the basis of [the distractor rule](../exercises.md#the-rule)).
-- `front(card, direction)` and `back(card, direction, settings)`: what the card shows
-  before and after answering.
+- `card_front(card, direction)` and `card_back(card, direction, settings)`: what the
+  card shows before and after answering.
 
 ### `choice_question_service.build_next_question(cards, settings, history, rng)`
 
 Builds a session's next choice-card question from the pool's cards and the session's
-history, with the injected `random.Random`: the first of the `candidates` that can be
+history, with the injected `random.Random`: the first of the `items_in_order` that can be
 asked. Directions are tried in random order, and distractors are picked so that
 **none is a valid answer** ([the rule](../exercises.md#the-rule)). Raises
 `ExercisePoolTooSmallError` if the pool is too small or no question can be built.
@@ -65,7 +66,9 @@ Picks the next handwriting question's item and direction among the kanji in
 `drawable` (those with a stroke order), as a `HandwritingDraft`: prompt, back and the
 accepted kanji (every pool kanji that fits the prompt, the asked one first).
 `draft.question(position, references)` turns it into the `HandwritingQuestion` once
-the caller has their strokes. `ensure_enough_drawable_items` raises
+the caller has their strokes (`references` by literal): accepted kanji without
+strokes are left out, and the asked one must have them (`ExercisePoolTooSmallError`
+otherwise). `ensure_enough_drawable_items` raises
 `ExercisePoolTooSmallError` with fewer than 2 drawable kanji. See
 [exercises](../exercises.md#questions).
 

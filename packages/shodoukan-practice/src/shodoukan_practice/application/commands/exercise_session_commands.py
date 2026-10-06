@@ -48,7 +48,7 @@ from ...domain.services import (
     entry_card,
     grade_drawing,
     kanji_card,
-    literal,
+    kanji_literal,
 )
 from .collection_lookups import entry_collection, kanji_collection
 
@@ -119,19 +119,13 @@ class _Questions:
                 cards, settings, history, self._drawable(cards), self._rng
             )
             references = self._dictionary.stroke_references(draft.accepted)
-            if draft.accepted[0] not in references:
-                raise ExercisePoolTooSmallError(
-                    f"no stroke order for {draft.accepted[0]}"
-                )
-            return draft.question(
-                len(history), [references[k] for k in draft.accepted if k in references]
-            )
+            return draft.question(len(history), references)
         assert isinstance(settings, ChoiceCardSettings)
         return build_next_question(cards, settings, history, self._rng)
 
     def _drawable(self, cards: list[StudyCard]) -> frozenset[str]:
         return self._dictionary.literals_with_strokes(
-            text for card in cards if (text := literal(card)) is not None
+            text for card in cards if (text := kanji_literal(card)) is not None
         )
 
 

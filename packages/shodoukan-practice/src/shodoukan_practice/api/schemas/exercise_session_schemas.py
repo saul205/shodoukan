@@ -9,7 +9,7 @@ how to play each one.
 """
 
 from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal, assert_never
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -84,25 +84,6 @@ class _QuestionResponse(BaseModel):
     answered_at: datetime | None
     response_ms: int | None
 
-    @staticmethod
-    def _common(question: ExerciseQuestion) -> dict[str, Any]:
-        assert question.id is not None
-        answered = question.answered
-        return {
-            "id": question.id,
-            "position": question.position,
-            "prompt_fields": list(question.prompt_fields),
-            "answer_field": question.answer_field,
-            "prompt": list(question.prompt),
-            "answered": answered,
-            "item_id": question.item_id if answered else None,
-            "back": list(question.back) if answered else None,
-            "answer": question.answer,
-            "is_correct": question.is_correct,
-            "answered_at": question.answered_at,
-            "response_ms": question.response_ms,
-        }
-
 
 class ChoiceQuestionResponse(_QuestionResponse):
     type: Literal["card.choice"] = "card.choice"
@@ -111,9 +92,21 @@ class ChoiceQuestionResponse(_QuestionResponse):
 
     @classmethod
     def of(cls, question: ChoiceQuestion) -> "ChoiceQuestionResponse":
+        assert question.id is not None
         answered = question.answered
         return cls(
-            **cls._common(question),
+            id=question.id,
+            position=question.position,
+            prompt_fields=list(question.prompt_fields),
+            answer_field=question.answer_field,
+            prompt=list(question.prompt),
+            answered=answered,
+            item_id=question.item_id if answered else None,
+            back=list(question.back) if answered else None,
+            answer=question.answer,
+            is_correct=question.is_correct,
+            answered_at=question.answered_at,
+            response_ms=question.response_ms,
             options=[
                 OptionResponse(
                     text=option.text, item_id=option.item_id if answered else None
@@ -156,9 +149,21 @@ class HandwritingQuestionResponse(_QuestionResponse):
 
     @classmethod
     def of(cls, question: HandwritingQuestion) -> "HandwritingQuestionResponse":
+        assert question.id is not None
         answered = question.answered
         return cls(
-            **cls._common(question),
+            id=question.id,
+            position=question.position,
+            prompt_fields=list(question.prompt_fields),
+            answer_field=question.answer_field,
+            prompt=list(question.prompt),
+            answered=answered,
+            item_id=question.item_id if answered else None,
+            back=list(question.back) if answered else None,
+            answer=question.answer,
+            is_correct=question.is_correct,
+            answered_at=question.answered_at,
+            response_ms=question.response_ms,
             references=(
                 [ReferenceKanjiResponse.of(r) for r in question.references]
                 if answered
@@ -179,7 +184,9 @@ def question_response(
 ) -> ChoiceQuestionResponse | HandwritingQuestionResponse:
     if isinstance(question, ChoiceQuestion):
         return ChoiceQuestionResponse.of(question)
-    return HandwritingQuestionResponse.of(question)
+    if isinstance(question, HandwritingQuestion):
+        return HandwritingQuestionResponse.of(question)
+    assert_never(question)
 
 
 class SessionResponse(BaseModel):

@@ -58,9 +58,9 @@ Mapping rules:
   `item_kind`, and comes back from the same column. Its prompt, back and answer are
   dumped to JSON-compatible lists and dicts and validated back with `TypeAdapter`s;
   `item_kind` and the fields are narrowed to their `Literal`s. Its `type` picks the
-  question class (`ChoiceQuestion`, `HandwritingQuestion`; an unknown one raises
-  `ValueError`), and the fields only that class has (`options` and
-  `correct_option`; `references` and `grade`) go to `details`, validated by the
-  class on the way back.
+  question class through a `TypeAdapter` of the `ExerciseQuestion` union, like
+  `settings` (an unknown one raises a `ValidationError`), and every field that isn't
+  `QuestionBase`'s (`options` and `correct_option`; `references` and `grade`) goes to
+  `details`, so a new question type needs no mapper change.
 - `origin` strings are narrowed back to the domain's `Literal` type. Unknown values
   raise `ValueError`, and the `CHECK` constraint prevents them anyway.
