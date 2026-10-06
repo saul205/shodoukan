@@ -35,17 +35,29 @@ its usual form as asked (`entry_card`'s first enabled spelling, else its first
 enabled reading) plus its reading when the label is a spelling. With every spelling
 and reading disabled, it falls back to the dictionary's first spelling or reading.
 
+### `question_order_service`
+
+What every card exercise type shares:
+
+- `candidates(eligible, history, rng)`: the items in the order to try them. Missed
+  items due for review come first (after `REVIEW_GAP` questions, never two reviews in
+  a row), then the deck (each item once per round), then any other; never the last
+  one again ([details](../exercises.md#which-item-comes-next)).
+- `eligible_items(cards, settings)` lists the items some direction can ask
+  (`can_ask`); `ensure_enough_items` raises `ExercisePoolTooSmallError` with fewer
+  than `MIN_POOL_SIZE` (2).
+- `fits_prompt(other, card, prompt)`: whether another item answers the same prompt
+  (the basis of [the distractor rule](../exercises.md#the-rule)).
+- `front(card, direction)` and `back(card, direction, settings)`: what the card shows
+  before and after answering.
+
 ### `choice_question_service.build_next_question(cards, settings, history, rng)`
 
 Builds a session's next choice-card question from the pool's cards and the session's
-history, with the injected `random.Random`. The item comes from missed items due for
-review (after `REVIEW_GAP` questions, never two reviews in a row), then the deck (each
-item once per round), then any other; never the last one again
-([details](../exercises.md#which-item-comes-next)). Directions are tried in random
-order, and distractors are picked so that **none is a valid answer**
-([the rule](../exercises.md#the-rule)). Raises `ExercisePoolTooSmallError` if fewer
-than `MIN_POOL_SIZE` (2) items can be asked about (`ensure_enough_items`), or no
-question can be built. `eligible_items` lists the items some direction can ask.
+history, with the injected `random.Random`: the first of the `candidates` that can be
+asked. Directions are tried in random order, and distractors are picked so that
+**none is a valid answer** ([the rule](../exercises.md#the-rule)). Raises
+`ExercisePoolTooSmallError` if the pool is too small or no question can be built.
 
 ## Exceptions (`domain/exceptions.py`)
 

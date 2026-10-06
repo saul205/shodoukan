@@ -209,9 +209,12 @@ Pure domain services, testable with a seeded `random.Random`:
 - `domain/services/study_field_service.py`: reads a field's values from a
   `PracticeEntry` / `PracticeKanji`, and builds their comparison keys. Katakana to
   hiragana is a code-point shift, so the domain doesn't need the `KanaGateway`.
-- `domain/services/choice_question_service.py`: `build_next_question` picks the next
-  item (see [which item comes next](#which-item-comes-next)) and direction, the
-  answer value and the distractors, applying the rule above.
+- `domain/services/question_order_service.py`: which item comes next (see
+  [which item comes next](#which-item-comes-next)), shared by every card type, and
+  the card's front and back.
+- `domain/services/choice_question_service.py`: `build_next_question` picks the
+  direction, the answer value and the distractors for that item, applying the rule
+  above.
 
 Tests cover every ambiguity: shared kun'yomi, shared on'yomi, homophones, synonyms,
 same spelling.

@@ -47,8 +47,9 @@ standalone: never call shodoukan-api from here.
   - `searches/library_search.py`: library search criteria, match tiers and scopes.
   - `services/collection_service.py`: `ensure_combinable`;
     `services/study_field_service.py` (field values, comparison keys, `entry_label`) and
-    `services/choice_question_service.py` (`build_next_question`: the next item and
-    the distractor rule).
+    `services/question_order_service.py` (which item comes next, the card's front and
+    back; shared by every card type) and `services/choice_question_service.py`
+    (`build_next_question`: the distractor rule).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`
