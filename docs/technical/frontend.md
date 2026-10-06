@@ -1,6 +1,9 @@
 # shodoukan-web — Technical Reference
 
-Nuxt 3 SPA backed by the `shodoukan-api` FastAPI service.
+Nuxt 3 SPA (`ssr: false`) backed by the `shodoukan-api` FastAPI service, published as
+static files on a Render Static Site ([deployment](deployment.md#dictionary-web-static-site)).
+Pages load their data in the browser after navigation, so server rendering only ever
+produced a "loading" page; the static build needs no Node server.
 
 ## Tech stack
 
@@ -17,11 +20,14 @@ Nuxt 3 SPA backed by the `shodoukan-api` FastAPI service.
 cd packages/shodoukan-web
 npm install
 npm run dev          # dev server at http://localhost:3000
-npm run build        # production build
+npm run generate     # static build in .output/public (what gets deployed)
 npm test             # unit tests
 ```
 
 The API base URL is set via `nuxt.config.ts` (runtime config `apiBase`). By default it points to `http://localhost:8000`.
+In the static build it's fixed at build time: set `NUXT_PUBLIC_API_BASE` when running
+`generate`. The host must rewrite unknown paths to `/index.html` so routes like
+`/entry/123` load on refresh.
 
 ---
 

@@ -1,4 +1,9 @@
+// Dictionary frontend: a client-only SPA, published as static files (Render
+// Static Site). Pages load their data in the browser after navigation, so
+// server rendering only produced a "loading" page and a second request.
+// apiBase is set at build time with NUXT_PUBLIC_API_BASE.
 export default defineNuxtConfig({
+  ssr: false,
   modules: ['@nuxtjs/tailwindcss'],
   runtimeConfig: {
     public: {

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import type { ExerciseAnswer, ExerciseQuestion } from '~/models/practice'
+import type { ExerciseAnswer, ExerciseQuestion, StudyField } from '~/models/practice'
 
 // Plays a choice card: the card, its options (click or keys 1–N) and a
 // bottom row that's always there ("Saltar", or S / Escape; then the verdict
-// and "Siguiente", or Enter). A skip counts as a miss and shows the solution. It fills the height it's given and the card takes what the
-// options and the row leave, so answering moves nothing. It measures the time
-// to answer and emits; the session page talks to the API.
-const props = defineProps<{ question: ExerciseQuestion; busy?: boolean }>()
+// and "Siguiente", or Enter). A skip counts as a miss and shows the solution.
+// It fills the height it's given: on phones the card and the options share it
+// 2:3 (neither below its content), so the options grow into room the card
+// doesn't need; from `sm` the card takes what the options and the row leave.
+// Either way answering moves nothing and a phone never scrolls. It measures
+// the time to answer and emits; the session page talks to the API.
+const props = defineProps<{ question: ExerciseQuestion; busy?: boolean; backFields?: StudyField[] }>()
 const emit = defineEmits<{
   'answer': [answer: ExerciseAnswer, responseMs: number]
   'next': []
@@ -70,9 +73,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 sm:gap-4">
-    <StudyCard :question="question" class="min-h-56 flex-1" @open-item="emit('open-item', $event)" />
+  <div class="flex min-h-0 flex-col gap-2 sm:gap-4">
+    <StudyCard :question="question" :back-fields="backFields" class="flex-[2_1_0%] sm:min-h-56 sm:flex-1" @open-item="emit('open-item', $event)" />
     <ChoiceOptions
+      class="flex-[3_1_0%] sm:flex-none"
       :options="question.options"
       :picked="picked"
       :correct="question.correct_option"

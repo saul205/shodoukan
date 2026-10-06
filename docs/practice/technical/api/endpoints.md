@@ -225,6 +225,11 @@ Anything asked about and missing from the response isn't imported:
 
 Deactivated items still count as imported.
 
+## `GET /health`
+
+Liveness check for Docker healthchecks and the deploy smoke test: `200
+{"status": "ok"}`, with no token, database or identity provider involved.
+
 ## `GET /users/me`
 
 The current user's practice profile. On the first request of a new identity, the user

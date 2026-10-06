@@ -48,6 +48,29 @@ describe('exercise session page', () => {
     expect(wrapper.find('[data-testid="verdict"]').exists()).toBe(false)
   })
 
+  it("keeps room on the card for the exercise's back fields", async () => {
+    api.mockImplementation(async (url: string) => {
+      if (url === '/exercise-sessions/5') return session({ current: question(1) })
+      if (url === '/exercises/2') return { id: 2, settings: { back_fields: ['onyomi', 'meaning'] } }
+      throw new Error(url)
+    })
+    const wrapper = await mountPage()
+
+    expect(api).toHaveBeenCalledWith('/exercises/2')
+    const card = wrapper.find('[data-testid="study-card"]').element as HTMLElement
+    expect(Number.parseFloat(card.style.minHeight)).toBeGreaterThan(11)
+  })
+
+  it('loads no exercise when it was deleted', async () => {
+    api.mockImplementation(async (url: string) => {
+      if (url === '/exercise-sessions/5') return session({ exercise_id: null, current: question(1) })
+      throw new Error(url)
+    })
+    await mountPage()
+
+    expect(api.mock.calls.map(([url]) => url)).toEqual(['/exercise-sessions/5'])
+  })
+
   it('says when no other question can be made', async () => {
     const first = question(1)
     api.mockImplementation(async (url: string) =>

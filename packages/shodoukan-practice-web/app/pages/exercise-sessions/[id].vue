@@ -3,6 +3,7 @@ import ItemDetailModal from '~/components/ItemDetailModal.vue'
 import { PLAYERS } from '~/components/exercise-players'
 import type { ExerciseAnswer, ExerciseQuestion } from '~/models/practice'
 import { answerQuestion, finishSession, getSession } from '~/services/exercise-sessions'
+import { getExercise } from '~/services/exercises'
 import { apiStatus } from '~/utils/api-error'
 import { formatDateTime, formatDuration } from '~/utils/session-format'
 
@@ -45,6 +46,19 @@ watch(session, (value) => {
   answered.value = value?.answered ?? 0
   score.value = value?.score ?? 0
 }, { immediate: true })
+
+// The exercise's back fields, so the card keeps room for its back before
+// answering. None if the exercise was deleted, or while (or if failing) loading;
+// not loaded for a finished session, which has no card to play.
+const exerciseId = computed(() =>
+  session.value && !session.value.finished_at ? session.value.exercise_id : null,
+)
+const { data: exercise } = useAsyncData(
+  () => `exercise-session-exercise-${exerciseId.value}`,
+  () => (exerciseId.value === null ? Promise.resolve(null) : getExercise(api, exerciseId.value)),
+  { watch: [exerciseId] },
+)
+const backFields = computed(() => exercise.value?.settings?.back_fields ?? [])
 
 const finished = computed(() => !!session.value?.finished_at)
 const exhausted = computed(() => !finished.value && !question.value)
@@ -246,6 +260,7 @@ function openItem(itemId: number) {
         class="flex-1"
         :question="question"
         :busy="busy"
+        :back-fields="backFields"
         @answer="onAnswer"
         @next="onNext"
         @open-item="openItem"

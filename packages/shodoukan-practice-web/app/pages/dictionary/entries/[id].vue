@@ -68,7 +68,7 @@ const senses = computed(() =>
             <UBadge v-if="data.entry.is_common" label="común" color="success" variant="soft" />
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex w-full flex-wrap items-center justify-center gap-2 sm:w-auto sm:self-start">
           <UButton
             v-if="status.entries.value.has(data.entry.id)"
             :to="`/library/entries/${status.entries.value.get(data.entry.id)}`"

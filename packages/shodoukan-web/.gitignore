@@ -1,5 +1,6 @@
 .nuxt/
 .output/
 node_modules/
-dist/
+# nuxt generate links dist to .output/public (a symlink: no trailing slash)
+dist
 .env

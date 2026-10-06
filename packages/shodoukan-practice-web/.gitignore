@@ -3,3 +3,5 @@
 .output/
 .data/
 node_modules/
+# nuxt generate links dist to .output/public
+dist

@@ -41,6 +41,7 @@ FastAPI application that exposes the library over HTTP. See [packages/shodoukan-
 | GET | `/kanji/search` | Search kanji |
 | GET | `/kanji/{literal}` | Get kanji by literal |
 | GET | `/kanji/{literal}/strokes` | Get a character's stroke order (KanjiVG) |
+| GET | `/health` | Liveness check |
 
 Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` for pagination.
 
@@ -60,9 +61,10 @@ study sessions graded on the server (`/exercises/{id}/sessions`,
 `/exercise-sessions`), their history and statistics (`/exercises/{id}/statistics`,
 `/statistics`). See the [practice app documentation](docs/practice/README.md).
 
-### Web interface *(planned)*
+### `shodoukan-web` — Dictionary frontend *(in progress)*
 
-Dictionary lookup UI in the style of [Jisho](https://jisho.org/).
+Dictionary lookup UI in the style of [Jisho](https://jisho.org/): a Nuxt 3 SPA,
+published as a static site. See the [frontend docs](docs/technical/frontend.md).
 
 ### `shodoukan-practice-web` — Practice frontend *(in progress)*
 
@@ -103,22 +105,22 @@ The database is downloaded automatically during the image build. The API will be
 
 ---
 
-## Deployment (Render)
+## Deployment
 
-Every push to `main` that passes CI is deployed automatically to Render.
+Free of charge, split in two:
 
-### First-time setup
+- **Dictionary** (`shodoukan-api` and the `shodoukan-web` static SPA): Render. Every
+  push to `main` that passes CI triggers their deploy hooks.
+- **Practice stack** (practice API, PostgreSQL, Keycloak, practice SPA): "pre",
+  self-hosted with docker compose and shared privately through Tailscale. It's only
+  reachable by the people the node is shared with, and accounts are invite-only.
 
-1. Create a new **Web Service** on [Render](https://render.com) pointing to this repository.
-2. Set the build command to `docker build` (Render detects the Dockerfile automatically).
-3. Add the following environment variables in the Render dashboard:
+```bash
+cp deploy/.env.pre.example deploy/.env.pre   # once, then set the passwords
+deploy/deploy.sh                             # build origin/main and (re)start pre
+```
 
-| Variable | Value |
-|----------|-------|
-| `CORS_ORIGINS` | Your frontend domain, e.g. `https://shodoukan.onrender.com` |
-| `SHODOUKAN_DEBUG` | `0` |
-
-After that, every push to `main` triggers a new deploy.
+Setup, inviting people, backups and rollbacks: [deployment](docs/technical/deployment.md).
 
 ---
 
