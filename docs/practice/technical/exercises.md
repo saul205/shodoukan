@@ -35,7 +35,7 @@ changes.
 | `card.choice` | Card | Sees the front, picks the right answer among N options | Phase 1–5 |
 | `card.flip` | Card | Sees the front, flips the card, says whether they knew it | Future |
 | `card.typed` | Card | Types the answer (kana, meaning) | Future |
-| `card.handwriting` | Card | Draws the kanji; stroke data is checked or self-graded | Future |
+| `card.handwriting` | Card | Draws the kanji; the strokes are graded against KanjiVG | #37 |
 | `sentence.gap` | Sentence | Fills the gaps of an example sentence with kanji, given the kana | Future |
 
 All card types share `CardSettings`:
@@ -50,6 +50,9 @@ All card types share `CardSettings`:
 |---|---|---|
 | `option_count` | 2–8 | 4 |
 | `distractor_source` | `"collection"` (later `"library"`) | `"collection"` |
+
+`HandwritingCardSettings` (`type = "card.handwriting"`) adds nothing, but every
+direction must ask for `literal`, so only kanji exercises use it.
 
 ## Sessions (built)
 
@@ -226,6 +229,23 @@ A `card.handwriting` question shows the front and asks the user to draw the kanj
 drawn, each a list of points (`StrokesAnswer`), and graded on the server against the
 KanjiVG strokes of the kanji, as the dictionary draws its stroke order.
 
+### Questions
+
+`handwriting_question_service.draft_next_question` picks the item like every card type
+(`question_order_service`), among the kanji that **have a stroke order**: the use case
+asks the dictionary which literals do (`DictionaryGateway.literals_with_strokes`) and
+passes them in, and a pool with fewer than 2 of them can't start a session
+(`ExercisePoolTooSmallError`, `422`). KanjiVG covers every jōyō kanji.
+
+**Any kanji that fits the prompt is right**, by the same test as the
+[distractor rule](#the-rule): asked for the kanji read はし with 橋 and 箸 both in the
+pool, either is right. The draft lists the accepted kanji (the asked one first); the
+use case fetches their strokes (`DictionaryGateway.stroke_references`, with each
+stroke's centre line as points, computed by the anti-corruption mapper from KanjiVG's
+paths) and builds the `HandwritingQuestion`, which keeps them as its snapshot. The
+drawing is graded against the closest. Nothing else changes: back fields, missed
+items coming back, the deck.
+
 ### The drawing space
 
 Points are in KanjiVG's own space, a 109-unit square (`CANVAS_SIZE`), the space the
@@ -351,7 +371,7 @@ Details: [endpoints](api/endpoints.md#exercises).
 | Method | Route | Body / result |
 |---|---|---|
 | `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its first active question, **without** the solution (item, correct option, back) |
-| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
+| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option}, {type: "strokes", strokes} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
 | `GET` | `/exercise-sessions/{id}` | The session: its active question (without solution) and its history (with) |
 | `POST` | `/exercise-sessions/{id}/finish` | Close it; idempotent |
 
@@ -374,8 +394,8 @@ Details: [endpoints](api/endpoints.md#exercise-sessions).
 - Answers per day are grouped in Python with `zoneinfo` over the `answered_at` of the
   window (at most 365 days), so SQLite and PostgreSQL agree and days follow the
   user's time zone.
-- Each question in a response carries `type` (`"card.choice"` today), so the frontend
-  picks the player by type. It's a constant until a second type needs a column.
+- Each question in a response carries `type` (`"card.choice"` or
+  `"card.handwriting"`), so the frontend picks the player by type.
 
 Details: [endpoints](api/endpoints.md#exercise-statistics), [use
 cases](application/use-cases.md#queries-queriesexercise_statistics_queriespy) and
@@ -449,4 +469,6 @@ go in the order 3 → A → 4 → 5 → C.
 | 5 | History and review (frontend), #33 **(built)** | Session history per exercise, reviewing a past session |
 | C | Statistics (frontend), #43 **(built)** | Statistics per exercise and the "Estadísticas" page |
 | 6 | Library distractors, #34 | `distractor_source = "library"` |
-| — | Future types | `card.flip`, `card.typed`, `card.handwriting`, `sentence.gap` |
+| 7 | Handwriting (backend), #58 **(built)** | `card.handwriting`: KanjiVG references, grading, questions by type in storage |
+| 8 | Handwriting (frontend), #59 | Drawing pad, the handwriting player, reviewing drawings |
+| — | Future types | `card.flip`, `card.typed`, `sentence.gap` |

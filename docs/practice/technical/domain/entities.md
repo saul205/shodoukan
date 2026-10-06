@@ -64,12 +64,13 @@ A saved exercise. The design (types, sessions, statistics) is in
   `reading`, `meaning` (`ENTRY_FIELDS`); `KanjiExercise` studies `literal`, `onyomi`,
   `kunyomi`, `meaning` (`KANJI_FIELDS`). A model validator rejects settings that use a
   field of the other kind, on construction and on `configure`.
-- **`settings: ExerciseSettings`**, for now only `ChoiceCardSettings`
-  (`type = "card.choice"`): `directions`, `back_fields`, `option_count` (2–8, default
-  4), `distractor_source` (`"collection"`). Frozen value objects; a
-  `question_count` stored by earlier versions is ignored. `ExerciseSettings` becomes a
-  union discriminated by `type` when a second exercise type is added; card types
-  share `CardSettings` (`directions`, `back_fields`).
+- **`settings: ExerciseSettings`**, a union discriminated by `type`; card types
+  share `CardSettings` (`directions`, `back_fields`). Frozen value objects; a
+  `question_count` stored by earlier versions is ignored.
+  - `ChoiceCardSettings` (`card.choice`): `option_count` (2–8, default 4),
+    `distractor_source` (`"collection"`).
+  - `HandwritingCardSettings` (`card.handwriting`): every direction asks for
+    `literal`, so it only fits a `KanjiExercise`.
 - **`Direction(prompt, answer)`**: the fields shown (at least one, no repeats) and the
   field asked, which can't be one of them. An exercise needs at least one direction
   and can't repeat one (the prompt's order doesn't count); back fields can't repeat.

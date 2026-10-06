@@ -12,6 +12,7 @@ from shodoukan_practice.domain.entities import (
     EntryCollection,
     EntryExercise,
     ExerciseSession,
+    HandwritingCardSettings,
     HandwritingGrade,
     HandwritingQuestion,
     KanjiCollection,
@@ -222,6 +223,18 @@ def choice_settings(
             "directions": [
                 {"prompt": prompt, "answer": answer} for prompt, answer in directions
             ],
+            **extra,
+        }
+    )
+
+
+def handwriting_settings(
+    *prompts: tuple[str, ...], **extra: object
+) -> HandwritingCardSettings:
+    """`HandwritingCardSettings` asking for the kanji from each of `prompts`."""
+    return HandwritingCardSettings.model_validate(
+        {
+            "directions": [{"prompt": p, "answer": "literal"} for p in prompts],
             **extra,
         }
     )

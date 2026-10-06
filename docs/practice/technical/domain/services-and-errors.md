@@ -59,6 +59,16 @@ asked. Directions are tried in random order, and distractors are picked so that
 **none is a valid answer** ([the rule](../exercises.md#the-rule)). Raises
 `ExercisePoolTooSmallError` if the pool is too small or no question can be built.
 
+### `handwriting_question_service.draft_next_question(cards, settings, history, drawable, rng)`
+
+Picks the next handwriting question's item and direction among the kanji in
+`drawable` (those with a stroke order), as a `HandwritingDraft`: prompt, back and the
+accepted kanji (every pool kanji that fits the prompt, the asked one first).
+`draft.question(position, references)` turns it into the `HandwritingQuestion` once
+the caller has their strokes. `ensure_enough_drawable_items` raises
+`ExercisePoolTooSmallError` with fewer than 2 drawable kanji. See
+[exercises](../exercises.md#questions).
+
 ### `stroke_geometry_service`
 
 Pure geometry on strokes (tuples of points): `normalize` (centred on the bounding box,

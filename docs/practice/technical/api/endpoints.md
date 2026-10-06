@@ -325,8 +325,9 @@ user's exercise or collection is a `404`.
 
 - `name`: stripped, 1–100 characters. `collection_ids`: at least one, collections of
   the exercise's kind.
-- `settings` is the domain's settings model as JSON, keyed by `type` (`card.choice`
-  only for now). Omitted settings take their defaults (`back_fields` `[]`,
+- `settings` is the domain's settings model as JSON, keyed by `type`: `card.choice`,
+  or `card.handwriting` (kanji exercises; every direction's `answer` is `literal`, and
+  it has no options). Omitted settings take their defaults (`back_fields` `[]`,
   `option_count` `4`, `distractor_source` `"collection"`). A `question_count` sent by
   older clients is ignored.
 - Fields: `writing`, `reading`, `meaning` for `entries`; `literal`, `onyomi`,
@@ -364,7 +365,13 @@ Answering takes
 `{"question_id": 12, "answer": {"type": "option", "option": 2}, "response_ms": 1500}`:
 `question_id` must be the active question's, and `response_ms` is optional (0 to
 2147483647, what its 32-bit column holds). `{"type": "skip"}` as the answer skips the
-question: it's graded as a miss and returned with its solution, like any answer.
+question: it's graded as a miss and returned with its solution, like any answer. A
+handwriting card is answered with the drawing,
+`{"type": "strokes", "strokes": [[[x, y], ...], ...]}`: the strokes in the order
+drawn, in KanjiVG's 109-unit square, with a margin of 6 allowed around it (up to 40
+strokes of up to 300 points). An answer of the other type, or points off the canvas,
+is a `422`. Starting a handwriting exercise whose collections have fewer than 2
+kanji with a stroke order is a `422` too.
 
 Listing is the history: the user's sessions, newest first, **without their
 questions**. Query: `exercise_id` (one exercise's sessions; an unknown or deleted one

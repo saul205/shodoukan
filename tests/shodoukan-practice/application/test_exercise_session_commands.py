@@ -1,10 +1,14 @@
+import sqlite3
 from datetime import timedelta
+from pathlib import Path
 from random import Random
 from typing import Any
 
 import pytest
+from db_helpers import kanjivg_svg  # type: ignore[import-not-found]
 from factories import (
     choice_settings,
+    handwriting_settings,
     make_kanji_collection,
     make_kanji_with,
     make_session,
@@ -12,6 +16,7 @@ from factories import (
 )
 from sqlalchemy.orm import Session
 
+from shodoukan import Dictionary
 from shodoukan_practice.application.commands import (
     AnswerExerciseQuestion,
     CreateExercise,
@@ -25,8 +30,11 @@ from shodoukan_practice.domain.entities import (
     EntryCollection,
     Exercise,
     ExerciseSession,
+    HandwritingQuestion,
     KanjiCollection,
     OptionAnswer,
+    SkipAnswer,
+    StrokesAnswer,
 )
 from shodoukan_practice.domain.entities.exercise_session_entity import IDLE_TIMEOUT
 from shodoukan_practice.domain.exceptions import (
@@ -36,7 +44,9 @@ from shodoukan_practice.domain.exceptions import (
     QuestionNotActiveError,
     SessionFinishedError,
 )
+from shodoukan_practice.domain.gateways import DictionaryGateway
 from shodoukan_practice.infrastructure.db.orm import UserORM
+from shodoukan_practice.infrastructure.dictionary import ShodoukanDictionaryGateway
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyExerciseRepository,
@@ -63,16 +73,19 @@ Repos = tuple[
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    DictionaryGateway,
 ]
 
 
-def _start_use_case(session: Session, rng: Random) -> StartExerciseSession:
+def _start_use_case(
+    session: Session, gateway: DictionaryGateway, rng: Random
+) -> StartExerciseSession:
     return StartExerciseSession(
-        *_repos(session), SqlAlchemyUserRepository(session), rng=rng
+        *_repos(session, gateway), SqlAlchemyUserRepository(session), rng=rng
     )
 
 
-def _repos(session: Session) -> Repos:
+def _repos(session: Session, gateway: DictionaryGateway) -> Repos:
     return (
         SqlAlchemyExerciseRepository(session),
         SqlAlchemyExerciseSessionRepository(session),
@@ -80,17 +93,32 @@ def _repos(session: Session) -> Repos:
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+        gateway,
     )
 
 
 @pytest.fixture
-def start(session: Session) -> StartExerciseSession:
-    return _start_use_case(session, Random(7))
+def gateway(dictionary: Dictionary, tmp_path: Path) -> DictionaryGateway:
+    """The dictionary, with a stroke order for 水 and 火 too (it has 食's)."""
+    with sqlite3.connect(tmp_path / "dictionary.sqlite") as conn:
+        conn.executemany(
+            "INSERT INTO kanji_svg VALUES (?, ?)",
+            [
+                ("水", kanjivg_svg("水", [(1, "M54,10c0,30,0,60,0,90")])),
+                ("火", kanjivg_svg("火", [(1, "M20,30c10,20,20,40,30,60")])),
+            ],
+        )
+    return ShodoukanDictionaryGateway(dictionary)
 
 
 @pytest.fixture
-def answer(session: Session) -> AnswerExerciseQuestion:
-    return AnswerExerciseQuestion(*_repos(session), Random(7))
+def start(session: Session, gateway: DictionaryGateway) -> StartExerciseSession:
+    return _start_use_case(session, gateway, Random(7))
+
+
+@pytest.fixture
+def answer(session: Session, gateway: DictionaryGateway) -> AnswerExerciseQuestion:
+    return AnswerExerciseQuestion(*_repos(session, gateway), Random(7))
 
 
 @pytest.fixture
@@ -446,3 +474,100 @@ def test_entry_exercise_uses_the_gloss_language(
     started = start.execute(user.id, exercise.id, "spa")
     assert started.current is not None
     assert started.current.prompt[0].values[0] in {"comer", "beber", "ver"}
+
+
+def _handwriting_exercise(
+    session: Session, user: UserORM, collection: KanjiCollection
+) -> Exercise:
+    assert collection.id is not None
+    return CreateExercise(
+        SqlAlchemyExerciseRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    ).execute(
+        user.id,
+        "kanji",
+        "Write N5",
+        None,
+        [collection.id],
+        handwriting_settings(("meaning",), back_fields=["onyomi"]),
+    )
+
+
+def test_a_handwriting_session_asks_only_kanji_with_a_stroke_order(
+    session: Session,
+    start: StartExerciseSession,
+    answer: AnswerExerciseQuestion,
+    user: UserORM,
+    n5: KanjiCollection,
+) -> None:
+    started = _start(start, user, _handwriting_exercise(session, user, n5))
+    asked = []
+    for _ in range(6):
+        current = started.current
+        assert isinstance(current, HandwritingQuestion) and current.id is not None
+        assert current.answer_field == "literal"
+        asked.append(current.references[0].literal)
+        assert started.id is not None
+        started, _, _ = answer.execute(user.id, started.id, current.id, SkipAnswer())
+
+    # 木 and 山 have no stroke order in the test dictionary.
+    assert set(asked) == {"食", "水", "火"}
+
+
+def test_a_drawing_is_graded_against_the_kanji_strokes(
+    session: Session,
+    start: StartExerciseSession,
+    answer: AnswerExerciseQuestion,
+    user: UserORM,
+    n5: KanjiCollection,
+) -> None:
+    started = _start(start, user, _handwriting_exercise(session, user, n5))
+    current = started.current
+    assert isinstance(current, HandwritingQuestion) and current.id is not None
+    reference = current.references[0]
+    assert all(len(s.points) > 1 for s in reference.strokes)
+    drawing = StrokesAnswer(strokes=tuple(s.points for s in reference.strokes))
+
+    assert started.id is not None
+    _, graded, following = answer.execute(
+        user.id, started.id, current.id, drawing, response_ms=3000
+    )
+
+    assert isinstance(graded, HandwritingQuestion)
+    assert graded.grade is not None
+    assert (graded.grade.verdict, graded.grade.matched) == (
+        "correct",
+        reference.literal,
+    )
+    assert graded.is_correct is True
+    assert isinstance(following, HandwritingQuestion)
+
+
+def test_a_choice_answer_to_a_drawing_is_refused(
+    session: Session,
+    start: StartExerciseSession,
+    answer: AnswerExerciseQuestion,
+    user: UserORM,
+    n5: KanjiCollection,
+) -> None:
+    started = _start(start, user, _handwriting_exercise(session, user, n5))
+    assert started.id is not None and started.current is not None
+    assert started.current.id is not None
+
+    with pytest.raises(InvalidAnswerError):
+        answer.execute(user.id, started.id, started.current.id, OptionAnswer(option=0))
+
+
+def test_handwriting_needs_two_kanji_with_a_stroke_order(
+    session: Session, start: StartExerciseSession, user: UserORM
+) -> None:
+    collections = SqlAlchemyKanjiCollectionRepository(session)
+    kanji = SqlAlchemyPracticeKanjiRepository(session)
+    collection = collections.add(make_kanji_collection(user.id, "Undrawn"))
+    for literal, meaning in [("食", "eat"), ("木", "tree"), ("山", "mountain")]:
+        item = kanji.add(make_kanji_with(user.id, literal, meanings=[(meaning, "en")]))
+        collections.add_item(collection, item)
+
+    with pytest.raises(ExercisePoolTooSmallError):
+        _start(start, user, _handwriting_exercise(session, user, collection))

@@ -60,7 +60,8 @@ through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
 (`GET /dictionary/search`), and importing entries and kanji (`POST /library/entries`,
 `POST /library/kanji`), grouping them into collections (`/collections/entries`,
 `/collections/kanji`), searching the library and its collections (`q` on the list
-endpoints), and exercises: saved choice-card exercises (`/exercises`), open-ended
+endpoints), and exercises: saved choice-card and kanji handwriting exercises
+(`/exercises`; drawings are graded against KanjiVG's strokes), open-ended
 study sessions graded on the server (`/exercises/{id}/sessions`,
 `/exercise-sessions`), their history and statistics (`/exercises/{id}/statistics`,
 `/statistics`). See the [practice app documentation](docs/practice/README.md).

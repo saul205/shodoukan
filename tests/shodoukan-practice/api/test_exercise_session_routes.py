@@ -1,6 +1,9 @@
+import sqlite3
+from pathlib import Path
 from typing import Any
 
 import pytest
+from db_helpers import kanjivg_svg  # type: ignore[import-not-found]
 from factories import make_kanji_collection, make_kanji_with
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -358,6 +361,105 @@ def test_an_unknown_answer_type_is_rejected(
     response = client.post(
         f"/exercise-sessions/{started['id']}/answer",
         json={"question_id": started["current"]["id"], "answer": {"type": "guess"}},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.fixture
+def handwriting_exercise_id(
+    client: TestClient,
+    headers: dict[str, str],
+    session: Session,
+    exercise_id: int,
+    tmp_path: Path,
+) -> int:
+    """A handwriting exercise on the same collection; 食, 水 and 火 can be
+    drawn (the test dictionary has 食's strokes; 水 and 火 are added)."""
+    with sqlite3.connect(tmp_path / "dictionary.sqlite") as conn:
+        conn.executemany(
+            "INSERT INTO kanji_svg VALUES (?, ?)",
+            [
+                ("水", kanjivg_svg("水", [(1, "M54,10c0,30,0,60,0,90")])),
+                ("火", kanjivg_svg("火", [(1, "M20,30c10,20,20,40,30,60")])),
+            ],
+        )
+    collection_ids = client.get(f"/exercises/{exercise_id}", headers=headers).json()[
+        "collection_ids"
+    ]
+    response = client.post(
+        "/exercises",
+        json={
+            "item_kind": "kanji",
+            "name": "Write N5",
+            "collection_ids": collection_ids,
+            "settings": {
+                "type": "card.handwriting",
+                "directions": [{"prompt": ["meaning"], "answer": "literal"}],
+                "back_fields": ["onyomi"],
+            },
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201, response.json()
+    created: int = response.json()["id"]
+    return created
+
+
+def test_a_handwriting_question_hides_its_kanji_until_drawn(
+    client: TestClient, headers: dict[str, str], handwriting_exercise_id: int
+) -> None:
+    started = _start(client, headers, handwriting_exercise_id)
+    question = started["current"]
+
+    assert question["type"] == "card.handwriting"
+    assert question["answer_field"] == "literal"
+    assert (question["references"], question["grade"], question["back"]) == (
+        None,
+        None,
+        None,
+    )
+    assert "options" not in question
+
+    response = client.post(
+        f"/exercise-sessions/{started['id']}/answer",
+        json={
+            "question_id": question["id"],
+            "answer": {"type": "strokes", "strokes": [[[54, 10], [54, 60], [54, 100]]]},
+            "response_ms": 5000,
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.json()
+    graded = response.json()["answered"]
+    assert graded["references"][0]["literal"] in {"食", "水", "火"}
+    assert set(graded["references"][0]["strokes"][0]) == {"path", "label"}
+    assert graded["grade"]["verdict"] in {"correct", "close", "wrong"}
+    assert graded["answer"]["type"] == "strokes"
+    assert response.json()["next"]["type"] == "card.handwriting"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"type": "strokes", "strokes": [[[500, 10]]]},  # off the canvas
+        {"type": "strokes", "strokes": []},
+        {"type": "option", "option": 0},  # not a choice card
+    ],
+)
+def test_a_drawing_that_doesnt_fit_is_refused(
+    client: TestClient,
+    headers: dict[str, str],
+    handwriting_exercise_id: int,
+    answer: dict[str, Any],
+) -> None:
+    started = _start(client, headers, handwriting_exercise_id)
+
+    response = client.post(
+        f"/exercise-sessions/{started['id']}/answer",
+        json={"question_id": started["current"]["id"], "answer": answer},
         headers=headers,
     )
 

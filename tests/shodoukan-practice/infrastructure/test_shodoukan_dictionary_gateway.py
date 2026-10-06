@@ -96,3 +96,17 @@ def test_kanji_strokes(dictionary: Dictionary) -> None:
     ]
     assert strokes.strokes[0].label == (1.5, 1.0)
     assert gateway.kanji_strokes("水") is None  # no drawing
+
+
+def test_stroke_references_come_with_points(dictionary: Dictionary) -> None:
+    gateway = ShodoukanDictionaryGateway(dictionary)
+
+    assert gateway.literals_with_strokes(["食", "水"]) == {"食"}
+    references = gateway.stroke_references(["食", "水"])
+
+    assert list(references) == ["食"]
+    first = references["食"].strokes[0]
+    assert first.path == "M54,10c0,5-20,20-40,25"
+    assert first.label == (1.5, 1.0)
+    assert first.points[0] == (54, 10)
+    assert first.points[-1] == (14, 35)

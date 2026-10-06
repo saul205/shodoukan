@@ -3,6 +3,13 @@
 from .choice_question_service import build_next_question
 from .collection_service import ensure_combinable
 from .handwriting_grading_service import grade_drawing
+from .handwriting_question_service import (
+    HandwritingDraft,
+    draft_next_question,
+    drawable_items,
+    ensure_enough_drawable_items,
+    literal,
+)
 from .question_order_service import (
     MIN_POOL_SIZE,
     REVIEW_GAP,
@@ -28,13 +35,17 @@ __all__ = [
     "MIN_POOL_SIZE",
     "REVIEW_GAP",
     "FieldValue",
+    "HandwritingDraft",
     "StudyCard",
     "back",
     "build_next_question",
     "can_ask",
     "candidates",
+    "draft_next_question",
+    "drawable_items",
     "eligible_items",
     "ensure_combinable",
+    "ensure_enough_drawable_items",
     "ensure_enough_items",
     "entry_card",
     "entry_label",
@@ -44,4 +55,5 @@ __all__ = [
     "grade_drawing",
     "kana_key",
     "kanji_card",
+    "literal",
 ]
