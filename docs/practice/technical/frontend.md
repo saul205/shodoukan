@@ -86,7 +86,7 @@ Every screen requires sign-in; only `/auth/callback` is public.
 The default layout is Nuxt UI's dashboard: `UDashboardGroup` with a collapsible
 `UDashboardSidebar` (state kept in localStorage; a slideover on mobile). The sidebar
 has the five sections, the **meaning language** (`useMeaningLang()`, kept in
-localStorage) and the user menu. Every page uses `AppPanel` (navbar with the collapse
+localStorage), an "Acerca de" link to `/about` and the user menu. Every page uses `AppPanel` (navbar with the collapse
 button, title and actions).
 
 | Route | Screen |
@@ -100,6 +100,7 @@ button, title and actions).
 | `/exercises` | The user's exercises as cards: item kind, collections (by name; "Sin colecciones" when they were all deleted) and directions; the name opens the exercise; Empezar, edit, delete (`ConfirmModal`; past sessions are kept). `OpenSessionAlert` on top (also on the home page): "Continuar" for the open session |
 | `/exercises/:id?page=` | One exercise: its definition (kind, collections, directions, back, options), "Empezar" or, if the open session is this exercise's, "Continuar", "Editar", its **statistics** once it has answers (`GET /exercises/{id}/statistics`: `TotalsTiles`, accuracy per direction as `AccuracyBar`s, the items missed most as `MissedItems`, which open `ItemDetailModal`), and its session history: a `UTable` of `GET /exercise-sessions?exercise_id=` (10 per page, `UPagination`; date, duration, answered, accuracy, open or finished) whose rows open the session |
 | `/statistics?days=&tab=` | "Estadísticas": `GET /statistics` with `days` (7, 30 by default, or 90; a select) and `tz`, this browser's time zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`). `TotalsTiles`, the activity of each day as an `ActivityChart` (CSS bars, right answers under wrong ones, scaled to the busiest day; a text summary for screen readers), a `UTable` per exercise (sessions, accuracy, last time; a row opens the exercise) and the words / kanji missed most in tabs (`tab=kanji`). An empty state when nothing was answered yet. No chart library |
+| `/about` | "Acerca de": the shared `AboutSources` (`lang="es"`) in an `AppPanel`. It says what shodoukan is and credits every data source with its licence, and Jisho as inspiration. Sources are credited only here, not next to the data |
 | `/exercise-sessions/:id?filter=` | Play a session (below). A finished one shows its result (answered, right, accuracy, date, duration) with "Practicar otra vez", then the **review**: each answered question collapsed to one line (`ReviewQuestion`, a `UCollapsible`: number, verdict, prompt → right answer, the wrong pick struck through, the time) that opens to the card as it was played (the compact `StudyCard` and `ChoiceOptions` with the pick and the right one marked), "Desplegar todas" / "Plegar todas", all or only the missed and skipped (`filter=missed`). The back button goes to the exercise, or to the list if it was deleted |
 | `/exercises/new`, `/exercises/:id/edit` | `ExerciseForm` (below) in a card; saving goes back to the list |
 | `/collections/:kind/:id?q=&active=&page=` | A collection's items with search (`LibrarySearchInput`, `in_collection` on the API side), the same active filter as the library (inactive ones are listed, marked, unless filtered out) and paging; add from the library (`LibraryPickerModal`: its own search, `not_in_collection` so only what can still be added is listed, selection kept across searches), remove; items open the detail page with `?collection=<id>` for the back link (`useBackLink()`) |
@@ -112,8 +113,7 @@ kanji screens:
   `KanjiStrokeAnimator` and `KanjiStrokeGrid` from `shodoukan-ui`.
 - **No drawing:** a `404` means there's no drawing. The frames then say "Orden de
   trazos no disponible." and Play is disabled.
-- **Attribution:** it ends with the KanjiVG attribution (CC BY-SA 3.0), which the
-  licence requires and which this app has no sources page for.
+- **Attribution:** none here. KanjiVG is credited once, on `/about`.
 - **Placement:** `KanjiDetail` stays presentational, because the fetch lives in this
   component.
 
@@ -207,7 +207,7 @@ same reason.
 `tests/unit/` runs in happy-dom: the API client (token, 401), the session formats (`utils/session-format.ts`), `apiStatus` (also
 through `useAsyncData`'s wrapped error), `safeReturnPath`, the service functions. `tests/components/` runs in the Nuxt environment
 (`// @vitest-environment nuxt`, `mountSuspended`): the sign-in middleware,
-`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `KanjiStrokeOrder` (one fetch, 404, attribution), `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, `ChoiceOptions`, `ChoiceCardPlayer` (keys, `response_ms`), the statistics components and page (window and time zone, tabs, empty state), the exercise page (history, continue or start, statistics), the session page (answer, next, no more questions, 409 reload, review and its filter; `clearNuxtData()` between tests that load the same key), the view-only `MeaningList` and `ReadingChips`, the exercise edit page's not-found state (menus
+`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `KanjiStrokeOrder` (one fetch, 404, no per-kanji credit), the about page, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, `ChoiceOptions`, `ChoiceCardPlayer` (keys, `response_ms`), the statistics components and page (window and time zone, tabs, empty state), the exercise page (history, continue or start, statistics), the session page (answer, next, no more questions, 409 reload, review and its filter; `clearNuxtData()` between tests that load the same key), the view-only `MeaningList` and `ReadingChips`, the exercise edit page's not-found state (menus
 and tooltips need the `UApp` wrapper; their content is portalled to the body). They replace `useAuth` with
 `tests/fakes.ts` (`mockNuxtImport`), because the real middleware would redirect to
 Keycloak while the test app starts.

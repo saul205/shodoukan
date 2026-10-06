@@ -5,7 +5,7 @@ import { apiStatus } from '~/utils/api-error'
 
 // A kanji's stroke order (KanjiVG, from the practice API): the animation and
 // one frame per stroke, fetched once for both. Kanji without a drawing (404)
-// show "not available" instead.
+// show "not available" instead. KanjiVG is credited on /about, not here.
 
 const props = withDefaults(defineProps<{
   literal: string
@@ -35,29 +35,22 @@ const strokes = computed(() => data.value?.strokes ?? null)
 </script>
 
 <template>
-  <div class="space-y-2">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-      <KanjiStrokeAnimator
-        :key="literal"
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+    <KanjiStrokeAnimator
+      :key="literal"
+      :strokes="strokes"
+      :size="size"
+      play-label="Reproducir"
+      playing-label="Reproduciendo…"
+    />
+    <div class="flex-1">
+      <KanjiStrokeGrid
         :strokes="strokes"
-        :size="size"
-        play-label="Reproducir"
-        playing-label="Reproduciendo…"
+        :loading="status === 'pending'"
+        :cell-size="cellSize"
+        loading-label="Cargando el orden de trazos…"
+        unavailable-label="Orden de trazos no disponible."
       />
-      <div class="flex-1">
-        <KanjiStrokeGrid
-          :strokes="strokes"
-          :loading="status === 'pending'"
-          :cell-size="cellSize"
-          loading-label="Cargando el orden de trazos…"
-          unavailable-label="Orden de trazos no disponible."
-        />
-      </div>
     </div>
-    <p class="text-xs text-dimmed">
-      Trazos:
-      <ULink to="https://kanjivg.tagaini.net/" target="_blank" class="underline">KanjiVG</ULink>
-      (<ULink to="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" class="underline">CC BY-SA 3.0</ULink>)
-    </p>
   </div>
 </template>

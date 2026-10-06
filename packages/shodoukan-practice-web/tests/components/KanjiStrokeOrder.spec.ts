@@ -52,12 +52,11 @@ describe('KanjiStrokeOrder', () => {
     expect(wrapper.get('button').attributes('disabled')).toBeDefined()
   })
 
-  it('credits KanjiVG', async () => {
+  it('leaves crediting KanjiVG to the About page', async () => {
     api.mockResolvedValue(strokes)
     const wrapper = await mountStrokeOrder()
 
-    const link = wrapper.findAll('a').find(a => a.text() === 'KanjiVG')
-    expect(link?.attributes('href')).toBe('https://kanjivg.tagaini.net/')
-    expect(wrapper.text()).toContain('CC BY-SA 3.0')
+    expect(wrapper.text()).not.toContain('KanjiVG')
+    expect(wrapper.find('a').exists()).toBe(false)
   })
 })
