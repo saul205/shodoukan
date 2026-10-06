@@ -180,3 +180,29 @@ def test_ranked_past_the_end_keeps_the_total(ranked_repo):
 def test_meaning_search_ranks_exact_meaning_first(ranked_repo):
     page = ranked_repo.search(query="same", grade=None, jlpt=None, limit=20, offset=0)
     assert _literals(page) == ["同", "偶"]
+
+
+def test_get_strokes_in_writing_order(engine):
+    strokes = KanjiRepository(engine).get_strokes("食")
+
+    assert strokes is not None
+    assert strokes.literal == "食"
+    # Ordered by stroke number, not by where they sit in the SVG.
+    assert [s.path for s in strokes.strokes] == [
+        "M54,10c0,5-20,20-40,25",
+        "M20,30c10,0,20,0,30,0",
+    ]
+    assert [s.label for s in strokes.strokes] == [(1.5, 1.0), (2.5, 2.0)]
+
+
+def test_get_strokes_of_a_compatibility_ideograph(engine):
+    # 神 U+FA19 is drawn with its canonical form, 神 U+795E, but keeps its literal.
+    strokes = KanjiRepository(engine).get_strokes("神")
+
+    assert strokes is not None
+    assert strokes.literal == "神"
+    assert len(strokes.strokes) == 1
+
+
+def test_get_strokes_missing(engine):
+    assert KanjiRepository(engine).get_strokes("水") is None

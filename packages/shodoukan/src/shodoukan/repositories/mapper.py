@@ -1,8 +1,10 @@
 """Mapping functions from SQLAlchemy ORM objects to Pydantic domain models."""
 
 import json
+import re
+from xml.etree import ElementTree
 
-from shodoukan.db.orm import EntryORM, KanjiORM
+from shodoukan.db.orm import EntryORM, KanjiORM, KanjiSvgORM
 from shodoukan.models.entry import (
     CrossReference,
     Entry,
@@ -13,7 +15,7 @@ from shodoukan.models.entry import (
     Reading,
     Sense,
 )
-from shodoukan.models.kanji import Kanji, KanjiMeaning
+from shodoukan.models.kanji import Kanji, KanjiMeaning, KanjiStroke, KanjiStrokes
 
 
 def _json(value: str) -> list[str]:
@@ -94,4 +96,40 @@ def kanji_to_domain(k: KanjiORM) -> Kanji:
         kun_readings=_json(k.kun_readings),
         nanori=_json(k.nanori),
         meanings=[KanjiMeaning(text=m.text, lang=m.lang) for m in k.meanings],
+    )
+
+
+_SVG = "{http://www.w3.org/2000/svg}"
+# Stroke paths are "kvg:<codepoint>-s<n>"; stroke number labels are placed with
+# "matrix(1 0 0 1 <x> <y>)".
+_STROKE_ID = re.compile(r"-s(\d+)$")
+_LABEL_TRANSFORM = re.compile(r"matrix\(1 0 0 1 ([\d.]+) ([\d.]+)\)")
+
+
+def kanji_strokes_to_domain(literal: str, k: KanjiSvgORM) -> KanjiStrokes:
+    """The strokes of a KanjiVG drawing, in writing order.
+
+    `literal` is the character that was asked for, which may differ from the
+    drawing's own (a compatibility ideograph is drawn with its canonical form).
+    Strokes are ordered by the number in their id, not by where they sit in the
+    document; only `id`, `d` and `transform` are read, since KanjiVG's own
+    `kvg:` attributes declare their namespace inconsistently.
+    """
+    root = ElementTree.fromstring(k.svg)
+    paths: dict[int, str] = {}
+    for path in root.iter(f"{_SVG}path"):
+        match = _STROKE_ID.search(path.get("id", ""))
+        if match and (d := path.get("d")):
+            paths[int(match.group(1))] = d
+    labels: dict[int, tuple[float, float]] = {}
+    for label in root.iter(f"{_SVG}text"):
+        match = _LABEL_TRANSFORM.fullmatch(label.get("transform", ""))
+        number = (label.text or "").strip()
+        if match and number.isdigit():
+            labels[int(number)] = (float(match.group(1)), float(match.group(2)))
+    return KanjiStrokes(
+        literal=literal,
+        strokes=[
+            KanjiStroke(path=paths[n], label=labels.get(n)) for n in sorted(paths)
+        ],
     )

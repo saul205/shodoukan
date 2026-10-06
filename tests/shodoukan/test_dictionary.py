@@ -155,3 +155,10 @@ def test_search_romaji_ranks_kanji_by_match_tier(conn, tmp_path):
 
     with Dictionary(db_path=db_file, auto_download=False) as d:
         assert [k.literal for k in d.search("au").kanji] == ["合", "図"]
+
+
+def test_get_kanji_strokes(dictionary):
+    strokes = dictionary.get_kanji_strokes("食")
+    assert strokes is not None
+    assert len(strokes.strokes) == 2
+    assert dictionary.get_kanji_strokes("水") is None

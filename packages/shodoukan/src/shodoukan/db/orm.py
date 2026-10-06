@@ -187,3 +187,16 @@ class KanjiMeaningORM(Base):
     lang: Mapped[str]
 
     kanji_obj: Mapped[KanjiORM] = relationship(back_populates="meanings")
+
+
+class KanjiSvgORM(Base):
+    """A KanjiVG drawing: one SVG per character, keyed by its literal.
+
+    Not every kanji has one, and a few non-kanji (kana, digits) do, so there's
+    no foreign key to `kanji`.
+    """
+
+    __tablename__ = "kanji_svg"
+
+    literal: Mapped[str] = mapped_column(primary_key=True)
+    svg: Mapped[str]

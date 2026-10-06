@@ -137,7 +137,45 @@ CREATE TABLE sense_lang_index (
     PRIMARY KEY (sense_id, lang)
 );
 CREATE INDEX idx_sense_lang_index_sense ON sense_lang_index(sense_id);
+
+CREATE TABLE kanji_svg (
+    literal TEXT PRIMARY KEY,
+    svg     TEXT NOT NULL
+);
 """
+
+
+def kanjivg_svg(literal: str, strokes: list[tuple[int, str]]) -> str:
+    """A KanjiVG-style drawing: XML declaration, internal DTD, `kvg:` attributes.
+
+    `strokes` are `(number, path)` pairs, written in the given order; each gets
+    its number label at `(number, number)`.
+    """
+    code = f"{ord(literal):05x}"
+    paths = "".join(
+        f'<path id="kvg:{code}-s{n}" kvg:type="㇐" d="{d}"/>' for n, d in strokes
+    )
+    labels = "".join(
+        f'<text transform="matrix(1 0 0 1 {n}.50 {n}.00)">{n}</text>'
+        for n, _ in strokes
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<!-- KanjiVG test drawing -->\n"
+        '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" '
+        '"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd" [\n'
+        '<!ATTLIST g xmlns:kvg CDATA #FIXED "http://kanjivg.tagaini.net" '
+        "kvg:element CDATA #IMPLIED >\n"
+        '<!ATTLIST path xmlns:kvg CDATA #FIXED "http://kanjivg.tagaini.net" '
+        "kvg:type CDATA #IMPLIED >\n"
+        "]>\n"
+        '<svg xmlns="http://www.w3.org/2000/svg" width="109" height="109" '
+        'viewBox="0 0 109 109" xmlns:kvg="https://kanjivg.tagaini.net/">'
+        f'<g id="kvg:StrokePaths_{code}" style="fill:none;stroke:#000000;">'
+        f'<g id="kvg:{code}" kvg:element="{literal}">{paths}</g></g>'
+        f'<g id="kvg:StrokeNumbers_{code}" style="font-size:8;">{labels}</g>'
+        "</svg>"
+    )
 
 
 def seed(conn: sqlite3.Connection) -> None:
@@ -222,6 +260,21 @@ def seed(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         "INSERT INTO kanji_meanings(literal, text, lang) VALUES ('水', 'water', 'en')"
+    )
+
+    # Stroke order (KanjiVG): 食, with its strokes out of order in the document,
+    # and 神 (U+795E), which isn't in `kanji`. 水 has no drawing.
+    conn.execute(
+        "INSERT INTO kanji_svg VALUES ('食', ?)",
+        (
+            kanjivg_svg(
+                "食", [(2, "M20,30c10,0,20,0,30,0"), (1, "M54,10c0,5-20,20-40,25")]
+            ),
+        ),
+    )
+    conn.execute(
+        "INSERT INTO kanji_svg VALUES ('\u795e', ?)",
+        (kanjivg_svg("\u795e", [(1, "M30,10c2,2,4,6,4,9")]),),
     )
 
     conn.commit()
