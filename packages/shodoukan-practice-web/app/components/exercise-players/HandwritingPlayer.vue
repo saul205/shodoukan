@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { KanjiDrawingPad } from 'shodoukan-ui'
 import type { DrawnPoint, ExerciseAnswer, HandwritingQuestion, StudyField } from '~/models/practice'
+import { MAX_STROKE_POINTS, MAX_STROKES } from '~/utils/drawing'
 import { strokeProblem, VERDICT_COLORS, verdictOf } from '~/utils/verdict'
 
 // Plays a handwriting card: draw the kanji the front asks for.
@@ -54,9 +55,6 @@ function clear() {
   if (!props.busy && !props.question.answered) strokes.value = []
 }
 
-// What the server takes (MAX_STROKES, MAX_STROKE_POINTS in the practice API).
-const MAX_STROKES = 40
-const MAX_STROKE_POINTS = 300
 const atLimit = computed(() => strokes.value.length >= MAX_STROKES)
 
 function elapsed() {
@@ -75,22 +73,8 @@ const problems = computed(() =>
 // boxes come and go with the question, so the observer follows them.
 const padBox = useTemplateRef<HTMLElement>('padBox')
 const compareBox = useTemplateRef<HTMLElement>('compareBox')
-const padRoom = ref({ width: 0, height: 0 })
-const compareRoom = ref({ width: 0, height: 0 })
-
-function observe(box: Ref<HTMLElement | null>, room: Ref<{ width: number; height: number }>) {
-  if (typeof ResizeObserver === 'undefined') return
-  const observer = new ResizeObserver(([entry]) => {
-    if (entry) room.value = { width: entry.contentRect.width, height: entry.contentRect.height }
-  })
-  watch(box, (element, previous) => {
-    if (previous) observer.unobserve(previous)
-    if (element) observer.observe(element)
-  }, { immediate: true, flush: 'post' })
-  onBeforeUnmount(() => observer.disconnect())
-}
-observe(padBox, padRoom)
-observe(compareBox, compareRoom)
+const padRoom = useMeasuredBox(padBox)
+const compareRoom = useMeasuredBox(compareBox)
 
 const padSize = computed(() => Math.floor(Math.min(padRoom.value.width, padRoom.value.height)))
 // The comparison: from sm two squares side by side over their captions (1.5rem);
