@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan:** `Dictionary.get_kanji_strokes(literal)` returns a character's stroke
   order from KanjiVG (Japanese order, all jōyō kanji and about 6,400 in total). A
   compatibility ideograph is drawn with its canonical form.
+- **shodoukan:** `Dictionary.literals_with_strokes(literals)` tells which characters have
+  a stroke order without reading the drawings, and `shodoukan.utils.svg_path.path_points`
+  flattens a stroke's path into evenly spaced points (for comparing handwriting).
 - **shodoukan-api:** `GET /kanji/{literal}/strokes`.
 - **shodoukan-practice:** `GET /dictionary/kanji/{literal}/strokes`.
 - **shodoukan-ui:** `KanjiStrokeDiagram` (the numbered character) and

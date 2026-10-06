@@ -23,6 +23,10 @@ with Dictionary() as d:
     results = d.search_entries("comer", lang="es")   # multilingual gloss
     kanji   = d.get_kanji("日")
     strokes = d.get_kanji_strokes("楽")             # KanjiVG stroke order
+    drawn   = d.literals_with_strokes(["楽", "水"])  # which ones have a drawing
+
+from shodoukan.utils.svg_path import path_points
+points = path_points(strokes.strokes[0].path)        # a stroke as evenly spaced points
 ```
 
 Supports lookup by kanji, kana, Hepburn romaji, or gloss in any JMDict language. Each `Entry` includes its JLPT level (`jlpt: int | None`). Stroke order comes from [KanjiVG](https://kanjivg.tagaini.net/) (Japanese stroke order, all jōyō kanji and about 6,400 in total). See [packages/shodoukan/](packages/shodoukan/) for the full API.
