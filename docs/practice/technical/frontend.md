@@ -105,11 +105,11 @@ button, title and actions).
 | `/library?tab=&q=&active=&page=` | The library: words / kanji tabs, search (`LibrarySearchInput`: updates 300 ms after typing stops, at once on Enter or clear; `meaning_lang` is `glossCode` for words and `lang` for kanji; kept when switching tab), active filter (`useActiveFilter()`, shared with collections), paging |
 | `/library/entries/:id`, `/library/kanji/:id` | **Shared detail page** for the library and collections: the main column is `EntryDetail` / `KanjiDetail` (presentational: they emit the edits and the page saves them; `view-only` shows only what's enabled, without controls, for the item detail opened from a session), only the senses with a meaning in the chosen language (`sensesIn`); `MeaningList` (dictionary meanings only toggle; own meanings add / edit / delete), switches for spellings, readings and examples (a kanji's readings are `ReadingChips`: chips that toggle on click, hidden ones faded and struck through), `NotesEditor` (general and per sense, saved on blur), active, `ItemCollections` (the "Colecciones" section: removable badges and a `CollectionPicker` in its header), removal. The entry page lists the word's kanji after the meanings with the dictionary's `EntryKanjiList` (`GET /dictionary/entries/{source_entry_id}/kanji`, `link-to="library"`: imported kanji open the library copy). The kanji page puts its data under the kanji, the readings beside it and the stroke order (`KanjiStrokeOrder`: animation at 128 px + frames at `4.5rem`) below, then the meanings; its aside ends with `KanjiWords`: the first 5 dictionary words with the kanji (imported ones open the library copy, via `useImportStatus`) and a link to search the dictionary for the kanji (`/dictionary?q=`; like Jisho, it matches words *starting* with it; a "contains" filter is left for the search filters) |
 | `/collections?tab=` | Collections of words / kanji: create and edit (`CollectionFormModal`), delete (`ConfirmModal`) |
-| `/exercises` | The user's exercises as cards: item kind, collections (by name; "Sin colecciones" when they were all deleted) and directions; the name opens the exercise; Empezar, edit, delete (`ConfirmModal`; past sessions are kept). `OpenSessionAlert` on top (also on the home page): "Continuar" for the open session |
-| `/exercises/:id?page=` | One exercise: its definition (kind, collections, directions, back, options), "Empezar" or, if the open session is this exercise's, "Continuar", "Editar", its **statistics** once it has answers (`GET /exercises/{id}/statistics`: `TotalsTiles`, accuracy per direction as `AccuracyBar`s, the items missed most as `MissedItems`, which open `ItemDetailModal`), and its session history: a `UTable` of `GET /exercise-sessions?exercise_id=` (10 per page, `UPagination`; date, duration, answered, accuracy, open or finished) whose rows open the session |
+| `/exercises` | The user's exercises as cards: item kind, "Escribir el kanji" for handwriting ones, collections (by name; "Sin colecciones" when they were all deleted) and directions; the name opens the exercise; Empezar, edit, delete (`ConfirmModal`; past sessions are kept). `OpenSessionAlert` on top (also on the home page): "Continuar" for the open session |
+| `/exercises/:id?page=` | One exercise: its definition (kind, collections, type, directions, back, and options for a choice card), "Empezar" or, if the open session is this exercise's, "Continuar", "Editar", its **statistics** once it has answers (`GET /exercises/{id}/statistics`: `TotalsTiles`, accuracy per direction as `AccuracyBar`s, the items missed most as `MissedItems`, which open `ItemDetailModal`), and its session history: a `UTable` of `GET /exercise-sessions?exercise_id=` (10 per page, `UPagination`; date, duration, answered, accuracy, open or finished) whose rows open the session |
 | `/statistics?days=&tab=` | "Estadísticas": `GET /statistics` with `days` (7, 30 by default, or 90; a select) and `tz`, this browser's time zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`). `TotalsTiles`, the activity of each day as an `ActivityChart` (CSS bars, right answers under wrong ones, scaled to the busiest day; a text summary for screen readers), a `UTable` per exercise (sessions, accuracy, last time; a row opens the exercise) and the words / kanji missed most in tabs (`tab=kanji`). An empty state when nothing was answered yet. No chart library |
 | `/about` | "Acerca de": the shared `AboutSources` (`lang="es"`) in an `AppPanel`. It says what shodoukan is and credits every data source with its licence, and Jisho as inspiration. Sources are credited only here, not next to the data |
-| `/exercise-sessions/:id?filter=` | Play a session (below). A finished one shows its result (answered, right, accuracy, date, duration) with "Practicar otra vez", then the **review**: each answered question collapsed to one line (`ReviewQuestion`, a `UCollapsible`: number, verdict, prompt → right answer, the wrong pick struck through, the time) that opens to the card as it was played (the compact `StudyCard`, its back only, and `ChoiceOptions` with the pick and the right one marked), "Desplegar todas" / "Plegar todas", all or only the missed and skipped (`filter=missed`). The back button goes to the exercise, or to the list if it was deleted |
+| `/exercise-sessions/:id?filter=` | Play a session (below). A finished one shows its result (answered, right, accuracy, date, duration) with "Practicar otra vez", then the **review**: each answered question collapsed to one line (`ReviewQuestion`, a `UCollapsible`: number, verdict, prompt → right answer, the wrong pick struck through or, for a drawing, a thumbnail of it; the time) that opens to the card as it was played (the compact `StudyCard`, its back only, and `ChoiceOptions` with the pick and the right one marked, or the drawing's `StrokeComparison`). A drawing graded "close" has the badge "Mejorable" (`utils/verdict.ts`), "Desplegar todas" / "Plegar todas", all or only the missed and skipped (`filter=missed`). The back button goes to the exercise, or to the list if it was deleted |
 | `/exercises/new`, `/exercises/:id/edit` | `ExerciseForm` (below) in a card; saving goes back to the list |
 | `/collections/:kind/:id?q=&active=&page=` | A collection's items with search (`LibrarySearchInput`, `in_collection` on the API side), the same active filter as the library (inactive ones are listed, marked, unless filtered out) and paging; add from the library (`LibraryPickerModal`: its own search, `not_in_collection` so only what can still be added is listed, selection kept across searches), remove; items open the detail page with `?collection=<id>` for the back link (`useBackLink()`) |
 
@@ -149,9 +149,14 @@ in the dictionary it matches the import button beside it. It has two modes
   out of step ([decisions](decisions.md#importing-into-collections-is-one-request)).
 
 **Exercise form** (`ExerciseForm`): name, description, item kind (a radio group,
-fixed when editing), collections (a multiple `USelectMenu` of that kind's collections,
+fixed when editing), for kanji the exercise type ("Elegir entre opciones" / "Escribir
+el kanji"; words are always a choice card),  collections (a multiple `USelectMenu` of that kind's collections,
 with a link to create one when there are none), directions (`DirectionsEditor`), back
-fields (checkboxes) and the number of options (`UInputNumber`, 2–8). Fields, their
+fields (checkboxes) and the number of options (`UInputNumber`, 2–8; not for
+drawing). A handwriting exercise passes `answer-fields="['literal']"` to the
+`DirectionsEditor`, so every direction asks for the kanji; switching the type starts
+the directions and back fields over (`defaultHandwritingSettings`: meaning → kanji,
+readings on the back). Fields, their
 Spanish labels and each kind's defaults are in `utils/study-fields.ts`, mirroring the
 backend's `ENTRY_FIELDS` / `KANJI_FIELDS`. Switching the item kind starts collections,
 directions and back fields over. The Zod schema repeats the backend's rules (at least
@@ -174,7 +179,8 @@ reads the open session for `OpenSessionAlert`.
 and the state: the question on screen (the active one, or the one just answered with
 its solution) and `next`, which the answer already brought, shown on "Siguiente". The
 player for the question's `type` comes from the registry in
-`components/exercise-players/index.ts` (`card.choice` → `ChoiceCardPlayer`); a player
+`components/exercise-players/index.ts` (`card.choice` → `ChoiceCardPlayer`,
+`card.handwriting` → `HandwritingPlayer`); a player
 takes `question` and `busy` and emits `answer(answer, responseMs)`, `next` and
 `open-item(itemId)`. `ChoiceCardPlayer` is a `StudyCard` (front: the prompt fields with
 their labels and what's asked; once answered it turns to the back, composed from the
@@ -218,16 +224,33 @@ statistics come back as they were; which review questions
 were open is kept per session in `useState`. An item no longer in the library
 says so.
 
+**Drawing the kanji** (`HandwritingPlayer`): before answering, the front is a compact
+strip (`StudyCard compact`: the prompt and "¿Kanji?") and `KanjiDrawingPad` (from
+`shodoukan-ui`) takes the rest of the height as the largest square that fits (a
+`ResizeObserver` on its box), so it's comfortable on a phone. Below it: undo
+(Backspace, Ctrl/Cmd+Z), clear, "Saltar" (S / Escape) and "Comprobar" (Enter, once
+something is drawn), which sends `{type: "strokes", strokes}` in KanjiVG's space,
+with no conversion. Once answered the drawing is what matters, not the card: the
+verdict ("¡Correcto!", "Mejorable" with the score, "Fallada") and "Siguiente", then
+`StrokeComparison` and what was wrong with each stroke ("Trazo 3: en sentido
+contrario."). The card (its back) is a "Ver tarjeta" collapsible on phones and a
+column beside the drawing from `lg`; "Ver detalle" there opens the item, whose kanji
+page has the stroke order animation. `StrokeComparison` draws the drawing (each stroke
+coloured by its grade: green, amber for backwards, out of order or imprecise, red for
+extra) next to the matched KanjiVG kanji (numbered, strokes not drawn in red), both
+with `KanjiStrokeDiagram`; on a phone one square shows them overlaid (the reference
+as a faint `ghost`), or each in turn.
+
 The detail is a page, not a modal: it has its own URL, the back button works, and it
 has room for editing. List state (tab, filter, page, query) lives in the URL for the
 same reason.
 
 ## Tests
 
-`tests/unit/` runs in happy-dom: the API client (token, 401), the session formats (`utils/session-format.ts`), `apiStatus` (also
+`tests/unit/` runs in happy-dom: the API client (token, 401), the session formats (`utils/session-format.ts`), the verdicts and stroke problems (`utils/verdict.ts`), `apiStatus` (also
 through `useAsyncData`'s wrapped error), `safeReturnPath`, the service functions. `tests/components/` runs in the Nuxt environment
 (`// @vitest-environment nuxt`, `mountSuspended`): the sign-in middleware,
-`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `KanjiStrokeOrder` (one fetch, 404, no per-kanji credit), the about page, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, `ChoiceOptions`, `ChoiceCardPlayer` (keys, `response_ms`), the statistics components and page (window and time zone, tabs, empty state), the exercise page (history, continue or start, statistics), the session page (answer, next, no more questions, 409 reload, review and its filter; `clearNuxtData()` between tests that load the same key), the view-only `MeaningList` and `ReadingChips`, the exercise edit page's not-found state (menus
+`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `KanjiStrokeOrder` (one fetch, 404, no per-kanji credit), the about page, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, `ChoiceOptions`, `ChoiceCardPlayer` (keys, `response_ms`), `HandwritingPlayer` (check only once drawn, undo and clear, skip, the verdict and stroke problems once drawn), `StrokeComparison`, `ReviewQuestion` (choice and drawing summaries), the statistics components and page (window and time zone, tabs, empty state), the exercise page (history, continue or start, statistics), the session page (answer, next, no more questions, 409 reload, review and its filter; `clearNuxtData()` between tests that load the same key), the view-only `MeaningList` and `ReadingChips`, the exercise edit page's not-found state (menus
 and tooltips need the `UApp` wrapper; their content is portalled to the body). They replace `useAuth` with
 `tests/fakes.ts` (`mockNuxtImport`), because the real middleware would redirect to
 Keycloak while the test app starts.

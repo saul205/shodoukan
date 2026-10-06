@@ -4,11 +4,14 @@ import { FIELD_LABELS, STUDY_FIELDS } from '~/utils/study-fields'
 
 // The rows "fields shown → field asked" of a card exercise. The answer is
 // never offered among the shown fields: picking it as the answer takes it out
-// of the prompt. Checking repeats and empty prompts is the form's job.
-const props = defineProps<{ kind: ItemKind; disabled?: boolean }>()
+// of the prompt. `answerFields` limits what can be asked (a handwriting card
+// always asks for the kanji); with one, the answer is fixed. Checking repeats
+// and empty prompts is the form's job.
+const props = defineProps<{ kind: ItemKind; disabled?: boolean; answerFields?: StudyField[] }>()
 const directions = defineModel<Direction[]>({ required: true })
 
 const fields = computed(() => STUDY_FIELDS[props.kind])
+const answers = computed(() => props.answerFields ?? fields.value)
 
 function items(exclude?: StudyField) {
   return fields.value
@@ -32,8 +35,11 @@ function setAnswer(index: number, answer: StudyField) {
 function add() {
   // A new row asks a field nothing else asks yet, shown with the first other one.
   const asked = new Set(directions.value.map(direction => direction.answer))
-  const answer = fields.value.find(field => !asked.has(field)) ?? fields.value[0]!
-  const prompt = fields.value.find(field => field !== answer)!
+  const answer = answers.value.find(field => !asked.has(field)) ?? answers.value[0]!
+  // With the answer fixed, show a field no row shows on its own yet.
+  const shown = new Set(directions.value.filter(d => d.prompt.length === 1).map(d => d.prompt[0]))
+  const others = fields.value.filter(field => field !== answer)
+  const prompt = others.find(field => !shown.has(field)) ?? others[0]!
   directions.value = [...directions.value, { prompt: [prompt], answer }]
 }
 
@@ -65,8 +71,8 @@ function remove(index: number) {
       <UIcon name="i-lucide-arrow-right" class="size-4 shrink-0 text-muted" />
       <USelect
         :model-value="direction.answer"
-        :items="items()"
-        :disabled="disabled"
+        :items="answers.map(field => ({ label: FIELD_LABELS[field], value: field }))"
+        :disabled="disabled || answers.length === 1"
         class="w-40"
         :aria-label="`Campo que pregunta la dirección ${index + 1}`"
         data-testid="direction-answer"

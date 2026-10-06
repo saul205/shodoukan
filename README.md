@@ -75,7 +75,8 @@ published as a static site. See the [frontend docs](docs/technical/frontend.md).
 
 Nuxt 4 + Nuxt UI app for the practice API on <http://localhost:3001>: sign in with
 Keycloak, then search the dictionary and import, customise your library (meanings,
-notes, readings), group it into collections, and practise them with exercises, with a
+notes, readings), group it into collections, and practise them with exercises (choose
+the answer, or draw the kanji), with a
 history, a review of each session and statistics. See the
 [frontend docs](docs/practice/technical/frontend.md).
 

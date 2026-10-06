@@ -4,7 +4,7 @@ import ConfirmModal from '~/components/ConfirmModal.vue'
 import type { Exercise } from '~/models/practice'
 import { listCollections } from '~/services/collections'
 import { deleteExercise, listExercises } from '~/services/exercises'
-import { directionLabel, ITEM_KIND_LABELS } from '~/utils/study-fields'
+import { directionLabel, EXERCISE_TYPE_LABELS, ITEM_KIND_LABELS } from '~/utils/study-fields'
 
 // "Ejercicios": the user's saved exercises, with what each studies and the
 // collections it draws from; create, edit and delete them.
@@ -108,6 +108,14 @@ function actions(exercise: Exercise): DropdownMenuItem[][] {
 
         <div class="flex flex-wrap gap-1">
           <UBadge :label="ITEM_KIND_LABELS[exercise.item_kind]" color="primary" variant="subtle" />
+          <UBadge
+            v-if="exercise.settings.type === 'card.handwriting'"
+            :label="EXERCISE_TYPE_LABELS[exercise.settings.type]"
+            color="primary"
+            variant="outline"
+            icon="i-lucide-pencil"
+            data-testid="exercise-type"
+          />
           <UBadge
             v-for="name in collectionNames(exercise)"
             :key="name"

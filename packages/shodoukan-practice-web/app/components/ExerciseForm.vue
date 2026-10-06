@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { Form, FormSubmitEvent } from '@nuxt/ui'
-import type { Direction, Exercise, ExerciseInput, ItemKind } from '~/models/practice'
+import type { Direction, Exercise, ExerciseInput, ExerciseSettings, ExerciseType, ItemKind } from '~/models/practice'
 import { listCollections } from '~/services/collections'
 import { createExercise, updateExercise } from '~/services/exercises'
 import { apiStatus } from '~/utils/api-error'
-import { defaultChoiceSettings, directionKey, fieldItems, ITEM_KIND_LABELS } from '~/utils/study-fields'
+import {
+  defaultChoiceSettings,
+  defaultHandwritingSettings,
+  directionKey,
+  EXERCISE_TYPE_LABELS,
+  EXERCISE_TYPES,
+  fieldItems,
+  ITEM_KIND_LABELS,
+} from '~/utils/study-fields'
 
-// Create a choice-card exercise, or edit one when `exercise` is given (its
-// item kind can't change then). It saves on its own and emits `saved`; the
+// Create an exercise, or edit one when `exercise` is given (its item kind
+// can't change then). Kanji exercises choose between a choice card and
+// drawing the kanji, which always asks for the kanji and has no options. It saves on its own and emits `saved`; the
 // rules mirror the backend's so mistakes show on their field.
 const props = defineProps<{ exercise?: Exercise }>()
 const emit = defineEmits<{ saved: [exercise: Exercise] }>()
@@ -22,6 +31,7 @@ const schema = z.object({
   name: z.string().trim().min(1, 'Ponle un nombre.').max(100, 'Como mucho 100 caracteres.'),
   description: z.string().trim().optional(),
   item_kind: z.enum(['entries', 'kanji']),
+  type: z.enum(['card.choice', 'card.handwriting']),
   collection_ids: z.array(z.number()).min(1, 'Elige al menos una colección.'),
   directions: z
     .array(z.object({ prompt: z.array(field), answer: field }))
@@ -44,6 +54,10 @@ function directionsProblem(directions: Direction[]): string | undefined {
     return 'Hay direcciones repetidas.'
 }
 
+function defaults(kind: ItemKind, type: ExerciseType): ExerciseSettings {
+  return type === 'card.handwriting' ? defaultHandwritingSettings() : defaultChoiceSettings(kind)
+}
+
 const initialKind: ItemKind = props.exercise?.item_kind ?? 'entries'
 const initialSettings = props.exercise?.settings ?? defaultChoiceSettings(initialKind)
 
@@ -51,20 +65,32 @@ const state = reactive<Schema>({
   name: props.exercise?.name ?? '',
   description: props.exercise?.description ?? '',
   item_kind: initialKind,
+  type: initialSettings.type,
   collection_ids: [...(props.exercise?.collection_ids ?? [])],
   directions: initialSettings.directions.map(direction => ({ ...direction, prompt: [...direction.prompt] })),
   back_fields: [...initialSettings.back_fields],
-  option_count: initialSettings.option_count,
+  option_count: initialSettings.type === 'card.choice' ? initialSettings.option_count : 4,
 })
 const form = useTemplateRef<Form<Schema>>('form')
 const saving = ref(false)
 
-// Collections and fields belong to one item kind: switching starts them over.
-watch(() => state.item_kind, (kind) => {
-  const settings = defaultChoiceSettings(kind)
-  state.collection_ids = []
+function resetFields(settings: ExerciseSettings) {
   state.directions = settings.directions
   state.back_fields = settings.back_fields
+}
+
+// Collections and fields belong to one item kind: switching starts them over
+// (and words can only be a choice card).
+watch(() => state.item_kind, (kind) => {
+  state.collection_ids = []
+  state.type = 'card.choice'
+  resetFields(defaultChoiceSettings(kind))
+})
+
+// Directions differ by type (a drawing always asks for the kanji): switching
+// starts them over too.
+watch(() => state.type, (type, previous) => {
+  if (type !== previous) resetFields(defaults(state.item_kind, type))
 })
 
 const { data: collections, status: collectionsStatus, refresh: refreshCollections } = useAsyncData(
@@ -76,6 +102,11 @@ const collectionItems = computed(() =>
   (collections.value ?? []).map(collection => ({ label: collection.name, value: collection.id })),
 )
 
+const typeItems = computed(() =>
+  EXERCISE_TYPES[state.item_kind].map(type => ({ label: EXERCISE_TYPE_LABELS[type], value: type })),
+)
+const handwriting = computed(() => state.type === 'card.handwriting')
+
 const kindItems = (['entries', 'kanji'] as const).map(kind => ({ label: ITEM_KIND_LABELS[kind], value: kind }))
 const backItems = computed(() => fieldItems(state.item_kind))
 
@@ -85,13 +116,15 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     name: data.name,
     description: data.description || null,
     collection_ids: data.collection_ids,
-    settings: {
-      type: 'card.choice',
-      directions: data.directions,
-      back_fields: data.back_fields,
-      option_count: data.option_count,
-      distractor_source: 'collection',
-    },
+    settings: data.type === 'card.handwriting'
+      ? { type: 'card.handwriting', directions: data.directions, back_fields: data.back_fields }
+      : {
+          type: 'card.choice',
+          directions: data.directions,
+          back_fields: data.back_fields,
+          option_count: data.option_count,
+          distractor_source: 'collection',
+        },
   }
   saving.value = true
   try {
@@ -136,6 +169,15 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </UFormField>
     </div>
 
+    <UFormField
+      v-if="typeItems.length > 1"
+      name="type"
+      label="Ejercicio"
+      description="Elegir la respuesta entre varias opciones, o dibujar el kanji."
+    >
+      <URadioGroup v-model="state.type" :items="typeItems" orientation="horizontal" data-testid="exercise-type" />
+    </UFormField>
+
     <UFormField name="description" label="Descripción" hint="Opcional">
       <UTextarea v-model="state.description" class="w-full" :rows="2" autoresize />
     </UFormField>
@@ -167,7 +209,11 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       description="Qué se muestra → qué se pregunta. Cada tarjeta usa una de ellas al azar."
       required
     >
-      <DirectionsEditor v-model="state.directions" :kind="state.item_kind" />
+      <DirectionsEditor
+        v-model="state.directions"
+        :kind="state.item_kind"
+        :answer-fields="handwriting ? ['literal'] : undefined"
+      />
     </UFormField>
 
     <UFormField
@@ -178,7 +224,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       <UCheckboxGroup v-model="state.back_fields" :items="backItems" orientation="horizontal" />
     </UFormField>
 
-    <UFormField name="option_count" label="Opciones por tarjeta" description="La correcta y las incorrectas, de 2 a 8.">
+    <UFormField v-if="!handwriting" name="option_count" label="Opciones por tarjeta" description="La correcta y las incorrectas, de 2 a 8.">
       <UInputNumber v-model="state.option_count" :min="2" :max="8" class="w-32" />
     </UFormField>
 

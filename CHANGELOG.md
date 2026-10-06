@@ -17,6 +17,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   order, imprecise, extra, missing). Any kanji of the collections that fits the prompt
   is right. "Close" counts as right but comes back as a review. Kanji without a stroke
   order aren't asked.
+- **shodoukan-practice-web:** "Escribir el kanji" exercises: draw the kanji on a pad
+  that fills the screen, then see the verdict (¡Correcto! / Mejorable / Fallada) with
+  a score, the drawing next to the KanjiVG kanji coloured stroke by stroke, and what
+  was wrong with each stroke; the card is one tap away on phones. The exercise form
+  offers the type for kanji, and the session review shows each drawing.
 - **shodoukan-ui:** `KanjiDrawingPad`, a square to draw a kanji in KanjiVG's space;
   `KanjiStrokeDiagram` takes per-stroke `colors`, a faint `ghost` underneath, `numbers`
   and a CSS `size`; `pointsToPath` and `simplifyStroke` for drawn strokes.
