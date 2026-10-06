@@ -1,36 +1,42 @@
 <script setup lang="ts">
+import { KanjiStrokeDiagram, pointsToPath } from 'shodoukan-ui'
 import type { ExerciseQuestion } from '~/models/practice'
 import { formatResponseTime } from '~/utils/session-format'
+import { VERDICT_COLORS, VERDICT_LABELS, verdictOf } from '~/utils/verdict'
 
 // An answered question in a session review, collapsed to one line: its
-// number, the verdict, the prompt, the right answer (and the wrong pick,
-// struck through) and the time. Number, verdict and time have fixed widths,
-// so every line's prompt starts at the same place. Opened (`v-model:open`), it shows the card
-// and the options as they were played, in their compact form.
+// number, the verdict, the prompt, the right answer (and a choice card's wrong
+// pick, struck through; a drawing's thumbnail) and the time. Number, verdict
+// and time have fixed widths, so every line's prompt starts at the same place.
+// Opened (`v-model:open`), it shows the card and how it was answered, as it
+// was played, in compact form: the options, or the drawing next to the kanji.
 const props = defineProps<{ question: ExerciseQuestion }>()
 defineEmits<{ 'open-item': [itemId: number] }>()
 const open = defineModel<boolean>('open', { default: false })
 
-const skipped = computed(() => props.question.answer?.type === 'skip')
+const verdict = computed(() => {
+  const kind = verdictOf(props.question)
+  return { label: VERDICT_LABELS[kind], color: VERDICT_COLORS[kind] }
+})
+
+const choice = computed(() => (props.question.type === 'card.choice' ? props.question : null))
+const handwriting = computed(() => (props.question.type === 'card.handwriting' ? props.question : null))
+
 const picked = computed(() => (props.question.answer?.type === 'option' ? props.question.answer.option : null))
-const verdict = computed(() =>
-  skipped.value
-    ? { label: 'Saltada', color: 'warning' as const }
-    : props.question.is_correct
-      ? { label: 'Correcta', color: 'success' as const }
-      : { label: 'Fallada', color: 'error' as const },
-)
+const drawing = computed(() => (props.question.answer?.type === 'strokes' ? props.question.answer.strokes : []))
+const thumbnail = computed(() => drawing.value.map(points => ({ path: pointsToPath(points), label: null })))
 
 const japaneseAnswer = computed(() => props.question.answer_field !== 'meaning')
 const prompt = computed(() => props.question.prompt.map(field => field.values.join('、')).join(' · '))
-const rightText = computed(() =>
-  props.question.correct_option !== null ? props.question.options[props.question.correct_option]?.text : undefined,
-)
-const wrongText = computed(() =>
-  picked.value !== null && picked.value !== props.question.correct_option
-    ? props.question.options[picked.value]?.text
-    : undefined,
-)
+const rightText = computed(() => {
+  if (handwriting.value) return handwriting.value.references?.map(r => r.literal).join('、')
+  const q = choice.value
+  return q && q.correct_option !== null ? q.options[q.correct_option]?.text : undefined
+})
+const wrongText = computed(() => {
+  const q = choice.value
+  return q && picked.value !== null && picked.value !== q.correct_option ? q.options[picked.value]?.text : undefined
+})
 </script>
 
 <template>
@@ -56,6 +62,14 @@ const wrongText = computed(() =>
         <span :class="{ 'font-japanese': japaneseAnswer }" class="text-success">{{ rightText }}</span>
         <span v-if="wrongText" class="ml-2 text-error line-through" :class="{ 'font-japanese': japaneseAnswer }">{{ wrongText }}</span>
       </span>
+      <KanjiStrokeDiagram
+        v-if="thumbnail.length"
+        :strokes="thumbnail"
+        :numbers="false"
+        :size="28"
+        class="shrink-0"
+        data-testid="review-thumbnail"
+      />
       <span v-if="question.response_ms !== null" class="hidden w-14 shrink-0 text-right text-xs text-dimmed tabular-nums sm:inline">
         {{ formatResponseTime(question.response_ms) }}
       </span>
@@ -70,12 +84,21 @@ const wrongText = computed(() =>
       <div class="space-y-3 border-t border-default p-3" data-testid="review-detail">
         <StudyCard :question="question" compact @open-item="$emit('open-item', $event)" />
         <ChoiceOptions
-          :options="question.options"
+          v-if="choice"
+          :options="choice.options"
           :picked="picked"
-          :correct="question.correct_option"
+          :correct="choice.correct_option"
           :japanese="japaneseAnswer"
           compact
           @open-item="$emit('open-item', $event)"
+        />
+        <StrokeComparison
+          v-else-if="handwriting?.references?.length && drawing.length"
+          :drawing="drawing"
+          :references="handwriting.references"
+          :grade="handwriting.grade"
+          size="8rem"
+          compact
         />
       </div>
     </template>

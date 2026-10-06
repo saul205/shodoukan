@@ -35,7 +35,7 @@ changes.
 | `card.choice` | Card | Sees the front, picks the right answer among N options | Phase 1–5 |
 | `card.flip` | Card | Sees the front, flips the card, says whether they knew it | Future |
 | `card.typed` | Card | Types the answer (kana, meaning) | Future |
-| `card.handwriting` | Card | Draws the kanji; the strokes are graded against KanjiVG | #37 |
+| `card.handwriting` | Card | Draws the kanji; the strokes are graded against KanjiVG | #37 **(built)** |
 | `sentence.gap` | Sentence | Fills the gaps of an example sentence with kanji, given the kana | Future |
 
 All card types share `CardSettings`:
@@ -499,5 +499,5 @@ go in the order 3 → A → 4 → 5 → C.
 | C | Statistics (frontend), #43 **(built)** | Statistics per exercise and the "Estadísticas" page |
 | 6 | Library distractors, #34 | `distractor_source = "library"` |
 | 7 | Handwriting (backend), #58 **(built)** | `card.handwriting`: KanjiVG references, grading, questions by type in storage |
-| 8 | Handwriting (frontend), #59 | Drawing pad, the handwriting player, reviewing drawings |
+| 8 | Handwriting (frontend), #59 **(built)** | Drawing pad, the handwriting player, reviewing drawings |
 | — | Future types | `card.flip`, `card.typed`, `sentence.gap` |

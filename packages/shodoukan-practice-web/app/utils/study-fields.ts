@@ -1,4 +1,4 @@
-import type { ChoiceCardSettings, Direction, ItemKind, StudyField } from '~/models/practice'
+import type { ChoiceCardSettings, Direction, ExerciseType, HandwritingCardSettings, ItemKind, StudyField } from '~/models/practice'
 
 // The fields an exercise can study, per item kind, and how they're named in
 // the UI. Mirrors ENTRY_FIELDS / KANJI_FIELDS in the practice backend.
@@ -20,6 +20,17 @@ export const FIELD_LABELS: Record<StudyField, string> = {
 export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
   entries: 'Palabras',
   kanji: 'Kanji',
+}
+
+export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
+  'card.choice': 'Elegir entre opciones',
+  'card.handwriting': 'Escribir el kanji',
+}
+
+/** The types an item kind can use: drawing is for kanji only. */
+export const EXERCISE_TYPES: Record<ItemKind, ExerciseType[]> = {
+  entries: ['card.choice'],
+  kanji: ['card.choice', 'card.handwriting'],
 }
 
 export function fieldItems(kind: ItemKind): { label: string; value: StudyField }[] {
@@ -53,4 +64,13 @@ export function defaultChoiceSettings(kind: ItemKind): ChoiceCardSettings {
         option_count: 4,
         distractor_source: 'collection',
       }
+}
+
+/** What a new handwriting exercise starts with: see the meaning, draw the kanji, readings on the back. */
+export function defaultHandwritingSettings(): HandwritingCardSettings {
+  return {
+    type: 'card.handwriting',
+    directions: [{ prompt: ['meaning'], answer: 'literal' }],
+    back_fields: ['onyomi', 'kunyomi'],
+  }
 }

@@ -8,7 +8,7 @@ import { getExercise } from '~/services/exercises'
 import { getExerciseStatistics } from '~/services/statistics'
 import { apiStatus } from '~/utils/api-error'
 import { accuracyPercent, formatDateTime, formatDuration } from '~/utils/session-format'
-import { directionLabel, FIELD_LABELS, ITEM_KIND_LABELS } from '~/utils/study-fields'
+import { directionLabel, EXERCISE_TYPE_LABELS, FIELD_LABELS, ITEM_KIND_LABELS } from '~/utils/study-fields'
 
 // One exercise: what it studies, "Empezar" (or "Continuar" if its session is
 // the open one), its statistics (totals, accuracy per direction, the items
@@ -143,6 +143,8 @@ function openSessionRow(_event: Event, row: TableRow<SessionSummary>) {
           />
         </div>
         <dl class="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+          <dt class="text-dimmed">Ejercicio</dt>
+          <dd class="text-toned" data-testid="exercise-type">{{ EXERCISE_TYPE_LABELS[exercise.settings.type] }}</dd>
           <dt class="text-dimmed">Direcciones</dt>
           <dd class="text-toned">
             <span v-for="direction in exercise.settings.directions" :key="directionLabel(direction)" class="block">
@@ -153,8 +155,10 @@ function openSessionRow(_event: Event, row: TableRow<SessionSummary>) {
           <dd class="text-toned">
             {{ exercise.settings.back_fields.map(field => FIELD_LABELS[field]).join(', ') || 'Solo la pregunta y la respuesta' }}
           </dd>
-          <dt class="text-dimmed">Opciones</dt>
-          <dd class="text-toned">{{ exercise.settings.option_count }} por tarjeta</dd>
+          <template v-if="exercise.settings.type === 'card.choice'">
+            <dt class="text-dimmed">Opciones</dt>
+            <dd class="text-toned">{{ exercise.settings.option_count }} por tarjeta</dd>
+          </template>
         </dl>
       </UCard>
 

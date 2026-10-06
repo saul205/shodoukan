@@ -20,12 +20,15 @@ from one or more collections of that kind; an item in several of them counts onc
 
 ## Kinds of exercise
 
-The first kind is the **choice card**: a card shows something about an item and the
-user picks the right answer among several options (4 by default).
+- **Choice card:** a card shows something about an item and the user picks the right
+  answer among several options (4 by default).
+- **Writing the kanji** (kanji exercises only): the card shows something about a kanji
+  (its meaning, a reading) and the user draws the kanji, stroke by stroke. See
+  [writing the kanji](#writing-the-kanji).
 
 Planned kinds, sharing the same structure: a plain card the user flips and marks as
-known or not, a card where the user types the answer, handwriting a kanji, and
-sentences with gaps to fill with kanji given the kana.
+known or not, a card where the user types the answer, and sentences with gaps to fill
+with kanji given the kana.
 
 ## What is studied: fields and directions
 
@@ -108,6 +111,33 @@ how it went and offers to practise again.
 Each card is answered once: a second click on another option doesn't change the
 answer.
 
+## Writing the kanji
+
+A session of a handwriting exercise works like a choice card's (the same order of
+cards, missed ones coming back, "Saltar", "Terminar"), but the answer is a drawing.
+
+1. The top of the screen shows what's asked (for example the meaning "one") and the
+   rest is a square to draw in, with a finger, a pen or the mouse.
+2. The user draws the kanji, stroke by stroke, in its stroke order. "Deshacer"
+   (Backspace, Ctrl+Z) removes the last stroke and the eraser clears the drawing.
+3. "Comprobar" (Enter) sends it. The app compares it with the kanji's strokes, as
+   [KanjiVG](https://kanjivg.tagaini.net/) draws them in Japanese order (the same as
+   the stroke order on the kanji pages), and says:
+   - **¡Correcto!**: every stroke is there, in order, in the right direction, and the
+     drawing looks like the kanji;
+   - **Mejorable**: it's the kanji, but something is off (a stroke backwards, out of
+     order, a bit misplaced, or one missing in a kanji of 5 strokes or more). It
+     counts as right, but the kanji comes back later to practise;
+   - **Fallada**: it's another kanji, or too far from it.
+4. Next to the drawing, the kanji with its strokes numbered, and what was wrong with
+   each stroke. On a phone the two are shown overlaid (or one at a time); the card
+   with its back is under "Ver tarjeta".
+
+Where and how big the kanji is drawn in the square doesn't matter, only its shape.
+If several kanji of the collections fit what's asked (two kanji read はし), any of
+them is right. Kanji without a stroke order in the dictionary aren't asked; a
+collection needs at least 2 that have one.
+
 ## History and statistics
 
 Every session keeps each question as it was shown, the option picked and whether it
@@ -119,7 +149,8 @@ was right. Editing or removing an item later doesn't change past sessions.
   its past sessions, newest first (date, duration, questions answered, accuracy, open
   or finished). Any of them opens: a finished session shows its result and a review:
   one line per card (the question, the right answer, the wrong pick struck through,
-  how long it took) that unfolds into the card as it was played; all of them, or only
+  how long it took; for a drawing, a small copy of it) that unfolds into the card as it
+was played, with the drawing next to the kanji; all of them, or only
   the missed and skipped ones. Sessions of a deleted exercise can still be reviewed.
 - **Statistics:** each exercise's page shows, once it has answers, its totals
   (sessions, answers, accuracy, mean time), its accuracy per direction and the items
@@ -133,7 +164,9 @@ was right. Editing or removing an item later doesn't change past sessions.
 ## Managing exercises
 
 - **Create** an exercise with a name, an optional description, its collections, the
-  directions, the back fields and the number of options.
+  kind (for kanji: choose the answer, or write the kanji), the directions, the back
+  fields and, for a choice card, the number of options. Writing the kanji always asks
+  for the kanji.
 - **See** their exercises, sorted by name.
 - **Edit** any of it except whether it holds words or kanji.
 - The form checks the same rules before saving: at least one collection and one
@@ -158,7 +191,8 @@ a collection of someone else's can't be used.
 | The exercise or the collection doesn't exist, isn't the user's, or is of the other kind (a word collection in a kanji exercise) | Rejected as not found |
 | A field that doesn't exist for the item kind, a direction that asks for a field it shows, or a repeated direction | Rejected as invalid |
 | No directions, or no collection | Rejected as invalid |
-| The collections have fewer than 2 usable items (active, with the fields the exercise asks), or the exercise has no collection left | The session can't start |
+| The collections have fewer than 2 usable items (active, with the fields the exercise asks; for writing, kanji with a stroke order), or the exercise has no collection left | The session can't start |
+| A drawing answers a choice card, an option answers a drawing, or a drawing goes off the square | Rejected as invalid |
 | A card is answered again, or the session has ended | Rejected; the first answer counts |
 | The collection loses its usable items during a session | No more cards; the user can finish the session |
 
