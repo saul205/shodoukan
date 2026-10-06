@@ -25,7 +25,7 @@ with Dictionary() as d:
     strokes = d.get_kanji_strokes("楽")             # KanjiVG stroke order
     drawn   = d.literals_with_strokes(["楽", "水"])  # which ones have a drawing
 
-from shodoukan.utils.svg_path import path_points
+from shodoukan import path_points
 points = path_points(strokes.strokes[0].path)        # a stroke as evenly spaced points
 ```
 
