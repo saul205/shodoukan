@@ -22,11 +22,15 @@ const props = withDefaults(
     disabled?: boolean
     /** How far (in KanjiVG units) a point may stray from a straight line and still be dropped. */
     epsilon?: number
+    /** Strokes it takes; once reached, it doesn't start another (and emits `limit`). */
+    maxStrokes?: number
+    /** Points a stroke may have; a longer one is simplified harder until it fits. */
+    maxPoints?: number
   }>(),
-  { size: '100%', disabled: false, epsilon: 0.5 },
+  { size: '100%', disabled: false, epsilon: 0.5, maxStrokes: Infinity, maxPoints: Infinity },
 )
 const strokes = defineModel<StrokePoint[][]>({ default: () => [] })
-const emit = defineEmits<{ 'stroke-end': [stroke: StrokePoint[]] }>()
+const emit = defineEmits<{ 'stroke-end': [stroke: StrokePoint[]]; 'limit': [] }>()
 
 const MIN = -KANJIVG_PADDING
 const SIDE = KANJIVG_SIZE + 2 * KANJIVG_PADDING
@@ -61,6 +65,10 @@ function toPoint(event: PointerEvent): StrokePoint {
 function start(event: PointerEvent) {
   if (props.disabled || !event.isPrimary || event.button > 0 || pointerId !== null) return
   event.preventDefault()
+  if (strokes.value.length >= props.maxStrokes) {
+    emit('limit')
+    return
+  }
   pointerId = event.pointerId
   svg.value?.setPointerCapture?.(event.pointerId)
   current.value = [toPoint(event)]
@@ -78,7 +86,12 @@ function move(event: PointerEvent) {
 
 function end(event: PointerEvent) {
   if (event.pointerId !== pointerId || !current.value) return
-  const stroke = simplifyStroke(current.value, props.epsilon)
+  let epsilon = props.epsilon
+  let stroke = simplifyStroke(current.value, epsilon)
+  while (stroke.length > props.maxPoints) {
+    epsilon *= 2
+    stroke = simplifyStroke(current.value, epsilon)
+  }
   pointerId = null
   current.value = null
   strokes.value = [...strokes.value, stroke]

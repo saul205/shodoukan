@@ -104,3 +104,32 @@ describe('KanjiDrawingPad', () => {
     vi.unstubAllGlobals()
   })
 })
+
+describe('KanjiDrawingPad limits', () => {
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, width: 121, height: 121, right: 121, bottom: 121, x: 0, y: 0, toJSON: () => ({}),
+    })
+  })
+
+  it("doesn't start a stroke past maxStrokes, and says so", async () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [[[1, 1]]], maxStrokes: 1 } })
+
+    await draw(wrapper, [[10, 10], [50, 50]])
+
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.emitted('limit')).toHaveLength(1)
+  })
+
+  it('simplifies a stroke harder until it has at most maxPoints', async () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [], maxPoints: 5 } })
+    // A zigzag: every point counts at the default epsilon.
+    const zigzag = Array.from({ length: 40 }, (_, i) => [6 + i * 2, 60 + (i % 2) * 3] as [number, number])
+
+    await draw(wrapper, zigzag)
+
+    const [stroke] = wrapper.emitted('update:modelValue')![0]![0] as StrokePoint[][]
+    expect(stroke!.length).toBeLessThanOrEqual(5)
+    expect(stroke!.length).toBeGreaterThanOrEqual(2)
+  })
+})
