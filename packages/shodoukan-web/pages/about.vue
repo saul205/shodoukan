@@ -4,19 +4,10 @@
       About Shodoukan
     </h1>
     <p class="mb-10 text-zinc-400">
-      Japanese-English dictionary platform built on JMDict and KANJIDIC2.
+      Japanese dictionary platform built on JMdict, KANJIDIC2 and KanjiVG.
     </p>
 
-    <section class="mb-10">
-      <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
-        What it is
-      </h2>
-      <p class="text-zinc-300">
-        Shodoukan is an open-source dictionary for looking up Japanese words, kanji readings,
-        and multilingual glosses. It supports searches by kanji, kana, Hepburn romaji,
-        or gloss in English, Spanish, French, and German.
-      </p>
-    </section>
+    <AboutSources class="mb-10" />
 
     <section class="mb-10">
       <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -65,6 +56,8 @@
 </template>
 
 <script setup lang="ts">
+import { AboutSources } from 'shodoukan-ui'
+
 definePageMeta({ layout: 'dictionary' })
 
 const stack = [

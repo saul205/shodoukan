@@ -3,7 +3,7 @@ from pathlib import Path
 from shodoukan.db.connection import open_connection, resolve_path
 from shodoukan.db.download import download
 from shodoukan.models.entry import Entry, EntryKanjiLink, Page
-from shodoukan.models.kanji import Kanji
+from shodoukan.models.kanji import Kanji, KanjiStrokes
 from shodoukan.models.search import SearchResult
 from shodoukan.repositories.entry import EntryRepository
 from shodoukan.repositories.kanji import KanjiRepository
@@ -78,6 +78,10 @@ class Dictionary:
 
     def get_kanji(self, literal: str) -> Kanji | None:
         return self._kanji.get_by_literal(literal)
+
+    def get_kanji_strokes(self, literal: str) -> KanjiStrokes | None:
+        """The stroke order of `literal` (KanjiVG), or `None` if it has none."""
+        return self._kanji.get_strokes(literal)
 
     def search_kanji(
         self,

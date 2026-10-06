@@ -104,16 +104,30 @@ If you add a new package or introduce a significant architectural decision, crea
   extension (`.vscode/settings.json` points it at `mypy.ini` and `.venv`). CI runs it
   too.
 - **Checks before a change is done:** `ruff check`, `ruff format`, `mypy`, and the
-  package's tests. Existing Ruff findings in `shodoukan` / `shodoukan-api` predate this
-  and aren't part of CI.
+  package's tests. Existing Ruff findings in `shodoukan` / `shodoukan-api` are older
+  than these checks and aren't part of CI; don't add new ones.
 - All backend packages are synchronous today; agree with the developer before
   introducing async.
 
-### Legacy packages (don't retrofit)
+### Dictionary packages (`shodoukan`, `shodoukan-api`)
 
-`packages/shodoukan` (core library) and `packages/shodoukan-api` predate the layering
-and naming conventions. They're pragmatic, read-only and not under mypy. Follow the
-conventions in new code only; don't rename or restructure these packages wholesale.
+`packages/shodoukan` (core library) and `packages/shodoukan-api` are the public
+dictionary. They are active, not legacy: they evolve together with the practice app,
+which reuses the core library through its dictionary gateway, so a feature that both
+need (e.g. stroke order) is built here once. They're a smaller project, so their layers
+are laid out differently from `shodoukan-practice`:
+
+| Layer | Where |
+|---|---|
+| Domain | `models/` (Pydantic models) |
+| Persistence | `db/orm.py`, concrete `repositories/` (no port), `repositories/mapper.py` (`*_to_domain`) |
+| Application | the `Dictionary` facade (`dictionary.py`) |
+| API | `shodoukan-api` routes, wired through `deps.py` (`dictionary_dep`) |
+
+New code follows the `python-backend-clean-code` conventions (typing, single
+responsibility, mappers, tests against a real database) within that layout. Older code
+that predates them is improved when touched; agree with the developer before
+restructuring a package wholesale. They aren't under mypy yet.
 
 - Core layout: `models/entry.py` (domain models), `db/orm.py` (ORM),
   `repositories/mapper.py` (`entry_to_domain`, read-only mappers), concrete

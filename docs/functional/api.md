@@ -65,6 +65,16 @@ GET /kanji/search?grade=1         # first-grade elementary kanji
 GET /kanji/食
 ```
 
+### Show how to write a kanji
+
+```
+GET /kanji/楽/strokes
+```
+
+Returns the strokes in Japanese writing order (KanjiVG), as SVG paths in a 109 × 109
+box, plus where each stroke's number goes. Draw each path as a round line, or animate
+it one stroke at a time. Returns `404` for the rare characters without a drawing.
+
 ---
 
 ## Pagination

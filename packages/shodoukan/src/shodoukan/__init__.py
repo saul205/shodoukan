@@ -11,7 +11,7 @@ from shodoukan.models.entry import (
     Reading,
     Sense,
 )
-from shodoukan.models.kanji import Kanji, KanjiMeaning
+from shodoukan.models.kanji import Kanji, KanjiMeaning, KanjiStroke, KanjiStrokes
 from shodoukan.models.search import SearchResult
 
 __all__ = [
@@ -25,6 +25,8 @@ __all__ = [
     "Kanji",
     "KanjiMeaning",
     "KanjiReading",
+    "KanjiStroke",
+    "KanjiStrokes",
     "Page",
     "Reading",
     "SearchResult",

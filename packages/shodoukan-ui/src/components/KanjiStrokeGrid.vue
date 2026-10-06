@@ -1,84 +1,69 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed } from 'vue'
+import type { KanjiStroke } from '../models/kanji'
+import { KANJIVG_SIZE, KANJIVG_STROKE_WIDTH, strokeStart } from '../utils/strokes'
 
 const props = withDefaults(
   defineProps<{
-    literal: string
+    /** The strokes in writing order; `null` when the character has no drawing. */
+    strokes: KanjiStroke[] | null
+    loading?: boolean
     unavailableLabel?: string
     loadingLabel?: string
     /** Smallest width of a stroke frame (CSS length); frames grow up to twice it. */
     cellSize?: string
   }>(),
   {
+    loading: false,
     unavailableLabel: 'Stroke order not available.',
     loadingLabel: 'Loading stroke order…',
     cellSize: '6rem',
   },
 )
 
-interface CharData {
-  strokes: string[]
-  medians: [number, number][][]
-}
-
 // The cell sizes go in inline styles: Tailwind 3 can't generate classes from a prop.
 
-const data = ref<CharData | null>(null)
-const failed = ref(false)
+const PADDING = 6
+const viewBox = `${-PADDING} ${-PADDING} ${KANJIVG_SIZE + 2 * PADDING} ${KANJIVG_SIZE + 2 * PADDING}`
+const middle = KANJIVG_SIZE / 2
 
-onMounted(async () => {
-  try {
-    const HanziWriter = (await import('hanzi-writer')).default
-    data.value = await (HanziWriter as any).loadCharacterData(props.literal) as CharData
-  }
-  catch {
-    failed.value = true
-  }
-})
+const starts = computed(() => props.strokes?.map(s => strokeStart(s.path)) ?? [])
 </script>
 
 <template>
+  <p v-if="loading" class="text-sm text-zinc-600">
+    {{ loadingLabel }}
+  </p>
+
   <div
-    v-if="data"
+    v-else-if="strokes?.length"
     class="grid justify-center gap-1.5"
     :style="{ gridTemplateColumns: `repeat(auto-fit, minmax(${cellSize}, 1fr))` }"
   >
     <svg
-      v-for="i in data.strokes.length"
+      v-for="(stroke, i) in strokes"
       :key="i"
-      viewBox="-64 -64 1152 1152"
+      :viewBox="viewBox"
       class="aspect-square w-full overflow-hidden rounded border border-zinc-700 bg-zinc-800/60"
       :style="{ maxWidth: `calc(${cellSize} * 2)` }"
     >
-      <line x1="512" y1="0" x2="512" y2="1024" stroke="#3f3f46" stroke-width="3" stroke-dasharray="17 17" />
-      <line x1="0" y1="512" x2="1024" y2="512" stroke="#3f3f46" stroke-width="3" stroke-dasharray="17 17" />
+      <line :x1="middle" y1="0" :x2="middle" :y2="KANJIVG_SIZE" stroke="#3f3f46" stroke-width="0.4" stroke-dasharray="1.8 1.8" />
+      <line x1="0" :y1="middle" :x2="KANJIVG_SIZE" :y2="middle" stroke="#3f3f46" stroke-width="0.4" stroke-dasharray="1.8 1.8" />
 
-      <g transform="scale(1,-1) translate(0,-900)">
+      <g fill="none" :stroke-width="KANJIVG_STROKE_WIDTH" stroke-linecap="round" stroke-linejoin="round">
         <path
-          v-for="j in i - 1"
+          v-for="(previous, j) in strokes.slice(0, i)"
           :key="j"
-          :d="data.strokes[j - 1]"
-          fill="#52525b"
+          :d="previous.path"
+          stroke="#52525b"
         />
-        <path
-          :d="data.strokes[i - 1]"
-          fill="#e4e4e7"
-        />
-        <circle
-          :cx="data.medians[i - 1][0][0]"
-          :cy="data.medians[i - 1][0][1]"
-          r="40"
-          fill="#ef4444"
-        />
+        <path :d="stroke.path" stroke="#e4e4e7" />
       </g>
+      <circle :cx="starts[i][0]" :cy="starts[i][1]" r="3.5" fill="#ef4444" />
     </svg>
   </div>
 
-  <p v-else-if="failed" class="text-sm text-zinc-600">
+  <p v-else class="text-sm text-zinc-600">
     {{ unavailableLabel }}
-  </p>
-
-  <p v-else class="animate-pulse text-sm text-zinc-600">
-    {{ loadingLabel }}
   </p>
 </template>

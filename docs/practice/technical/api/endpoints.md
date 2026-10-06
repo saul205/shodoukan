@@ -173,7 +173,7 @@ references use `sense_index`.
 
 Public, like the search. They feed the entry and kanji detail pages and return the same
 models as `GET /dictionary/search`
-([`GetDictionaryEntry`, `GetDictionaryKanji`, `ListEntriesForKanji`, `ListKanjiForEntry`](../application/use-cases.md#queries-queriesdictionary_queriespy)).
+([`GetDictionaryEntry`, `GetDictionaryKanji`, `GetDictionaryKanjiStrokes`, `ListEntriesForKanji`, `ListKanjiForEntry`](../application/use-cases.md#queries-queriesdictionary_queriespy)).
 
 | Method | Route | Response |
 |---|---|---|
@@ -181,8 +181,10 @@ models as `GET /dictionary/search`
 | `GET` | `/dictionary/entries/{entry_id}/kanji` | `list[DictionaryKanjiResponse]`: the kanji in its spellings, empty for kana-only words |
 | `GET` | `/dictionary/kanji/{literal}` | `DictionaryKanjiResponse` |
 | `GET` | `/dictionary/kanji/{literal}/entries?limit&offset` | `DictionaryEntryPageResponse` (`items`, `total`, `limit`, `offset`): the words written with the kanji, ranked |
+| `GET` | `/dictionary/kanji/{literal}/strokes` | `DictionaryKanjiStrokesResponse` (`literal`, `strokes`: `{path, label}` in writing order, KanjiVG's 109 × 109 space): same shape as shodoukan-api's [`/kanji/{literal}/strokes`](../../../technical/api.md#get-kanjiliteralstrokes); sent with `Cache-Control: public, max-age=86400` |
 
-`404` when the entry or kanji isn't in the dictionary, `422` for a `literal` that isn't
+`404` when the entry or kanji isn't in the dictionary (for `/strokes`, when the
+character has no KanjiVG drawing; it doesn't need to be a dictionary kanji), `422` for a `literal` that isn't
 one character or an out-of-range `limit` (1–100, default `20`) / `offset` (≥ 0).
 
 ## `GET /library/imported`
@@ -477,7 +479,7 @@ committed is rolled back when the session closes.
 | `get_list_exercise_sessions` | the history, over the session repository |
 | `get_get_exercise_statistics`, `get_get_practice_statistics` | statistics use cases: the statistics repository and both item repositories (plus the exercise repository per exercise) on the request's session |
 | `get_get_library_entry`, `get_set_entry_notes`, `get_add_kanji_meaning`, ... | one factory per library item use case, on the request's session |
-| `get_search_dictionary`, `get_get_dictionary_entry`, `get_get_dictionary_kanji`, `get_list_entries_for_kanji`, `get_list_kanji_for_entry` | dictionary use cases over the gateway (no session, no user) |
+| `get_search_dictionary`, `get_get_dictionary_entry`, `get_get_dictionary_kanji`, `get_get_dictionary_kanji_strokes`, `get_list_entries_for_kanji`, `get_list_kanji_for_entry` | dictionary use cases over the gateway (no session, no user) |
 
 Tests replace `get_session`, `get_dictionary_gateway` and `get_token_verifier` with
 `app.dependency_overrides`.

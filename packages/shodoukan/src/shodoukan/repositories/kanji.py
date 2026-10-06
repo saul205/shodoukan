@@ -1,14 +1,16 @@
+import unicodedata
+
 from sqlalchemy import and_, case, desc, func, select, text, true, union_all
 from sqlalchemy import literal as sql_literal
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, selectinload
 
 from shodoukan.db import schema as fts
-from shodoukan.db.orm import KanjiMeaningORM, KanjiORM
+from shodoukan.db.orm import KanjiMeaningORM, KanjiORM, KanjiSvgORM
 from shodoukan.models.entry import Page
-from shodoukan.models.kanji import Kanji
+from shodoukan.models.kanji import Kanji, KanjiStrokes
 from shodoukan.repositories.fts import fts_prefix_query, fts_query
-from shodoukan.repositories.mapper import kanji_to_domain
+from shodoukan.repositories.mapper import kanji_strokes_to_domain, kanji_to_domain
 from shodoukan.repositories.scoring import (
     KANJI_TIER_MEANING_EXACT,
     KANJI_TIER_MEANING_PHRASE,
@@ -88,6 +90,26 @@ class KanjiRepository:
                 .where(KanjiORM.literal == literal)
             ).scalar_one_or_none()
         return kanji_to_domain(k) if k else None
+
+    def get_strokes(self, literal: str) -> KanjiStrokes | None:
+        """The KanjiVG stroke order of `literal`, or `None` if it has none.
+
+        A CJK compatibility ideograph (神 U+FA19) falls back to its canonical
+        form (神 U+795E): it's the same character, and only the canonical one
+        has a drawing.
+        """
+        candidates = list(
+            dict.fromkeys([literal, unicodedata.normalize("NFC", literal)])
+        )
+        with Session(self._engine) as session:
+            found = {
+                k.literal: k
+                for k in session.execute(
+                    select(KanjiSvgORM).where(KanjiSvgORM.literal.in_(candidates))
+                ).scalars()
+            }
+            svg = next((found[c] for c in candidates if c in found), None)
+            return kanji_strokes_to_domain(literal, svg) if svg else None
 
     def search(
         self,

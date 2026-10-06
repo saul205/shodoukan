@@ -9,6 +9,7 @@ from ...domain.gateways import (
     DictionaryEntryPage,
     DictionaryGateway,
     DictionaryKanji,
+    DictionaryKanjiStrokes,
     DictionarySearchResult,
 )
 
@@ -53,6 +54,22 @@ class GetDictionaryKanji:
         if kanji is None:
             raise DictionaryItemNotFoundError(f"kanji {literal!r} not found")
         return kanji
+
+
+class GetDictionaryKanjiStrokes:
+    """A character's stroke order; `DictionaryItemNotFoundError` if it has none.
+
+    Doesn't require a dictionary kanji: any character with a drawing has one.
+    """
+
+    def __init__(self, dictionary: DictionaryGateway) -> None:
+        self._dictionary = dictionary
+
+    def execute(self, literal: str) -> DictionaryKanjiStrokes:
+        strokes = self._dictionary.kanji_strokes(literal)
+        if strokes is None:
+            raise DictionaryItemNotFoundError(f"no stroke order for {literal!r}")
+        return strokes
 
 
 class ListEntriesForKanji:

@@ -1,6 +1,6 @@
 ---
 name: architecture-reviewer
-description: Read-only architecture reviewer for the Python backend (mainly shodoukan-practice). Use it on an implementation plan before coding, and on the implemented change before opening a PR, to check structural coherence with the clean architecture rules (layer isolation, dependency rule and inversion, single responsibility, aggregates, ports, naming and placement) and with the recorded design decisions. It does not hunt for bugs, test behaviour or review style; that is QA and code review. Give it the plan text, or a branch/diff/paths to review.
+description: Read-only architecture reviewer for the Python backend (shodoukan-practice and the dictionary packages). Use it on an implementation plan before coding, and on the implemented change before opening a PR, to check structural coherence with the clean architecture rules (layer isolation, dependency rule and inversion, single responsibility, aggregates, ports, naming and placement) and with the recorded design decisions. It does not hunt for bugs, test behaviour or review style; that is QA and code review. Give it the plan text, or a branch/diff/paths to review.
 tools: Read, Grep, Glob, Bash
 skills:
   - python-backend-clean-code
@@ -45,10 +45,13 @@ codebase is built. You never edit files.
 security, formatting, typing nits, wording of docs. Mention one only if it is a direct
 consequence of a structural problem you're already reporting.
 
-**Legacy packages:** `packages/shodoukan` and `packages/shodoukan-api` predate these
-rules. Don't propose restructuring them; only flag new code there that makes the
-layering worse, or new practice code that couples to their internals instead of going
-through the existing gateway.
+**Dictionary packages:** `packages/shodoukan` and `packages/shodoukan-api` are the
+public dictionary, active and evolving with the practice app, but with their own,
+smaller layer layout (see "Dictionary packages" in the root `CLAUDE.md`: `models/`,
+`db/orm.py` + `repositories/` + `mapper.py`, the `Dictionary` facade, API routes).
+Review new code there against that layout, not against the practice app's folders.
+Don't propose restructuring them wholesale. Flag practice code that couples to their
+internals instead of going through the dictionary gateway.
 
 ## Read first
 

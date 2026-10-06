@@ -77,11 +77,22 @@ def test_kanji_details_are_public(client: TestClient) -> None:
     assert (body["total"], body["limit"], body["offset"]) == (1, 5, 0)
 
 
+def test_kanji_strokes_are_public_and_cacheable(client: TestClient) -> None:
+    response = client.get("/dictionary/kanji/食/strokes")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "public, max-age=86400"
+    body = response.json()
+    assert body["literal"] == "食"
+    assert body["strokes"][0] == {"path": "M54,10c0,5-20,20-40,25", "label": [1.5, 1.0]}
+
+
 def test_unknown_details_are_404(client: TestClient) -> None:
     assert client.get("/dictionary/entries/999").status_code == 404
     assert client.get("/dictionary/entries/999/kanji").status_code == 404
     assert client.get("/dictionary/kanji/龘").status_code == 404
     assert client.get("/dictionary/kanji/龘/entries").status_code == 404
+    assert client.get("/dictionary/kanji/水/strokes").status_code == 404
 
 
 def test_kanji_detail_validates_its_parameters(client: TestClient) -> None:

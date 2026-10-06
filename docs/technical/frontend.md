@@ -69,8 +69,22 @@ labels as props. `NavBar` and `PageContainer` stay in `shodoukan-web`.
 | `EntryCard.vue` | Full dictionary entry: headword, reading, JLPT/common tags, senses, optional debug bar. Props: `entry`, `lang`, `linkComponent` (`'a'` or e.g. `NuxtLink`), `detailsHref` (default `/entry/{id}`), `detailsLabel`. |
 | `KanjiCard.vue` | Detailed kanji view (readings, meanings, stroke count, grade). |
 | `KanjiCardCompact.vue` | Compact card (`min-w-[14rem] flex-1`) used in the results kanji column. Props: `kanji`, `lang`, `linkComponent`, `href` (default `/kanji/{literal}`). |
-| `KanjiStrokeAnimator.vue` | Animated stroke order (hanzi-writer, loaded on demand; wrap in `<ClientOnly>`). Labels: `playLabel`, `playingLabel`. `size`: drawing size in px (default 160). |
-| `KanjiStrokeGrid.vue` | One frame per stroke (hanzi-writer data). Labels: `loadingLabel`, `unavailableLabel`. `cellSize`: smallest frame width, CSS length (default `6rem`); frames grow up to twice it. Sizes are inline styles, since Tailwind 3 can't build classes from a prop. |
+| `KanjiStrokeAnimator.vue` | Animated stroke order. Props: `strokes`, `size` (drawing size in px, default 160), and the labels `playLabel` and `playingLabel`. Shows the outline; Play draws each stroke in turn. With `prefers-reduced-motion` it draws them at once. Disabled without strokes. |
+| `KanjiStrokeGrid.vue` | One frame per stroke: the strokes so far, the current one highlighted and a dot where it starts. Props: `strokes`, `loading`, `cellSize` and the labels `loadingLabel` and `unavailableLabel`. `cellSize` is the smallest frame width as a CSS length (default `6rem`), and frames grow up to twice it. Sizes are inline styles, since Tailwind 3 can't build classes from a prop. |
+| `KanjiStrokeDiagram.vue` | The whole character with each stroke's number. Props: `strokes`, `size` (px, default 160). |
+| `AboutSources.vue` | What shodoukan is, every data source with its author, link and licence, and Jisho as inspiration. Prop `lang` (`'en'` default, or `'es'`). It's the one place sources are credited: both apps link to it, and a new data source is added here. |
+
+The three stroke components are presentational. They take `strokes: KanjiStroke[] | null`
+(`null` = no drawing), which each app fetches from its own API, and render plain SVG.
+They work with server-side rendering, so `<ClientOnly>` isn't needed. The data is
+KanjiVG, with Japanese stroke order, from `GET /kanji/{literal}/strokes`.
+
+- **Coordinates:** strokes are centre lines in a 109 × 109 box (`KANJIVG_SIZE`), drawn
+  unfilled with a round stroke `KANJIVG_STROKE_WIDTH` wide.
+- **Animation:** each path gets `pathLength="1"`, so a dash of 1 animated from offset 1
+  to 0 draws it. No length measuring is needed, and that keeps it testable in jsdom.
+- **Why not hanzi-writer:** see
+  [decisions](../practice/technical/decisions.md#stroke-order-comes-from-kanjivg-without-a-hanzi-writer-fallback).
 
 ### EntryCard internal layout
 
@@ -95,8 +109,14 @@ Tags and senses share a `flex flex-wrap` row:
 ### `models/kanji.ts`
 
 - `Kanji`, `KanjiMeaning`
+- `KanjiStrokes` (`literal`, `strokes`), `KanjiStroke` (`path`, `label: [x, y] | null`): the stroke order, as `GET /kanji/{literal}/strokes` returns it
 - `SUPPORTED_LANGUAGES` — array of `{ code, label, glossLang }` consumed by `LanguageSelector`
 - `glossLang(lang)` — maps ISO 639-1 codes (`en`, `es`, …) to JMDict gloss lang codes (`eng`, `spa`, …)
+
+### `utils/strokes.ts`
+
+- `KANJIVG_SIZE` (109), `KANJIVG_STROKE_WIDTH` (3)
+- `strokeStart(path)`: the stroke's starting point, which the grid marks
 
 ### `models/search.ts`
 

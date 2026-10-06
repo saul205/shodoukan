@@ -4,6 +4,7 @@ from shodoukan import Dictionary
 from shodoukan_practice.application.queries import (
     GetDictionaryEntry,
     GetDictionaryKanji,
+    GetDictionaryKanjiStrokes,
     ListEntriesForKanji,
     ListKanjiForEntry,
 )
@@ -30,6 +31,8 @@ def test_missing_items_raise(gateway: ShodoukanDictionaryGateway) -> None:
         ListEntriesForKanji(gateway).execute("龘")
     with pytest.raises(DictionaryItemNotFoundError):
         ListKanjiForEntry(gateway).execute(999)
+    with pytest.raises(DictionaryItemNotFoundError):
+        GetDictionaryKanjiStrokes(gateway).execute("水")  # a kanji with no drawing
 
 
 def test_related_lists(gateway: ShodoukanDictionaryGateway) -> None:
@@ -39,3 +42,9 @@ def test_related_lists(gateway: ShodoukanDictionaryGateway) -> None:
     assert [e.id for e in words.items] == [1000002]
     assert words.limit == 5
     assert [k.literal for k in kanji] == ["水"]
+
+
+def test_kanji_strokes_need_only_a_drawing(gateway: ShodoukanDictionaryGateway) -> None:
+    # 神 isn't a dictionary kanji in the test data, but it has a drawing.
+    strokes = GetDictionaryKanjiStrokes(gateway).execute("\u795e")
+    assert len(strokes.strokes) == 1

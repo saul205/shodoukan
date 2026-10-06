@@ -36,6 +36,16 @@ const userMenu = computed<DropdownMenuItem[][]>(() => [
         <UFormField v-if="!collapsed" label="Idioma de los significados" size="xs">
           <USelect v-model="lang" :items="languages" size="sm" class="w-full" />
         </UFormField>
+        <UButton
+          to="/about"
+          :label="collapsed ? undefined : 'Acerca de'"
+          icon="i-lucide-info"
+          color="neutral"
+          variant="ghost"
+          block
+          :square="collapsed"
+          aria-label="Acerca de"
+        />
         <UDropdownMenu :items="userMenu" :content="{ align: 'start' }">
           <UButton
             :label="collapsed ? undefined : (auth.username.value || 'Mi cuenta')"

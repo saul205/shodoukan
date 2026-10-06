@@ -3,7 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 const mockFetch = vi.fn()
 vi.mock('ofetch', () => ({ $fetch: mockFetch }))
 
-const { searchKanji, getKanji } = await import('../../src/services/kanji')
+const { searchKanji, getKanji, getKanjiStrokes } = await import('../../src/services/kanji')
 
 const emptyPage = { items: [], total: 0, limit: 20, offset: 0 }
 
@@ -38,5 +38,24 @@ describe('getKanji', () => {
     mockFetch.mockResolvedValueOnce({})
     await getKanji('食', 'http://localhost:8000')
     expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/kanji/%E9%A3%9F')
+  })
+})
+
+describe('getKanjiStrokes', () => {
+  it('calls the strokes endpoint', async () => {
+    const strokes = { literal: '楽', strokes: [] }
+    mockFetch.mockResolvedValueOnce(strokes)
+    expect(await getKanjiStrokes('楽', 'http://localhost:8000')).toEqual(strokes)
+    expect(mockFetch).toHaveBeenCalledWith(`http://localhost:8000/kanji/${encodeURIComponent('楽')}/strokes`)
+  })
+
+  it('returns null when there is no drawing', async () => {
+    mockFetch.mockRejectedValueOnce(Object.assign(new Error('Not Found'), { status: 404 }))
+    expect(await getKanjiStrokes('搔', 'http://localhost:8000')).toBeNull()
+  })
+
+  it('rethrows other errors', async () => {
+    mockFetch.mockRejectedValueOnce(Object.assign(new Error('Boom'), { status: 500 }))
+    await expect(getKanjiStrokes('楽', 'http://localhost:8000')).rejects.toThrow('Boom')
   })
 })

@@ -9,6 +9,7 @@ from .collection_queries import (
 from .dictionary_queries import (
     GetDictionaryEntry,
     GetDictionaryKanji,
+    GetDictionaryKanjiStrokes,
     ListEntriesForKanji,
     ListKanjiForEntry,
     SearchDictionary,
@@ -52,6 +53,7 @@ __all__ = [
     "ExerciseStatistics",
     "GetDictionaryEntry",
     "GetDictionaryKanji",
+    "GetDictionaryKanjiStrokes",
     "GetEntryCollection",
     "GetExercise",
     "GetExerciseSession",

@@ -40,3 +40,18 @@ def test_search_by_reading(client):
     r = client.get("/kanji/search", params={"q": "スイ"})
     assert r.status_code == 200
     assert any(k["literal"] == "水" for k in r.json()["items"])
+
+
+def test_get_kanji_strokes(client):
+    r = client.get("/kanji/食/strokes")
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == "public, max-age=86400"
+    data = r.json()
+    assert data["literal"] == "食"
+    assert data["strokes"][0] == {"path": "M54,10c0,5-20,20-40,25", "label": [1.5, 1.0]}
+    assert len(data["strokes"]) == 2
+
+
+def test_get_kanji_strokes_not_available(client):
+    r = client.get("/kanji/水/strokes")
+    assert r.status_code == 404

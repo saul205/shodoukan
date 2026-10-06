@@ -82,3 +82,17 @@ def test_kanji_for_entry(dictionary: Dictionary) -> None:
 
     assert [k.literal for k in gateway.kanji_for_entry(1000001)] == ["食"]
     assert gateway.kanji_for_entry(1000003) == []  # kana only
+
+
+def test_kanji_strokes(dictionary: Dictionary) -> None:
+    gateway = ShodoukanDictionaryGateway(dictionary)
+
+    strokes = gateway.kanji_strokes("食")
+
+    assert strokes is not None
+    assert [s.path for s in strokes.strokes] == [
+        "M54,10c0,5-20,20-40,25",
+        "M20,30c10,0,20,0,30,0",
+    ]
+    assert strokes.strokes[0].label == (1.5, 1.0)
+    assert gateway.kanji_strokes("水") is None  # no drawing

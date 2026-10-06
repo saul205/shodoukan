@@ -55,6 +55,7 @@ from ..application.commands import (
 from ..application.queries import (
     GetDictionaryEntry,
     GetDictionaryKanji,
+    GetDictionaryKanjiStrokes,
     GetEntryCollection,
     GetExercise,
     GetExerciseSession,
@@ -210,6 +211,12 @@ def get_get_dictionary_entry(dictionary: DictionaryGatewayDep) -> GetDictionaryE
 
 def get_get_dictionary_kanji(dictionary: DictionaryGatewayDep) -> GetDictionaryKanji:
     return GetDictionaryKanji(dictionary)
+
+
+def get_get_dictionary_kanji_strokes(
+    dictionary: DictionaryGatewayDep,
+) -> GetDictionaryKanjiStrokes:
+    return GetDictionaryKanjiStrokes(dictionary)
 
 
 def get_list_entries_for_kanji(dictionary: DictionaryGatewayDep) -> ListEntriesForKanji:

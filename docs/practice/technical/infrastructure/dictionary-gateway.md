@@ -36,6 +36,7 @@ mean writing a new adapter; use cases wouldn't change.
 | `get_kanji(literal)` | `Dictionary.get_kanji(literal)` | a `DictionaryKanji`, or `None` |
 | `entries_for_kanji(literal, limit, offset)` | `Dictionary.get_entries_for_kanji(...)` | a `DictionaryEntryPage` of the words written with the kanji |
 | `kanji_for_entry(entry_id)` | `Dictionary.get_kanji_for_entry_related(id)` | the `DictionaryKanji` in the entry's spellings (empty for kana-only words) |
+| `kanji_strokes(literal)` | `Dictionary.get_kanji_strokes(literal)` | `DictionaryKanjiStrokes` (KanjiVG stroke order), or `None` |
 
 "Fresh" means not stored yet: all ids are `None`, every part is enabled, and
 glosses, examples and meanings have `origin="imported"`. Both dictionary calls return
@@ -74,6 +75,12 @@ search (`shodoukan_entry_to_dictionary`, `shodoukan_kanji_to_dictionary`,
 These mirror `shodoukan-api`'s `/entries/{id}`, `/entries/{id}/kanji`, `/kanji/{literal}`
 and `/entries/by-kanji/{literal}`, except that an entry's kanji come back whole instead
 of as bare literals, so the page needs one request instead of one per kanji.
+
+`kanji_strokes` reads the stroke order the library parses from KanjiVG (the dictionary
+database's `kanji_svg` table) and maps it with `shodoukan_kanji_strokes_to_dictionary`.
+The parsing and the fallback for compatibility ideographs live in the library only, so
+both apps draw the same strokes. Why KanjiVG and not hanzi-writer:
+[decisions](../decisions.md#stroke-order-comes-from-kanjivg-without-a-hanzi-writer-fallback).
 
 ## `ShodoukanKanaGateway`
 

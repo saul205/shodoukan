@@ -22,9 +22,10 @@ with Dictionary() as d:
     results = d.search_entries("taberu")             # romaji → hiragana
     results = d.search_entries("comer", lang="es")   # multilingual gloss
     kanji   = d.get_kanji("日")
+    strokes = d.get_kanji_strokes("楽")             # KanjiVG stroke order
 ```
 
-Supports lookup by kanji, kana, Hepburn romaji, or gloss in any JMDict language. Each `Entry` includes its JLPT level (`jlpt: int | None`). See [packages/shodoukan/](packages/shodoukan/) for the full API.
+Supports lookup by kanji, kana, Hepburn romaji, or gloss in any JMDict language. Each `Entry` includes its JLPT level (`jlpt: int | None`). Stroke order comes from [KanjiVG](https://kanjivg.tagaini.net/) (Japanese stroke order, all jōyō kanji and about 6,400 in total). See [packages/shodoukan/](packages/shodoukan/) for the full API.
 
 ### `shodoukan-api` — REST API
 
@@ -39,6 +40,7 @@ FastAPI application that exposes the library over HTTP. See [packages/shodoukan-
 | GET | `/entries/by-kanji/{literal}` | Get entries that contain a kanji |
 | GET | `/kanji/search` | Search kanji |
 | GET | `/kanji/{literal}` | Get kanji by literal |
+| GET | `/kanji/{literal}/strokes` | Get a character's stroke order (KanjiVG) |
 | GET | `/health` | Liveness check |
 
 Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` for pagination.

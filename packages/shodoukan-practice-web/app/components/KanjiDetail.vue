@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { KanjiStrokeAnimator, KanjiStrokeGrid } from 'shodoukan-ui'
 import type { KanjiPart, PracticeKanji, PracticeReadingItem } from '~/models/practice'
 
 // A library kanji: the character with its data, readings, stroke order and
@@ -70,24 +69,7 @@ const readingGroups = computed<{ label: string; items: PracticeReadingItem[] }[]
 
       <section aria-labelledby="strokes" class="space-y-3 sm:col-span-2">
         <h2 id="strokes" class="text-sm font-semibold uppercase tracking-wide text-muted">Orden de trazos</h2>
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <KanjiStrokeAnimator
-            :key="kanji.literal"
-            :literal="kanji.literal"
-            :size="128"
-            play-label="Reproducir"
-            playing-label="Reproduciendo…"
-          />
-          <div class="flex-1">
-            <KanjiStrokeGrid
-              :key="kanji.literal"
-              :literal="kanji.literal"
-              cell-size="4.5rem"
-              loading-label="Cargando el orden de trazos…"
-              unavailable-label="Orden de trazos no disponible."
-            />
-          </div>
-        </div>
+        <KanjiStrokeOrder :literal="kanji.literal" :size="128" cell-size="4.5rem" />
       </section>
     </div>
 

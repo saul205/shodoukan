@@ -12,7 +12,7 @@ provenance (`source_name`, `source_id`).
 from uuid import UUID
 
 from shodoukan.models.entry import Entry, Example, Page, Sense
-from shodoukan.models.kanji import Kanji
+from shodoukan.models.kanji import Kanji, KanjiStrokes
 from shodoukan.models.search import SearchResult
 
 from ...domain.entities import (
@@ -37,6 +37,8 @@ from ...domain.gateways import (
     DictionaryKanji,
     DictionaryKanjiMeaning,
     DictionaryKanjiReading,
+    DictionaryKanjiStroke,
+    DictionaryKanjiStrokes,
     DictionaryReading,
     DictionarySearchResult,
     DictionarySense,
@@ -198,5 +200,16 @@ def shodoukan_kanji_to_dictionary(kanji: Kanji) -> DictionaryKanji:
         nanori=list(kanji.nanori),
         meanings=[
             DictionaryKanjiMeaning(text=m.text, lang=m.lang) for m in kanji.meanings
+        ],
+    )
+
+
+def shodoukan_kanji_strokes_to_dictionary(
+    strokes: KanjiStrokes,
+) -> DictionaryKanjiStrokes:
+    return DictionaryKanjiStrokes(
+        literal=strokes.literal,
+        strokes=[
+            DictionaryKanjiStroke(path=s.path, label=s.label) for s in strokes.strokes
         ],
     )

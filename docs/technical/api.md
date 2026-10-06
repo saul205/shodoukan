@@ -163,6 +163,30 @@ keep-alive ping and Docker healthchecks use it ([deployment](deployment.md#keep-
 
 ---
 
+### `GET /kanji/{literal}/strokes`
+
+Returns a character's stroke order, from [KanjiVG](https://kanjivg.tagaini.net/)
+(Japanese stroke order). It covers all jōyō kanji and about 6,400 kanji in total. It
+also covers kana and a few other characters, so it doesn't require the character to be
+in `/kanji/{literal}`.
+
+- **Compatibility ideographs:** a CJK compatibility ideograph (神 U+FA19) is drawn with
+  its canonical form (神 U+795E). The response keeps the requested literal.
+- **Stroke counts:** a few KanjiVG drawings use an older form of a component, so their
+  number of strokes can differ from the kanji's `stroke_count` (僅: 13 drawn, 12 in
+  KANJIDIC2).
+- **Caching:** the response is static until the next database release, so it is sent
+  with `Cache-Control: public, max-age=86400`.
+
+**Response**
+
+| Status | Body | When |
+|--------|------|------|
+| `200 OK` | `KanjiStrokes` | The character has a drawing. |
+| `404 Not Found` | `{"detail": "Stroke order not available"}` | No KanjiVG drawing for it. |
+
+---
+
 ## Schemas
 
 ### `Page<T>`
@@ -267,6 +291,25 @@ to the best match of the query), `fts_rank`, `freq`, `jlpt_bonus`, `sense_pos`,
   "meanings": [
     { "text": "eat", "lang": "en" },
     { "text": "food", "lang": "en" }
+  ]
+}
+```
+
+### `KanjiStrokes`
+
+The strokes in writing order. Coordinates are in KanjiVG's 109 × 109 space (SVG
+`viewBox="0 0 109 109"`).
+
+- `path`: the stroke's centre line, meant to be drawn with `fill="none"` and a round
+  stroke about 3 units wide.
+- `label`: where KanjiVG places the stroke's number, or `null`.
+
+```json
+{
+  "literal": "人",
+  "strokes": [
+    { "path": "M54.5,15.75c0.12,1.4...", "label": [47.5, 15.5] },
+    { "path": "M51.25,44.5c3.25,4...", "label": [62.5, 49.5] }
   ]
 }
 ```

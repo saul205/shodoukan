@@ -95,6 +95,20 @@ class DictionaryKanji(_ReadModel):
     meanings: list[DictionaryKanjiMeaning]
 
 
+class DictionaryKanjiStroke(_ReadModel):
+    """One stroke, in KanjiVG's 109-unit square: its centre line and number."""
+
+    path: str
+    label: tuple[float, float] | None
+
+
+class DictionaryKanjiStrokes(_ReadModel):
+    """A character's strokes in Japanese writing order (KanjiVG)."""
+
+    literal: str
+    strokes: list[DictionaryKanjiStroke]
+
+
 class DictionaryEntryPage(_ReadModel):
     items: list[DictionaryEntry]
     total: int
@@ -141,6 +155,14 @@ class DictionaryGateway(Protocol):
 
     def get_kanji(self, literal: str) -> DictionaryKanji | None:
         """Dictionary kanji `literal`, or `None`."""
+        ...
+
+    def kanji_strokes(self, literal: str) -> DictionaryKanjiStrokes | None:
+        """Stroke order of `literal`, or `None` if there's no drawing for it.
+
+        Any character with a drawing has one, even if it isn't a dictionary
+        kanji (kana, for instance).
+        """
         ...
 
     def entries_for_kanji(

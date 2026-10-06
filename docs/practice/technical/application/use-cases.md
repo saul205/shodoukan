@@ -173,6 +173,12 @@ results are the same for everyone, and import status is
 One entry or kanji for its detail page; `DictionaryItemNotFoundError` if the dictionary
 doesn't have it.
 
+### `GetDictionaryKanjiStrokes(dictionary).execute(literal)`
+
+The character's stroke order (`DictionaryKanjiStrokes`) for the stroke-order
+components; `DictionaryItemNotFoundError` if there's no drawing for it. It doesn't
+require a dictionary kanji: any character with a drawing has one.
+
 ### `ListEntriesForKanji(dictionary).execute(literal, limit, offset)`
 
 A `DictionaryEntryPage` of the words written with the kanji.

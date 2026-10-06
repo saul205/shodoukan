@@ -1,4 +1,4 @@
-import type { Entry, Kanji, Page, SearchResult } from 'shodoukan-ui'
+import type { Entry, Kanji, KanjiStrokes, Page, SearchResult } from 'shodoukan-ui'
 import type { ApiClient } from '../utils/api-client'
 
 // The practice API's own dictionary endpoints (public). Same shapes as
@@ -35,4 +35,8 @@ export function getDictionaryKanjiEntries(
   return api<Page<Entry>>(`/dictionary/kanji/${encodeURIComponent(literal)}/entries`, {
     query: { limit, offset },
   })
+}
+
+export function getDictionaryKanjiStrokes(api: ApiClient, literal: string): Promise<KanjiStrokes> {
+  return api<KanjiStrokes>(`/dictionary/kanji/${encodeURIComponent(literal)}/strokes`)
 }

@@ -5,6 +5,7 @@ from .dictionary_schemas import (
     DictionaryEntryPageResponse,
     DictionaryEntryResponse,
     DictionaryKanjiResponse,
+    DictionaryKanjiStrokesResponse,
     DictionarySearchResponse,
 )
 from .exercise_schemas import ExerciseRequest, ExerciseResponse, NewExerciseRequest
@@ -57,6 +58,7 @@ __all__ = [
     "DictionaryEntryPageResponse",
     "DictionaryEntryResponse",
     "DictionaryKanjiResponse",
+    "DictionaryKanjiStrokesResponse",
     "DictionarySearchResponse",
     "DirectionStatisticsResponse",
     "EnabledRequest",

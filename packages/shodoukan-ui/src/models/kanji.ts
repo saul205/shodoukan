@@ -34,3 +34,17 @@ const _GLOSS_LANG: Record<string, string> = {
 export function glossLang(code: string): string {
   return _GLOSS_LANG[code] ?? code
 }
+
+/** One stroke of a KanjiVG drawing, in its 109 × 109 space (see KANJIVG_SIZE). */
+export interface KanjiStroke {
+  /** SVG path of the stroke's centre line; draw it unfilled with a round stroke. */
+  path: string
+  /** Where KanjiVG places the stroke's number, if it has one. */
+  label: [number, number] | null
+}
+
+/** A character's strokes in Japanese writing order (KanjiVG). */
+export interface KanjiStrokes {
+  literal: string
+  strokes: KanjiStroke[]
+}

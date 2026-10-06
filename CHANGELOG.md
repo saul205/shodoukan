@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan:** `Dictionary.get_kanji_strokes(literal)` returns a character's stroke
+  order from KanjiVG (Japanese order, all jōyō kanji and about 6,400 in total). A
+  compatibility ideograph is drawn with its canonical form.
+- **shodoukan-api:** `GET /kanji/{literal}/strokes`.
+- **shodoukan-practice:** `GET /dictionary/kanji/{literal}/strokes`.
+- **shodoukan-ui:** `KanjiStrokeDiagram` (the numbered character) and
+  `getKanjiStrokes`.
+- **shodoukan-ui:** `AboutSources`: what shodoukan is, every data source with its
+  licence (JMdict, KANJIDIC2, RADKFILE, KanjiVG, Tatoeba / Tanaka Corpus, the JLPT
+  lists) and Jisho as inspiration, in English or Spanish.
+- **shodoukan-practice-web:** "Acerca de" page, linked from the sidebar, crediting
+  the data sources.
 - **repo:** Deployment, at no cost. The dictionary API and web stay on Render
   (static site plus a kept-awake API, deployed by CI). The practice stack (API,
   PostgreSQL, Keycloak, practice SPA) runs as "pre" on our own machine with docker
@@ -92,6 +104,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **shodoukan-web / shodoukan-practice-web:** stroke order was blank for Japanese
+  forms such as 楽, 気 or 図, and used the Chinese order where it showed.
 - **shodoukan:** Romaji searches report the right number of results and page through
   all of them. They used to count only meaning matches (`taberu` said 0 results while
   showing 2) and later pages skipped words, because the reading and meaning searches
@@ -101,6 +115,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-ui:** `KanjiStrokeAnimator` and `KanjiStrokeGrid` take the KanjiVG
+  `strokes` as a prop instead of a `literal`, and render plain SVG (no `<ClientOnly>`
+  needed).
+- **shodoukan-web / shodoukan-practice-web:** the kanji pages fetch stroke order from
+  their API. The web app's diagram no longer loads from raw.githack.com.
+- **shodoukan-web:** the Sources page is merged into About, which now credits every
+  data source; `/sources` redirects there.
 - **shodoukan-practice-web:** Fits phones better. On a dictionary word or kanji
   page the import buttons take their own row below it (and stack on very narrow
   screens), so the meanings keep the width. During an exercise the card shows only
@@ -143,6 +164,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ("audacious") and 秋 ("autumn"); `same` still lists both 同 and 鮫 (さめ).
 - **shodoukan-ui:** The debug bar shows the new `score` as the sort value, with `tier`
   and `relevance`.
+
+### Removed
+
+- **shodoukan-ui:** the `hanzi-writer` dependency.
 
 ## [0.2.0] — 2026-05-21
 

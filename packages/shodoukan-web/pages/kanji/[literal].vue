@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import {
   getKanji,
+  getKanjiStrokes,
   getEntriesForKanji,
   SUPPORTED_LANGUAGES,
   EntryCard,
   KanjiStrokeAnimator,
+  KanjiStrokeDiagram,
   KanjiStrokeGrid,
   type Kanji,
+  type KanjiStroke,
   type Entry,
 } from 'shodoukan-ui'
 import { NuxtLink } from '#components'
@@ -23,13 +26,8 @@ const kanji = ref<Kanji | null>(null)
 const entries = ref<Entry[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
-const strokeError = ref(false)
-
-const strokeOrderUrl = computed(() => {
-  const cp = literal.value.codePointAt(0)
-  if (!cp) return null
-  return `https://raw.githack.com/KanjiVG/kanjivg/master/kanji/${cp.toString(16).padStart(5, '0')}.svg`
-})
+// Stroke order (KanjiVG); null when the kanji has no drawing.
+const strokes = ref<KanjiStroke[] | null>(null)
 
 const primaryMeanings = computed(() =>
   kanji.value?.meanings
@@ -75,14 +73,16 @@ const meaningsByLang = computed<{ label: string; texts: string[] }[]>(() => {
 async function load() {
   loading.value = true
   error.value = null
-  strokeError.value = false
   try {
-    const [k, ep] = await Promise.all([
+    const [k, ep, s] = await Promise.all([
       getKanji(literal.value, config.public.apiBase),
       getEntriesForKanji(literal.value, config.public.apiBase, 10),
+      // The stroke order is secondary: if it fails, the page still loads without it.
+      getKanjiStrokes(literal.value, config.public.apiBase).catch(() => null),
     ])
     kanji.value = k
     entries.value = ep.items
+    strokes.value = s?.strokes ?? null
   }
   catch {
     error.value = 'Could not load kanji data.'
@@ -143,25 +143,12 @@ watch(literal, load, { immediate: true })
         <!-- Right: diagram + animation -->
         <div class="flex flex-1 flex-wrap justify-evenly gap-16">
           <div class="flex flex-col items-center gap-1">
-            <img
-              v-if="strokeOrderUrl && !strokeError"
-              :src="strokeOrderUrl"
-              :alt="`Stroke order for ${kanji.literal}`"
-              class="h-[160px] w-[160px] rounded border border-zinc-700 bg-white p-1"
-              loading="lazy"
-              @error="strokeError = true"
-            >
-            <span v-else-if="strokeError" class="h-[160px] w-[160px]" />
+            <KanjiStrokeDiagram :strokes="strokes" />
             <span class="text-xs text-zinc-600">Diagram</span>
           </div>
 
           <div class="flex flex-col items-center gap-1">
-            <ClientOnly>
-              <KanjiStrokeAnimator :literal="kanji.literal" />
-              <template #fallback>
-                <div class="h-[160px] w-[160px] rounded border border-zinc-700 bg-zinc-800/60" />
-              </template>
-            </ClientOnly>
+            <KanjiStrokeAnimator :key="kanji.literal" :strokes="strokes" />
             <span class="text-xs text-zinc-600">Animated</span>
           </div>
         </div>
@@ -195,12 +182,7 @@ watch(literal, load, { immediate: true })
       <!-- Step-by-step grid -->
       <div class="mb-8">
         <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-zinc-500">Stroke by stroke</span>
-        <ClientOnly>
-          <KanjiStrokeGrid :literal="kanji.literal" />
-          <template #fallback>
-            <p class="text-sm text-zinc-600">Loading…</p>
-          </template>
-        </ClientOnly>
+        <KanjiStrokeGrid :strokes="strokes" />
       </div>
 
       <!-- Meanings -->

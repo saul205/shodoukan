@@ -8,12 +8,14 @@ from ...domain.gateways import (
     DictionaryEntryPage,
     DictionaryGateway,
     DictionaryKanji,
+    DictionaryKanjiStrokes,
     DictionarySearchResult,
 )
 from .shodoukan_mapper import (
     shodoukan_entry_page_to_dictionary,
     shodoukan_entry_to_dictionary,
     shodoukan_entry_to_practice,
+    shodoukan_kanji_strokes_to_dictionary,
     shodoukan_kanji_to_dictionary,
     shodoukan_kanji_to_practice,
     shodoukan_search_to_dictionary,
@@ -49,6 +51,10 @@ class ShodoukanDictionaryGateway(DictionaryGateway):
     def get_kanji(self, literal: str) -> DictionaryKanji | None:
         kanji = self._dictionary.get_kanji(literal)
         return shodoukan_kanji_to_dictionary(kanji) if kanji else None
+
+    def kanji_strokes(self, literal: str) -> DictionaryKanjiStrokes | None:
+        strokes = self._dictionary.get_kanji_strokes(literal)
+        return shodoukan_kanji_strokes_to_dictionary(strokes) if strokes else None
 
     def entries_for_kanji(
         self, literal: str, limit: int, offset: int
