@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { EntryCard, KanjiStrokeAnimator, KanjiStrokeGrid } from 'shodoukan-ui'
+import { EntryCard } from 'shodoukan-ui'
 import { NuxtLink } from '#components'
 import { getDictionaryKanji, getDictionaryKanjiEntries } from '~/services/dictionary'
 
@@ -130,17 +130,7 @@ const stats = computed(() => {
 
       <section aria-labelledby="strokes" class="space-y-3">
         <h2 id="strokes" class="text-sm font-semibold uppercase tracking-wide text-muted">Orden de trazos</h2>
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <KanjiStrokeAnimator :key="kanji.literal" :literal="kanji.literal" play-label="Reproducir" playing-label="Reproduciendo…" />
-          <div class="flex-1">
-            <KanjiStrokeGrid
-              :key="kanji.literal"
-              :literal="kanji.literal"
-              loading-label="Cargando el orden de trazos…"
-              unavailable-label="Orden de trazos no disponible."
-            />
-          </div>
-        </div>
+        <KanjiStrokeOrder :literal="kanji.literal" />
       </section>
 
       <section v-if="words?.items.length" aria-labelledby="words" class="space-y-3">
