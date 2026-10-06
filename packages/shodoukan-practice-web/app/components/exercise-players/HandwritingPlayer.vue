@@ -7,7 +7,8 @@ import { strokeProblem, VERDICT_COLORS, verdictOf } from '~/utils/verdict'
 //
 // Before answering, the front is a compact strip and the pad takes all the
 // height left, as the largest square that fits, so it's comfortable on a
-// phone. Below it: Deshacer (Backspace, Ctrl+Z), Borrar, Saltar (S, Escape)
+// phone and never pushes the page into scrolling: the pad is measured on a box
+// its own size can't change (it sits there absolutely positioned). Below it: Deshacer (Backspace, Ctrl+Z), Borrar, Saltar (S, Escape)
 // and Comprobar (Enter). Once answered, what matters is how the drawing went:
 // the verdict and its score, the drawing next to the kanji (coloured stroke by
 // stroke) and what was wrong with each stroke. The full card (the back) is
@@ -62,18 +63,44 @@ const problems = computed(() =>
   (props.question.grade?.strokes ?? []).map(strokeProblem).filter((p): p is string => p !== null),
 )
 
-// The pad is the largest square that fits the room left for it.
+// The pad, and the comparison once answered, are the largest squares that fit
+// the room left for them. Each box is measured, not its content, and the
+// boxes come and go with the question, so the observer follows them.
 const padBox = useTemplateRef<HTMLElement>('padBox')
-const padSize = ref(0)
-let observer: ResizeObserver | null = null
-onMounted(() => {
-  if (typeof ResizeObserver === 'undefined' || !padBox.value) return
-  observer = new ResizeObserver(([entry]) => {
-    if (entry) padSize.value = Math.floor(Math.min(entry.contentRect.width, entry.contentRect.height))
+const compareBox = useTemplateRef<HTMLElement>('compareBox')
+const padRoom = ref({ width: 0, height: 0 })
+const compareRoom = ref({ width: 0, height: 0 })
+
+function observe(box: Ref<HTMLElement | null>, room: Ref<{ width: number; height: number }>) {
+  if (typeof ResizeObserver === 'undefined') return
+  const observer = new ResizeObserver(([entry]) => {
+    if (entry) room.value = { width: entry.contentRect.width, height: entry.contentRect.height }
   })
-  observer.observe(padBox.value)
+  watch(box, (element, previous) => {
+    if (previous) observer.unobserve(previous)
+    if (element) observer.observe(element)
+  }, { immediate: true, flush: 'post' })
+  onBeforeUnmount(() => observer.disconnect())
+}
+observe(padBox, padRoom)
+observe(compareBox, compareRoom)
+
+const padSize = computed(() => Math.floor(Math.min(padRoom.value.width, padRoom.value.height)))
+// The comparison: from sm two squares side by side over their captions (1.5rem);
+// on a phone one square over the view buttons (2.5rem).
+const COMPARE_GAP = 16
+const CAPTION = 24
+const PHONE_BUTTONS = 40
+const compareSize = computed(() => {
+  const { width, height } = compareRoom.value
+  const side = Math.floor(Math.min((width - COMPARE_GAP) / 2, height - CAPTION))
+  return side > 0 ? `${side}px` : undefined
 })
-onBeforeUnmount(() => observer?.disconnect())
+const comparePhoneSize = computed(() => {
+  const { width, height } = compareRoom.value
+  const side = Math.floor(Math.min(width, height - PHONE_BUTTONS))
+  return side > 0 ? `${side}px` : undefined
+})
 
 // Where the shortcuts never apply: typing, a dialog, an open menu or list.
 const OWN_KEYS = 'input, textarea, select, [contenteditable], [role="dialog"], [role="menu"], [role="listbox"], [role="combobox"]'
@@ -118,20 +145,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-col gap-2 sm:gap-4">
+  <div class="flex min-h-0 flex-col gap-2 overflow-hidden sm:gap-4">
     <template v-if="!question.answered">
       <StudyCard :question="question" compact class="shrink-0" />
 
-      <div ref="padBox" class="flex min-h-48 flex-1 items-center justify-center" data-testid="pad-box">
-        <KanjiDrawingPad
-          v-model="strokes"
-          :size="padSize ? `${padSize}px` : '100%'"
-          :disabled="busy"
-          class="max-h-full max-w-full"
-        />
+      <div ref="padBox" class="relative min-h-0 flex-1" data-testid="pad-box">
+        <div class="absolute inset-0 flex items-center justify-center">
+          <KanjiDrawingPad
+            v-if="padSize > 0"
+            v-model="strokes"
+            :size="`${padSize}px`"
+            :disabled="busy"
+          />
+        </div>
       </div>
 
-      <div class="flex min-h-10 flex-wrap items-center gap-2" data-testid="bottom-row">
+      <div class="flex min-h-10 shrink-0 flex-wrap items-center gap-2" data-testid="bottom-row">
         <UButton
           icon="i-lucide-undo-2"
           color="neutral"
@@ -184,7 +213,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     </template>
 
     <template v-else>
-      <div class="flex min-h-10 items-center justify-between gap-3" data-testid="bottom-row">
+      <div class="flex min-h-10 shrink-0 items-center justify-between gap-3" data-testid="bottom-row">
         <p class="font-medium sm:text-lg" :class="TEXT_CLASSES[VERDICT_COLORS[verdict]]" data-testid="verdict">
           {{ VERDICT_TEXT[verdict] }}
           <span v-if="question.grade" class="ml-1 text-sm text-dimmed tabular-nums" data-testid="score">· {{ question.grade.score }}</span>
@@ -196,33 +225,42 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         </UButton>
       </div>
 
-      <div class="grid min-h-0 flex-1 gap-4 overflow-y-auto lg:grid-cols-2">
-        <div class="flex flex-col items-center gap-3">
-          <StrokeComparison
-            v-if="question.references?.length"
-            :drawing="strokes"
-            :references="question.references"
-            :grade="question.grade"
-          />
-          <ul v-if="problems.length" class="space-y-0.5 text-sm text-toned" data-testid="stroke-problems">
+      <!-- Phones: the comparison takes the room the card toggle leaves; from lg
+           the card is a column beside it. Only the card's column may scroll. -->
+      <div class="flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:grid-cols-2">
+        <div class="flex min-h-0 flex-1 flex-col gap-3">
+          <div ref="compareBox" class="relative min-h-0 flex-1" data-testid="compare-box">
+            <div class="absolute inset-0 flex items-center justify-center">
+              <StrokeComparison
+                v-if="question.references?.length"
+                :drawing="strokes"
+                :references="question.references"
+                :grade="question.grade"
+                :size="compareSize"
+                :phone-size="comparePhoneSize"
+              />
+            </div>
+          </div>
+          <ul v-if="problems.length" class="shrink-0 space-y-0.5 text-center text-sm text-toned" data-testid="stroke-problems">
             <li v-for="problem in problems" :key="problem">{{ problem }}</li>
           </ul>
         </div>
 
-        <!-- The card: one tap away on phones, beside the drawing from lg. -->
-        <UCollapsible v-model:open="cardOpen" class="lg:hidden" data-testid="card-toggle">
-          <UButton
-            :label="cardOpen ? 'Ocultar tarjeta' : 'Ver tarjeta'"
-            icon="i-lucide-panel-bottom-open"
-            color="neutral"
-            variant="ghost"
-            block
-          />
-          <template #content>
-            <StudyCard :question="question" compact class="mt-2" @open-item="emit('open-item', $event)" />
-          </template>
-        </UCollapsible>
-        <StudyCard :question="question" compact class="hidden lg:flex" @open-item="emit('open-item', $event)" />
+        <div class="max-h-[50%] min-h-0 shrink-0 overflow-y-auto lg:max-h-none">
+          <UCollapsible v-model:open="cardOpen" class="lg:hidden" data-testid="card-toggle">
+            <UButton
+              :label="cardOpen ? 'Ocultar tarjeta' : 'Ver tarjeta'"
+              icon="i-lucide-panel-bottom-open"
+              color="neutral"
+              variant="ghost"
+              block
+            />
+            <template #content>
+              <StudyCard :question="question" compact class="mt-2" @open-item="emit('open-item', $event)" />
+            </template>
+          </UCollapsible>
+          <StudyCard :question="question" compact class="hidden lg:flex" @open-item="emit('open-item', $event)" />
+        </div>
       </div>
     </template>
   </div>

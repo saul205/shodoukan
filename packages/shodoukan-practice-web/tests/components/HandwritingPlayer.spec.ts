@@ -1,5 +1,5 @@
 // @vitest-environment nuxt
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { KanjiDrawingPad } from 'shodoukan-ui'
@@ -9,6 +9,21 @@ import { drawingQuestion, drawn } from '../fixtures-sessions'
 
 mockNuxtImport('useAuth', () => signedInAuth)
 enableAutoUnmount(afterEach)
+
+// Every measured box is `room` (wide, like a desktop panel), as soon as it's observed.
+let room = { width: 800, height: 400 }
+beforeEach(() => {
+  room = { width: 800, height: 400 }
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(private callback: ResizeObserverCallback) {}
+    observe() {
+      this.callback([{ contentRect: room } as ResizeObserverEntry], this as unknown as ResizeObserver)
+    }
+    unobserve() {}
+    disconnect() {}
+  })
+})
+afterEach(() => vi.unstubAllGlobals())
 
 function press(key: string, init: KeyboardEventInit = {}) {
   window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
@@ -91,5 +106,26 @@ describe('HandwritingPlayer', () => {
 
     expect(wrapper.get('[data-testid="verdict"]').text()).toContain('¡Correcto!')
     expect(wrapper.find('[data-testid="stroke-problems"]').exists()).toBe(false)
+  })
+
+  it('makes the pad the largest square that fits, not the full width', async () => {
+    const wrapper = await mountSuspended(HandwritingPlayer, { props: { question: drawingQuestion(1) } })
+
+    expect(wrapper.findComponent(KanjiDrawingPad).props('size')).toBe('400px')
+  })
+
+  it('draws no pad until its room is measured', async () => {
+    room = { width: 0, height: 0 }
+    const wrapper = await mountSuspended(HandwritingPlayer, { props: { question: drawingQuestion(1) } })
+
+    expect(wrapper.findComponent(KanjiDrawingPad).exists()).toBe(false)
+  })
+
+  it('fits the comparison in the room left once drawn', async () => {
+    const wrapper = await mountSuspended(HandwritingPlayer, { props: { question: drawn(drawingQuestion(1)) } })
+
+    const comparison = wrapper.findComponent({ name: 'StrokeComparison' })
+    expect(comparison.props('size')).toBe('376px') // two squares in 800, under a caption in 400
+    expect(comparison.props('phoneSize')).toBe('360px')
   })
 })

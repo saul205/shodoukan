@@ -15,8 +15,10 @@ const props = withDefaults(defineProps<{
   grade: HandwritingGrade | null
   /** Width of each square on `sm` and up (CSS length). */
   size?: string
+  /** Width of the one square on a phone (CSS length); fills its width up to a cap by default. */
+  phoneSize?: string
   compact?: boolean
-}>(), { size: '12rem', compact: false })
+}>(), { size: '12rem', phoneSize: undefined, compact: false })
 
 const reference = computed(() =>
   props.references.find(r => r.literal === props.grade?.matched) ?? props.references[0] ?? null,
@@ -51,7 +53,11 @@ const modes = [
   <div class="flex flex-col items-center gap-2" data-testid="stroke-comparison">
     <!-- Phones: one square, the views in turn. -->
     <div class="flex w-full flex-col items-center gap-2 sm:hidden">
-      <div class="aspect-square w-full" :class="compact ? 'max-w-40' : 'max-w-72'">
+      <div
+        class="aspect-square"
+        :class="phoneSize ? '' : ['w-full', compact ? 'max-w-40' : 'max-w-72']"
+        :style="phoneSize ? { width: phoneSize } : undefined"
+      >
         <KanjiStrokeDiagram
           v-if="mode === 'reference'"
           :strokes="referenceStrokes"
