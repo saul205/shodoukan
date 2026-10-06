@@ -56,7 +56,7 @@ Once any environment is deployed, migrations are append-only.
 | `08d07b56c263` | `exercise_sessions` and `exercise_questions` |
 | `f59399cff4a5` | One question per position in a session |
 | `bfad9df5a138` | One open session per user (closes the extra ones first) |
-| `33f2afbdd7cf` | Questions by `type`: a choice card's `options` and `correct_option` move into `details` (JSON); downgrading moves them back and deletes other types' questions |
+| `33f2afbdd7cf` | Questions by `type`: a choice card's `options` and `correct_option` move into `details` (JSON); downgrading moves them back and deletes the questions and exercises of other types (handwriting), which the older code can't read |
 
 ## Safety nets
 

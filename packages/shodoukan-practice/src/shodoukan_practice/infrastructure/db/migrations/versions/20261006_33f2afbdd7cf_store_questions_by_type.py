@@ -3,8 +3,10 @@
 Questions get a `type` (every existing one is a choice card) and `details`,
 the JSON with what only that type has. A choice card's `options` and
 `correct_option` move into `details`, so no column is left empty for the other
-types. Downgrading moves them back and deletes the questions of other types
-(handwriting), which the old schema can't hold.
+types. Downgrading moves them back and deletes what the old code can't hold:
+the questions of other types (handwriting), and the exercises of other types,
+whose settings it can't read (their sessions stay, as for any deleted
+exercise).
 
 Revision ID: 33f2afbdd7cf
 Revises: bfad9df5a138
@@ -31,6 +33,12 @@ _questions = sa.table(
     sa.column("options", sa.JSON),
     sa.column("correct_option", sa.Integer),
     sa.column("details", sa.JSON),
+)
+CHOICE = "card.choice"
+_exercises = sa.table(
+    "exercises",
+    sa.column("id", sa.Integer),
+    sa.column("settings", sa.JSON),
 )
 
 
@@ -67,11 +75,19 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("DELETE FROM exercise_questions WHERE type <> 'card.choice'")
+    connection = op.get_bind()
+    exercises = connection.execute(
+        sa.select(_exercises.c.id, _exercises.c.settings)
+    ).all()
+    other_types = [
+        id_ for id_, settings in exercises if settings["type"] != "card.choice"
+    ]
+    if other_types:
+        connection.execute(_exercises.delete().where(_exercises.c.id.in_(other_types)))
     with op.batch_alter_table("exercise_questions") as batch:
         batch.add_column(sa.Column("options", sa.JSON(), nullable=True))
         batch.add_column(sa.Column("correct_option", sa.Integer(), nullable=True))
 
-    connection = op.get_bind()
     rows = connection.execute(sa.select(_questions.c.id, _questions.c.details)).all()
     for id_, details in rows:
         connection.execute(
