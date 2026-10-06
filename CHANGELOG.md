@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan:** `Dictionary.get_kanji_strokes(literal)` returns a character's stroke
+  order from KanjiVG (Japanese order, all jōyō kanji and about 6,400 in total). A
+  compatibility ideograph is drawn with its canonical form.
+- **shodoukan-api:** `GET /kanji/{literal}/strokes`.
+- **shodoukan-practice:** `GET /dictionary/kanji/{literal}/strokes`.
+- **shodoukan-ui:** `KanjiStrokeDiagram` (the numbered character) and
+  `getKanjiStrokes`.
 - **shodoukan-practice-web:** Statistics: each exercise's page shows its totals,
   accuracy per direction and the items missed most; "Estadísticas" shows them over
   every exercise, with the answers per day over the last 7, 30 or 90 days, a table
@@ -76,6 +83,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **shodoukan-web / shodoukan-practice-web:** stroke order was blank for Japanese
+  forms such as 楽, 気 or 図, and used the Chinese order where it showed.
 - **shodoukan:** Romaji searches report the right number of results and page through
   all of them. They used to count only meaning matches (`taberu` said 0 results while
   showing 2) and later pages skipped words, because the reading and meaning searches
@@ -85,6 +94,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-ui:** `KanjiStrokeAnimator` and `KanjiStrokeGrid` take the KanjiVG
+  `strokes` as a prop instead of a `literal`, and render plain SVG (no `<ClientOnly>`
+  needed).
+- **shodoukan-web / shodoukan-practice-web:** the kanji pages fetch stroke order from
+  their API. The web app's diagram no longer loads from raw.githack.com, and the
+  practice app credits KanjiVG.
 - **shodoukan-practice-web:** The dictionary's kanji page shows the meanings larger,
   filling the height of the kanji, with its strokes, grade and the rest below them.
 - **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi
@@ -114,6 +129,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ("audacious") and 秋 ("autumn"); `same` still lists both 同 and 鮫 (さめ).
 - **shodoukan-ui:** The debug bar shows the new `score` as the sort value, with `tier`
   and `relevance`.
+
+### Removed
+
+- **shodoukan-ui:** the `hanzi-writer` dependency.
 
 ## [0.2.0] — 2026-05-21
 

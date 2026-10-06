@@ -495,3 +495,35 @@ like any miss, the solution is shown, and accuracy isn't inflated by leaving out
 hard cards. It's one more member of the answer union, so the next-question rules and
 the statistics, which only read `is_correct`, needed no change, and there's no
 separate endpoint.
+
+## Stroke order comes from KanjiVG, without a hanzi-writer fallback
+
+Both dictionaries draw stroke order from KanjiVG, which the dictionary database ships
+in `kanji_svg`. The `shodoukan` library parses it into stroke paths in writing order,
+and the APIs serve them (`/kanji/{literal}/strokes`,
+`/dictionary/kanji/{literal}/strokes`). Before, the `shodoukan-ui` components used
+hanzi-writer's data from a CDN. That data is Chinese, so it has no Japanese forms
+(楽, 気, 図, 駅…) and it teaches the Chinese stroke order.
+
+Coverage, measured on the 13,108 kanji of the database:
+
+| Source | Kanji |
+|---|---|
+| KanjiVG | 6,417, including all 2,136 jōyō |
+| + canonical form of compatibility ideographs (神 U+FA19 → U+795E) | +72 |
+| + hanzi-writer as a fallback | +1,895, none jōyō; 237 appear in any word |
+
+The fallback was left out. What it adds is rare kanji and old forms, and it brings
+four problems:
+
+- The Chinese stroke order and glyph shapes, which are wrong for a Japanese learner.
+- A second rendering path: its strokes are filled outlines in a flipped 1024 box,
+  while KanjiVG's are centre lines in 109.
+- A runtime dependency on a CDN.
+- Another licence (Arphic) to attribute.
+
+More coverage, if needed, belongs in the `shodoukan-db` pipeline from a Japanese
+source, not in the frontend. Strokes are served as JSON (paths and number positions),
+not raw SVG, so the contract is typed and the frontend renders plain SVG without
+parsing XML. A few KanjiVG drawings use an older component form, so their stroke count
+can differ from KANJIDIC2's (108 of 6,417).
