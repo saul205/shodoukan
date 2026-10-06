@@ -40,6 +40,7 @@ FastAPI application that exposes the library over HTTP. See [packages/shodoukan-
 | GET | `/entries/by-kanji/{literal}` | Get entries that contain a kanji |
 | GET | `/kanji/search` | Search kanji |
 | GET | `/kanji/{literal}` | Get kanji by literal |
+| GET | `/kanji/{literal}/strokes` | Get a character's stroke order (KanjiVG) |
 
 Search endpoints accept `lang` (ISO 639-1, default `en`) and `limit` / `offset` for pagination.
 
