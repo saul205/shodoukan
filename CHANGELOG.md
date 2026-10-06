@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan-practice:** `GET /dictionary/kanji/{literal}/strokes`.
 - **shodoukan-ui:** `KanjiStrokeDiagram` (the numbered character) and
   `getKanjiStrokes`.
+- **shodoukan-ui:** `AboutSources`: what shodoukan is, every data source with its
+  licence (JMdict, KANJIDIC2, RADKFILE, KanjiVG, Tatoeba / Tanaka Corpus, the JLPT
+  lists) and Jisho as inspiration, in English or Spanish.
+- **shodoukan-practice-web:** "Acerca de" page, linked from the sidebar, crediting
+  the data sources.
 - **shodoukan-practice-web:** Statistics: each exercise's page shows its totals,
   accuracy per direction and the items missed most; "Estadísticas" shows them over
   every exercise, with the answers per day over the last 7, 30 or 90 days, a table
@@ -98,8 +103,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `strokes` as a prop instead of a `literal`, and render plain SVG (no `<ClientOnly>`
   needed).
 - **shodoukan-web / shodoukan-practice-web:** the kanji pages fetch stroke order from
-  their API. The web app's diagram no longer loads from raw.githack.com, and the
-  practice app credits KanjiVG.
+  their API. The web app's diagram no longer loads from raw.githack.com.
+- **shodoukan-web:** the Sources page is merged into About, which now credits every
+  data source; `/sources` redirects there.
 - **shodoukan-practice-web:** The dictionary's kanji page shows the meanings larger,
   filling the height of the kanji, with its strokes, grade and the rest below them.
 - **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi

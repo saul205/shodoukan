@@ -527,3 +527,13 @@ source, not in the frontend. Strokes are served as JSON (paths and number positi
 not raw SVG, so the contract is typed and the frontend renders plain SVG without
 parsing XML. A few KanjiVG drawings use an older component form, so their stroke count
 can differ from KANJIDIC2's (108 of 6,417).
+
+## Sources are credited once, on an About page
+
+The data licences (CC BY-SA for JMdict, KANJIDIC2, RADKFILE and KanjiVG; CC BY for
+Tatoeba and the JLPT lists) ask for attribution "in any reasonable manner" for the
+medium, not next to every item. Both apps credit every source on one About page, the
+shared `AboutSources` from `shodoukan-ui`, linked from the practice sidebar and the web
+navbar. Data screens carry no per-item credit lines. A new data source is added to
+`AboutSources`, with its author, link and licence checked at its origin (the
+shodoukan-db README only states JMdict's and KANJIDIC2's).
