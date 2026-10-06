@@ -1,8 +1,9 @@
+from collections.abc import Iterable
 from uuid import UUID
 
 from shodoukan import Dictionary
 
-from ...domain.entities import PracticeEntry, PracticeKanji
+from ...domain.entities import PracticeEntry, PracticeKanji, ReferenceKanji
 from ...domain.gateways import (
     DictionaryEntry,
     DictionaryEntryPage,
@@ -19,6 +20,7 @@ from .shodoukan_mapper import (
     shodoukan_kanji_to_dictionary,
     shodoukan_kanji_to_practice,
     shodoukan_search_to_dictionary,
+    shodoukan_strokes_to_reference,
 )
 
 
@@ -55,6 +57,17 @@ class ShodoukanDictionaryGateway(DictionaryGateway):
     def kanji_strokes(self, literal: str) -> DictionaryKanjiStrokes | None:
         strokes = self._dictionary.get_kanji_strokes(literal)
         return shodoukan_kanji_strokes_to_dictionary(strokes) if strokes else None
+
+    def literals_with_strokes(self, literals: Iterable[str]) -> frozenset[str]:
+        return frozenset(self._dictionary.literals_with_strokes(literals))
+
+    def stroke_references(self, literals: Iterable[str]) -> dict[str, ReferenceKanji]:
+        references = {}
+        for literal in dict.fromkeys(literals):
+            strokes = self._dictionary.get_kanji_strokes(literal)
+            if strokes and strokes.strokes:
+                references[literal] = shodoukan_strokes_to_reference(strokes)
+        return references
 
     def entries_for_kanji(
         self, literal: str, limit: int, offset: int

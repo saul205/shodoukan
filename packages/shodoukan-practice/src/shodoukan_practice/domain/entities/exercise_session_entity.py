@@ -11,15 +11,18 @@ card), so a session reads the same later even if its items are edited or
 removed from the library. The history is also the statistics. See
 docs/practice/technical/exercises.md.
 
-`answer` is a union discriminated by `type`, like exercise settings: an
-`OptionAnswer` (choice cards) or a `SkipAnswer`, which counts as a miss.
+Questions and answers are unions discriminated by `type`, like exercise
+settings. A `ChoiceQuestion` is answered with an `OptionAnswer`; a
+`HandwritingQuestion` with a `StrokesAnswer` (the drawn kanji), graded by
+`handwriting_grading_service` against the KanjiVG strokes of the kanji it
+accepts. A `SkipAnswer` fits both and counts as a miss.
 """
 
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..clock import utc_now
 from ..exceptions import (
@@ -58,6 +61,101 @@ class OptionAnswer(BaseModel):
     option: int = Field(ge=0)
 
 
+# The drawing space: KanjiVG's square, plus the margin the canvas shows
+# around it (strokes may run slightly outside the square).
+CANVAS_SIZE = 109
+CANVAS_MARGIN = 6
+MAX_STROKES = 40
+MAX_STROKE_POINTS = 300
+
+Point = tuple[float, float]
+DrawnStroke = Annotated[
+    tuple[Point, ...], Field(min_length=1, max_length=MAX_STROKE_POINTS)
+]
+
+
+class StrokesAnswer(BaseModel):
+    """The kanji as drawn: its strokes in the order drawn, each a list of
+    points in the canvas space (`CANVAS_SIZE`, `CANVAS_MARGIN`)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: Literal["strokes"] = "strokes"
+    strokes: tuple[DrawnStroke, ...] = Field(min_length=1, max_length=MAX_STROKES)
+
+    @field_validator("strokes")
+    @classmethod
+    def _check_bounds(
+        cls, strokes: tuple[tuple[Point, ...], ...]
+    ) -> tuple[tuple[Point, ...], ...]:
+        low, high = -CANVAS_MARGIN, CANVAS_SIZE + CANVAS_MARGIN
+        for stroke in strokes:
+            for x, y in stroke:
+                if not (low <= x <= high and low <= y <= high):
+                    raise ValueError(f"point ({x}, {y}) is outside the canvas")
+        return strokes
+
+
+class ReferenceStroke(BaseModel):
+    """One stroke of a reference kanji (KanjiVG): its path, to draw it, the
+    place of its number, and its centre line as points, to grade against."""
+
+    model_config = ConfigDict(frozen=True)
+
+    path: str
+    label: Point | None
+    points: tuple[Point, ...] = Field(min_length=1)
+
+
+class ReferenceKanji(BaseModel):
+    """A kanji a handwriting question accepts, with its strokes in order."""
+
+    model_config = ConfigDict(frozen=True)
+
+    literal: str
+    strokes: tuple[ReferenceStroke, ...] = Field(min_length=1)
+
+
+# How a drawn stroke compares to the reference: right; right place and
+# shape but drawn backwards; right but out of order; too long or too short
+# for the rest of the kanji; too far from its reference stroke; one the
+# reference doesn't have; one not drawn.
+StrokeStatus = Literal[
+    "ok",
+    "reversed",
+    "out_of_order",
+    "too_long",
+    "too_short",
+    "imprecise",
+    "extra",
+    "missing",
+]
+# Right; right enough to count, but to practise again; wrong.
+Verdict = Literal["correct", "close", "wrong"]
+
+
+class StrokeFeedback(BaseModel):
+    """One stroke's grade. `drawn` and `reference` are stroke indexes: an
+    extra stroke has no reference, a missing one wasn't drawn."""
+
+    model_config = ConfigDict(frozen=True)
+
+    drawn: int | None = Field(ge=0)
+    reference: int | None = Field(ge=0)
+    status: StrokeStatus
+
+
+class HandwritingGrade(BaseModel):
+    """How a drawing compares to the closest accepted kanji (`matched`)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    score: int = Field(ge=0, le=100)
+    verdict: Verdict
+    matched: str
+    strokes: tuple[StrokeFeedback, ...]
+
+
 class SkipAnswer(BaseModel):
     """The user skipped the question: it counts as a miss (it comes back as a
     review, and the solution is shown), like answering "I don't know"."""
@@ -68,10 +166,14 @@ class SkipAnswer(BaseModel):
 
 
 # Answers of every exercise type, by `type`.
-ExerciseAnswer = Annotated[OptionAnswer | SkipAnswer, Field(discriminator="type")]
+ExerciseAnswer = Annotated[
+    OptionAnswer | StrokesAnswer | SkipAnswer, Field(discriminator="type")
+]
 
 
-class ExerciseQuestion(BaseModel):
+class QuestionBase(BaseModel):
+    """What every question has: the card it shows and how it was answered."""
+
     id: int | None
     position: int
     # The item asked about; None once it's removed from the library.
@@ -79,8 +181,6 @@ class ExerciseQuestion(BaseModel):
     prompt_fields: tuple[StudyField, ...]
     answer_field: StudyField
     prompt: tuple[ShownField, ...]
-    options: tuple[ChoiceOption, ...]
-    correct_option: int
     back: tuple[ShownField, ...]
     answer: ExerciseAnswer | None = None
     is_correct: bool | None = None
@@ -91,6 +191,40 @@ class ExerciseQuestion(BaseModel):
     @property
     def answered(self) -> bool:
         return self.answer is not None
+
+    @property
+    def needs_review(self) -> bool:
+        """Whether its item should come back as a review: it was missed."""
+        return self.is_correct is False
+
+
+class ChoiceQuestion(QuestionBase):
+    """Pick the right answer among `options`."""
+
+    type: Literal["card.choice"] = "card.choice"
+    options: tuple[ChoiceOption, ...]
+    correct_option: int
+
+
+class HandwritingQuestion(QuestionBase):
+    """Draw the kanji. Any of `references` is right: the kanji asked about, and
+    any other of the pool that fits the prompt too (two kanji read はし)."""
+
+    type: Literal["card.handwriting"] = "card.handwriting"
+    references: tuple[ReferenceKanji, ...] = Field(min_length=1)
+    grade: HandwritingGrade | None = None
+
+    @property
+    def needs_review(self) -> bool:
+        """Missed, or drawn well enough to count but worth practising again."""
+        close = self.grade is not None and self.grade.verdict == "close"
+        return self.is_correct is False or close
+
+
+# Questions of every exercise type, by `type`.
+ExerciseQuestion = Annotated[
+    ChoiceQuestion | HandwritingQuestion, Field(discriminator="type")
+]
 
 
 # A session nobody touched for this long counts as finished at its last activity.
@@ -151,7 +285,11 @@ class ExerciseSession(TimestampedEntity):
         self.touch()
 
     def answer(
-        self, question_id: int, answer: ExerciseAnswer, response_ms: int | None = None
+        self,
+        question_id: int,
+        answer: ExerciseAnswer,
+        response_ms: int | None = None,
+        grade: HandwritingGrade | None = None,
     ) -> ExerciseQuestion:
         """Grade the active question and move it to the history.
 
@@ -159,20 +297,25 @@ class ExerciseSession(TimestampedEntity):
         another one (a double click, a stale tab) is rejected with
         `QuestionNotActiveError`. Raises `SessionFinishedError` if the session
         is closed or idle (nothing changes) and `InvalidAnswerError` for an
-        option it doesn't have. A `SkipAnswer` is graded as a miss.
+        answer that doesn't fit the question (another type's, or an option it
+        doesn't have). A `SkipAnswer` is graded as a miss.
+
+        A drawing is graded by `handwriting_grading_service`, which the caller
+        runs on the question's references and passes as `grade`; the drawing
+        counts as right unless the grade's verdict is "wrong".
         """
         self._require_open()
         question = self.current
         if question is None or question.id != question_id:
             raise QuestionNotActiveError(f"question {question_id} isn't the active one")
-        if isinstance(answer, OptionAnswer):
-            if answer.option >= len(question.options):
-                raise InvalidAnswerError(
-                    f"question {question_id} has no option {answer.option}"
-                )
-            question.is_correct = answer.option == question.correct_option
-        else:
+        if grade is not None and not isinstance(answer, StrokesAnswer):
+            raise ValueError("only a drawing is graded with a handwriting grade")
+        if isinstance(answer, SkipAnswer):
             question.is_correct = False  # skipped: a miss
+        elif isinstance(question, ChoiceQuestion):
+            question.is_correct = _grade_option(question, answer)
+        else:
+            question.is_correct = _record_grade(question, answer, grade)
         question.answer = answer
         question.answered_at = utc_now()
         question.response_ms = response_ms
@@ -221,3 +364,28 @@ class ExerciseSession(TimestampedEntity):
         written (see `ended_at`), so nothing is asked or answered in it."""
         if self.ended_at(utc_now()) is not None:
             raise SessionFinishedError(f"exercise session {self.id} is finished")
+
+
+def _grade_option(question: ChoiceQuestion, answer: ExerciseAnswer) -> bool:
+    if not isinstance(answer, OptionAnswer):
+        raise InvalidAnswerError(f"question {question.id} is answered with an option")
+    if answer.option >= len(question.options):
+        raise InvalidAnswerError(
+            f"question {question.id} has no option {answer.option}"
+        )
+    return answer.option == question.correct_option
+
+
+def _record_grade(
+    question: HandwritingQuestion,
+    answer: ExerciseAnswer,
+    grade: HandwritingGrade | None,
+) -> bool:
+    if not isinstance(answer, StrokesAnswer):
+        raise InvalidAnswerError(f"question {question.id} is answered with a drawing")
+    if grade is None:
+        raise ValueError("a drawing needs its grade")
+    if grade.matched not in {r.literal for r in question.references}:
+        raise ValueError(f"{grade.matched} isn't a kanji the question accepts")
+    question.grade = grade
+    return grade.verdict != "wrong"

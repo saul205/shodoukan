@@ -37,6 +37,8 @@ mean writing a new adapter; use cases wouldn't change.
 | `entries_for_kanji(literal, limit, offset)` | `Dictionary.get_entries_for_kanji(...)` | a `DictionaryEntryPage` of the words written with the kanji |
 | `kanji_for_entry(entry_id)` | `Dictionary.get_kanji_for_entry_related(id)` | the `DictionaryKanji` in the entry's spellings (empty for kana-only words) |
 | `kanji_strokes(literal)` | `Dictionary.get_kanji_strokes(literal)` | `DictionaryKanjiStrokes` (KanjiVG stroke order), or `None` |
+| `literals_with_strokes(literals)` | `Dictionary.literals_with_strokes(literals)` | which of them have a stroke order (one query, no drawing read) |
+| `stroke_references(literals)` | `Dictionary.get_kanji_strokes(literal)` per literal | `ReferenceKanji` by literal, for those with a stroke order: each stroke's path, number place and centre line as points (`path_points`, every `REFERENCE_POINT_SPACING` = 2 units), to grade drawings against |
 
 "Fresh" means not stored yet: all ids are `None`, every part is enabled, and
 glosses, examples and meanings have `origin="imported"`. Both dictionary calls return

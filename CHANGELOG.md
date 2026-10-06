@@ -11,6 +11,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan:** `Dictionary.get_kanji_strokes(literal)` returns a character's stroke
   order from KanjiVG (Japanese order, all jōyō kanji and about 6,400 in total). A
   compatibility ideograph is drawn with its canonical form.
+- **shodoukan-practice:** Handwriting exercises (`card.handwriting`), the backend: the
+  user draws the kanji and the server grades the strokes against KanjiVG (a 0-100
+  score, correct / close / wrong, and what's wrong with each stroke: backwards, out of
+  order, imprecise, extra, missing). Any kanji of the collections that fits the prompt
+  is right. "Close" counts as right but comes back as a review. Kanji without a stroke
+  order aren't asked.
+- **shodoukan:** `Dictionary.literals_with_strokes(literals)` tells which characters have
+  a stroke order without reading the drawings, and `shodoukan.path_points`
+  flattens a stroke's path into evenly spaced points (for comparing
+  handwriting).
 - **shodoukan-api:** `GET /kanji/{literal}/strokes`.
 - **shodoukan-practice:** `GET /dictionary/kanji/{literal}/strokes`.
 - **shodoukan-ui:** `KanjiStrokeDiagram` (the numbered character) and
@@ -115,6 +125,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-practice:** Session questions are stored by `type`, with what only that
+  type has in a `details` JSON column; a choice card's options and right option move
+  there (migration `33f2afbdd7cf`). Session responses return each question by type.
 - **shodoukan-ui:** `KanjiStrokeAnimator` and `KanjiStrokeGrid` take the KanjiVG
   `strokes` as a prop instead of a `literal`, and render plain SVG (no `<ClientOnly>`
   needed).

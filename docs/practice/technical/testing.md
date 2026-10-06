@@ -26,6 +26,9 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `domain/test_timestamped_entity.py` | Timestamp defaults, `touch()` |
 | `domain/test_collection_service.py` | `ensure_combinable` |
 | `domain/test_study_field_service.py` | Reading study fields from words and kanji (enabled parts, meaning language), comparison keys (kana, glosses), `entry_label` |
+| `domain/test_handwriting_question_service.py` | Handwriting drafts: only kanji with a stroke order, every kanji that fits the prompt accepted |
+| `domain/test_stroke_geometry_service.py` | Normalizing, resampling and comparing strokes |
+| `domain/test_handwriting_grading_service.py` | Grading drawings against real KanjiVG strokes: shaky drawings are right; a reversed stroke, two swapped or one missing are close; other kanji are wrong; the closest accepted kanji grades it |
 | `domain/test_choice_question_service.py` | Building the next question: deck per round, missed items back after `REVIEW_GAP`, no item twice in a row, distractors that are never a valid answer, pools too small |
 | `infrastructure/test_base_orm.py` | `UtcDateTime`: naive UTC stored, aware UTC read, naive rejected, no DB default |
 | `infrastructure/test_*_orm.py` | Constraints, cascades, `position` ordering |
@@ -43,7 +46,7 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `application/test_collection_queries.py` | Listing and getting collections, owner scoping |
 | `application/test_practice_entry_commands.py`, `test_practice_kanji_commands.py` | Customisation use cases: notes, active, enabled, own meanings, dictionary meanings rejected, other users' items, removal from the library |
 | `application/test_exercise_commands.py`, `test_exercise_queries.py` | Exercise definitions: create, update, delete, list and get; collections of the right kind and owner; settings checked against the item kind |
-| `application/test_exercise_session_commands.py` | Starting (closes the user's open session, pool too small), answering (grading, the next question, idle and finished sessions, stale question ids), finishing |
+| `application/test_exercise_session_commands.py` | Starting (closes the user's open session, pool too small), answering (grading, the next question, idle and finished sessions, stale question ids), finishing; handwriting sessions (only kanji with a stroke order, drawings graded against their strokes, a pool too small to draw) |
 | `application/test_exercise_statistics_queries.py` | Statistics per exercise and overall: missed items named from the library (removed ones dropped), activity per day in the user's time zone, not found, window bounds |
 | `application/test_user_commands.py` | `EnsureUser`: existing identity, first request creates, no duplicates |
 | `api/test_library_routes.py` | The library endpoints through `TestClient`: listing (newest first, total, paging, `active`, owner scoping, ids usable in collections), search (`q`, romaji, `meaning_lang`, `not_in_collection` and its `404`, `q` length), import (201/200/404/422/401), import status (only the user's imports, limits, validation), user creation on first request, CORS preflight |
@@ -51,7 +54,7 @@ ruff check packages/shodoukan-practice tests/shodoukan-practice
 | `api/test_practice_entry_routes.py`, `test_practice_kanji_routes.py` | Library item endpoints: detail, notes (and validation), active, enabled per part, own meanings, 409 for dictionary meanings, collections of an item, removal, other users' items `404`, `401` |
 | `api/test_dictionary_routes.py` | `GET /dictionary/search` and the detail routes: public, the same shape as shodoukan-api, pagination, validation, 404s, and that results can be imported |
 | `api/test_exercise_routes.py` | The exercise endpoints: CRUD, validation, other users' exercises and collections `404` |
-| `api/test_exercise_session_routes.py` | Session endpoints: start, solutions hidden until answered, answer and next, finish, `409`s, the question `type`, listing the history and the open session |
+| `api/test_exercise_session_routes.py` | Session endpoints: start, solutions hidden until answered, answer and next, finish, `409`s, the question `type`, listing the history and the open session; handwriting questions hide their references and grade until drawn, drawings that don't fit are `422` |
 | `api/test_exercise_statistics_routes.py` | `GET /exercises/{id}/statistics` and `GET /statistics`: figures after playing, empty statistics, `404`, bad `tz` / `days` `422` |
 | `api/test_user_routes.py` | `GET /users/me`, and the OAuth2 login declared in the OpenAPI schema |
 | `api/test_auth.py` | `TokenVerifier`: identity, expiry, issuer, signature, audience, configuration |

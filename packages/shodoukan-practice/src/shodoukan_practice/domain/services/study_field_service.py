@@ -64,6 +64,12 @@ class StudyCard:
         return frozenset().union(*(value.keys for value in self.get(field)))
 
 
+def kanji_literal(card: StudyCard) -> str | None:
+    """The kanji of a kanji card; None for a word's."""
+    values = card.answers("literal")
+    return values[0].text if values else None
+
+
 def kana_key(text: str) -> str:
     """Hiragana, without okurigana dots or affix dashes."""
     hiragana = "".join(

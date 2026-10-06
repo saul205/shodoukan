@@ -1,4 +1,5 @@
 import unicodedata
+from collections.abc import Iterable
 
 from sqlalchemy import and_, case, desc, func, select, text, true, union_all
 from sqlalchemy import literal as sql_literal
@@ -23,7 +24,6 @@ from shodoukan.repositories.scoring import (
 from shodoukan.utils.detect import contains_kana, contains_kanji
 from shodoukan.utils.kana import hiragana_to_katakana, katakana_to_hiragana
 from shodoukan.utils.lang import meaning_lang
-
 
 # KANJIDIC2 writes on-readings in katakana and kun-readings in hiragana, so the
 # query is bound twice: :q_on in katakana and :q_kun in hiragana.
@@ -110,6 +110,26 @@ class KanjiRepository:
             }
             svg = next((found[c] for c in candidates if c in found), None)
             return kanji_strokes_to_domain(literal, svg) if svg else None
+
+    def literals_with_strokes(self, literals: Iterable[str]) -> set[str]:
+        """Which of `literals` have a stroke order, without reading the drawings.
+
+        A compatibility ideograph counts if its canonical form has one, as in
+        `get_strokes`.
+        """
+        wanted = set(literals)
+        if not wanted:
+            return set()
+        canonical = {c: unicodedata.normalize("NFC", c) for c in wanted}
+        with Session(self._engine) as session:
+            drawn = set(
+                session.execute(
+                    select(KanjiSvgORM.literal).where(
+                        KanjiSvgORM.literal.in_(wanted | set(canonical.values()))
+                    )
+                ).scalars()
+            )
+        return {c for c in wanted if c in drawn or canonical[c] in drawn}
 
     def search(
         self,

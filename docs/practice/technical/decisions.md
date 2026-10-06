@@ -313,7 +313,9 @@ the whole library. The cost is one request per answer. See
 Each question of a session stores a snapshot of its prompt, options and back, plus the
 answer and whether it was right. Reviewing a session and computing accuracy are
 queries over those rows. No separate statistics store is kept in sync, and the
-snapshot keeps old sessions readable after items change or are removed.
+snapshot keeps old sessions readable after items change or are removed. (What the
+snapshot holds besides the prompt and back depends on the question type: see
+[questions are a union too](#questions-are-a-union-too-with-what-each-type-adds-in-one-json-column).)
 
 ## Exercise settings are JSON behind a discriminated union
 
@@ -495,6 +497,81 @@ like any miss, the solution is shown, and accuracy isn't inflated by leaving out
 hard cards. It's one more member of the answer union, so the next-question rules and
 the statistics, which only read `is_correct`, needed no change, and there's no
 separate endpoint.
+
+## Questions are a union too, with what each type adds in one JSON column
+
+Extends "Exercise settings are JSON behind a discriminated union" to the questions.
+
+Every exercise type shares what statistics and the review read: the item, the prompt
+and back, the answer, right or wrong, when and how long. Those stay real columns. What
+only one type has (a choice card's options and right option; a handwriting card's
+reference strokes and grade; later a sentence's gaps or a typed answer's accepted
+values) is always read whole and never queried by its parts, so it goes in one JSON
+column, `details`, next to a `type` column. The domain has one class per type
+(`ChoiceQuestion`, `HandwritingQuestion`) in a union keyed by `type`, which validates
+`details` on the way back.
+
+Rejected:
+
+- **A column per type-specific field.** Each new type would add columns that are
+  empty for every other type.
+- **A child table per type.** One more table, join and mapper per type, for data that
+  is never queried apart.
+
+The choice cards' `options` and `correct_option` moved into `details` (migration
+`33f2afbdd7cf`), so no column is left empty.
+
+## Handwriting questions read the dictionary when they're asked
+
+Narrows "The dictionary is used in-process behind a port", which says the practice app
+only needs the dictionary at import time.
+
+A handwriting question needs KanjiVG's strokes of every kanji it accepts, and the pool
+must leave out kanji without a stroke order. They're read from the dictionary when a
+question is built (start and every answer: `literals_with_strokes` over the pool, then
+`stroke_references` for the accepted kanji) and snapshotted in the question, rather
+than copied into the library at import time:
+
+- Strokes aren't the user's data: nothing in them is customised or disabled, unlike
+  readings and meanings.
+- Kanji imported before this feature would need a backfill, and every import would
+  carry a few kilobytes most users never draw.
+- The question's snapshot already keeps a session readable after the dictionary
+  changes.
+
+The cost is two in-process queries per question. With an HTTP adapter it would be
+two calls per answer, which batching (both calls take many literals) keeps bounded.
+
+## A drawing is graded by a service and recorded by the session
+
+Grading a drawing is a sizeable algorithm (see
+[exercises](exercises.md#handwriting)), so it's a domain service,
+`handwriting_grading_service`, not a method of the question: entities don't depend on
+services. The use case runs it on the question's references and passes the grade to
+`ExerciseSession.answer`, as it passes `build_next_question`'s result to `ask`. The
+session keeps the invariants: the answer must be of the question's type, a drawing
+needs a grade of a kanji the question accepts, and it decides `is_correct` from the
+verdict. Choice cards are still graded inline: comparing two indexes needs no service.
+
+## A drawing "close" enough counts, and comes back
+
+A drawing graded `close` (right kanji, but a stroke out of order, backwards, or a bit
+off) counts as right, so the score and accuracy don't punish a nearly right drawing,
+but its item comes back as a review like a miss (`needs_review`). The grade keeps the
+verdict, so the review can show it apart.
+
+The grading leans to the learner, because being too strict discourages beginners:
+
+- A few **imprecise** strokes (up to a third) don't stop a drawing from being
+  `correct` when the whole matches; the warnings are enough.
+- **Stroke lengths** that are off for the rest of the kanji (judged by proportions,
+  not size) make it `close` at most, with a warning on each such stroke. Kanji such as
+  未 / 末 differ only there, and it's an easy mistake.
+- **Many problem strokes** (most of them imprecise, or problems on more than half)
+  make it `wrong`: that's another kanji (土 for 士).
+
+These came from a review of PR #60, which drew similar kanji for each other. The
+thresholds and their calibration are in [exercises](exercises.md#grading).
 
 ## Stroke order comes from KanjiVG, without a hanzi-writer fallback
 

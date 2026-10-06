@@ -9,14 +9,18 @@ The dictionary is an external, read-only source. The gateway offers:
   showing dictionary data. They're frozen,
   carry no practice state, and keep the domain independent of the
   dictionary's models.
+- **Strokes to grade drawings:** which kanji have a stroke order, and their
+  strokes as `ReferenceKanji` (domain value objects, with points), for
+  handwriting questions.
 """
 
+from collections.abc import Iterable
 from typing import Protocol
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from ..entities import PracticeEntry, PracticeKanji
+from ..entities import PracticeEntry, PracticeKanji, ReferenceKanji
 
 
 class _ReadModel(BaseModel):
@@ -163,6 +167,15 @@ class DictionaryGateway(Protocol):
         Any character with a drawing has one, even if it isn't a dictionary
         kanji (kana, for instance).
         """
+        ...
+
+    def literals_with_strokes(self, literals: Iterable[str]) -> frozenset[str]:
+        """Which of `literals` have a stroke order, without reading them."""
+        ...
+
+    def stroke_references(self, literals: Iterable[str]) -> dict[str, ReferenceKanji]:
+        """The strokes of each of `literals` that has a stroke order, by literal,
+        with each stroke's centre line as points to grade a drawing against."""
         ...
 
     def entries_for_kanji(

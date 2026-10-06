@@ -12,7 +12,7 @@ docs/practice/technical/exercises.md.
 """
 
 from collections.abc import Sequence
-from typing import ClassVar, Literal, Self
+from typing import Annotated, ClassVar, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -90,9 +90,23 @@ class ChoiceCardSettings(CardSettings):
     distractor_source: Literal["collection"] = "collection"
 
 
-# The settings of every exercise type. With a second type this becomes
-# `Annotated[ChoiceCardSettings | FlipCardSettings, Field(discriminator="type")]`.
-ExerciseSettings = ChoiceCardSettings
+class HandwritingCardSettings(CardSettings):
+    """Draw the kanji: every direction asks for `literal`, so it's for kanji
+    exercises only (an entry exercise can't use that field)."""
+
+    type: Literal["card.handwriting"] = "card.handwriting"
+
+    @model_validator(mode="after")
+    def _check_answers(self) -> Self:
+        if any(d.answer != "literal" for d in self.directions):
+            raise ValueError("a handwriting card always asks for the kanji (literal)")
+        return self
+
+
+# The settings of every exercise type, by `type`.
+ExerciseSettings = Annotated[
+    ChoiceCardSettings | HandwritingCardSettings, Field(discriminator="type")
+]
 
 
 class Exercise(TimestampedEntity):

@@ -3,8 +3,10 @@
 
 The server builds and grades the questions, so statistics don't depend on
 the client. Each new question is built from the session's history, so items
-aren't repeated before the round is done and missed ones come back. None of
-them commit; the caller owns the transaction.
+aren't repeated before the round is done and missed ones come back. A
+handwriting question needs the dictionary: which kanji have a stroke order,
+and their strokes, against which the drawing is graded here before the
+session records it. None of them commit; the caller owns the transaction.
 """
 
 from random import Random
@@ -12,15 +14,22 @@ from uuid import UUID
 
 from ...domain.clock import utc_now
 from ...domain.entities import (
+    CardSettings,
+    ChoiceCardSettings,
     Exercise,
     ExerciseAnswer,
     ExerciseQuestion,
     ExerciseSession,
+    HandwritingCardSettings,
+    HandwritingGrade,
+    HandwritingQuestion,
+    StrokesAnswer,
 )
 from ...domain.exceptions import (
     EntityNotFoundError,
     ExercisePoolTooSmallError,
 )
+from ...domain.gateways import DictionaryGateway
 from ...domain.repositories import (
     EntryCollectionRepository,
     ExerciseRepository,
@@ -33,9 +42,13 @@ from ...domain.repositories import (
 from ...domain.services import (
     StudyCard,
     build_next_question,
+    draft_next_question,
+    ensure_enough_drawable_items,
     ensure_enough_items,
     entry_card,
+    grade_drawing,
     kanji_card,
+    kanji_literal,
 )
 from .collection_lookups import entry_collection, kanji_collection
 
@@ -79,6 +92,58 @@ class _Pool:
         ]
 
 
+class _Questions:
+    """Builds the next question of a session by its exercise's type."""
+
+    def __init__(self, dictionary: DictionaryGateway, rng: Random) -> None:
+        self._dictionary = dictionary
+        self._rng = rng
+
+    def ensure_enough(self, cards: list[StudyCard], settings: CardSettings) -> None:
+        """Raises `ExercisePoolTooSmallError` if the pool can't run a session."""
+        if isinstance(settings, HandwritingCardSettings):
+            ensure_enough_drawable_items(cards, settings, self._drawable(cards))
+        else:
+            ensure_enough_items(cards, settings)
+
+    def next(
+        self,
+        cards: list[StudyCard],
+        settings: CardSettings,
+        history: list[ExerciseQuestion],
+    ) -> ExerciseQuestion:
+        """The next question. Raises `ExercisePoolTooSmallError` if the pool
+        can't make one."""
+        if isinstance(settings, HandwritingCardSettings):
+            draft = draft_next_question(
+                cards, settings, history, self._drawable(cards), self._rng
+            )
+            references = self._dictionary.stroke_references(draft.accepted)
+            return draft.question(len(history), references)
+        assert isinstance(settings, ChoiceCardSettings)
+        return build_next_question(cards, settings, history, self._rng)
+
+    def _drawable(self, cards: list[StudyCard]) -> frozenset[str]:
+        return self._dictionary.literals_with_strokes(
+            text for card in cards if (text := kanji_literal(card)) is not None
+        )
+
+
+def _grade(
+    session: ExerciseSession, question_id: int, answer: ExerciseAnswer
+) -> HandwritingGrade | None:
+    """A drawing's grade, against the active question's kanji. Anything else
+    (or a drawing for another question) is checked by the session."""
+    current = session.current
+    if (
+        isinstance(answer, StrokesAnswer)
+        and isinstance(current, HandwritingQuestion)
+        and current.id == question_id
+    ):
+        return grade_drawing(answer, current.references)
+    return None
+
+
 def _session_to_change(
     sessions: ExerciseSessionRepository, session_id: int, user_id: UUID
 ) -> ExerciseSession:
@@ -109,6 +174,7 @@ class StartExerciseSession:
         kanji_collections: KanjiCollectionRepository,
         entries: PracticeEntryRepository,
         kanji: PracticeKanjiRepository,
+        dictionary: DictionaryGateway,
         users: UserRepository,
         rng: Random | None = None,
     ) -> None:
@@ -116,7 +182,7 @@ class StartExerciseSession:
         self._sessions = sessions
         self._users = users
         self._pool = _Pool(entry_collections, kanji_collections, entries, kanji)
-        self._rng = rng or Random()
+        self._questions = _Questions(dictionary, rng or Random())
 
     def execute(
         self, user_id: UUID, exercise_id: int, meaning_lang: str
@@ -125,8 +191,8 @@ class StartExerciseSession:
         if exercise is None:
             raise EntityNotFoundError(f"exercise {exercise_id} not found")
         cards = self._pool.cards(exercise, meaning_lang)
-        ensure_enough_items(cards, exercise.settings)
-        first = build_next_question(cards, exercise.settings, [], self._rng)
+        self._questions.ensure_enough(cards, exercise.settings)
+        first = self._questions.next(cards, exercise.settings, [])
 
         # One open session per user: lock the user so concurrent starts take
         # turns, then close the open ones (locked too, so an answer being
@@ -169,12 +235,13 @@ class AnswerExerciseQuestion:
         kanji_collections: KanjiCollectionRepository,
         entries: PracticeEntryRepository,
         kanji: PracticeKanjiRepository,
+        dictionary: DictionaryGateway,
         rng: Random | None = None,
     ) -> None:
         self._exercises = exercises
         self._sessions = sessions
         self._pool = _Pool(entry_collections, kanji_collections, entries, kanji)
-        self._rng = rng or Random()
+        self._questions = _Questions(dictionary, rng or Random())
 
     def execute(
         self,
@@ -185,7 +252,8 @@ class AnswerExerciseQuestion:
         response_ms: int | None = None,
     ) -> tuple[ExerciseSession, ExerciseQuestion, ExerciseQuestion | None]:
         session = _session_to_change(self._sessions, session_id, user_id)
-        session.answer(question_id, answer, response_ms)
+        grade = _grade(session, question_id, answer)
+        session.answer(question_id, answer, response_ms, grade)
         self._ask_next(session)
         stored = self._sessions.update(session)
         return stored, stored.history[-1], stored.current
@@ -202,9 +270,7 @@ class AnswerExerciseQuestion:
             return
         cards = self._pool.cards(exercise, session.meaning_lang)
         try:
-            question = build_next_question(
-                cards, exercise.settings, session.history, self._rng
-            )
+            question = self._questions.next(cards, exercise.settings, session.history)
         except ExercisePoolTooSmallError:
             return
         session.ask(question)

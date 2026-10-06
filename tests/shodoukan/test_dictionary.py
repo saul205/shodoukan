@@ -1,8 +1,8 @@
 import sqlite3
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 from shodoukan.dictionary import Dictionary
 
 
@@ -162,3 +162,7 @@ def test_get_kanji_strokes(dictionary):
     assert strokes is not None
     assert len(strokes.strokes) == 2
     assert dictionary.get_kanji_strokes("水") is None
+
+
+def test_literals_with_strokes(dictionary):
+    assert dictionary.literals_with_strokes(["食", "水"]) == {"食"}

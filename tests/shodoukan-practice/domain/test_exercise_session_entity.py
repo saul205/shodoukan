@@ -1,13 +1,18 @@
 from datetime import timedelta
 
 import pytest
-from factories import USER_ID, make_question, make_session
+from factories import USER_ID, make_grade, make_question, make_session
+from pydantic import ValidationError
 
 from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
+    CANVAS_MARGIN,
+    CANVAS_SIZE,
     ExerciseSession,
+    HandwritingQuestion,
     OptionAnswer,
     SkipAnswer,
+    StrokesAnswer,
     session_end,
 )
 from shodoukan_practice.domain.entities.exercise_session_entity import IDLE_TIMEOUT
@@ -164,3 +169,85 @@ def test_skipping_is_graded_as_a_miss() -> None:
     assert skipped.is_correct is False
     assert session.history == [skipped]
     assert (session.answered, session.score) == (1, 0)
+
+
+DRAWING = StrokesAnswer(strokes=(((10.0, 54.0), (90.0, 52.0)),))
+
+
+def test_a_drawing_is_graded_by_the_grade_passed() -> None:
+    session = make_session(USER_ID, handwriting=True)
+
+    graded = session.answer(1, DRAWING, grade=make_grade("correct"))
+
+    assert isinstance(graded, HandwritingQuestion)
+    assert graded.is_correct is True
+    assert graded.grade == make_grade("correct")
+    assert graded.answer == DRAWING
+    assert not graded.needs_review
+
+
+def test_a_close_drawing_counts_but_comes_back() -> None:
+    session = make_session(USER_ID, handwriting=True)
+
+    graded = session.answer(1, DRAWING, grade=make_grade("close"))
+
+    assert graded.is_correct is True
+    assert session.score == 1
+    assert graded.needs_review
+
+
+def test_a_wrong_drawing_is_a_miss() -> None:
+    session = make_session(USER_ID, handwriting=True)
+
+    graded = session.answer(1, DRAWING, grade=make_grade("wrong"))
+
+    assert graded.is_correct is False
+    assert graded.needs_review
+
+
+def test_a_skipped_drawing_is_a_miss_without_grade() -> None:
+    session = make_session(USER_ID, handwriting=True)
+
+    graded = session.answer(1, SkipAnswer())
+
+    assert isinstance(graded, HandwritingQuestion)
+    assert (graded.is_correct, graded.grade) == (False, None)
+
+
+@pytest.mark.parametrize(
+    ("handwriting", "answer"),
+    [(True, OptionAnswer(option=0)), (False, DRAWING)],
+)
+def test_an_answer_of_another_type_is_rejected(
+    handwriting: bool, answer: OptionAnswer | StrokesAnswer
+) -> None:
+    session = make_session(USER_ID, handwriting=handwriting)
+    grade = make_grade() if isinstance(answer, StrokesAnswer) else None
+
+    with pytest.raises(InvalidAnswerError):
+        session.answer(1, answer, grade=grade)
+    assert session.current is not None and not session.current.answered
+
+
+def test_a_drawing_needs_a_grade_of_an_accepted_kanji() -> None:
+    session = make_session(USER_ID, handwriting=True)
+
+    with pytest.raises(ValueError, match="needs its grade"):
+        session.answer(1, DRAWING)
+    with pytest.raises(ValueError, match="isn't a kanji"):
+        session.answer(1, DRAWING, grade=make_grade(matched="二"))
+    with pytest.raises(ValueError, match="only a drawing"):
+        session.answer(1, SkipAnswer(), grade=make_grade())
+    assert session.current is not None and not session.current.answered
+
+
+def test_drawn_points_must_stay_on_the_canvas() -> None:
+    edge = CANVAS_SIZE + CANVAS_MARGIN
+    StrokesAnswer(strokes=(((-CANVAS_MARGIN, 0.0), (edge, edge)),))
+
+    with pytest.raises(ValidationError):
+        StrokesAnswer(strokes=(((0.0, 0.0), (edge + 1, 0.0)),))
+    with pytest.raises(ValidationError):
+        StrokesAnswer(strokes=())
+    with pytest.raises(ValidationError):
+        StrokesAnswer(strokes=((),))

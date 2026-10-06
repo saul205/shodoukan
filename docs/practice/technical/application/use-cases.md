@@ -106,7 +106,13 @@ collections (`item_ids`, then `get_many`), as study cards in the session's
 `meaning_lang` (as the items store it: `eng` for entries, `en` for kanji). `rng`
 defaults to a new `random.Random`; tests pass a seeded one.
 
-### `StartExerciseSession(exercises, sessions, entry_collections, kanji_collections, entries, kanji, users, rng=None).execute(user_id, exercise_id, meaning_lang)`
+Both build questions by the exercise's settings type: a choice card with
+`build_next_question`; a handwriting card by asking the `DictionaryGateway` which kanji
+of the pool have a stroke order, drafting the question
+(`draft_next_question`), then fetching the accepted kanji's strokes
+(`stroke_references`) to build it. See [exercises](../exercises.md#questions).
+
+### `StartExerciseSession(exercises, sessions, entry_collections, kanji_collections, entries, kanji, dictionary, users, rng=None).execute(user_id, exercise_id, meaning_lang)`
 
 Loads the exercise (`EntityNotFoundError` if missing or another user's), checks the
 pool (`ExercisePoolTooSmallError` with fewer than 2 usable items, including when the
@@ -115,9 +121,10 @@ concurrent starts take turns, closes the user's open sessions of any exercise at
 last activity (`list_open` locks them, so an answer being stored in another tab
 finishes first), and stores a new session with its first active question.
 
-### `AnswerExerciseQuestion(exercises, sessions, entry_collections, kanji_collections, entries, kanji, rng=None).execute(user_id, session_id, question_id, answer, response_ms=None)`
+### `AnswerExerciseQuestion(exercises, sessions, entry_collections, kanji_collections, entries, kanji, dictionary, rng=None).execute(user_id, session_id, question_id, answer, response_ms=None)`
 
-Grades the active question (`ExerciseSession.answer`), builds the next one from the history
+Grades the active question (`ExerciseSession.answer`; a drawing is graded first with
+`grade_drawing` against the question's references, and the grade passed in), builds the next one from the history
 and the current pool, and stores both. Returns the stored session, the graded question
 and the next active one: `None` if the pool can't make another (the session stays
 open), or if the exercise was deleted (the session is finished; the answer counts).

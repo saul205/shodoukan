@@ -11,6 +11,7 @@ provenance (`source_name`, `source_id`).
 
 from uuid import UUID
 
+from shodoukan import path_points
 from shodoukan.models.entry import Entry, Example, Page, Sense
 from shodoukan.models.kanji import Kanji, KanjiStrokes
 from shodoukan.models.search import SearchResult
@@ -26,6 +27,8 @@ from ...domain.entities import (
     PracticeReading,
     PracticeReadingItem,
     PracticeSense,
+    ReferenceKanji,
+    ReferenceStroke,
 )
 from ...domain.gateways import (
     DictionaryCrossReference,
@@ -212,4 +215,26 @@ def shodoukan_kanji_strokes_to_dictionary(
         strokes=[
             DictionaryKanjiStroke(path=s.path, label=s.label) for s in strokes.strokes
         ],
+    )
+
+
+# Distance between the points of a reference stroke, in KanjiVG units (the
+# kanji is 109 wide). It only sets how finely a curve is followed; grading
+# resamples every stroke to its own number of points.
+REFERENCE_POINT_SPACING = 2.0
+
+
+def shodoukan_strokes_to_reference(strokes: KanjiStrokes) -> ReferenceKanji:
+    """A kanji's strokes to grade drawings against: each stroke's path and
+    number place, and its centre line as points."""
+    return ReferenceKanji(
+        literal=strokes.literal,
+        strokes=tuple(
+            ReferenceStroke(
+                path=s.path,
+                label=s.label,
+                points=tuple(path_points(s.path, REFERENCE_POINT_SPACING)),
+            )
+            for s in strokes.strokes
+        ),
     )
