@@ -23,7 +23,7 @@ const sources = [
   {
     name: 'KanjiVG',
     description:
-      'Stroke order SVG data for kanji characters, used to show stroke order diagrams on kanji detail pages.',
+      'Stroke order data for kanji and kana (Japanese stroke order), used for the stroke order diagram, animation and step-by-step frames on kanji detail pages.',
     maintainer: 'Ulrich Apel',
     url: 'https://kanjivg.tagaini.net/',
     license: 'CC BY-SA 3.0',
