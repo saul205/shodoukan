@@ -7,6 +7,8 @@ export * from './models/search'
 
 export * from './utils/pos'
 export * from './utils/strokes'
+export * from './utils/svg-path'
+export * from './utils/stroke-match'
 
 export * from './services/entries'
 export * from './services/kanji'

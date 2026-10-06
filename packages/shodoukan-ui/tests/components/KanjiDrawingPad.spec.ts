@@ -63,6 +63,16 @@ describe('KanjiDrawingPad', () => {
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
 
+  it('draws the background slot under the strokes, in the same space', () => {
+    const wrapper = mount(KanjiDrawingPad, {
+      props: { modelValue: [[[10, 54], [90, 54]]] },
+      slots: { background: '<path d="M0,0L109,109" data-model />' },
+    })
+
+    const children = [...wrapper.get('svg').element.querySelectorAll('[data-model], [data-stroke]')]
+    expect(children.map(el => el.hasAttribute('data-model'))).toEqual([true, false])
+  })
+
   it('undoes the last stroke and clears them all', async () => {
     const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [[[1, 1]], [[2, 2]]] } })
     const pad = wrapper.vm as unknown as { undo: () => void; clear: () => void }
