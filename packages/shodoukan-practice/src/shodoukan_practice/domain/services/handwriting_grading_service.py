@@ -20,18 +20,18 @@ counts, not where or how big it was drawn. Two things are compared:
   differ only there. The gap keeps a short stroke's natural wobble from
   counting. Strokes shorter than `MIN_LENGTH_CHECKED` (dots) aren't checked.
 
-The verdict leans to the learner (it's a balance: see
-docs/practice/technical/decisions.md):
+The verdict leans to the learner: nobody writes as exactly as KanjiVG draws,
+so imprecise strokes and strokes of the wrong length are only warnings (see
+docs/practice/technical/decisions.md). It depends on the picture, the
+stroke order and direction, and the stroke count:
 
-- `correct`: the picture is close (`SHAPE_OK`), every stroke is there, in
-  order, the right way and the right length; a few may be `imprecise` (up to
-  `IMPRECISE_CORRECT_SHARE` of them), shown as warnings;
+- `correct`: the picture is close (`SHAPE_OK`), and every stroke is there, in
+  order and the right way;
 - `close`: the picture is close enough (`SHAPE_CLOSE`), at most
   `ALLOWED_COUNT_ERRORS` strokes are extra or missing (none for kanji of fewer
   than `COUNT_TOLERANCE_FROM` strokes: 二 drawn as 三 is another kanji), and
-  at most `PROBLEM_CLOSE_SHARE` of the strokes have a problem (an imprecise
-  one counts half) and at most `IMPRECISE_CLOSE_SHARE` are imprecise: past
-  that, it's another kanji (土 for 士);
+  at most `MISTAKE_CLOSE_SHARE` of the strokes are out of order, backwards,
+  extra or missing;
 - `wrong` otherwise.
 
 `score` (0 to 100) mixes the picture and the strokes, for the user's eyes only;
@@ -59,7 +59,7 @@ from .stroke_geometry_service import Stroke, chamfer, mean_distance, normalize, 
 STROKE_SAMPLES = 16
 # Mean distance between a drawn and a reference stroke (in kanji sizes).
 STROKE_OK = 0.12
-STROKE_MATCH = 0.25
+STROKE_MATCH = 0.28
 # Picture distance (chamfer, in kanji sizes) mapped to a 0 to 1 likeness.
 SHAPE_SCALE = 0.2
 SHAPE_OK = 0.6
@@ -72,18 +72,12 @@ LENGTH_TOLERANCE = 1.35
 LENGTH_MIN_SHARE_GAP = 0.045
 # Shorter reference strokes (in kanji sizes) aren't length-checked.
 MIN_LENGTH_CHECKED = 0.1
-# Shares of strokes: imprecise ones a correct drawing may have (of the
-# reference's), and strokes with a problem a close one may have (imprecise
-# ones weigh `IMPRECISE_WEIGHT`).
-IMPRECISE_CORRECT_SHARE = 1 / 3
-IMPRECISE_CLOSE_SHARE = 2 / 3
-PROBLEM_CLOSE_SHARE = 1 / 2
-IMPRECISE_WEIGHT = 1 / 2
+# Share of the strokes a close drawing may have mistakes in.
+MISTAKE_CLOSE_SHARE = 1 / 2
 
-# Problems that keep a drawing from being correct.
-_MISTAKES = frozenset(
-    {"reversed", "out_of_order", "too_long", "too_short", "extra", "missing"}
-)
+# What keeps a drawing from being correct. Imprecise strokes and lengths are
+# warnings only.
+_MISTAKES = frozenset({"reversed", "out_of_order", "extra", "missing"})
 
 _VERDICT_RANK: dict[Verdict, int] = {"correct": 2, "close": 1, "wrong": 0}
 
@@ -238,21 +232,14 @@ def _verdict(
     reference_strokes: int,
 ) -> Verdict:
     mistakes = sum(1 for f in feedback if f.status in _MISTAKES)
-    imprecise = sum(1 for f in feedback if f.status == "imprecise")
-    if (
-        shape >= SHAPE_OK
-        and mistakes == 0
-        and imprecise <= IMPRECISE_CORRECT_SHARE * reference_strokes
-    ):
+    if shape >= SHAPE_OK and mistakes == 0:
         return "correct"
     count_errors = sum(1 for f in feedback if f.status in ("extra", "missing"))
     allowed = ALLOWED_COUNT_ERRORS if reference_strokes >= COUNT_TOLERANCE_FROM else 0
-    problems = mistakes + IMPRECISE_WEIGHT * imprecise
     if (
         shape >= SHAPE_CLOSE
         and count_errors <= allowed
-        and imprecise <= IMPRECISE_CLOSE_SHARE * reference_strokes
-        and problems <= PROBLEM_CLOSE_SHARE * max(drawn_strokes, reference_strokes)
+        and mistakes <= MISTAKE_CLOSE_SHARE * max(drawn_strokes, reference_strokes)
     ):
         return "close"
     return "wrong"
