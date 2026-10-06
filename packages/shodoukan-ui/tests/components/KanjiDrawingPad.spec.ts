@@ -72,4 +72,35 @@ describe('KanjiDrawingPad', () => {
 
     expect(wrapper.emitted('update:modelValue')).toEqual([[[[[1, 1]]]], [[]]])
   })
+
+  it('maps a box that isn\'t square as the drawing is fitted: centred, one scale', async () => {
+    // 200 wide, 121 tall: the 121-unit drawing sits in the middle, 39.5 px in.
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, width: 200, height: 121, right: 200, bottom: 121, x: 0, y: 0, toJSON: () => ({}),
+    })
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [] } })
+
+    await draw(wrapper, [[39.5, 0], [100, 60.5], [160.5, 121]])
+
+    expect(wrapper.emitted('update:modelValue')![0]![0]).toEqual([[[-6, -6], [115, 115]]])
+  })
+
+  it('maps through the screen matrix when there is one', async () => {
+    const wrapper = mount(KanjiDrawingPad, { props: { modelValue: [] } })
+    const svg = wrapper.get('svg').element as SVGSVGElement
+    // Drawn at twice the size, 100 px from the left: x = (clientX - 100) / 2 - 6.
+    const inverse = { a: 0.5, b: 0, c: 0, d: 0.5, e: -56, f: -6 }
+    Object.assign(svg, { getScreenCTM: () => ({ inverse: () => inverse }) })
+    vi.stubGlobal('DOMPoint', class {
+      constructor(public x: number, public y: number) {}
+      matrixTransform(m: typeof inverse) {
+        return { x: m.a * this.x + m.c * this.y + m.e, y: m.b * this.x + m.d * this.y + m.f }
+      }
+    })
+
+    await draw(wrapper, [[112, 12], [292, 12]])
+
+    expect(wrapper.emitted('update:modelValue')![0]![0]).toEqual([[[0, 0], [90, 0]]])
+    vi.unstubAllGlobals()
+  })
 })

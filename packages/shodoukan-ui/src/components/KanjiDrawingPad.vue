@@ -38,13 +38,24 @@ const svg = useTemplateRef<SVGSVGElement>('svg')
 const current = ref<StrokePoint[] | null>(null)
 let pointerId: number | null = null
 
+// Screen to drawing coordinates through the SVG's own screen matrix, which
+// accounts for how the viewBox is fitted (centred, letterboxed when the box
+// isn't square), zoom and CSS transforms, so a stroke lands under the finger
+// at any size. Without one (no layout, as in tests), the same fit is worked
+// out from the bounding box: one scale for both axes, centred.
 function toPoint(event: PointerEvent): StrokePoint {
-  const box = svg.value!.getBoundingClientRect()
+  const element = svg.value!
   const clamp = (value: number) => Math.min(Math.max(value, MIN), MIN + SIDE)
-  return [
-    clamp(MIN + ((event.clientX - box.left) / (box.width || 1)) * SIDE),
-    clamp(MIN + ((event.clientY - box.top) / (box.height || 1)) * SIDE),
-  ]
+  const matrix = element.getScreenCTM?.()
+  if (matrix && typeof DOMPoint !== 'undefined') {
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
+    return [clamp(point.x), clamp(point.y)]
+  }
+  const box = element.getBoundingClientRect()
+  const scale = Math.min(box.width, box.height) / SIDE || 1
+  const left = box.left + (box.width - SIDE * scale) / 2
+  const top = box.top + (box.height - SIDE * scale) / 2
+  return [clamp(MIN + (event.clientX - left) / scale), clamp(MIN + (event.clientY - top) / scale)]
 }
 
 function start(event: PointerEvent) {
@@ -91,7 +102,7 @@ defineExpose({ undo, clear })
   <svg
     ref="svg"
     :viewBox="viewBox"
-    class="touch-none select-none rounded border border-zinc-700 bg-zinc-800/60"
+    class="aspect-square touch-none select-none rounded border border-zinc-700 bg-zinc-800/60"
     :class="disabled ? 'cursor-not-allowed opacity-60' : 'cursor-crosshair'"
     :style="{ width: length, height: length }"
     role="img"
