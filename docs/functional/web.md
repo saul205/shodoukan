@@ -66,7 +66,7 @@ Each card (left column) covers one character:
 
 Opening a kanji (`/kanji/{literal}`) shows its data and readings, how to write it, and
 the words that use it. The stroke order is in Japanese order and comes from
-[KanjiVG](https://kanjivg.tagaini.net/), credited on the Sources page:
+[KanjiVG](https://kanjivg.tagaini.net/), credited on the About page:
 
 - **Diagram:** the whole character with each stroke numbered.
 - **Animated:** Play draws the strokes one at a time. With reduced motion turned on in
@@ -77,6 +77,22 @@ the words that use it. The stroke order is in Japanese order and comes from
 All jōyō kanji have stroke order, about 6,400 kanji in total. For the rare ones without
 it, the frames say "Stroke order not available." and the diagram and animation stay
 empty.
+
+---
+
+## About page
+
+`/about` says what shodoukan is, then credits every data source, with its author, a
+link and its licence:
+
+- JMdict, KANJIDIC2 and RADKFILE (EDRDG)
+- KanjiVG
+- Tatoeba and the Tanaka Corpus
+- the JLPT lists
+
+It names Jisho as the inspiration, and ends with the repositories and the tech stack.
+This is where the sources are credited, not next to each item. The old `/sources`
+page redirects here.
 
 ---
 

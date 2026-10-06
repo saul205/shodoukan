@@ -36,12 +36,5 @@ const dictionaryTo = computed(() =>
     >
       About
     </NuxtLink>
-    <NuxtLink
-      to="/sources"
-      class="text-sm transition"
-      :class="route.path === '/sources' ? 'text-white' : 'text-zinc-400 hover:text-zinc-200'"
-    >
-      Sources
-    </NuxtLink>
   </nav>
 </template>

@@ -9,5 +9,9 @@ export default defineNuxtConfig({
   tailwindcss: {
     cssPath: ['~/assets/css/main.css', { injectPosition: 0 }],
   },
+  // The sources page was merged into About.
+  routeRules: {
+    '/sources': { redirect: '/about' },
+  },
   compatibilityDate: '2025-06-20',
 })
