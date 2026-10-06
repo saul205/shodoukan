@@ -6,6 +6,7 @@ export * from './models/kanji'
 export * from './models/search'
 
 export * from './utils/pos'
+export * from './utils/strokes'
 
 export * from './services/entries'
 export * from './services/kanji'
@@ -18,3 +19,4 @@ export { default as SearchBar } from './components/SearchBar.vue'
 export { default as LanguageSelector } from './components/LanguageSelector.vue'
 export { default as KanjiStrokeAnimator } from './components/KanjiStrokeAnimator.vue'
 export { default as KanjiStrokeGrid } from './components/KanjiStrokeGrid.vue'
+export { default as KanjiStrokeDiagram } from './components/KanjiStrokeDiagram.vue'
