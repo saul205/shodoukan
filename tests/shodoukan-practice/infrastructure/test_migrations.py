@@ -81,3 +81,55 @@ def test_questions_move_their_options_into_details(tmp_path: Path) -> None:
             text("SELECT options, correct_option FROM exercise_questions")
         ).one()
     assert (json.loads(restored), correct) == (options, 1)
+
+
+def test_downgrading_drops_what_the_old_code_cant_read(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'practice.sqlite'}"
+    config = Config(str(ALEMBIC_INI))
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    engine = create_engine(url)
+    now = {"now": "2026-10-06 10:00:00"}
+    choice = {"type": "card.choice", "directions": [], "back_fields": []}
+    drawing = {"type": "card.handwriting", "directions": [], "back_fields": []}
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users VALUES "
+                "('00000000000000000000000000000001', 'dev', :now, :now)"
+            ),
+            now,
+        )
+        for id_, settings in [(1, choice), (2, drawing)]:
+            connection.execute(
+                text(
+                    "INSERT INTO exercises VALUES (:id, "
+                    "'00000000000000000000000000000001', 'N5', NULL, 'kanji', "
+                    ":settings, :now, :now)"
+                ),
+                {"id": id_, "settings": json.dumps(settings), **now},
+            )
+        connection.execute(
+            text(
+                "INSERT INTO exercise_sessions VALUES (1, "
+                "'00000000000000000000000000000001', 2, 'N5', 'kanji', 'en', "
+                ":now, :now, NULL)"
+            ),
+            now,
+        )
+        connection.execute(
+            text(
+                "INSERT INTO exercise_questions (id, session_id, position, "
+                "prompt_fields, answer_field, prompt, back, type, details) "
+                "VALUES (1, 1, 0, '[\"meaning\"]', 'literal', '[]', '[]', "
+                "'card.handwriting', '{}')"
+            )
+        )
+
+    command.downgrade(config, "bfad9df5a138")
+
+    with engine.connect() as connection:
+        exercises = connection.execute(text("SELECT id FROM exercises")).all()
+        questions = connection.execute(text("SELECT id FROM exercise_questions")).all()
+        assert [row.id for row in exercises] == [1]
+        assert questions == []
