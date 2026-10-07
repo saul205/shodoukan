@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { KanjiStrokeDiagram, pointsToPath } from 'shodoukan-ui'
 import PracticeModal from '~/components/PracticeModal.vue'
+import type { PracticeItem } from '~/utils/writing-practice'
 import type { ExerciseQuestion } from '~/models/practice'
 import { formatResponseTime } from '~/utils/session-format'
 import { VERDICT_COLORS, VERDICT_LABELS, verdictOf } from '~/utils/verdict'
@@ -32,7 +33,11 @@ const overlay = useOverlay()
 const asked = computed(() => handwriting.value?.references?.[0]?.literal ?? null)
 
 function practise() {
-  if (asked.value) overlay.create(PracticeModal).open({ chars: [asked.value] })
+  if (!asked.value) return
+  const itemId = props.question.item_id
+  // The item is the library kanji: practising it shows its own meanings.
+  const items: PracticeItem[] = itemId ? [{ kind: 'kanji', id: itemId }] : [{ kind: 'char', text: asked.value }]
+  overlay.create(PracticeModal).open({ items, title: `Practicar ${asked.value}` })
 }
 
 const japaneseAnswer = computed(() => props.question.answer_field !== 'meaning')

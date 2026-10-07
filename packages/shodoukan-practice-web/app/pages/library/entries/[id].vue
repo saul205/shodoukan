@@ -14,6 +14,7 @@ import {
 } from '~/services/library'
 import { getDictionaryEntryKanji } from '~/services/dictionary'
 import { entryHeadword } from '~/utils/practice-text'
+import { entryWriting } from '~/utils/writing-practice'
 
 // A word of the library and its customisation. The same page opens from the
 // library and from a collection (`?collection=<id>`, for the back link).
@@ -33,6 +34,9 @@ const { item: entry, status, saving, save } = useEditableItem<PracticeEntry>(
 )
 
 // The word's kanji come from the dictionary, with whether each one is imported.
+// How it's written, for practising it: what's enabled, like everywhere else.
+const writing = computed(() => (entry.value ? entryWriting(entry.value) : null))
+
 const kanjiStatus = useImportStatus()
 const sourceId = computed(() => entry.value?.source_entry_id)
 const { data: wordKanji } = useAsyncData(
@@ -73,6 +77,15 @@ async function remove() {
       <UButton :to="back.to" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="back.label" />
     </template>
     <template v-if="entry" #actions>
+      <UButton
+        v-if="writing"
+        :to="{ path: '/practice/play', query: { entries: entry.id, from: route.fullPath } }"
+        icon="i-lucide-pen-line"
+        label="Practicar escritura"
+        color="neutral"
+        variant="outline"
+        data-testid="practice-entry"
+      />
       <UButton
         :to="`/dictionary/entries/${entry.source_entry_id}`"
         icon="i-lucide-book-open"

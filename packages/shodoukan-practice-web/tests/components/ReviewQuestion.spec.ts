@@ -37,7 +37,7 @@ describe('ReviewQuestion', () => {
     const wrapper = await mountSuspended(ReviewQuestion, { props: { question: drawn(drawingQuestion(1), 'wrong'), open: true } })
 
     await wrapper.get('[data-testid="review-practise"]').trigger('click')
-    expect(openModal).toHaveBeenCalledWith({ chars: ['一'] })
+    expect(openModal).toHaveBeenCalledWith({ items: [{ kind: 'kanji', id: 10 }], title: 'Practicar 一' })
 
     const choice = await mountSuspended(ReviewQuestion, { props: { question: graded(question(1), 1), open: true } })
     expect(choice.find('[data-testid="review-practise"]').exists()).toBe(false)

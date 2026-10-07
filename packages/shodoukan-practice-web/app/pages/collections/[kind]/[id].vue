@@ -127,8 +127,7 @@ async function remove() {
     </template>
     <template v-if="collection" #actions>
       <UButton
-        v-if="kind === 'kanji'"
-        :to="{ path: '/practice', query: { collection: id } }"
+        :to="{ path: '/practice', query: { kind, collection: id } }"
         icon="i-lucide-pen-line"
         label="Practicar"
         color="neutral"
