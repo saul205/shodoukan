@@ -107,29 +107,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-2 sm:gap-3" data-testid="writing-practice">
-    <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
-      <div class="flex min-w-0 flex-1 basis-60 items-baseline gap-x-2">
-        <span
-          class="shrink-0 font-japanese leading-none text-highlighted"
-          :class="chars.length > 1 ? 'text-2xl' : 'text-4xl'"
-          data-testid="practice-text"
-        >{{ text?.text }}</span>
-        <span class="min-w-0 truncate text-sm text-muted">
-          <span v-if="text?.reading" class="font-japanese" data-testid="practice-reading">{{ text.reading }}</span>
-          <span v-if="text?.reading && text.meanings.length"> · </span>
-          <span v-if="text?.meanings.length" data-testid="practice-meanings">{{ text.meanings.join(', ') }}</span>
-        </span>
+    <!-- What, with its reading and meanings, and the mode; below, how far along.
+         Two rows, so none of it is squeezed in a modal or on a phone. -->
+    <div class="flex shrink-0 items-center gap-3">
+      <span
+        class="shrink-0 font-japanese leading-none text-highlighted"
+        :class="chars.length > 1 ? 'text-3xl' : 'text-4xl'"
+        data-testid="practice-text"
+      >{{ text?.text }}</span>
+      <div class="min-w-0 flex-1 text-sm leading-snug">
+        <p v-if="text?.reading" class="truncate font-japanese text-toned" data-testid="practice-reading">{{ text.reading }}</p>
+        <p v-if="text?.meanings.length" class="line-clamp-2 text-muted" data-testid="practice-meanings">{{ text.meanings.join(', ') }}</p>
       </div>
-      <div class="flex min-w-48 flex-1 items-center gap-3">
-        <div class="min-w-0 flex-1 space-y-1">
-          <div class="flex items-center justify-between gap-2 text-sm">
-            <span class="text-toned" data-testid="practice-step">{{ stepLabel }}</span>
-            <span class="text-dimmed tabular-nums" data-testid="practice-progress">{{ progress }} / {{ items.length }}</span>
-          </div>
-          <UProgress :model-value="progress" :max="items.length" size="xs" />
-        </div>
-        <USelect v-model="mode" :items="modeItems" class="w-36 shrink-0 sm:w-40" aria-label="Modo de práctica" data-testid="practice-mode" />
-      </div>
+      <USelect v-model="mode" :items="modeItems" class="w-36 shrink-0 sm:w-40" aria-label="Modo de práctica" data-testid="practice-mode" />
+    </div>
+    <div class="flex shrink-0 items-center gap-3 text-sm">
+      <span class="whitespace-nowrap text-toned" data-testid="practice-step">{{ stepLabel }}</span>
+      <UProgress v-if="items.length > 1" :model-value="progress" :max="items.length" size="xs" class="flex-1" />
+      <span v-if="items.length > 1" class="whitespace-nowrap text-dimmed tabular-nums" data-testid="practice-progress">{{ progress }} / {{ items.length }}</span>
     </div>
 
     <div v-if="loading" class="flex flex-1 items-center justify-center">
