@@ -12,12 +12,14 @@ import {
   EXERCISE_TYPE_LABELS,
   EXERCISE_TYPES,
   fieldItems,
+  HANDWRITING_ANSWERS,
   ITEM_KIND_LABELS,
 } from '~/utils/study-fields'
 
 // Create an exercise, or edit one when `exercise` is given (its item kind
-// can't change then). Kanji exercises choose between a choice card and
-// drawing the kanji, which always asks for the kanji and has no options. It saves on its own and emits `saved`; the
+// can't change then). Both kinds choose between a choice card and writing by
+// hand, which asks for something to write (the kanji; a word's spelling or
+// reading) and has no options. It saves on its own and emits `saved`; the
 // rules mirror the backend's so mistakes show on their field.
 const props = defineProps<{ exercise?: Exercise }>()
 const emit = defineEmits<{ saved: [exercise: Exercise] }>()
@@ -55,7 +57,7 @@ function directionsProblem(directions: Direction[]): string | undefined {
 }
 
 function defaults(kind: ItemKind, type: ExerciseType): ExerciseSettings {
-  return type === 'card.handwriting' ? defaultHandwritingSettings() : defaultChoiceSettings(kind)
+  return type === 'card.handwriting' ? defaultHandwritingSettings(kind) : defaultChoiceSettings(kind)
 }
 
 const initialKind: ItemKind = props.exercise?.item_kind ?? 'entries'
@@ -79,16 +81,15 @@ function resetFields(settings: ExerciseSettings) {
   state.back_fields = settings.back_fields
 }
 
-// Collections and fields belong to one item kind: switching starts them over
-// (and words can only be a choice card).
+// Collections and fields belong to one item kind: switching starts them over.
 watch(() => state.item_kind, (kind) => {
   state.collection_ids = []
   state.type = 'card.choice'
   resetFields(defaultChoiceSettings(kind))
 })
 
-// Directions differ by type (a drawing always asks for the kanji): switching
-// starts them over too.
+// Directions differ by type (handwriting asks for something to write):
+// switching starts them over too.
 watch(() => state.type, (type, previous) => {
   if (type !== previous) resetFields(defaults(state.item_kind, type))
 })
@@ -212,7 +213,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       <DirectionsEditor
         v-model="state.directions"
         :kind="state.item_kind"
-        :answer-fields="handwriting ? ['literal'] : undefined"
+        :answer-fields="handwriting ? HANDWRITING_ANSWERS[state.item_kind] : undefined"
       />
     </UFormField>
 
