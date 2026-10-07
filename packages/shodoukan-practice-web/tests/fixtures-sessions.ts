@@ -1,4 +1,11 @@
-import type { ChoiceQuestion, ExerciseSession, HandwritingGrade, HandwritingQuestion } from '../app/models/practice'
+import type {
+  ChoiceQuestion,
+  ExerciseSession,
+  HandwritingGrade,
+  HandwritingQuestion,
+  WordGrade,
+  WordHandwritingQuestion,
+} from '../app/models/practice'
 
 /** An unanswered kanji question (literal → kun'yomi); option 0 is right. */
 export function question(id: number, literal = '食'): ChoiceQuestion {
@@ -78,6 +85,61 @@ export function drawn(
       verdict,
       matched: '一',
       strokes: [{ drawn: 0, reference: 0, status: verdict === 'correct' ? 'ok' : 'reversed' }],
+    },
+  }
+}
+
+/** Write the reading of "water" (みず), a character per cell; not answered. */
+export function wordQuestion(id: number): WordHandwritingQuestion {
+  return {
+    type: 'card.handwriting_word',
+    id,
+    position: id - 1,
+    prompt_fields: ['meaning'],
+    answer_field: 'reading',
+    prompt: [{ field: 'meaning', values: ['water'] }],
+    answered: false,
+    item_id: null,
+    back: null,
+    answer: null,
+    is_correct: null,
+    answered_at: null,
+    response_ms: null,
+    cell_count: 2,
+    words: null,
+    grade: null,
+  }
+}
+
+const MI = { literal: 'み', strokes: [{ path: 'M20,30c10,20,20,40,30,60', label: null }] }
+const ZU = { literal: 'ず', strokes: [{ path: 'M54,10c0,30,0,60,0,90', label: null }] }
+
+/** `wordQuestion` written and graded `verdict`: み right, ず as `verdict`. */
+export function writtenWord(
+  unanswered: WordHandwritingQuestion,
+  verdict: WordGrade['verdict'] = 'correct',
+): WordHandwritingQuestion {
+  const cell = (literal: string, v: WordGrade['verdict']) => ({
+    score: { correct: 92, close: 71, wrong: 18 }[v],
+    verdict: v,
+    matched: literal,
+    strokes: [{ drawn: 0, reference: 0, status: v === 'correct' ? 'ok' as const : 'reversed' as const }],
+  })
+  return {
+    ...unanswered,
+    answered: true,
+    item_id: 12,
+    back: [...unanswered.prompt, { field: 'reading', values: ['みず'] }],
+    answer: { type: 'cells', cells: [[[[20, 30], [50, 90]]], [[[54, 10], [54, 100]]]] },
+    is_correct: verdict !== 'wrong',
+    answered_at: '2026-10-05T10:00:00Z',
+    response_ms: 5200,
+    words: [{ text: 'みず', characters: [MI, ZU] }],
+    grade: {
+      score: Math.round((92 + cell('ず', verdict).score) / 2),
+      verdict,
+      matched: 'みず',
+      cells: [cell('み', 'correct'), cell('ず', verdict)],
     },
   }
 }

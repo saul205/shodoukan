@@ -31,7 +31,8 @@ page per use case.
 
 ## Writing practice
 
-- [Writing practice](writing-practice/README.md): learn to write the kanji, guided
+- [Writing practice](writing-practice/README.md): learn to write kanji, words and
+  kana, guided
   stroke by stroke, tracing the model or from memory; ungraded and not stored.
 
 ## Exercises

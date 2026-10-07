@@ -22,9 +22,10 @@ from one or more collections of that kind; an item in several of them counts onc
 
 - **Choice card:** a card shows something about an item and the user picks the right
   answer among several options (4 by default).
-- **Writing the kanji** (kanji exercises only): the card shows something about a kanji
-  (its meaning, a reading) and the user draws the kanji, stroke by stroke. See
-  [writing the kanji](#writing-the-kanji).
+- **Writing by hand:** the card shows something about an item and the user writes the
+  answer by hand, stroke by stroke. In a kanji exercise that's the kanji (see
+  [writing the kanji](#writing-the-kanji)); in a word exercise, the word's spelling
+  or its reading, a character per box (see [writing a word](#writing-a-word)).
 
 Planned kinds, sharing the same structure: a plain card the user flips and marks as
 known or not, a card where the user types the answer, and sentences with gaps to fill
@@ -124,10 +125,12 @@ cards, missed ones coming back, "Saltar", "Terminar"), but the answer is a drawi
    [KanjiVG](https://kanjivg.tagaini.net/) draws them in Japanese order (the same as
    the stroke order on the kanji pages), and says:
    - **¡Correcto!**: every stroke is there, in order, in the right direction, and the
-     drawing looks like the kanji;
-   - **Mejorable**: it's the kanji, but something is off (a stroke backwards, out of
-     order, a bit misplaced, or one missing in a kanji of 5 strokes or more). It
-     counts as right, but the kanji comes back later to practise;
+     drawing looks like the kanji. Strokes a bit out of place, or longer or shorter
+     than they should be, are pointed out but don't count against it: nobody writes
+     as exactly as the model;
+   - **Mejorable**: it's the kanji, but a stroke is backwards or out of order, or one
+     is missing in a kanji of 5 strokes or more. It counts as right, but the kanji
+     comes back later to practise;
    - **Fallada**: it's another kanji, or too far from it.
 4. Next to the drawing, the kanji with its strokes numbered, and what was wrong with
    each stroke. On a phone the two are shown overlaid (or one at a time); the card
@@ -137,6 +140,36 @@ Where and how big the kanji is drawn in the square doesn't matter, only its shap
 If several kanji of the collections fit what's asked (two kanji read はし), any of
 them is right. Kanji without a stroke order in the dictionary aren't asked; a
 collection needs at least 2 that have one.
+
+## Writing a word
+
+In a word exercise written by hand, each direction asks for the word's **spelling**
+(食べる, with its okurigana) or its **reading** (たべる, in kana). Asking for the
+reading is how words written only in kana (これ) and the kana themselves are
+practised.
+
+1. The top of the screen shows what's asked (for example the meaning "to eat"), and
+   below it a box per character of the word: as many boxes as it has characters. On
+   a computer they're in a row; on a phone, in two columns. If they'd be too small
+   (a long word on a phone) one box is shown at a time, with buttons to move between
+   them.
+2. The user writes a character in each box, in any order. "Deshacer" and the eraser
+   act on the box last written in.
+3. "Comprobar" (Enter) sends the whole word. Each character is compared with its
+   stroke order like a kanji, and the word gets the worst verdict of its
+   characters. Only **another character** makes the word wrong: ろ instead of る,
+   へ instead of べ, a big や instead of a small ゃ (in きゃ), or a dakuten where
+   there's none. A slip in the right character (a stroke missing or too many, a
+   dakuten stroke out of place, a small kana of an unclear size) makes it
+   "Mejorable": it counts, but comes back. The score is the average.
+4. Each character is shown with the user's drawing over it, coloured stroke by
+   stroke, and its score; choosing one shows it next to the model, with what was
+   wrong, starting with the character it looks like if it's another one ("Parece
+   ろ."). "Practicar palabra" opens the word in the writing practice.
+
+Words with a character without a stroke order, or longer than 12 characters, aren't
+asked. If several words of the collections fit what's asked and have as many
+characters, any of them is right.
 
 ## History and statistics
 
@@ -191,8 +224,8 @@ a collection of someone else's can't be used.
 | The exercise or the collection doesn't exist, isn't the user's, or is of the other kind (a word collection in a kanji exercise) | Rejected as not found |
 | A field that doesn't exist for the item kind, a direction that asks for a field it shows, or a repeated direction | Rejected as invalid |
 | No directions, or no collection | Rejected as invalid |
-| The collections have fewer than 2 usable items (active, with the fields the exercise asks; for writing, kanji with a stroke order), or the exercise has no collection left | The session can't start |
-| A drawing answers a choice card, an option answers a drawing, or a drawing goes off the square | Rejected as invalid |
+| The collections have fewer than 2 usable items (active, with the fields the exercise asks; for writing, kanji or words with every character's stroke order), or the exercise has no collection left | The session can't start |
+| A drawing answers a choice card, an option answers a drawing, a word is written in the wrong number of boxes, or a drawing goes off the square | Rejected as invalid |
 | A card is answered again, or the session has ended | Rejected; the first answer counts |
 | The collection loses its usable items during a session | No more cards; the user can finish the session |
 

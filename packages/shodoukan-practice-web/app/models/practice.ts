@@ -205,8 +205,11 @@ export interface NewExerciseInput extends ExerciseInput {
   item_kind: ItemKind
 }
 
-/** How a question is played; picks the player component. */
-export type QuestionType = ExerciseType
+/**
+ * How a question is played; picks the player component. A handwriting
+ * exercise of words asks `card.handwriting_word` questions.
+ */
+export type QuestionType = ExerciseType | 'card.handwriting_word'
 
 /** A field of the item as the card shows it, with all its values. */
 export interface ShownField {
@@ -240,8 +243,14 @@ export interface StrokesAnswer {
   strokes: DrawnPoint[][]
 }
 
+/** A word as written: one drawing per character, in order (a cell may be empty, not all). */
+export interface CellsAnswer {
+  type: 'cells'
+  cells: DrawnPoint[][][]
+}
+
 /** Answers by type, discriminated by `type`. */
-export type ExerciseAnswer = OptionAnswer | StrokesAnswer | SkipAnswer
+export type ExerciseAnswer = OptionAnswer | StrokesAnswer | CellsAnswer | SkipAnswer
 
 /**
  * What every question of a session has. Until it's answered the API hides its
@@ -299,12 +308,17 @@ export interface StrokeFeedback {
 /** Right; right enough to count, but to practise again; wrong. */
 export type Verdict = 'correct' | 'close' | 'wrong'
 
-/** How a drawing compares to the closest accepted kanji (`matched`). */
+/**
+ * How a drawing compares to the closest accepted kanji (`matched`).
+ * `looks_like` is the character it was taken for, when it's wrong for being
+ * another one (ろ for る, や for ゃ).
+ */
 export interface HandwritingGrade {
   score: number // 0–100
   verdict: Verdict
   matched: string
   strokes: StrokeFeedback[]
+  looks_like?: string | null
 }
 
 /** Draw the kanji; `references` and `grade` are null until answered (`grade` too when skipped). */
@@ -314,8 +328,34 @@ export interface HandwritingQuestion extends QuestionBase {
   grade: HandwritingGrade | null
 }
 
+/** A word a word handwriting question accepts: a reference per character. */
+export interface ReferenceWord {
+  text: string
+  characters: ReferenceKanji[]
+}
+
+/** How a written word compares to the closest accepted one: a grade per cell. */
+export interface WordGrade {
+  score: number // 0–100, the cells' average
+  verdict: Verdict // the worst cell's
+  matched: string
+  cells: HandwritingGrade[]
+}
+
+/**
+ * Write the word (spelling or reading, by `answer_field`), a character per
+ * cell. `cell_count` is always shown; `words` and `grade` are null until
+ * answered (`grade` too when skipped).
+ */
+export interface WordHandwritingQuestion extends QuestionBase {
+  type: 'card.handwriting_word'
+  cell_count: number
+  words: ReferenceWord[] | null
+  grade: WordGrade | null
+}
+
 /** A question of a session, by type. */
-export type ExerciseQuestion = ChoiceQuestion | HandwritingQuestion
+export type ExerciseQuestion = ChoiceQuestion | HandwritingQuestion | WordHandwritingQuestion
 
 export interface ExerciseSession {
   id: number

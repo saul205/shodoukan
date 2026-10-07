@@ -560,18 +560,65 @@ off) counts as right, so the score and accuracy don't punish a nearly right draw
 but its item comes back as a review like a miss (`needs_review`). The grade keeps the
 verdict, so the review can show it apart.
 
-The grading leans to the learner, because being too strict discourages beginners:
+The grading leans to the learner. Nobody writes as exactly as KanjiVG draws:
+matching the stroke lengths, the place on the grid and the directions that closely is
+too hard, and too strict a grader discourages beginners. So:
 
-- A few **imprecise** strokes (up to a third) don't stop a drawing from being
-  `correct` when the whole matches; the warnings are enough.
-- **Stroke lengths** that are off for the rest of the kanji (judged by proportions,
-  not size) make it `close` at most, with a warning on each such stroke. Kanji such as
-  未 / 末 differ only there, and it's an easy mistake.
-- **Many problem strokes** (most of them imprecise, or problems on more than half)
-  make it `wrong`: that's another kanji (土 for 士).
+- **Imprecise strokes and stroke lengths** (judged by proportions, not size) are
+  **warnings only**. They're shown on each stroke and lower the score, but never the
+  verdict.
+- **The verdict** depends on the whole drawing (the picture), the stroke order and
+  direction, and the stroke count. Strokes pair with some margin, so a stroke out of
+  place is imprecise rather than extra plus missing.
+- **The accepted cost:** near twins that differ only in lengths or positions (未 / 末,
+  土 / 士) pass for each other, with warnings. Kanji of another shape or stroke count
+  still fail.
 
-These came from a review of PR #60, which drew similar kanji for each other. The
-thresholds and their calibration are in [exercises](exercises.md#grading).
+Reverses the previous rebalance, from the review of PR #60, which made length
+mistakes `close` and many imprecise strokes `wrong`: trying it showed it was too
+strict. A handwriting recognition model may replace this grader later. The thresholds
+and their calibration are in [exercises](exercises.md#grading).
+
+## Words are written a character per cell, in their own question type
+
+Writing a word by hand (#67) reuses the kanji grader cell by cell rather than
+grading a whole word drawn freely: cutting handwriting into characters isn't
+reliable, and a cell per character gives each one its own comparison and feedback.
+The cells are shown, so their number is a hint; without it the user couldn't know
+where a character ends. Words of another length are therefore never accepted.
+
+A word's verdict is its worst cell's: one wrong character makes another word. The
+score is the cells' average, for the user's eyes only, as for kanji.
+
+It's a new question type, `card.handwriting_word` with a `CellsAnswer` and a
+`WordGrade`, not kanji turned into one-character words: kanji questions keep their
+stored shape, so no stored JSON had to be migrated, and each player stays simple.
+The exercise settings stay one type (`card.handwriting`); the direction's answer
+field (`literal`, or `writing` / `reading`) says what is written. Asking for the
+reading is how kana words and kana practice fit in, since KanjiVG draws every kana.
+
+## Only another character fails a written word
+
+Writing words (#67) showed the grader, tuned on kanji, was unfair to kana (#71):
+dakuten strokes are too small to pair by shape, so べ failed; ゃ and や are the same
+shape once normalized; and a kana with a stroke missing failed like a kanji does
+(the "no count errors under 5 strokes" rule). With the word taking its worst cell's
+verdict, one such slip failed the whole word.
+
+Softening the word rule alone wasn't an option: たべる with ろ for る must fail. So
+grading separates **which character** it is from **how well it's written**:
+
+- Marks (dakuten, handakuten, dots) pair by position, and only missing or adding a
+  whole run of them changes the character. This applies to kanji too (大 / 犬 / 太).
+- Kana are recognised against every other kana; only one that fits clearly better
+  makes a cell wrong, and the feedback names it. A recognised kana is at worst close.
+- Small kana are told apart by size against the word's other kana, from what their
+  references predict.
+
+The word still takes its worst cell's verdict, which now only fails on a wrong
+character. Recognition costs about 0.1 s per kana cell (grading against the ~180
+kana); kanji aren't recognised against other kanji (too many), so they keep the
+kanji rules.
 
 ## Stroke order comes from KanjiVG, without a hanzi-writer fallback
 
