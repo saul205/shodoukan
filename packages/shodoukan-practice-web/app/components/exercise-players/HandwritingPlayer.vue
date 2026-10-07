@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { KanjiDrawingPad } from 'shodoukan-ui'
 import PracticeModal from '~/components/PracticeModal.vue'
+import type { PracticeItem } from '~/utils/writing-practice'
 import type { DrawnPoint, ExerciseAnswer, HandwritingQuestion, StudyField } from '~/models/practice'
 import { MAX_STROKE_POINTS, MAX_STROKES } from '~/utils/drawing'
 import { strokeProblem, VERDICT_COLORS, verdictOf } from '~/utils/verdict'
@@ -67,7 +68,11 @@ const overlay = useOverlay()
 const asked = computed(() => props.question.references?.[0]?.literal ?? null)
 
 function practise() {
-  if (asked.value) overlay.create(PracticeModal).open({ chars: [asked.value] })
+  if (!asked.value) return
+  const itemId = props.question.item_id
+  // The item is the library kanji: practising it shows its own meanings.
+  const items: PracticeItem[] = itemId ? [{ kind: 'kanji', id: itemId }] : [{ kind: 'char', text: asked.value }]
+  overlay.create(PracticeModal).open({ items, title: `Practicar ${asked.value}` })
 }
 
 const verdict = computed(() => verdictOf(props.question))

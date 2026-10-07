@@ -14,7 +14,7 @@ import {
 } from '~/services/library'
 import { getDictionaryEntryKanji } from '~/services/dictionary'
 import { entryHeadword } from '~/utils/practice-text'
-import { entryWriting, formatWords } from '~/utils/writing-practice'
+import { entryWriting } from '~/utils/writing-practice'
 
 // A word of the library and its customisation. The same page opens from the
 // library and from a collection (`?collection=<id>`, for the back link).
@@ -79,7 +79,7 @@ async function remove() {
     <template v-if="entry" #actions>
       <UButton
         v-if="writing"
-        :to="{ path: '/practice/play', query: { words: formatWords([writing]), from: route.fullPath } }"
+        :to="{ path: '/practice/play', query: { entries: entry.id, from: route.fullPath } }"
         icon="i-lucide-pen-line"
         label="Practicar escritura"
         color="neutral"

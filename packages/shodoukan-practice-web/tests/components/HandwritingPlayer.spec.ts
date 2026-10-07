@@ -109,7 +109,7 @@ describe('HandwritingPlayer', () => {
 
     await wrapper.get('[data-testid="practise"]').trigger('click')
 
-    expect(openModal).toHaveBeenCalledWith({ chars: ['一'] })
+    expect(openModal).toHaveBeenCalledWith({ items: [{ kind: 'kanji', id: 10 }], title: 'Practicar 一' })
   })
 
   it('says a right drawing is right', async () => {

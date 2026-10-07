@@ -61,7 +61,7 @@ describe('practice page', () => {
     ])
     const [[target]] = navigate.mock.calls
     expect(target.path).toBe('/practice/play')
-    expect([...target.query.chars].sort()).toEqual(['人', '日', '本'].sort())
+    expect(target.query.kanji.split(',').sort()).toEqual(['1', '2', '3'])
     expect(target.query).toMatchObject({ mode: 'guided-free', reps: 2 })
   })
 
@@ -80,7 +80,7 @@ describe('practice page', () => {
     expect(navigate).not.toHaveBeenCalled()
   })
 
-  it("practises a word collection's words, with their readings", async () => {
+  it("practises a word collection's words, by id", async () => {
     const wrapper = await mountSuspended(PracticePage, { route: '/practice?kind=entries&collection=4' })
     await flushPromises()
     await checkbox(wrapper, 'practice-shuffle').trigger('click') // in order
@@ -88,7 +88,7 @@ describe('practice page', () => {
     await wrapper.get('[data-testid="practice-start"]').trigger('click')
     await flushPromises()
 
-    expect(navigate.mock.calls[0]![0].query).toMatchObject({ words: '食べる:たべる,これ', mode: 'guided-free' })
+    expect(navigate.mock.calls[0]![0].query).toMatchObject({ entries: '1,2', mode: 'guided-free' })
   })
 
   it('practises the chosen kana rows, without the library', async () => {

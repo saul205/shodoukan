@@ -1,28 +1,29 @@
 <script setup lang="ts">
 import { safeReturnPath } from '~/utils/return-path'
 import {
+  parseIds,
   parseMode,
   parseRepetitions,
-  parseWords,
   practiceChars,
   type PracticeItem,
   type PracticeMode,
 } from '~/utils/writing-practice'
 
-// Writing practice of the characters in `?chars=` (kanji or kana, each on its
-// own) or the words in `?words=` (`食べる:たべる,飲む`), with `?mode=` and
-// `?reps=`, so any page can link to it. `?from=` is where Volver goes (a path in this
-// app); `/practice` by default.
+// Writing practice of the library kanji in `?kanji=12,15`, the library words
+// in `?entries=3,4`, or the characters in `?chars=` (kana, or kanji linked
+// without an id), with `?mode=` and `?reps=`, so any page can link to it.
+// `?from=` is where Volver goes (a path in this app); `/practice` by default.
 const route = useRoute()
 const router = useRouter()
 
 const items = computed<PracticeItem[]>(() => {
-  if (route.query.words) return parseWords(route.query.words)
-  return practiceChars(typeof route.query.chars === 'string' ? route.query.chars : '').map(text => ({ text }))
+  if (route.query.kanji) return parseIds(route.query.kanji).map(id => ({ kind: 'kanji', id }))
+  if (route.query.entries) return parseIds(route.query.entries).map(id => ({ kind: 'entry', id }))
+  return practiceChars(typeof route.query.chars === 'string' ? route.query.chars : '').map(text => ({ kind: 'char', text }))
 })
 const countLabel = computed(() => {
   const n = items.value.length
-  if (route.query.words) return n === 1 ? '1 palabra' : `${n} palabras`
+  if (route.query.entries) return n === 1 ? '1 palabra' : `${n} palabras`
   return n === 1 ? '1 carácter' : `${n} caracteres`
 })
 const mode = computed<PracticeMode>({

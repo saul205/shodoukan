@@ -8,10 +8,9 @@ import {
   DEFAULT_MODE,
   DEFAULT_REPETITIONS,
   entryWriting,
-  formatWords,
+  formatIds,
   MAX_REPETITIONS,
   PRACTICE_MODES,
-  type PracticeItem,
   type PracticeMode,
   shuffled,
 } from '~/utils/writing-practice'
@@ -108,24 +107,25 @@ async function allPages<T>(list: (query: SearchQuery) => Promise<Page<T>>): Prom
   }
 }
 
-async function loadKanji(): Promise<string[]> {
+async function loadKanji(): Promise<PracticeKanji[]> {
   const lists = source.value === 'library'
     ? [await allPages<PracticeKanji>(query => listLibraryKanji(api, query))]
     : await Promise.all(collectionIds.value.map(id => allPages<PracticeKanji>(query => listCollectionKanji(api, id, query))))
-  return lists.flat().map(k => k.literal)
+  return unique(lists.flat())
 }
 
-async function loadWords(): Promise<PracticeItem[]> {
+async function loadWords(): Promise<PracticeEntry[]> {
   const lists = source.value === 'library'
     ? [await allPages<PracticeEntry>(query => listLibraryEntries(api, query))]
     : await Promise.all(collectionIds.value.map(id => allPages<PracticeEntry>(query => listCollectionEntries(api, id, query))))
-  return lists.flat().map(entryWriting).filter((item): item is PracticeItem => item !== null)
+  // Words with every spelling and reading hidden have nothing to write.
+  return unique(lists.flat()).filter(entry => entryWriting(entry) !== null)
 }
 
-/** Each item once (one in several collections, or two words written alike). */
-function unique<T>(items: T[], key: (item: T) => string): T[] {
-  const seen = new Set<string>()
-  return items.filter(item => !seen.has(key(item)) && seen.add(key(item)))
+/** Each item once: one in several collections comes up once. */
+function unique<T extends { id: number }>(items: T[]): T[] {
+  const seen = new Set<number>()
+  return items.filter(item => !seen.has(item.id) && seen.add(item.id))
 }
 
 async function start() {
@@ -133,15 +133,21 @@ async function start() {
   loading.value = true
   try {
     let query: Record<string, string>
-    if (what.value === 'words') {
-      const words = unique(await loadWords(), w => w.text)
+    if (what.value === 'kana') {
+      const kana = kanaOf(kanaRows.value)
+      query = { chars: (shuffle.value ? shuffled(kana) : kana).join('') }
+    }
+    else if (what.value === 'words') {
+      const words = await loadWords()
       if (!words.length) return nothingToPractise('No hay palabras activas que practicar')
-      query = { words: formatWords(shuffle.value ? shuffled(words) : words) }
+      rememberPracticeItems(words.map(entry => ({ entry })))
+      query = { entries: formatIds((shuffle.value ? shuffled(words) : words).map(w => w.id)) }
     }
     else {
-      const chars = unique(what.value === 'kana' ? kanaOf(kanaRows.value) : await loadKanji(), c => c)
-      if (!chars.length) return nothingToPractise('No hay kanji activos que practicar')
-      query = { chars: (shuffle.value ? shuffled(chars) : chars).join('') }
+      const kanji = await loadKanji()
+      if (!kanji.length) return nothingToPractise('No hay kanji activos que practicar')
+      rememberPracticeItems(kanji.map(k => ({ kanji: k })))
+      query = { kanji: formatIds((shuffle.value ? shuffled(kanji) : kanji).map(k => k.id)) }
     }
     await navigateTo({
       path: '/practice/play',

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { DEFAULT_MODE, DEFAULT_REPETITIONS, type PracticeMode } from '~/utils/writing-practice'
+import { DEFAULT_MODE, DEFAULT_REPETITIONS, type PracticeItem, type PracticeMode } from '~/utils/writing-practice'
 
-// Writing practice of a few characters without leaving the page: from an
+// Writing practice of a few items without leaving the page: from an
 // exercise session, which stays as it was underneath. Opened with
 // `useOverlay()`. Full screen on a phone, where the pad needs the room.
-const props = defineProps<{ chars: string[] }>()
+const props = defineProps<{ items: PracticeItem[]; title?: string }>()
 const emit = defineEmits<{ close: [] }>()
 
 const mode = ref<PracticeMode>(DEFAULT_MODE)
@@ -19,7 +19,7 @@ function again() {
 
 <template>
   <UModal
-    :title="`Practicar ${chars.join('')}`"
+    :title="title ?? 'Practicar escritura'"
     :close="{ onClick: () => emit('close') }"
     :ui="{ content: 'max-sm:h-dvh max-sm:max-h-none max-sm:rounded-none sm:max-w-2xl sm:h-[85dvh]', body: 'flex min-h-0 flex-1 flex-col' }"
     data-testid="practice-modal"
@@ -37,7 +37,7 @@ function again() {
         v-else
         :key="run"
         v-model:mode="mode"
-        :items="props.chars.map(text => ({ text }))"
+        :items="props.items"
         :repetitions="DEFAULT_REPETITIONS"
         @finished="finished = true"
       />
