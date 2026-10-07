@@ -5,9 +5,15 @@ from factories import (
     make_handwriting_question,
     make_question,
     make_session,
+    make_word_grade,
 )
 
-from shodoukan_practice.domain.entities import OptionAnswer, SkipAnswer, StrokesAnswer
+from shodoukan_practice.domain.entities import (
+    CellsAnswer,
+    OptionAnswer,
+    SkipAnswer,
+    StrokesAnswer,
+)
 from shodoukan_practice.infrastructure.db.mappers import (
     exercise_session_to_db,
     exercise_session_to_domain,
@@ -84,6 +90,26 @@ def test_round_trip_keeps_a_handwriting_question() -> None:
         "strokes": [[[10.0, 54.0], [90.5, 52.25]]],
     }
     assert row.questions[1].details["grade"] is None
+    assert exercise_session_to_domain(row) == session
+
+
+def test_round_trip_keeps_a_word_handwriting_question() -> None:
+    session = make_session(USER_ID, item_id=7, word=True)
+    stroke = ((10.0, 54.0), (90.5, 52.25))
+    session.answer(
+        1, CellsAnswer(cells=((stroke,), ())), grade=make_word_grade("wrong")
+    )
+
+    row = exercise_session_to_db(session)
+
+    answered = row.questions[0]
+    assert answered.type == "card.handwriting_word"
+    assert set(answered.details) == {"words", "grade"}
+    assert answered.entry_id == 7
+    assert answered.answer == {
+        "type": "cells",
+        "cells": [[[[10.0, 54.0], [90.5, 52.25]]], []],
+    }
     assert exercise_session_to_domain(row) == session
 
 

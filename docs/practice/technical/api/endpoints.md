@@ -326,8 +326,8 @@ user's exercise or collection is a `404`.
 - `name`: stripped, 1–100 characters. `collection_ids`: at least one, collections of
   the exercise's kind.
 - `settings` is the domain's settings model as JSON, keyed by `type`: `card.choice`,
-  or `card.handwriting` (kanji exercises; every direction's `answer` is `literal`, and
-  it has no options). Omitted settings take their defaults (`back_fields` `[]`,
+  or `card.handwriting` (every direction's `answer` is something to write: `literal`
+  for kanji, `writing` or `reading` for entries; no options). Omitted settings take their defaults (`back_fields` `[]`,
   `option_count` `4`, `distractor_source` `"collection"`). A `question_count` sent by
   older clients is ignored.
 - Fields: `writing`, `reading`, `meaning` for `entries`; `literal`, `onyomi`,
@@ -369,9 +369,12 @@ question: it's graded as a miss and returned with its solution, like any answer.
 handwriting card is answered with the drawing,
 `{"type": "strokes", "strokes": [[[x, y], ...], ...]}`: the strokes in the order
 drawn, in KanjiVG's 109-unit square, with a margin of 6 allowed around it (up to 40
-strokes of up to 300 points). An answer of the other type, or points off the canvas,
-is a `422`. Starting a handwriting exercise whose collections have fewer than 2
-kanji with a stroke order is a `422` too.
+strokes of up to 300 points). A word is answered with a drawing per character,
+`{"type": "cells", "cells": [[[[x, y], ...], ...], ...]}`, in the same space, as many
+cells as the question's `cell_count` (a cell may be empty, not all). An answer of
+another type, the wrong number of cells, or points off the canvas, is a `422`.
+Starting a handwriting exercise whose collections have fewer than 2 kanji (or words)
+with every stroke order is a `422` too.
 
 Listing is the history: the user's sessions, newest first, **without their
 questions**. Query: `exercise_id` (one exercise's sessions; an unknown or deleted one
@@ -397,9 +400,13 @@ solution fields `item_id`, `back`, `answer`, `is_correct`, `answered_at` and
 - `"card.handwriting"` adds `references` (`[{literal, strokes: [{path, label}]}]`,
   the KanjiVG strokes of every kanji it accepts) and `grade` (`{score, verdict,
   matched, strokes: [{drawn, reference, status}]}`; null when skipped).
+- `"card.handwriting_word"` adds `cell_count` (always shown: the cells to write in),
+  `words` (`[{text, characters: [{literal, strokes}]}]`, every word it accepts) and
+  `grade` (`{score, verdict, matched, cells: [<a kanji's grade>]}`; null when
+  skipped).
 
 **The active question hides its solution:** the solution fields are null, and so are
-`correct_option` and each option's `item_id`, or `references` and `grade`. `AnswerResponse`: the graded
+`correct_option` and each option's `item_id`, or `references` (`words`) and `grade`. `AnswerResponse`: the graded
 question (`answered`) with its solution, the `next` active question (null if the pool
 can't make another, or if the exercise was deleted, which finishes the session),
 `answered_count`, `score` and `finished_at`.

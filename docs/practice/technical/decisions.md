@@ -573,6 +573,24 @@ The grading leans to the learner, because being too strict discourages beginners
 These came from a review of PR #60, which drew similar kanji for each other. The
 thresholds and their calibration are in [exercises](exercises.md#grading).
 
+## Words are written a character per cell, in their own question type
+
+Writing a word by hand (#67) reuses the kanji grader cell by cell rather than
+grading a whole word drawn freely: cutting handwriting into characters isn't
+reliable, and a cell per character gives each one its own comparison and feedback.
+The cells are shown, so their number is a hint; without it the user couldn't know
+where a character ends. Words of another length are therefore never accepted.
+
+A word's verdict is its worst cell's: one wrong character makes another word. The
+score is the cells' average, for the user's eyes only, as for kanji.
+
+It's a new question type, `card.handwriting_word` with a `CellsAnswer` and a
+`WordGrade`, not kanji turned into one-character words: kanji questions keep their
+stored shape, so no stored JSON had to be migrated, and each player stays simple.
+The exercise settings stay one type (`card.handwriting`); the direction's answer
+field (`literal`, or `writing` / `reading`) says what is written. Asking for the
+reading is how kana words and kana practice fit in, since KanjiVG draws every kana.
+
 ## Stroke order comes from KanjiVG, without a hanzi-writer fallback
 
 Both dictionaries draw stroke order from KanjiVG, which the dictionary database ships

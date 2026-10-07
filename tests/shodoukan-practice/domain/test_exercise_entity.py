@@ -5,6 +5,7 @@ from factories import (
     choice_settings,
     handwriting_settings,
     make_entry_exercise,
+    word_handwriting_settings,
 )
 from pydantic import ValidationError
 
@@ -142,17 +143,27 @@ def test_configure_replaces_the_settings() -> None:
     assert exercise.updated_at > NOW
 
 
-def test_handwriting_always_asks_for_the_kanji() -> None:
+def test_handwriting_asks_for_something_to_write() -> None:
     settings = handwriting_settings(("meaning",), ("onyomi", "kunyomi"))
     assert settings.type == "card.handwriting"
+    word_handwriting_settings((("meaning",), "writing"), (("writing",), "reading"))
 
-    with pytest.raises(ValidationError, match="asks for the kanji"):
+    with pytest.raises(ValidationError, match="asks for a kanji"):
         HandwritingCardSettings.model_validate(
             {"directions": [{"prompt": ["literal"], "answer": "meaning"}]}
         )
 
 
-def test_an_entry_exercise_cant_be_drawn() -> None:
+def test_an_entry_exercise_writes_words_not_kanji() -> None:
+    exercise = make_entry_exercise(USER_ID)
+    settings = word_handwriting_settings((("meaning",), "writing"))
+
+    EntryExercise.model_validate({**exercise.model_dump(), "settings": settings})
+    with pytest.raises(ValidationError):
+        KanjiExercise.model_validate({**exercise.model_dump(), "settings": settings})
+
+
+def test_an_entry_exercise_cant_ask_for_a_kanji() -> None:
     exercise = make_entry_exercise(USER_ID)
 
     with pytest.raises(ValidationError):

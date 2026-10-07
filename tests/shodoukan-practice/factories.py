@@ -30,9 +30,12 @@ from shodoukan_practice.domain.entities import (
     PracticeSense,
     ReferenceKanji,
     ReferenceStroke,
+    ReferenceWord,
     ShownField,
     StrokeFeedback,
     Verdict,
+    WordGrade,
+    WordHandwritingQuestion,
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -240,6 +243,18 @@ def handwriting_settings(
     )
 
 
+def word_handwriting_settings(
+    *directions: tuple[tuple[str, ...], str], **extra: object
+) -> HandwritingCardSettings:
+    """`HandwritingCardSettings` writing a word: (prompt fields, answer field)."""
+    return HandwritingCardSettings.model_validate(
+        {
+            "directions": [{"prompt": p, "answer": a} for p, a in directions],
+            **extra,
+        }
+    )
+
+
 def make_entry_exercise(
     user_id: UUID, collection_ids: tuple[int, ...] = (), name: str = "Verbs"
 ) -> EntryExercise:
@@ -345,6 +360,40 @@ def make_handwriting_question(
     )
 
 
+def make_reference_word(text: str = "一二") -> ReferenceWord:
+    """A word whose characters are each one horizontal stroke."""
+    return ReferenceWord(text=text, characters=tuple(make_reference(c) for c in text))
+
+
+def make_word_question(
+    position: int,
+    item_id: int | None = None,
+    question_id: int | None = None,
+    words: tuple[str, ...] = ("一二",),
+) -> WordHandwritingQuestion:
+    """Meaning → writing for 一二 (a made-up word)."""
+    return WordHandwritingQuestion(
+        id=question_id,
+        position=position,
+        item_id=item_id,
+        prompt_fields=("meaning",),
+        answer_field="writing",
+        prompt=(ShownField(field="meaning", values=("one two",)),),
+        back=(
+            ShownField(field="meaning", values=("one two",)),
+            ShownField(field="writing", values=(words[0],)),
+        ),
+        words=tuple(make_reference_word(w) for w in words),
+    )
+
+
+def make_word_grade(verdict: Verdict = "correct", matched: str = "一二") -> WordGrade:
+    cells = tuple(make_grade(verdict, c) for c in matched)
+    return WordGrade(
+        score=cells[0].score, verdict=verdict, matched=matched, cells=cells
+    )
+
+
 def make_grade(verdict: Verdict = "correct", matched: str = "一") -> HandwritingGrade:
     return HandwritingGrade(
         score={"correct": 95, "close": 70, "wrong": 20}[verdict],
@@ -361,22 +410,27 @@ def make_session(
     *,
     question_id: int | None = 1,
     handwriting: bool = False,
+    word: bool = False,
 ) -> ExerciseSession:
     """A kanji session started now (sessions go idle), with an active question
-    (id `question_id`, None as if not stored yet) and no history."""
+    (id `question_id`, None as if not stored yet) and no history. `word`
+    makes it a words session writing 一二."""
     now = utc_now()
+    current: ChoiceQuestion | HandwritingQuestion | WordHandwritingQuestion
+    if word:
+        current = make_word_question(0, item_id, question_id)
+    elif handwriting:
+        current = make_handwriting_question(0, item_id, question_id)
+    else:
+        current = make_question(0, item_id, question_id)
     return ExerciseSession(
         id=None,
         user_id=user_id,
         exercise_id=exercise_id,
-        exercise_name="N5 kanji",
-        item_kind="kanji",
-        meaning_lang="en",
-        current=(
-            make_handwriting_question(0, item_id, question_id)
-            if handwriting
-            else make_question(0, item_id, question_id)
-        ),
+        exercise_name="Words" if word else "N5 kanji",
+        item_kind="entries" if word else "kanji",
+        meaning_lang="eng" if word else "en",
+        current=current,
         created_at=now,
         updated_at=now,
     )

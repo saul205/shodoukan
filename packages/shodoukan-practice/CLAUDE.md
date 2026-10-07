@@ -23,7 +23,8 @@ parts, own meanings, active, removal: `/library/entries/{id}/...`,
 `/library/kanji/{id}/...`), saved exercise definitions (`/exercises`: CRUD) and
 exercise sessions (`POST /exercises/{id}/sessions`, `/exercise-sessions/{id}` with
 `/answer` and `/finish`: open-ended, one active question at a time, built and graded
-on the server; choice cards and kanji handwriting, graded against KanjiVG strokes), the session history (`GET /exercise-sessions`, summaries without
+on the server; choice cards, kanji handwriting and words written a character per
+cell, graded against KanjiVG strokes), the session history (`GET /exercise-sessions`, summaries without
 questions) and statistics (`GET /exercises/{id}/statistics`, `GET /statistics`: SQL
 aggregates over the answered questions, computed on request); design in
 `docs/practice/technical/exercises.md`. The practice and dictionary apps are
@@ -52,7 +53,8 @@ standalone: never call shodoukan-api from here.
     (`build_next_question`: the distractor rule), and for handwriting
     `services/handwriting_question_service.py` (`draft_next_question`),
     `services/stroke_geometry_service.py` and `services/handwriting_grading_service.py`
-    (`grade_drawing`).
+    (`grade_drawing`); for words, `services/word_handwriting_question_service.py`
+    (`draft_next_word_question`) and `services/word_grading_service.py` (`grade_word`).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`
@@ -139,13 +141,16 @@ standalone: never call shodoukan-api from here.
   their exercise and items (`SET NULL`). A distractor is never a valid answer (see
   `choice_question_service`); a word is asked by its first enabled spelling/reading.
   Unanswered questions hide their solution in the API.
-- Questions are a union by `type` (`ChoiceQuestion`, `HandwritingQuestion`), stored
+- Questions are a union by `type` (`ChoiceQuestion`, `HandwritingQuestion`,
+  `WordHandwritingQuestion`), stored
   with what only the type has in `exercise_questions.details`. A drawing is graded by
   `grade_drawing` (a domain service) in the use case and passed to
   `ExerciseSession.answer(..., grade=...)`; entities never call services. Handwriting
   only asks kanji with a KanjiVG stroke order (the gateway says which), accepts any
   pool kanji that fits the prompt, and snapshots their strokes (with points) in the
-  question. A "close" drawing counts as right but comes back as a review.
+  question. A "close" drawing counts as right but comes back as a review. Entry
+  exercises write a word (spelling or reading) a character per cell: only words whose
+  every character has a stroke order, graded per cell (`grade_word`, worst cell wins).
 - Dictionary data in the library is never edited or deleted, only disabled
   (`OriginalDataError` → 409); only the user's own meanings change. Readings can't be
   added. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).
