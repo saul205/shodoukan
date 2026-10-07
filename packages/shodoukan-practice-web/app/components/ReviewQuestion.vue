@@ -32,7 +32,7 @@ const overlay = useOverlay()
 const asked = computed(() => handwriting.value?.references?.[0]?.literal ?? null)
 
 function practise() {
-  if (asked.value) overlay.create(PracticeModal).open({ chars: [asked.value] })
+  if (asked.value) overlay.create(PracticeModal, { destroyOnClose: true }).open({ chars: [asked.value] })
 }
 
 const japaneseAnswer = computed(() => props.question.answer_field !== 'meaning')

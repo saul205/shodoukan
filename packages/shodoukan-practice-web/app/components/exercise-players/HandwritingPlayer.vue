@@ -67,7 +67,7 @@ const overlay = useOverlay()
 const asked = computed(() => props.question.references?.[0]?.literal ?? null)
 
 function practise() {
-  if (asked.value) overlay.create(PracticeModal).open({ chars: [asked.value] })
+  if (asked.value) overlay.create(PracticeModal, { destroyOnClose: true }).open({ chars: [asked.value] })
 }
 
 const verdict = computed(() => verdictOf(props.question))

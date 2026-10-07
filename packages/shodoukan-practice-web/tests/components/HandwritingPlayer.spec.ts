@@ -7,10 +7,15 @@ import HandwritingPlayer from '../../app/components/exercise-players/Handwriting
 import { signedInAuth } from '../fakes'
 import { drawingQuestion, drawn } from '../fixtures-sessions'
 
-const { openModal } = vi.hoisted(() => ({ openModal: vi.fn() }))
+const { createModal, openModal } = vi.hoisted(() => ({ createModal: vi.fn(), openModal: vi.fn() }))
 
 mockNuxtImport('useAuth', () => signedInAuth)
-mockNuxtImport('useOverlay', () => () => ({ create: () => ({ open: openModal }) }))
+mockNuxtImport('useOverlay', () => () => ({
+  create: (...args: unknown[]) => {
+    createModal(...args)
+    return { open: openModal }
+  },
+}))
 enableAutoUnmount(afterEach)
 
 // Every measured box is `room` (wide, like a desktop panel), as soon as it's observed.
@@ -110,6 +115,8 @@ describe('HandwritingPlayer', () => {
     await wrapper.get('[data-testid="practise"]').trigger('click')
 
     expect(openModal).toHaveBeenCalledWith({ chars: ['一'] })
+    // Removed once closed, so they don't pile up over a session.
+    expect(createModal).toHaveBeenCalledWith(expect.anything(), { destroyOnClose: true })
   })
 
   it('says a right drawing is right', async () => {
