@@ -15,6 +15,8 @@ import {
 // simplified when the pointer lifts and appended to the model. Only the
 // primary pointer draws, so a second finger or a palm doesn't scribble, and
 // `touch-action: none` keeps the page from scrolling under the finger.
+// The `background` slot is drawn under the strokes, in the same space: a model
+// to trace over, or guides.
 const props = withDefaults(
   defineProps<{
     /** Width and height: px, or any CSS length. */
@@ -130,6 +132,7 @@ defineExpose({ undo, clear })
       <line :x1="CENTRE" :y1="MIN" :x2="CENTRE" :y2="MIN + SIDE" />
       <line :x1="MIN" :y1="CENTRE" :x2="MIN + SIDE" :y2="CENTRE" />
     </g>
+    <slot name="background" />
     <g fill="none" :stroke-width="KANJIVG_STROKE_WIDTH" stroke-linecap="round" stroke-linejoin="round" stroke="#e4e4e7">
       <path v-for="(stroke, i) in strokes" :key="i" :d="pointsToPath(stroke)" data-stroke />
       <path v-if="current" :d="pointsToPath(current)" data-current />

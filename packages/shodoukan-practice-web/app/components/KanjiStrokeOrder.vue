@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { KanjiStrokeAnimator, KanjiStrokeGrid } from 'shodoukan-ui'
-import { getDictionaryKanjiStrokes } from '~/services/dictionary'
-import { apiStatus } from '~/utils/api-error'
 
 // A kanji's stroke order (KanjiVG, from the practice API): the animation and
 // one frame per stroke, fetched once for both. Kanji without a drawing (404)
@@ -15,23 +13,7 @@ const props = withDefaults(defineProps<{
   cellSize?: string
 }>(), { size: 160, cellSize: '6rem' })
 
-const api = useApi()
-
-const { data, status } = useAsyncData(
-  () => `kanji-strokes-${props.literal}`,
-  async () => {
-    try {
-      return await getDictionaryKanjiStrokes(api, props.literal)
-    }
-    catch (error) {
-      if (apiStatus(error) === 404) return null
-      throw error
-    }
-  },
-  { watch: [() => props.literal] },
-)
-
-const strokes = computed(() => data.value?.strokes ?? null)
+const { strokes, status } = useKanjiStrokes(() => props.literal)
 </script>
 
 <template>

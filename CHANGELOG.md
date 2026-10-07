@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice-web:** Writing practice ("Practicar" in the sidebar): learn to
+  write the kanji of some collections or of the whole library, guided stroke by stroke
+  (the next stroke animates and a traced one that follows it snaps into place), guided
+  once and then free, or free (trace the model, or hide it and draw from memory, then
+  see the drawing over the model). Nothing is graded or stored. Also from a library
+  kanji, a kanji collection, and, in a window over the session, from a graded
+  handwriting question and the session review.
+- **shodoukan-ui:** `pathPoints` (the TypeScript twin of `shodoukan.path_points`),
+  `matchStroke` to tell whether a traced stroke follows a model stroke, and a
+  `background` slot on `KanjiDrawingPad` for a model under the drawing.
+
 - **shodoukan:** `Dictionary.get_kanji_strokes(literal)` returns a character's stroke
   order from KanjiVG (Japanese order, all jōyō kanji and about 6,400 in total). A
   compatibility ideograph is drawn with its canonical form.

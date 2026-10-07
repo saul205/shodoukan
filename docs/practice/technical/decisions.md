@@ -605,6 +605,39 @@ not raw SVG, so the contract is typed and the frontend renders plain SVG without
 parsing XML. A few KanjiVG drawings use an older component form, so their stroke count
 can differ from KANJIDIC2's (108 of 6,417).
 
+KanjiVG also draws the kana: `kanji_svg` holds all of hiragana (90) and katakana (94,
+ー included), plus digits and some punctuation, and the strokes endpoints serve any
+single character. Only the library is limited to KANJIDIC2's kanji.
+
+## Writing practice is ephemeral and frontend-only
+
+Writing practice (`/practice`) is for learning to write a kanji, before the exercises
+or as a review in the middle of a session. It stores nothing: no sessions, no history,
+no statistics. Those belong to the exercises, which test; mixing in drawings that were
+traced over a model would skew them. With nothing to store, it needs no endpoint: the
+frontend loads the strokes (`/dictionary/kanji/{literal}/strokes`) and does the rest.
+
+For the same reason, free practice has no grade: checking lays the drawing over the
+model and lets the user judge. Sending it to the grader would need a new endpoint
+outside sessions, and a score while tracing over the model says little.
+
+## Guided strokes are matched in the frontend
+
+Guided practice judges each stroke as soon as it's drawn, so a round trip per stroke
+was ruled out. `shodoukan-ui` has `pathPoints` (a port of `shodoukan`'s
+`path_points`, same sampling) and `matchStroke`, which uses the grader's stroke
+distance (the mean point distance and the larger end-point distance, averaged, over 16
+resampled points) with two differences:
+
+- The distance is in absolute KanjiVG units, not normalised by the drawing's box:
+  the stroke is traced on the model's own canvas, so where it lies matters.
+- It compares one stroke with the one expected next, so there is no pairing or order
+  check. A stroke that matches backwards is flagged as such.
+
+The threshold (`GUIDED_STROKE_MATCH`, 0.12 of the square, about 13 units) is its
+own, tuned by hand. The two implementations can drift apart; if guided practice ever
+needs to agree with the exercises' verdicts, the grader should be the reference.
+
 ## Sources are credited once, on an About page
 
 The data licences (CC BY-SA for JMdict, KANJIDIC2, RADKFILE and KanjiVG; CC BY for
