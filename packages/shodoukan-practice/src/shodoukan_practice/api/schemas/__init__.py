@@ -18,10 +18,12 @@ from .exercise_session_schemas import (
     QuestionResponse,
     ReferenceKanjiResponse,
     ReferenceStrokeResponse,
+    ReferenceWordResponse,
     SessionResponse,
     SessionSummaryPageResponse,
     SessionSummaryResponse,
     StartSessionRequest,
+    WordHandwritingQuestionResponse,
     question_response,
 )
 from .exercise_statistics_schemas import (
@@ -95,6 +97,7 @@ __all__ = [
     "QuestionResponse",
     "ReferenceKanjiResponse",
     "ReferenceStrokeResponse",
+    "ReferenceWordResponse",
     "SearchText",
     "SessionResponse",
     "SessionSummaryPageResponse",
@@ -102,5 +105,6 @@ __all__ = [
     "StartSessionRequest",
     "TotalsResponse",
     "UserResponse",
+    "WordHandwritingQuestionResponse",
     "question_response",
 ]

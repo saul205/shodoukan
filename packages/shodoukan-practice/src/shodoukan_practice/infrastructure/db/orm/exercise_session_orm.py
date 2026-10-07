@@ -4,7 +4,8 @@ A question keeps its prompt and back as JSON (a snapshot: always read
 whole), and the data statistics filter by as real columns (item, fields,
 right or wrong, when, how long). What only one question type has goes in
 `details`, JSON keyed by `type`: a choice card's options and right option, a
-handwriting card's reference strokes and grade. A new type adds a member to
+handwriting card's reference strokes and grade (a word's: its words, a
+reference per character, and the grade of each cell). A new type adds a member to
 that union, not columns. The item is `entry_id` or `kanji_id`
 depending on the session's `item_kind`, so each has a real foreign key; both
 are set to NULL when the item leaves the library. Deleting the exercise sets
@@ -72,7 +73,7 @@ class ExerciseSessionORM(Base):
     )
 
 
-QUESTION_TYPES = ("card.choice", "card.handwriting")
+QUESTION_TYPES = ("card.choice", "card.handwriting", "card.handwriting_word")
 
 
 class ExerciseQuestionORM(Base):

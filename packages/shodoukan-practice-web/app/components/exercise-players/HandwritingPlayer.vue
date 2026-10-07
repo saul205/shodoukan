@@ -72,7 +72,7 @@ function practise() {
   const itemId = props.question.item_id
   // The item is the library kanji: practising it shows its own meanings.
   const items: PracticeItem[] = itemId ? [{ kind: 'kanji', id: itemId }] : [{ kind: 'char', text: asked.value }]
-  overlay.create(PracticeModal).open({ items, title: `Practicar ${asked.value}` })
+  overlay.create(PracticeModal, { destroyOnClose: true }).open({ items, title: `Practicar ${asked.value}` })
 }
 
 const verdict = computed(() => verdictOf(props.question))

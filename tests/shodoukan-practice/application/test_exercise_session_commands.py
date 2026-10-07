@@ -13,6 +13,7 @@ from factories import (
     make_kanji_with,
     make_session,
     make_word,
+    word_handwriting_settings,
 )
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ from shodoukan_practice.application.commands import (
 from shodoukan_practice.application.queries import GetExerciseSession
 from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
+    CellsAnswer,
     ChoiceQuestion,
     EntryCollection,
     Exercise,
@@ -35,6 +37,7 @@ from shodoukan_practice.domain.entities import (
     OptionAnswer,
     SkipAnswer,
     StrokesAnswer,
+    WordHandwritingQuestion,
 )
 from shodoukan_practice.domain.entities.exercise_session_entity import IDLE_TIMEOUT
 from shodoukan_practice.domain.exceptions import (
@@ -99,13 +102,19 @@ def _repos(session: Session, gateway: DictionaryGateway) -> Repos:
 
 @pytest.fixture
 def gateway(dictionary: Dictionary, tmp_path: Path) -> DictionaryGateway:
-    """The dictionary, with a stroke order for 水 and 火 too (it has 食's)."""
+    """The dictionary, with a stroke order for 水 and 火 too (it has 食's), and
+    for the kana of たべる and のむ."""
+    kana = [
+        (char, kanjivg_svg(char, [(1, f"M{20 + 5 * i},30c10,20,20,40,30,60")]))
+        for i, char in enumerate("たべるのむ")
+    ]
     with sqlite3.connect(tmp_path / "dictionary.sqlite") as conn:
         conn.executemany(
             "INSERT INTO kanji_svg VALUES (?, ?)",
             [
                 ("水", kanjivg_svg("水", [(1, "M54,10c0,30,0,60,0,90")])),
                 ("火", kanjivg_svg("火", [(1, "M20,30c10,20,20,40,30,60")])),
+                *kana,
             ],
         )
     return ShodoukanDictionaryGateway(dictionary)
@@ -571,3 +580,119 @@ def test_handwriting_needs_two_kanji_with_a_stroke_order(
 
     with pytest.raises(ExercisePoolTooSmallError):
         _start(start, user, _handwriting_exercise(session, user, collection))
+
+
+def _word_handwriting_exercise(
+    session: Session, user: UserORM, answer_field: str
+) -> Exercise:
+    """Verbs: 食べる, 飲む, 見る (飲 and 見 have no stroke order)."""
+    collections = SqlAlchemyEntryCollectionRepository(session)
+    entries = SqlAlchemyPracticeEntryRepository(session)
+    verbs = collections.add(EntryCollection(id=None, user_id=user.id, name="verbs"))
+    words = [
+        ("食べる", "たべる", "eat"),
+        ("飲む", "のむ", "drink"),
+        ("見る", "みる", "see"),
+    ]
+    for i, (writing, reading, meaning) in enumerate(words):
+        entry = make_word(user.id, i + 1, writing, reading, [(meaning, "eng")])
+        collections.add_item(verbs, entries.add(entry))
+    assert verbs.id is not None
+    return CreateExercise(
+        SqlAlchemyExerciseRepository(session),
+        collections,
+        SqlAlchemyKanjiCollectionRepository(session),
+    ).execute(
+        user.id,
+        "entries",
+        "Write verbs",
+        None,
+        [verbs.id],
+        word_handwriting_settings((("meaning",), answer_field)),
+    )
+
+
+def _cells(question: WordHandwritingQuestion) -> CellsAnswer:
+    """The word asked, written exactly as its references."""
+    return CellsAnswer(
+        cells=tuple(
+            tuple(s.points for s in character.strokes)
+            for character in question.words[0].characters
+        )
+    )
+
+
+def test_a_word_session_writes_the_words_whose_characters_have_strokes(
+    session: Session,
+    start: StartExerciseSession,
+    answer: AnswerExerciseQuestion,
+    user: UserORM,
+) -> None:
+    exercise = _word_handwriting_exercise(session, user, "reading")
+    started = start.execute(user.id, exercise.id or 0, "eng")
+    asked = []
+    for _ in range(4):
+        current = started.current
+        assert isinstance(current, WordHandwritingQuestion) and current.id is not None
+        assert current.cell_count == len(current.words[0].text)
+        asked.append(current.words[0].text)
+        assert started.id is not None
+        started, _, _ = answer.execute(user.id, started.id, current.id, SkipAnswer())
+
+    # み has no stroke order in the test dictionary.
+    assert set(asked) == {"たべる", "のむ"}
+
+
+def test_a_written_word_is_graded_cell_by_cell(
+    session: Session,
+    start: StartExerciseSession,
+    answer: AnswerExerciseQuestion,
+    user: UserORM,
+) -> None:
+    exercise = _word_handwriting_exercise(session, user, "reading")
+    started = start.execute(user.id, exercise.id or 0, "eng")
+    current = started.current
+    assert isinstance(current, WordHandwritingQuestion) and current.id is not None
+    assert started.id is not None
+
+    _, graded, following = answer.execute(
+        user.id, started.id, current.id, _cells(current)
+    )
+
+    assert isinstance(graded, WordHandwritingQuestion) and graded.grade is not None
+    assert (graded.grade.verdict, graded.grade.matched) == (
+        "correct",
+        current.words[0].text,
+    )
+    assert len(graded.grade.cells) == current.cell_count
+    assert graded.is_correct is True
+    assert isinstance(following, WordHandwritingQuestion)
+
+
+def test_a_word_written_in_the_wrong_number_of_cells_is_refused(
+    session: Session,
+    start: StartExerciseSession,
+    answer: AnswerExerciseQuestion,
+    user: UserORM,
+) -> None:
+    exercise = _word_handwriting_exercise(session, user, "reading")
+    started = start.execute(user.id, exercise.id or 0, "eng")
+    current = started.current
+    assert isinstance(current, WordHandwritingQuestion) and current.id is not None
+    assert started.id is not None
+    cells = _cells(current).cells
+
+    with pytest.raises(InvalidAnswerError):
+        answer.execute(
+            user.id, started.id, current.id, CellsAnswer(cells=(*cells, cells[0]))
+        )
+
+
+def test_writing_needs_two_words_with_every_stroke_order(
+    session: Session, start: StartExerciseSession, user: UserORM
+) -> None:
+    # 食べる can be written, 飲む and 見る can't (飲, 見).
+    exercise = _word_handwriting_exercise(session, user, "writing")
+
+    with pytest.raises(ExercisePoolTooSmallError):
+        start.execute(user.id, exercise.id or 0, "eng")

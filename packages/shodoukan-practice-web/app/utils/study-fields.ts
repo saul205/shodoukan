@@ -24,13 +24,22 @@ export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
 
 export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
   'card.choice': 'Elegir entre opciones',
-  'card.handwriting': 'Escribir el kanji',
+  'card.handwriting': 'Escribir a mano',
 }
 
-/** The types an item kind can use: drawing is for kanji only. */
+/** The types an item kind can use. */
 export const EXERCISE_TYPES: Record<ItemKind, ExerciseType[]> = {
-  entries: ['card.choice'],
+  entries: ['card.choice', 'card.handwriting'],
   kanji: ['card.choice', 'card.handwriting'],
+}
+
+/**
+ * What a handwriting card can ask to write, per item kind: the kanji, or a
+ * word's spelling or reading. Mirrors HANDWRITING_ANSWERS in the backend.
+ */
+export const HANDWRITING_ANSWERS: Record<ItemKind, StudyField[]> = {
+  entries: ['writing', 'reading'],
+  kanji: ['literal'],
 }
 
 export function fieldItems(kind: ItemKind): { label: string; value: StudyField }[] {
@@ -66,11 +75,12 @@ export function defaultChoiceSettings(kind: ItemKind): ChoiceCardSettings {
       }
 }
 
-/** What a new handwriting exercise starts with: see the meaning, draw the kanji, readings on the back. */
-export function defaultHandwritingSettings(): HandwritingCardSettings {
-  return {
-    type: 'card.handwriting',
-    directions: [{ prompt: ['meaning'], answer: 'literal' }],
-    back_fields: ['onyomi', 'kunyomi'],
-  }
+/**
+ * What a new handwriting exercise starts with: see the meaning, write the
+ * kanji (readings on the back) or the word (its reading on the back).
+ */
+export function defaultHandwritingSettings(kind: ItemKind): HandwritingCardSettings {
+  return kind === 'entries'
+    ? { type: 'card.handwriting', directions: [{ prompt: ['meaning'], answer: 'writing' }], back_fields: ['reading'] }
+    : { type: 'card.handwriting', directions: [{ prompt: ['meaning'], answer: 'literal' }], back_fields: ['onyomi', 'kunyomi'] }
 }

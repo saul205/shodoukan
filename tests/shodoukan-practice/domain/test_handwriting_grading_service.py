@@ -8,15 +8,17 @@ left out), and other kanji.
 from random import Random
 
 import pytest
+from factories import hand_drawn, kanjivg_reference, kanjivg_strokes
 
 from shodoukan.utils.svg_path import path_points
 from shodoukan_practice.domain.entities import (
+    HandwritingGrade,
     Point,
     ReferenceKanji,
     ReferenceStroke,
     StrokesAnswer,
 )
-from shodoukan_practice.domain.services import grade_drawing
+from shodoukan_practice.domain.services import grade_drawing, grade_kana
 
 # KanjiVG's strokes, in writing order.
 PATHS = {
@@ -219,34 +221,21 @@ def test_needs_a_reference() -> None:
         grade_drawing(drawn(strokes("二")), [])
 
 
-@pytest.mark.parametrize(("literal_drawn", "literal"), [("未", "末"), ("末", "未")])
-def test_twins_differing_in_stroke_lengths_are_close_with_a_warning(
+@pytest.mark.parametrize(
+    ("literal_drawn", "literal"),
+    [("未", "末"), ("末", "未"), ("土", "士"), ("士", "土")],
+)
+def test_lengths_off_are_warnings_on_a_right_drawing(
     literal_drawn: str, literal: str
 ) -> None:
-    result = grade_drawing(drawn(strokes(literal_drawn)), [reference(literal)])
-
-    assert result.verdict == "close"
-    found = {f.status for f in result.strokes}
-    assert {"too_long", "too_short"} <= found
-
-
-@pytest.mark.parametrize(("literal_drawn", "literal"), [("土", "士"), ("士", "土")])
-def test_twins_where_most_strokes_are_off_are_wrong(
-    literal_drawn: str, literal: str
-) -> None:
+    # Twins that differ only in stroke lengths: nobody writes that exactly, so
+    # the lengths are pointed out but the drawing counts.
     exact = StrokesAnswer(strokes=tuple(tuple(s) for s in strokes(literal_drawn)))
 
-    assert grade_drawing(exact, [reference(literal)]).verdict == "wrong"
-
-
-def test_an_imprecise_stroke_doesnt_stop_a_right_drawing() -> None:
-    kanji = strokes("木")
-    kanji[2] = [(x + 15, y) for x, y in kanji[2]]  # the left sweep, off to the right
-
-    result = grade_drawing(drawn(kanji), [reference("木")])
+    result = grade_drawing(exact, [reference(literal)])
 
     assert result.verdict == "correct"
-    assert [f.status for f in result.strokes].count("imprecise") == 1
+    assert {"too_long", "too_short"} <= {f.status for f in result.strokes}
 
 
 def _off(kanji: list[Stroke], moves: dict[int, tuple[float, float]]) -> list[Stroke]:
@@ -256,16 +245,34 @@ def _off(kanji: list[Stroke], moves: dict[int, tuple[float, float]]) -> list[Str
     ]
 
 
-def test_some_imprecise_strokes_are_close_all_of_them_wrong() -> None:
-    two_off = _off(strokes("土"), {0: (10, -10), 1: (-10, 5)})
-    all_off = _off(strokes("土"), {0: (10, -10), 1: (-10, 5), 2: (0, -10)})
+def test_imprecise_strokes_are_warnings_on_a_right_drawing() -> None:
+    # Three of 本's five strokes out of place: still 本, with three warnings.
+    kanji = _off(strokes("本"), {2: (12, 0), 3: (-12, 0), 4: (0, 10)})
 
-    two = grade_drawing(drawn(two_off), [reference("土")])
-    every = grade_drawing(drawn(all_off), [reference("土")])
+    result = grade_drawing(drawn(kanji), [reference("本")])
 
-    assert two.verdict == "close"
-    assert [f.status for f in two.strokes].count("imprecise") == 2
-    assert every.verdict == "wrong"
+    assert result.verdict == "correct"
+    assert [f.status for f in result.strokes].count("imprecise") == 3
+
+
+def test_a_drawing_too_far_from_the_kanji_isnt_correct() -> None:
+    # Every stroke of 土 well off: the whole no longer looks like it.
+    kanji = _off(strokes("土"), {0: (10, -10), 1: (-10, 5), 2: (0, -10)})
+
+    assert grade_drawing(drawn(kanji), [reference("土")]).verdict == "wrong"
+
+
+def test_a_stroke_well_out_of_place_still_pairs() -> None:
+    # The vertical stroke 22 units to the right: imprecise, not extra + missing.
+    kanji = _off(strokes("木"), {1: (22, 0)})
+
+    result = grade_drawing(drawn(kanji), [reference("木")])
+
+    assert result.verdict == "correct"
+    statuses = [f.status for f in result.strokes]
+    assert "extra" not in statuses
+    assert "missing" not in statuses
+    assert "imprecise" in statuses
 
 
 def test_only_kanji_with_about_as_many_strokes_are_compared() -> None:
@@ -276,3 +283,87 @@ def test_only_kanji_with_about_as_many_strokes_are_compared() -> None:
     assert result.verdict == "wrong"
     two = grade_drawing(drawn(strokes("二")), [reference("木"), reference("二")])
     assert (two.matched, two.verdict) == ("二", "correct")
+
+
+# Marks (dakuten, handakuten, dots) and telling kana apart, on KanjiVG's own
+# strokes of the kana (`kanjivg_paths`).
+
+
+def _grade(
+    literal_drawn: str, literal: str, *, keep: list[int] | None = None
+) -> HandwritingGrade:
+    strokes = kanjivg_strokes(literal_drawn)
+    if keep is not None:
+        strokes = [strokes[i] for i in keep]
+    return grade_drawing(
+        StrokesAnswer(strokes=hand_drawn(strokes)), [kanjivg_reference(literal)]
+    )
+
+
+def test_dakuten_pair_by_place_in_any_order() -> None:
+    assert _grade("べ", "べ").verdict == "correct"
+    assert _grade("べ", "べ", keep=[0, 2, 1]).verdict == "correct"
+
+
+def test_half_a_dakuten_is_close() -> None:
+    grade = _grade("べ", "べ", keep=[0, 1])
+
+    assert grade.verdict == "close"
+    assert [f.status for f in grade.strokes] == ["ok", "ok", "missing"]
+
+
+@pytest.mark.parametrize(
+    ("literal_drawn", "literal"),
+    [
+        ("へ", "べ"),  # no dakuten
+        ("ば", "は"),  # a dakuten that isn't there
+        ("ぱ", "ば"),  # ゜ for ゛
+        ("大", "犬"),  # no dot
+        ("犬", "大"),  # a dot too many
+    ],
+)
+def test_marks_missing_or_added_whole_are_another_character(
+    literal_drawn: str, literal: str
+) -> None:
+    assert _grade(literal_drawn, literal).verdict == "wrong"
+
+
+def test_a_dot_drawn_in_its_place_is_right() -> None:
+    assert _grade("犬", "犬").verdict == "correct"
+
+
+KANA = "へべばぱはるろれねきゃやいつった"
+
+
+def _kana(
+    literal_drawn: str, literal: str, keep: list[int] | None = None
+) -> HandwritingGrade:
+    strokes = kanjivg_strokes(literal_drawn)
+    if keep is not None:
+        strokes = [strokes[i] for i in keep]
+    rivals = [kanjivg_reference(k) for k in KANA if k != literal]
+    return grade_kana(
+        StrokesAnswer(strokes=hand_drawn(strokes)), kanjivg_reference(literal), rivals
+    )
+
+
+@pytest.mark.parametrize(("literal_drawn", "literal"), [("ろ", "る"), ("ね", "れ")])
+def test_a_kana_that_fits_another_better_is_wrong_and_named(
+    literal_drawn: str, literal: str
+) -> None:
+    grade = _kana(literal_drawn, literal)
+
+    assert (grade.verdict, grade.looks_like) == ("wrong", literal_drawn)
+
+
+def test_a_kana_written_right_is_right() -> None:
+    for literal in "るれきいつた":
+        grade = _kana(literal, literal)
+        assert (grade.verdict, grade.looks_like) == ("correct", None), literal
+
+
+def test_a_slip_in_the_right_kana_is_close_not_wrong() -> None:
+    # た has fewer than COUNT_TOLERANCE_FROM strokes: as a kanji, one missing
+    # would make it another one.
+    assert _grade("た", "た", keep=[0, 1, 2]).verdict == "wrong"
+    assert _kana("た", "た", keep=[0, 1, 2]).verdict == "close"

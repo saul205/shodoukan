@@ -4,14 +4,17 @@ from typing import Any
 
 import pytest
 from db_helpers import kanjivg_svg  # type: ignore[import-not-found]
-from factories import make_kanji_collection, make_kanji_with
+from factories import make_kanji_collection, make_kanji_with, make_word
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from tokens import TokenFactory, bearer
 
+from shodoukan_practice.domain.entities import EntryCollection
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
+    SqlAlchemyEntryCollectionRepository,
     SqlAlchemyKanjiCollectionRepository,
+    SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
 )
 
@@ -460,6 +463,107 @@ def test_a_drawing_that_doesnt_fit_is_refused(
     response = client.post(
         f"/exercise-sessions/{started['id']}/answer",
         json={"question_id": started["current"]["id"], "answer": answer},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.fixture
+def word_exercise_id(
+    client: TestClient,
+    headers: dict[str, str],
+    session: Session,
+    user: UserORM,
+    tmp_path: Path,
+) -> int:
+    """Write the reading of みず and ひ, whose kana get strokes here."""
+    with sqlite3.connect(tmp_path / "dictionary.sqlite") as conn:
+        conn.executemany(
+            "INSERT INTO kanji_svg VALUES (?, ?)",
+            [
+                (kana, kanjivg_svg(kana, [(1, "M20,30c10,20,20,40,30,60")]))
+                for kana in "みずひ"
+            ],
+        )
+    collections = SqlAlchemyEntryCollectionRepository(session)
+    entries = SqlAlchemyPracticeEntryRepository(session)
+    words = collections.add(EntryCollection(id=None, user_id=user.id, name="words"))
+    for i, (writing, reading, meaning) in enumerate(
+        [("水", "みず", "water"), ("火", "ひ", "fire")]
+    ):
+        entry = make_word(user.id, i + 1, writing, reading, [(meaning, "eng")])
+        collections.add_item(words, entries.add(entry))
+    session.commit()
+    response = client.post(
+        "/exercises",
+        json={
+            "item_kind": "entries",
+            "name": "Write readings",
+            "collection_ids": [words.id],
+            "settings": {
+                "type": "card.handwriting",
+                "directions": [{"prompt": ["meaning"], "answer": "reading"}],
+            },
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201, response.json()
+    created: int = response.json()["id"]
+    return created
+
+
+def test_a_word_question_shows_its_cells_but_not_its_words_until_written(
+    client: TestClient, headers: dict[str, str], word_exercise_id: int
+) -> None:
+    response = client.post(
+        f"/exercises/{word_exercise_id}/sessions",
+        json={"meaning_lang": "eng"},
+        headers=headers,
+    )
+    assert response.status_code == 201, response.json()
+    started = response.json()
+    question = started["current"]
+
+    assert question["type"] == "card.handwriting_word"
+    assert question["answer_field"] == "reading"
+    assert question["cell_count"] in {1, 2}
+    assert (question["words"], question["grade"]) == (None, None)
+
+    cells = [[[[20, 30], [40, 70]]]] * question["cell_count"]
+    response = client.post(
+        f"/exercise-sessions/{started['id']}/answer",
+        json={
+            "question_id": question["id"],
+            "answer": {"type": "cells", "cells": cells},
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.json()
+    graded = response.json()["answered"]
+    assert graded["words"][0]["text"] in {"みず", "ひ"}
+    assert len(graded["grade"]["cells"]) == question["cell_count"]
+    assert graded["answer"]["type"] == "cells"
+
+
+def test_a_word_in_the_wrong_number_of_cells_is_422(
+    client: TestClient, headers: dict[str, str], word_exercise_id: int
+) -> None:
+    started = client.post(
+        f"/exercises/{word_exercise_id}/sessions",
+        json={"meaning_lang": "eng"},
+        headers=headers,
+    ).json()
+    question = started["current"]
+    cells = [[[[20, 30], [40, 70]]]] * (question["cell_count"] + 1)
+
+    response = client.post(
+        f"/exercise-sessions/{started['id']}/answer",
+        json={
+            "question_id": question["id"],
+            "answer": {"type": "cells", "cells": cells},
+        },
         headers=headers,
     )
 

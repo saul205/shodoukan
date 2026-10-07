@@ -3,7 +3,9 @@ import { getDictionaryKanjiStrokes } from '~/services/dictionary'
 import { apiStatus } from '~/utils/api-error'
 
 // The strokes (KanjiVG) of every character of a word, fetched together. A
-// character without a drawing (404) gives `null` in its place.
+// character without a drawing (404) gives `null` in its place. While another
+// word loads, `useAsyncData` keeps the previous one's data: those are never
+// handed out as this one's, and the status stays pending.
 export function useWordStrokes(chars: MaybeRefOrGetter<string[]>) {
   const api = useApi()
 
@@ -17,10 +19,16 @@ export function useWordStrokes(chars: MaybeRefOrGetter<string[]>) {
     }
   }
 
+  const word = () => toValue(chars).join('')
   const { data, status } = useAsyncData(
-    () => `word-strokes-${toValue(chars).join('')}`,
-    () => Promise.all(toValue(chars).map(strokesOf)),
-    { watch: [() => toValue(chars).join('')] },
+    () => `word-strokes-${word()}`,
+    async () => {
+      const requested = word()
+      return { word: requested, strokes: await Promise.all(toValue(chars).map(strokesOf)) }
+    },
+    { watch: [word] },
   )
-  return { strokes: computed(() => data.value ?? null), status }
+  const current = computed(() => (data.value?.word === word() ? data.value : null))
+  const loading = computed(() => (current.value ? status.value : status.value === 'error' ? 'error' : 'pending'))
+  return { strokes: computed(() => current.value?.strokes ?? null), status: loading }
 }

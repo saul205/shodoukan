@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { strokeProblem, verdictOf } from '../../app/utils/verdict'
-import { drawingQuestion, drawn, graded, question } from '../fixtures-sessions'
+import { drawingQuestion, drawn, graded, question, wordQuestion, writtenWord } from '../fixtures-sessions'
 
 describe('verdictOf', () => {
   it('tells right, close, wrong and skipped apart', () => {
@@ -8,6 +8,7 @@ describe('verdictOf', () => {
     expect(verdictOf(graded(question(1), 1))).toBe('wrong')
     expect(verdictOf(drawn(drawingQuestion(1), 'close'))).toBe('close')
     expect(verdictOf(drawn(drawingQuestion(1), 'wrong'))).toBe('wrong')
+    expect(verdictOf(writtenWord(wordQuestion(1), 'close'))).toBe('close')
     expect(verdictOf({ ...drawingQuestion(1), answered: true, answer: { type: 'skip' }, is_correct: false })).toBe('skipped')
   })
 })
