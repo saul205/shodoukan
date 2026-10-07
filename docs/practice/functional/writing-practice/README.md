@@ -24,15 +24,27 @@ whether the user can write a kanji from memory.
   draws from memory. Checking lays the drawing over the model, strokes numbered, so
   the user sees where it strays. There is no score.
 
-A **word** is written one character after another: a row of cells above the pad
-shows the word, the character being drawn and the ones done, and a done character can
-be drawn again by tapping its cell. The word is written as the library shows it: its
-first spelling that isn't hidden, okurigana included (食べる), or its reading for a
-kana word. Its reading is shown with it.
+A **word** is written whole, one box per character, like on squared writing paper.
+The boxes are as large as the screen allows: in a row on a computer, in two columns
+on a phone held upright. Only when they'd be too small (a long word on a phone, or a
+phone on its side) is one box shown at a time, with the word's characters above it to
+move between them.
 
-After each drawing the user can do it again or go on. The mode can be changed during
-the practice; the current kanji starts over in the new mode. A character that has no
-stroke order (KanjiVG doesn't cover it) is shown and passed over.
+- Guided, the user writes the characters in order; when one is complete the next one
+  starts by itself. Written characters stay in ink and the coming ones in grey.
+- Free, the user writes in any box, in any order, and checks the whole word once.
+
+The word is written as the library shows it: its first spelling that isn't hidden,
+okurigana included (食べる), or its reading for a kana word. A character with no
+stroke order (KanjiVG doesn't cover it) is shown already written.
+
+While practising, the kanji or word is shown with its **reading and meanings** (up to
+three, in the meaning language chosen in the sidebar). For library items they are the
+user's own: their added meanings, without the hidden ones. Kana have no meaning.
+
+After each kanji or word the user can do it again or go on. The mode can be changed during
+the practice; the current item starts over in the new mode. A single character with
+no stroke order, or an item removed from the library meanwhile, is passed over.
 
 ## Where to start it
 
