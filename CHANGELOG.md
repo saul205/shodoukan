@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Fairer handwriting grading for kana and words: dakuten,
+  handakuten and dots pair by position (only adding or leaving out a whole set
+  makes another character, in kanji too: 大 / 犬); a kana is told apart from every
+  other kana and named when it's another one ("Parece ろ"); small kana are told
+  from big ones by size in the word. A slip in the right character leaves a word
+  "Mejorable"; only another character fails it.
 - **shodoukan-practice:** Handwriting exercises for words: an entry exercise can ask to
   write a word's spelling (okurigana included) or its reading (in kana), a character
   per cell; each cell is graded like a kanji and the worst one decides. Only words

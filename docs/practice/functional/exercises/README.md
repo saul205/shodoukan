@@ -156,11 +156,16 @@ practised.
 2. The user writes a character in each box, in any order. "Deshacer" and the eraser
    act on the box last written in.
 3. "Comprobar" (Enter) sends the whole word. Each character is compared with its
-   stroke order like a kanji, and the word gets the worst verdict of its characters:
-   one wrong character makes the word wrong. The score is the average.
+   stroke order like a kanji, and the word gets the worst verdict of its
+   characters. Only **another character** makes the word wrong: ろ instead of る,
+   へ instead of べ, a big や instead of a small ゃ (in きゃ), or a dakuten where
+   there's none. A slip in the right character (a stroke missing or too many, a
+   dakuten stroke out of place, a small kana of an unclear size) makes it
+   "Mejorable": it counts, but comes back. The score is the average.
 4. Each character is shown with the user's drawing over it, coloured stroke by
    stroke, and its score; choosing one shows it next to the model, with what was
-   wrong. "Practicar palabra" opens the word in the writing practice.
+   wrong, starting with the character it looks like if it's another one ("Parece
+   ろ."). "Practicar palabra" opens the word in the writing practice.
 
 Words with a character without a stroke order, or longer than 12 characters, aren't
 asked. If several words of the collections fit what's asked and have as many
