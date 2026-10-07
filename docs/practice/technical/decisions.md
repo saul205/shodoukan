@@ -560,18 +560,24 @@ off) counts as right, so the score and accuracy don't punish a nearly right draw
 but its item comes back as a review like a miss (`needs_review`). The grade keeps the
 verdict, so the review can show it apart.
 
-The grading leans to the learner, because being too strict discourages beginners:
+The grading leans to the learner. Nobody writes as exactly as KanjiVG draws:
+matching the stroke lengths, the place on the grid and the directions that closely is
+too hard, and too strict a grader discourages beginners. So:
 
-- A few **imprecise** strokes (up to a third) don't stop a drawing from being
-  `correct` when the whole matches; the warnings are enough.
-- **Stroke lengths** that are off for the rest of the kanji (judged by proportions,
-  not size) make it `close` at most, with a warning on each such stroke. Kanji such as
-  未 / 末 differ only there, and it's an easy mistake.
-- **Many problem strokes** (most of them imprecise, or problems on more than half)
-  make it `wrong`: that's another kanji (土 for 士).
+- **Imprecise strokes and stroke lengths** (judged by proportions, not size) are
+  **warnings only**. They're shown on each stroke and lower the score, but never the
+  verdict.
+- **The verdict** depends on the whole drawing (the picture), the stroke order and
+  direction, and the stroke count. Strokes pair with some margin, so a stroke out of
+  place is imprecise rather than extra plus missing.
+- **The accepted cost:** near twins that differ only in lengths or positions (未 / 末,
+  土 / 士) pass for each other, with warnings. Kanji of another shape or stroke count
+  still fail.
 
-These came from a review of PR #60, which drew similar kanji for each other. The
-thresholds and their calibration are in [exercises](exercises.md#grading).
+Reverses the previous rebalance, from the review of PR #60, which made length
+mistakes `close` and many imprecise strokes `wrong`: trying it showed it was too
+strict. A handwriting recognition model may replace this grader later. The thresholds
+and their calibration are in [exercises](exercises.md#grading).
 
 ## Words are written a character per cell, in their own question type
 

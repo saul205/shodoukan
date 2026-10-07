@@ -125,10 +125,12 @@ cards, missed ones coming back, "Saltar", "Terminar"), but the answer is a drawi
    [KanjiVG](https://kanjivg.tagaini.net/) draws them in Japanese order (the same as
    the stroke order on the kanji pages), and says:
    - **¡Correcto!**: every stroke is there, in order, in the right direction, and the
-     drawing looks like the kanji;
-   - **Mejorable**: it's the kanji, but something is off (a stroke backwards, out of
-     order, a bit misplaced, or one missing in a kanji of 5 strokes or more). It
-     counts as right, but the kanji comes back later to practise;
+     drawing looks like the kanji. Strokes a bit out of place, or longer or shorter
+     than they should be, are pointed out but don't count against it: nobody writes
+     as exactly as the model;
+   - **Mejorable**: it's the kanji, but a stroke is backwards or out of order, or one
+     is missing in a kanji of 5 strokes or more. It counts as right, but the kanji
+     comes back later to practise;
    - **Fallada**: it's another kanji, or too far from it.
 4. Next to the drawing, the kanji with its strokes numbered, and what was wrong with
    each stroke. On a phone the two are shown overlaid (or one at a time); the card
