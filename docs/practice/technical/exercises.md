@@ -293,51 +293,59 @@ accept dozens of kanji). The use case passes the grade to the session
    | `extra` | A drawn stroke with no pair |
    | `missing` | A reference stroke not drawn |
 
-6. **The verdict**, lenient on purpose
-   ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)):
-   - `correct`: likeness ≥ `SHAPE_OK`, and no stroke out of order, backwards, of the
-     wrong length, extra or missing. Up to a third of the strokes may be `imprecise`:
-     they show as warnings.
+6. **The verdict**, lenient on purpose: nobody writes as exactly as KanjiVG draws, so
+   `imprecise`, `too_long` and `too_short` strokes are **warnings only**: they never
+   lower the verdict
+   ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)). It
+   depends on the picture, the stroke order and direction, and the stroke count:
+   - `correct`: likeness ≥ `SHAPE_OK`, and no stroke out of order, backwards, extra or
+     missing.
    - `close`: likeness ≥ `SHAPE_CLOSE`; at most one stroke extra or missing, and none
-     for kanji under 5 strokes (三 without a stroke is 二); at most two thirds of the
-     strokes imprecise; and problems on at most half of them (an imprecise stroke
-     counts half). It counts as right but comes back as a review.
+     for kanji under 5 strokes (三 without a stroke is 二); and mistakes (out of
+     order, backwards, extra, missing) on at most half of the strokes
+     (`MISTAKE_CLOSE_SHARE`). It counts as right but comes back as a review.
    - `wrong` otherwise.
 
    `score` (0 to 100) is the mean of the picture likeness and the strokes' likeness
-   (each pair `1 - distance / STROKE_MATCH`, over the larger stroke count). It's shown
-   to the user; the verdict doesn't depend on it.
+   (each pair `1 - distance / STROKE_MATCH`, over the larger stroke count), so it
+   still shows how precise the drawing was. It's shown to the user; the verdict
+   doesn't depend on it.
 
 | Constant | Value |
 |---|---|
 | `STROKE_SAMPLES` | 16 |
-| `STROKE_OK` | 0.12 |
-| `STROKE_MATCH` | 0.25 |
+| `STROKE_OK` (warning) | 0.12 |
+| `STROKE_MATCH` | 0.28 |
 | `SHAPE_SCALE` | 0.2 |
 | `SHAPE_OK` / `SHAPE_CLOSE` | 0.6 / 0.4 |
 | `ALLOWED_COUNT_ERRORS` / `COUNT_TOLERANCE_FROM` | 1 / 5 strokes |
-| `LENGTH_TOLERANCE` / `LENGTH_MIN_SHARE_GAP` / `MIN_LENGTH_CHECKED` | 1.35 / 0.045 / 0.1 |
-| `IMPRECISE_CORRECT_SHARE` / `IMPRECISE_CLOSE_SHARE` | ⅓ / ⅔ |
-| `PROBLEM_CLOSE_SHARE` / `IMPRECISE_WEIGHT` | ½ / ½ |
+| `MISTAKE_CLOSE_SHARE` | ½ |
+| `LENGTH_TOLERANCE` / `LENGTH_MIN_SHARE_GAP` / `MIN_LENGTH_CHECKED` (warning) | 1.35 / 0.045 / 0.1 |
 
 **Calibration.** The values were tuned on the KanjiVG strokes of 24 kanji drawn with
 noise (moved, resized to 70–110 %, each stroke up to 3–5 units off, points shaking by
-1.5–2.5), and on pairs of similar kanji drawn one for the other:
+1.5–2.5), with strokes moved further, and on pairs of similar kanji drawn one for the
+other:
 
-- **The right kanji drawn with noise** is `correct`; only a very sloppy 2- or
-  3-stroke one (入, 土) drops to `close`. Length noise reaches a ratio of 1.40 on 1 %
-  of strokes, but never with a share gap over 0.04 (0 of 1,220 strokes).
+- **The right kanji drawn with noise** is `correct`; only a very sloppy 食 with a
+  stroke backwards drops to `close`. Length noise reaches a ratio of 1.40 on 1 % of
+  strokes, but never with a share gap over 0.04 (0 of 1,220 strokes), so warnings
+  stay rare on good drawings.
+- **One stroke moved by up to ~24 units** (a fifth of the square) still pairs, as
+  `imprecise`, and the drawing is `correct` in almost every kanji; with every stroke up
+  to 8 units off, 84 of 92 drawings are `correct`. A `STROKE_MATCH` of 0.30 would let
+  右 drawn for 左 through as `close`, so it stops at 0.28.
 - **A stroke backwards, two swapped or one missing** is `close`.
-- **Kanji that differ only in stroke lengths** (未 / 末, 天 / 夫) are `close` with
-  length warnings, which tells the learner what to fix. With noise, 夫 for 天 can
-  still pass as `correct`.
-- **Kanji where most strokes are off** (土 / 士) are `wrong`.
+- **Near twins** that differ only in stroke lengths or positions (未 / 末, 土 / 士,
+  天 / 夫, 田 / 由) are `correct`, with warnings on the strokes that differ. That's
+  the accepted cost of not failing on precision.
 - **One stroke more or less in a kanji of 5 strokes or more** (木 for 本, 王 for 玉,
-  休 / 体, 問 for 間, 鳥 for 烏) is `close`, by design: it can't be told from
-  forgetting a stroke.
-- **Other kanji** are `wrong`.
+  休 / 体, 問 for 間) is `close`, by design: it can't be told from forgetting a stroke.
+- **Other kanji** (a different stroke count or shape) are `wrong`, and so is a
+  drawing too deformed to look like the kanji.
 
-The values should be checked against real drawings once people use it.
+The values should be checked against real drawings once people use it. A handwriting
+recognition model could replace this later: everything sits behind `grade_drawing`.
 `tests/shodoukan-practice/domain/test_handwriting_grading_service.py` keeps these
 cases.
 
