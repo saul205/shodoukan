@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice-web:** Writing practice for words and kana: a word is written
+  one character after another (okurigana and kana words included), with a row of
+  cells; the practice screen has Kanji, Palabras and Kana tabs (word collections or
+  the library, and rows of the hiragana and katakana tables), and a library word has
+  "Practicar escritura".
 - **shodoukan-practice-web:** Writing practice ("Practicar" in the sidebar): learn to
   write the kanji of some collections or of the whole library, guided stroke by stroke
   (the next stroke animates and a traced one that follows it snaps into place), guided
