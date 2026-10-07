@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Fairer handwriting grading for kana and words: dakuten,
+  handakuten and dots pair by position (only adding or leaving out a whole set
+  makes another character, in kanji too: 大 / 犬); a kana is told apart from every
+  other kana and named when it's another one ("Parece ろ"); small kana are told
+  from big ones by size in the word. A slip in the right character leaves a word
+  "Mejorable"; only another character fails it.
+- **shodoukan-practice:** Handwriting exercises for words: an entry exercise can ask to
+  write a word's spelling (okurigana included) or its reading (in kana), a character
+  per cell; each cell is graded like a kanji and the worst one decides. Only words
+  whose every character has a stroke order are asked.
+- **shodoukan-practice-web:** "Escribir a mano" for word exercises: a box per character
+  (a row on a PC, two columns on a phone), one Comprobar for the whole word, then each
+  character's drawing over its model with its score, and "Practicar palabra".
 - **shodoukan-practice-web:** Writing practice for words and kana: a word is written
   whole, a box per character laid out as large as the screen allows (a row on a PC,
   two columns on a phone), guided character after character or free with one check;

@@ -90,16 +90,27 @@ class ChoiceCardSettings(CardSettings):
     distractor_source: Literal["collection"] = "collection"
 
 
+# What a handwriting card can ask to write: a kanji (`literal`), or a word's
+# spelling (`writing`) or reading (`reading`), character by character. Which
+# ones apply follows from the item kind's fields.
+HANDWRITING_ANSWERS: frozenset[StudyField] = frozenset(
+    {"literal", "writing", "reading"}
+)
+
+
 class HandwritingCardSettings(CardSettings):
-    """Draw the kanji: every direction asks for `literal`, so it's for kanji
-    exercises only (an entry exercise can't use that field)."""
+    """Write the answer by hand: a kanji for kanji exercises (`literal`), a
+    word's spelling or reading for entry exercises (`writing`, `reading`)."""
 
     type: Literal["card.handwriting"] = "card.handwriting"
 
     @model_validator(mode="after")
     def _check_answers(self) -> Self:
-        if any(d.answer != "literal" for d in self.directions):
-            raise ValueError("a handwriting card always asks for the kanji (literal)")
+        if any(d.answer not in HANDWRITING_ANSWERS for d in self.directions):
+            raise ValueError(
+                "a handwriting card asks for a kanji (literal), or a word's "
+                "writing or reading"
+            )
         return self
 
 

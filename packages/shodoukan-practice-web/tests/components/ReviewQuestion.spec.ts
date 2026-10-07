@@ -4,7 +4,7 @@ import { enableAutoUnmount } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import ReviewQuestion from '../../app/components/ReviewQuestion.vue'
 import { signedInAuth } from '../fakes'
-import { drawingQuestion, drawn, graded, question } from '../fixtures-sessions'
+import { drawingQuestion, drawn, graded, question, wordQuestion, writtenWord } from '../fixtures-sessions'
 
 const { createModal, openModal } = vi.hoisted(() => ({ createModal: vi.fn(), openModal: vi.fn() }))
 
@@ -48,5 +48,19 @@ describe('ReviewQuestion', () => {
 
     const choice = await mountSuspended(ReviewQuestion, { props: { question: graded(question(1), 1), open: true } })
     expect(choice.find('[data-testid="review-practise"]').exists()).toBe(false)
+  })
+
+  it('sums up a written word with a thumbnail per character, and opens to each one', async () => {
+    const wrapper = await mountSuspended(ReviewQuestion, {
+      props: { question: writtenWord(wordQuestion(1), 'wrong'), open: true },
+    })
+
+    expect(wrapper.get('[data-testid="review-verdict"]').text()).toBe('Fallada')
+    expect(wrapper.get('[data-testid="review-summary"]').text()).toContain('みず')
+    expect(wrapper.get('[data-testid="review-thumbnail"]').findAll('svg')).toHaveLength(2)
+    expect(wrapper.findAll('[data-testid="cell-result"]')).toHaveLength(2)
+
+    await wrapper.get('[data-testid="review-practise"]').trigger('click')
+    expect(openModal).toHaveBeenCalledWith({ items: [{ kind: 'entry', id: 12 }], title: 'Practicar みず' })
   })
 })

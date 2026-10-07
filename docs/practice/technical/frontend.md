@@ -107,7 +107,7 @@ button, title and actions).
 | `/collections?tab=` | Collections of words / kanji: create and edit (`CollectionFormModal`), delete (`ConfirmModal`) |
 | `/practice?kind=&collection=` | "Practicar escritura": tabs for Kanji, Palabras and Kana (`?kind=entries` opens Palabras). Kanji and words: collections of that kind (preselected with `?collection=`) or the whole library; kana: rows of `KANA_ROWS` (`utils/kana.ts`, checkbox cards, "Todas" per script). Then the mode (a card `URadioGroup`), the free repetitions and shuffle. Empezar loads every page of active items (`limit=100`, the API's largest), dedupes by id (dropping words with nothing to write), hands them to `rememberPracticeItems` so the practice doesn't fetch them again, and opens `/practice/play` with their ids. Linked from the sidebar and from a collection's header |
 | `/practice/play?kanji=\|entries=\|chars=&mode=&reps=&from=` | Writing practice (below) of library kanji or words by id (`kanji=12,15`, `entries=3,4`; `parseIds` / `formatIds`), so their own meanings show, or of bare characters (`chars=`: kana, or a kanji linked without an id). Any page can link to it; the mode select updates `mode`. `from` (a path, `safeReturnPath`) is where the back button and Volver go, `/practice` by default. Linked from a library kanji ("Practicar") and a library word ("Practicar escritura") |
-| `/exercises` | The user's exercises as cards: item kind, "Escribir el kanji" for handwriting ones, collections (by name; "Sin colecciones" when they were all deleted) and directions; the name opens the exercise; Empezar, edit, delete (`ConfirmModal`; past sessions are kept). `OpenSessionAlert` on top (also on the home page): "Continuar" for the open session |
+| `/exercises` | The user's exercises as cards: item kind, "Escribir a mano" for handwriting ones, collections (by name; "Sin colecciones" when they were all deleted) and directions; the name opens the exercise; Empezar, edit, delete (`ConfirmModal`; past sessions are kept). `OpenSessionAlert` on top (also on the home page): "Continuar" for the open session |
 | `/exercises/:id?page=` | One exercise: its definition (kind, collections, type, directions, back, and options for a choice card), "Empezar" or, if the open session is this exercise's, "Continuar", "Editar", its **statistics** once it has answers (`GET /exercises/{id}/statistics`: `TotalsTiles`, accuracy per direction as `AccuracyBar`s, the items missed most as `MissedItems`, which open `ItemDetailModal`), and its session history: a `UTable` of `GET /exercise-sessions?exercise_id=` (10 per page, `UPagination`; date, duration, answered, accuracy, open or finished) whose rows open the session |
 | `/statistics?days=&tab=` | "Estadísticas": `GET /statistics` with `days` (7, 30 by default, or 90; a select) and `tz`, this browser's time zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`). `TotalsTiles`, the activity of each day as an `ActivityChart` (CSS bars, right answers under wrong ones, scaled to the busiest day; a text summary for screen readers), a `UTable` per exercise (sessions, accuracy, last time; a row opens the exercise) and the words / kanji missed most in tabs (`tab=kanji`). An empty state when nothing was answered yet. No chart library |
 | `/about` | "Acerca de": the shared `AboutSources` (`lang="es"`) in an `AppPanel`. It says what shodoukan is and credits every data source with its licence, and Jisho as inspiration. Sources are credited only here, not next to the data |
@@ -151,14 +151,15 @@ in the dictionary it matches the import button beside it. It has two modes
   out of step ([decisions](decisions.md#importing-into-collections-is-one-request)).
 
 **Exercise form** (`ExerciseForm`): name, description, item kind (a radio group,
-fixed when editing), for kanji the exercise type ("Elegir entre opciones" / "Escribir
-el kanji"; words are always a choice card),  collections (a multiple `USelectMenu` of that kind's collections,
+fixed when editing), the exercise type ("Elegir entre opciones" / "Escribir a mano",
+for both kinds), collections (a multiple `USelectMenu` of that kind's collections,
 with a link to create one when there are none), directions (`DirectionsEditor`), back
 fields (checkboxes) and the number of options (`UInputNumber`, 2–8; not for
-drawing). A handwriting exercise passes `answer-fields="['literal']"` to the
-`DirectionsEditor`, so every direction asks for the kanji; switching the type starts
-the directions and back fields over (`defaultHandwritingSettings`: meaning → kanji,
-readings on the back). Fields, their
+drawing). A handwriting exercise passes `HANDWRITING_ANSWERS[kind]` as
+`answer-fields` to the `DirectionsEditor` (the kanji; a word's writing or reading), so
+every direction asks for something to write; switching the type starts the directions
+and back fields over (`defaultHandwritingSettings(kind)`: meaning → kanji with the
+readings on the back, or meaning → writing with the reading). Fields, their
 Spanish labels and each kind's defaults are in `utils/study-fields.ts`, mirroring the
 backend's `ENTRY_FIELDS` / `KANJI_FIELDS`. Switching the item kind starts collections,
 directions and back fields over. The Zod schema repeats the backend's rules (at least
@@ -182,7 +183,8 @@ and the state: the question on screen (the active one, or the one just answered 
 its solution) and `next`, which the answer already brought, shown on "Siguiente". The
 player for the question's `type` comes from the registry in
 `components/exercise-players/index.ts` (`card.choice` → `ChoiceCardPlayer`,
-`card.handwriting` → `HandwritingPlayer`); a player
+`card.handwriting` → `HandwritingPlayer`, `card.handwriting_word` →
+`WordHandwritingPlayer`); a player
 takes `question` and `busy` and emits `answer(answer, responseMs)`, `next` and
 `open-item(itemId)`. `ChoiceCardPlayer` is a `StudyCard` (front: the prompt fields with
 their labels and what's asked; once answered it turns to the back, composed from the
@@ -293,6 +295,20 @@ the API ([decisions](decisions.md#writing-practice-is-ephemeral-and-frontend-onl
   (`item_id`; the literal, `references[0]`, when there is none). The session stays
   mounted underneath; its shortcuts ignore keys from inside a dialog.
 
+**Writing a word** (`WordHandwritingPlayer`): a compact front, then a cell per
+character (`question.cell_count`, the only part of the solution shown before
+answering), each a `FreeCell` without a model, laid out like the practice board
+(`fitCells`: a row on a PC, two columns on a phone; one cell at a time, with a row of
+numbered cells and ◀ ▶, when they'd be under 120 px). Any cell can be drawn in; undo
+(Backspace, Ctrl/Cmd+Z) and clear act on the last one touched; "Saltar" (S) and
+"Comprobar" (Enter) send `{type: "cells", cells}`. Once answered: the verdict and
+score, "Practicar palabra" (the word in `PracticeModal`, by its library id) and
+"Siguiente", then `WordComparison`: each cell's drawing over its character, coloured
+by its grade, with the character and its score; picking one shows its
+`StrokeComparison` and what was wrong with its strokes, after "Parece ろ." when its
+grade's `looks_like` says it was taken for another character. The review uses the same
+component, compact, with a thumbnail per character in the summary line.
+
 The detail is a page, not a modal: it has its own URL, the back button works, and it
 has room for editing. List state (tab, filter, page, query) lives in the URL for the
 same reason.
@@ -302,7 +318,7 @@ same reason.
 `tests/unit/` runs in happy-dom: the API client (token, 401), the session formats (`utils/session-format.ts`), the verdicts and stroke problems (`utils/verdict.ts`), `apiStatus` (also
 through `useAsyncData`'s wrapped error), `safeReturnPath`, the service functions, the practice steps, ids in the query, a word's writing and `fitCells` (`utils/writing-practice.ts`), the kana rows (`utils/kana.ts`). `tests/components/` runs in the Nuxt environment
 (`// @vitest-environment nuxt`, `mountSuspended`): the sign-in middleware,
-`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `KanjiStrokeOrder` (one fetch, 404, no per-kanji credit), the about page, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, `ChoiceOptions`, `ChoiceCardPlayer` (keys, `response_ms`), `HandwritingPlayer` (check only once drawn, undo and clear, skip, the verdict and stroke problems once drawn, practising the kanji), `GuidedCell` (a matching stroke snaps, a miss is wiped with a hint, skip, undo and restart), `FreeCell` (hiding the model, the overlay and counts once checked), `WordWritingBoard` (a row on a PC, two columns on a phone, one cell at a time when small, one Comprobar for every cell, the next guided cell taking over, characters without strokes), `WritingPractice` (guided then free, readings and meanings of library and bare items, Otra vez, missing items, finishing), the practice page (every page of a collection's active kanji, the library, a word collection, kana rows; ids in the query), `StrokeComparison`, `ReviewQuestion` (choice and drawing summaries, practising a drawing's kanji), the statistics components and page (window and time zone, tabs, empty state), the exercise page (history, continue or start, statistics), the session page (answer, next, no more questions, 409 reload, review and its filter; `clearNuxtData()` between tests that load the same key), the view-only `MeaningList` and `ReadingChips`, the exercise edit page's not-found state (menus
+`MeaningList`, `NotesEditor`, `CollectionFormModal`, `CollectionMenuButton`, `KanjiWords`, `KanjiStrokeOrder` (one fetch, 404, no per-kanji credit), the about page, `EntryKanjiList`, `ItemCollections`, `CollectionPicker`, `DirectionsEditor`, `ExerciseForm`, `ChoiceOptions`, `ChoiceCardPlayer` (keys, `response_ms`), `HandwritingPlayer` (check only once drawn, undo and clear, skip, the verdict and stroke problems once drawn, practising the kanji), `GuidedCell` (a matching stroke snaps, a miss is wiped with a hint, skip, undo and restart), `FreeCell` (hiding the model, the overlay and counts once checked), `WordWritingBoard` (a row on a PC, two columns on a phone, one cell at a time when small, one Comprobar for every cell, the next guided cell taking over, characters without strokes), `WritingPractice` (guided then free, readings and meanings of library and bare items, Otra vez, missing items, finishing), the practice page (every page of a collection's active kanji, the library, a word collection, kana rows; ids in the query), `StrokeComparison`, `ReviewQuestion` (choice, drawing and word summaries, practising a drawing's kanji or word), `WordHandwritingPlayer` (a row or two columns of cells, one at a time when small, one Comprobar for every cell, undo and clear on the cell touched, skip, the verdict and each character once written, practising the word), the statistics components and page (window and time zone, tabs, empty state), the exercise page (history, continue or start, statistics), the session page (answer, next, no more questions, 409 reload, review and its filter; `clearNuxtData()` between tests that load the same key), the view-only `MeaningList` and `ReadingChips`, the exercise edit page's not-found state (menus
 and tooltips need the `UApp` wrapper; their content is portalled to the body). They replace `useAuth` with
 `tests/fakes.ts` (`mockNuxtImport`), because the real middleware would redirect to
 Keycloak while the test app starts.

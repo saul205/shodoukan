@@ -86,6 +86,29 @@ closest `HandwritingGrade` (score, verdict, matched kanji, a status per stroke).
 `ValueError` with no references. Algorithm and thresholds:
 [exercises](../exercises.md#grading).
 
+### `word_handwriting_question_service.draft_next_word_question(...)`
+
+The next word to write: like `draft_next_question`, among the words whose every
+character has a stroke order and that fit `MAX_CELLS`; it accepts every word of the
+pool that fits the prompt and is as long. `word_characters` lists the characters to
+ask the dictionary about; `ensure_enough_writable_items` checks the pool. The draft's
+`question(position, references)` builds the `WordHandwritingQuestion`.
+
+### `handwriting_grading_service.grade_kana(drawing, expected, alphabet)`
+
+A kana's grade, also against every kana of `alphabet`: another that fits clearly
+better makes it `wrong` with `looks_like`; otherwise a recognisable kana is at worst
+`close`.
+
+### `word_grading_service.grade_word(answer, words, alphabet)`
+
+Grades a `CellsAnswer` cell by cell (an empty cell: every stroke `missing`; a kana
+with `grade_kana` when `alphabet`, the kana's references, is given; small kana by
+size against the word's other kana) against each accepted word as long as it, and
+returns the closest `WordGrade`: the worst cell's verdict, the cells' average score.
+`KANA`, `TWINS` and `SMALL_TWINS` list the kana and their small / big twins.
+[exercises](../exercises.md#words).
+
 ## Exceptions (`domain/exceptions.py`)
 
 | Exception | Base | Raised when |

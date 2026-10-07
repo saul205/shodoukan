@@ -15,14 +15,16 @@ Questions and answers are unions discriminated by `type`, like exercise
 settings. A `ChoiceQuestion` is answered with an `OptionAnswer`; a
 `HandwritingQuestion` with a `StrokesAnswer` (the drawn kanji), graded by
 `handwriting_grading_service` against the KanjiVG strokes of the kanji it
-accepts. A `SkipAnswer` fits both and counts as a miss.
+accepts; a `WordHandwritingQuestion` with a `CellsAnswer` (a word written a
+character per cell), each cell graded the same way (`word_grading_service`).
+A `SkipAnswer` fits them all and counts as a miss.
 """
 
 from datetime import datetime, timedelta
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..clock import utc_now
 from ..exceptions import (
@@ -67,6 +69,8 @@ CANVAS_SIZE = 109
 CANVAS_MARGIN = 6
 MAX_STROKES = 40
 MAX_STROKE_POINTS = 300
+# The longest word written by hand, in characters (cells).
+MAX_CELLS = 12
 
 Point = tuple[float, float]
 DrawnStroke = Annotated[
@@ -88,12 +92,41 @@ class StrokesAnswer(BaseModel):
     def _check_bounds(
         cls, strokes: tuple[tuple[Point, ...], ...]
     ) -> tuple[tuple[Point, ...], ...]:
-        low, high = -CANVAS_MARGIN, CANVAS_SIZE + CANVAS_MARGIN
-        for stroke in strokes:
-            for x, y in stroke:
-                if not (low <= x <= high and low <= y <= high):
-                    raise ValueError(f"point ({x}, {y}) is outside the canvas")
+        _check_on_canvas(strokes)
         return strokes
+
+
+DrawnCell = Annotated[tuple[DrawnStroke, ...], Field(max_length=MAX_STROKES)]
+
+
+class CellsAnswer(BaseModel):
+    """A word as written: one drawing per character, in order, each in its
+    own cell with the same space as `StrokesAnswer`. A cell may be left empty
+    (that character is missing), but not all of them."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: Literal["cells"] = "cells"
+    cells: tuple[DrawnCell, ...] = Field(min_length=1, max_length=MAX_CELLS)
+
+    @field_validator("cells")
+    @classmethod
+    def _check_cells(
+        cls, cells: tuple[tuple[tuple[Point, ...], ...], ...]
+    ) -> tuple[tuple[tuple[Point, ...], ...], ...]:
+        if not any(cells):
+            raise ValueError("a word needs at least one character drawn")
+        for cell in cells:
+            _check_on_canvas(cell)
+        return cells
+
+
+def _check_on_canvas(strokes: tuple[tuple[Point, ...], ...]) -> None:
+    low, high = -CANVAS_MARGIN, CANVAS_SIZE + CANVAS_MARGIN
+    for stroke in strokes:
+        for x, y in stroke:
+            if not (low <= x <= high and low <= y <= high):
+                raise ValueError(f"point ({x}, {y}) is outside the canvas")
 
 
 class ReferenceStroke(BaseModel):
@@ -114,6 +147,21 @@ class ReferenceKanji(BaseModel):
 
     literal: str
     strokes: tuple[ReferenceStroke, ...] = Field(min_length=1)
+
+
+class ReferenceWord(BaseModel):
+    """A word a handwriting question accepts, a reference per character."""
+
+    model_config = ConfigDict(frozen=True)
+
+    text: str
+    characters: tuple[ReferenceKanji, ...] = Field(min_length=1, max_length=MAX_CELLS)
+
+    @model_validator(mode="after")
+    def _check_text(self) -> Self:
+        if "".join(c.literal for c in self.characters) != self.text:
+            raise ValueError("a word's references must spell it, one per character")
+        return self
 
 
 # How a drawn stroke compares to the reference: right; right place and
@@ -146,7 +194,9 @@ class StrokeFeedback(BaseModel):
 
 
 class HandwritingGrade(BaseModel):
-    """How a drawing compares to the closest accepted kanji (`matched`)."""
+    """How a drawing compares to the closest accepted kanji (`matched`).
+    `looks_like` names the character it was taken for when it's wrong for
+    being another one (ろ for る, や for ゃ)."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -154,6 +204,20 @@ class HandwritingGrade(BaseModel):
     verdict: Verdict
     matched: str
     strokes: tuple[StrokeFeedback, ...]
+    looks_like: str | None = None
+
+
+class WordGrade(BaseModel):
+    """How a written word compares to the closest accepted one (`matched`):
+    each cell's grade against its character. The verdict is the worst
+    cell's, and the score their average."""
+
+    model_config = ConfigDict(frozen=True)
+
+    score: int = Field(ge=0, le=100)
+    verdict: Verdict
+    matched: str
+    cells: tuple[HandwritingGrade, ...] = Field(min_length=1)
 
 
 class SkipAnswer(BaseModel):
@@ -167,7 +231,8 @@ class SkipAnswer(BaseModel):
 
 # Answers of every exercise type, by `type`.
 ExerciseAnswer = Annotated[
-    OptionAnswer | StrokesAnswer | SkipAnswer, Field(discriminator="type")
+    OptionAnswer | StrokesAnswer | CellsAnswer | SkipAnswer,
+    Field(discriminator="type"),
 ]
 
 
@@ -221,9 +286,38 @@ class HandwritingQuestion(QuestionBase):
         return self.is_correct is False or close
 
 
+class WordHandwritingQuestion(QuestionBase):
+    """Write the word (its spelling or its reading, by `answer_field`), a
+    character per cell. Any of `words` is right, as with kanji: the word asked
+    about, and any other of the pool that fits the prompt and has as many
+    characters (the cells are shown, so their number is a given)."""
+
+    type: Literal["card.handwriting_word"] = "card.handwriting_word"
+    words: tuple[ReferenceWord, ...] = Field(min_length=1)
+    grade: WordGrade | None = None
+
+    @model_validator(mode="after")
+    def _check_lengths(self) -> Self:
+        if len({len(word.characters) for word in self.words}) != 1:
+            raise ValueError("the words a question accepts have as many characters")
+        return self
+
+    @property
+    def cell_count(self) -> int:
+        """The cells to write in: the characters of the words it accepts."""
+        return len(self.words[0].characters)
+
+    @property
+    def needs_review(self) -> bool:
+        """Missed, or written well enough to count but worth practising again."""
+        close = self.grade is not None and self.grade.verdict == "close"
+        return self.is_correct is False or close
+
+
 # Questions of every exercise type, by `type`.
 ExerciseQuestion = Annotated[
-    ChoiceQuestion | HandwritingQuestion, Field(discriminator="type")
+    ChoiceQuestion | HandwritingQuestion | WordHandwritingQuestion,
+    Field(discriminator="type"),
 ]
 
 
@@ -289,7 +383,7 @@ class ExerciseSession(TimestampedEntity):
         question_id: int,
         answer: ExerciseAnswer,
         response_ms: int | None = None,
-        grade: HandwritingGrade | None = None,
+        grade: HandwritingGrade | WordGrade | None = None,
     ) -> ExerciseQuestion:
         """Grade the active question and move it to the history.
 
@@ -300,22 +394,25 @@ class ExerciseSession(TimestampedEntity):
         answer that doesn't fit the question (another type's, or an option it
         doesn't have). A `SkipAnswer` is graded as a miss.
 
-        A drawing is graded by `handwriting_grading_service`, which the caller
-        runs on the question's references and passes as `grade`; the drawing
-        counts as right unless the grade's verdict is "wrong".
+        A drawing is graded by `handwriting_grading_service` (a word, by
+        `word_grading_service`), which the caller runs on the question's
+        references and passes as `grade`; it counts as right unless the
+        grade's verdict is "wrong".
         """
         self._require_open()
         question = self.current
         if question is None or question.id != question_id:
             raise QuestionNotActiveError(f"question {question_id} isn't the active one")
-        if grade is not None and not isinstance(answer, StrokesAnswer):
+        if grade is not None and not isinstance(answer, StrokesAnswer | CellsAnswer):
             raise ValueError("only a drawing is graded with a handwriting grade")
         if isinstance(answer, SkipAnswer):
             question.is_correct = False  # skipped: a miss
         elif isinstance(question, ChoiceQuestion):
             question.is_correct = _grade_option(question, answer)
-        else:
+        elif isinstance(question, HandwritingQuestion):
             question.is_correct = _record_grade(question, answer, grade)
+        else:
+            question.is_correct = _record_word_grade(question, answer, grade)
         question.answer = answer
         question.answered_at = utc_now()
         question.response_ms = response_ms
@@ -379,13 +476,34 @@ def _grade_option(question: ChoiceQuestion, answer: ExerciseAnswer) -> bool:
 def _record_grade(
     question: HandwritingQuestion,
     answer: ExerciseAnswer,
-    grade: HandwritingGrade | None,
+    grade: HandwritingGrade | WordGrade | None,
 ) -> bool:
     if not isinstance(answer, StrokesAnswer):
         raise InvalidAnswerError(f"question {question.id} is answered with a drawing")
-    if grade is None:
+    if not isinstance(grade, HandwritingGrade):
         raise ValueError("a drawing needs its grade")
     if grade.matched not in {r.literal for r in question.references}:
         raise ValueError(f"{grade.matched} isn't a kanji the question accepts")
+    question.grade = grade
+    return grade.verdict != "wrong"
+
+
+def _record_word_grade(
+    question: WordHandwritingQuestion,
+    answer: ExerciseAnswer,
+    grade: HandwritingGrade | WordGrade | None,
+) -> bool:
+    if not isinstance(answer, CellsAnswer):
+        raise InvalidAnswerError(
+            f"question {question.id} is answered with a drawing per character"
+        )
+    if len(answer.cells) != question.cell_count:
+        raise InvalidAnswerError(
+            f"question {question.id} is written in {question.cell_count} cells"
+        )
+    if not isinstance(grade, WordGrade):
+        raise ValueError("a written word needs its grade")
+    if grade.matched not in {w.text for w in question.words}:
+        raise ValueError(f"{grade.matched} isn't a word the question accepts")
     question.grade = grade
     return grade.verdict != "wrong"
