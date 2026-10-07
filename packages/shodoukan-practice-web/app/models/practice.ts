@@ -308,12 +308,17 @@ export interface StrokeFeedback {
 /** Right; right enough to count, but to practise again; wrong. */
 export type Verdict = 'correct' | 'close' | 'wrong'
 
-/** How a drawing compares to the closest accepted kanji (`matched`). */
+/**
+ * How a drawing compares to the closest accepted kanji (`matched`).
+ * `looks_like` is the character it was taken for, when it's wrong for being
+ * another one (ろ for る, や for ゃ).
+ */
 export interface HandwritingGrade {
   score: number // 0–100
   verdict: Verdict
   matched: string
   strokes: StrokeFeedback[]
+  looks_like?: string | null
 }
 
 /** Draw the kanji; `references` and `grade` are null until answered (`grade` too when skipped). */

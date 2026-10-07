@@ -32,9 +32,13 @@ const results = computed(() =>
   }),
 )
 const current = computed(() => results.value[selected.value] ?? null)
-const problems = computed(() =>
-  (current.value?.grade?.strokes ?? []).map(strokeProblem).filter((p): p is string => p !== null),
-)
+const problems = computed(() => {
+  const grade = current.value?.grade
+  if (!grade) return []
+  // Another character altogether says more than what's off with its strokes.
+  const other = grade.looks_like ? [`Parece ${grade.looks_like}.`] : []
+  return [...other, ...grade.strokes.map(strokeProblem).filter((p): p is string => p !== null)]
+})
 </script>
 
 <template>

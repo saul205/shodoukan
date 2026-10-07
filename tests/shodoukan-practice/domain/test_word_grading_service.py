@@ -1,10 +1,17 @@
 import pytest
-from factories import make_reference, make_reference_word
+from factories import (
+    hand_drawn,
+    kanjivg_reference,
+    kanjivg_strokes,
+    make_reference,
+    make_reference_word,
+)
 
 from shodoukan_practice.domain.entities import (
     CellsAnswer,
     ReferenceKanji,
     ReferenceWord,
+    WordGrade,
 )
 from shodoukan_practice.domain.services import grade_word
 
@@ -71,3 +78,51 @@ def test_needs_a_word_as_long_as_the_cells() -> None:
             CellsAnswer(cells=(_drawn(make_reference()),)),
             [make_reference_word("一一")],
         )
+
+
+# Telling kana apart in a word, on KanjiVG's own strokes (`kanjivg_paths`).
+
+ALPHABET = {k: kanjivg_reference(k) for k in "へべばぱはるろれねきゃやいつった"}
+
+
+def _word(text: str, written: list[tuple[str, float]]) -> WordGrade:
+    """`text` written as `written`: each cell a character at a scale."""
+    word = ReferenceWord(text=text, characters=tuple(ALPHABET[c] for c in text))
+    cells = tuple(
+        hand_drawn(kanjivg_strokes(char), seed=i, scale=scale)
+        for i, (char, scale) in enumerate(written)
+    )
+    return grade_word(CellsAnswer(cells=cells), [word], ALPHABET)
+
+
+def test_a_word_with_another_kana_is_wrong_and_says_which() -> None:
+    grade = _word("たべる", [("た", 0.9), ("べ", 0.9), ("ろ", 0.9)])
+
+    assert grade.verdict == "wrong"
+    assert (grade.cells[2].verdict, grade.cells[2].looks_like) == ("wrong", "ろ")
+    assert _word("たべる", [("た", 0.9), ("べ", 0.9), ("る", 0.9)]).verdict == "correct"
+
+
+def test_small_kana_are_told_from_big_ones_by_size_in_the_word() -> None:
+    # KanjiVG already draws ゃ / っ small: drawn at the same scale, they're small.
+    assert _word("きゃ", [("き", 0.9), ("ゃ", 0.9)]).verdict == "correct"
+    assert _word("いった", [("い", 0.9), ("っ", 0.9), ("た", 0.9)]).verdict == "correct"
+
+    big = _word("きゃ", [("き", 0.9), ("や", 0.9)])
+    assert (big.verdict, big.cells[1].looks_like) == ("wrong", "や")
+    small = _word("いった", [("い", 0.9), ("つ", 0.9), ("た", 0.9)])
+    assert (small.verdict, small.cells[1].looks_like) == ("wrong", "つ")
+
+
+def test_a_size_between_small_and_big_is_close() -> None:
+    grade = _word("きゃ", [("き", 0.9), ("ゃ", 0.9 * 1.13)])
+
+    assert (grade.verdict, grade.cells[1].looks_like) == ("close", None)
+
+
+def test_a_slip_in_a_kana_leaves_the_word_close() -> None:
+    word = ReferenceWord(text="たい", characters=(ALPHABET["た"], ALPHABET["い"]))
+    ta = kanjivg_strokes("た")[:3]  # a stroke missing
+    cells = (hand_drawn(ta), hand_drawn(kanjivg_strokes("い"), seed=2))
+
+    assert grade_word(CellsAnswer(cells=cells), [word], ALPHABET).verdict == "close"

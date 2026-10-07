@@ -305,7 +305,8 @@ numbered cells and ◀ ▶, when they'd be under 120 px). Any cell can be drawn 
 score, "Practicar palabra" (the word in `PracticeModal`, by its library id) and
 "Siguiente", then `WordComparison`: each cell's drawing over its character, coloured
 by its grade, with the character and its score; picking one shows its
-`StrokeComparison` and what was wrong with its strokes. The review uses the same
+`StrokeComparison` and what was wrong with its strokes, after "Parece ろ." when its
+grade's `looks_like` says it was taken for another character. The review uses the same
 component, compact, with a thumbnail per character in the summary line.
 
 The detail is a page, not a modal: it has its own URL, the back button works, and it

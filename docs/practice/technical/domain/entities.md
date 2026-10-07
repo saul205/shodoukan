@@ -99,8 +99,10 @@ after its items or its exercise change:
   `ReferenceKanji(literal, strokes)`, each stroke a `ReferenceStroke(path, label,
   points)` from KanjiVG (the path to draw it, its number's place, its centre line as
   points to grade against); and `grade`, a `HandwritingGrade(score, verdict, matched,
-  strokes)` once drawn: a 0–100 score, `correct` / `close` / `wrong`, the accepted
-  kanji it's closest to, and a `StrokeFeedback(drawn, reference, status)` per stroke;
+  strokes, looks_like)` once drawn: a 0–100 score, `correct` / `close` / `wrong`, the
+  accepted kanji it's closest to, a `StrokeFeedback(drawn, reference, status)` per
+  stroke, and the character it was taken for when it's another one (a kana in a
+  word: ろ for る, や for ゃ);
 - word handwriting cards: `words`, the words it accepts, all as long:
   `ReferenceWord(text, characters)`, a `ReferenceKanji` per character spelling
   `text`; `cell_count`, their length; and `grade`, a `WordGrade(score, verdict,

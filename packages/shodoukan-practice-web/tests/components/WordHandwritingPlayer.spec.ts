@@ -82,6 +82,17 @@ describe('WordHandwritingPlayer', () => {
     expect((wrapper.emitted('answer') as [[unknown]])[0]![0]).toEqual({ type: 'skip' })
   })
 
+  it('says which character a cell was taken for', async () => {
+    const question = writtenWord(wordQuestion(1), 'wrong')
+    question.grade!.cells[1] = { ...question.grade!.cells[1]!, looks_like: 'す' }
+    const wrapper = await player(undefined, question)
+    const comparison = wrapper.findComponent(WordComparison)
+
+    await comparison.findAll('[data-testid="cell-result"]')[1]!.trigger('click')
+
+    expect(comparison.get('[data-testid="stroke-problems"]').text()).toMatch(/^Parece す\./)
+  })
+
   it('once written, shows the verdict and each character, and practises the word', async () => {
     const wrapper = await player(undefined, writtenWord(wordQuestion(1), 'close'))
 

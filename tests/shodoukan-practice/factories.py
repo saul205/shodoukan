@@ -1,8 +1,13 @@
 """Domain entities used across the practice infrastructure tests."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from random import Random
 from uuid import UUID
 
+from kanjivg_paths import PATHS
+
+from shodoukan.utils.svg_path import path_points
 from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
@@ -18,6 +23,7 @@ from shodoukan_practice.domain.entities import (
     KanjiCollection,
     KanjiExercise,
     OptionAnswer,
+    Point,
     PracticeEntry,
     PracticeExample,
     PracticeExampleSentence,
@@ -492,3 +498,41 @@ def make_answered_session(
             "updated_at": last_activity_at or last,
         }
     )
+
+
+def kanjivg_reference(literal: str) -> ReferenceKanji:
+    """A character as KanjiVG draws it (`kanjivg_paths.PATHS`), with its
+    centre lines as points, as the dictionary gateway gives them."""
+
+    return ReferenceKanji(
+        literal=literal,
+        strokes=tuple(
+            ReferenceStroke(path=d, label=None, points=tuple(path_points(d, 2)))
+            for d in PATHS[literal]
+        ),
+    )
+
+
+def hand_drawn(
+    strokes: Sequence[Sequence[Point]], seed: int = 1, scale: float = 0.9
+) -> tuple[tuple[Point, ...], ...]:
+    """`strokes` as drawn by hand: resized by `scale` around the centre, each
+    stroke a little out of place, every point shaky."""
+    rng = Random(seed)
+    shaken = []
+    for stroke in strokes:
+        ox, oy = rng.uniform(-2, 2), rng.uniform(-2, 2)
+        shaken.append(
+            tuple(
+                (
+                    (x - 54.5) * scale + 54.5 + ox + rng.gauss(0, 1),
+                    (y - 54.5) * scale + 54.5 + oy + rng.gauss(0, 1),
+                )
+                for x, y in stroke[::2]
+            )
+        )
+    return tuple(shaken)
+
+
+def kanjivg_strokes(literal: str) -> list[tuple[Point, ...]]:
+    return [s.points for s in kanjivg_reference(literal).strokes]

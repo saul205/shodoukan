@@ -54,7 +54,8 @@ standalone: never call shodoukan-api from here.
     `services/handwriting_question_service.py` (`draft_next_question`),
     `services/stroke_geometry_service.py` and `services/handwriting_grading_service.py`
     (`grade_drawing`); for words, `services/word_handwriting_question_service.py`
-    (`draft_next_word_question`) and `services/word_grading_service.py` (`grade_word`).
+    (`draft_next_word_question`) and `services/word_grading_service.py` (`grade_word`;
+    kana recognised by `grade_kana`, small kana by size).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`

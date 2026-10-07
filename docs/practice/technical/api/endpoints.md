@@ -403,7 +403,8 @@ solution fields `item_id`, `back`, `answer`, `is_correct`, `answered_at` and
 - `"card.handwriting_word"` adds `cell_count` (always shown: the cells to write in),
   `words` (`[{text, characters: [{literal, strokes}]}]`, every word it accepts) and
   `grade` (`{score, verdict, matched, cells: [<a kanji's grade>]}`; null when
-  skipped).
+  skipped). A cell's grade may have `looks_like`, the character it was taken for
+  (ろ for る).
 
 **The active question hides its solution:** the solution fields are null, and so are
 `correct_option` and each option's `item_id`, or `references` (`words`) and `grade`. `AnswerResponse`: the graded

@@ -125,10 +125,12 @@ cards, missed ones coming back, "Saltar", "Terminar"), but the answer is a drawi
    [KanjiVG](https://kanjivg.tagaini.net/) draws them in Japanese order (the same as
    the stroke order on the kanji pages), and says:
    - **¡Correcto!**: every stroke is there, in order, in the right direction, and the
-     drawing looks like the kanji;
-   - **Mejorable**: it's the kanji, but something is off (a stroke backwards, out of
-     order, a bit misplaced, or one missing in a kanji of 5 strokes or more). It
-     counts as right, but the kanji comes back later to practise;
+     drawing looks like the kanji. Strokes a bit out of place, or longer or shorter
+     than they should be, are pointed out but don't count against it: nobody writes
+     as exactly as the model;
+   - **Mejorable**: it's the kanji, but a stroke is backwards or out of order, or one
+     is missing in a kanji of 5 strokes or more. It counts as right, but the kanji
+     comes back later to practise;
    - **Fallada**: it's another kanji, or too far from it.
 4. Next to the drawing, the kanji with its strokes numbered, and what was wrong with
    each stroke. On a phone the two are shown overlaid (or one at a time); the card
@@ -154,11 +156,16 @@ practised.
 2. The user writes a character in each box, in any order. "Deshacer" and the eraser
    act on the box last written in.
 3. "Comprobar" (Enter) sends the whole word. Each character is compared with its
-   stroke order like a kanji, and the word gets the worst verdict of its characters:
-   one wrong character makes the word wrong. The score is the average.
+   stroke order like a kanji, and the word gets the worst verdict of its
+   characters. Only **another character** makes the word wrong: ろ instead of る,
+   へ instead of べ, a big や instead of a small ゃ (in きゃ), or a dakuten where
+   there's none. A slip in the right character (a stroke missing or too many, a
+   dakuten stroke out of place, a small kana of an unclear size) makes it
+   "Mejorable": it counts, but comes back. The score is the average.
 4. Each character is shown with the user's drawing over it, coloured stroke by
    stroke, and its score; choosing one shows it next to the model, with what was
-   wrong. "Practicar palabra" opens the word in the writing practice.
+   wrong, starting with the character it looks like if it's another one ("Parece
+   ろ."). "Practicar palabra" opens the word in the writing practice.
 
 Words with a character without a stroke order, or longer than 12 characters, aren't
 asked. If several words of the collections fit what's asked and have as many
