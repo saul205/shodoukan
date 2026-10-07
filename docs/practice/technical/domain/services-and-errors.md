@@ -94,11 +94,19 @@ pool that fits the prompt and is as long. `word_characters` lists the characters
 ask the dictionary about; `ensure_enough_writable_items` checks the pool. The draft's
 `question(position, references)` builds the `WordHandwritingQuestion`.
 
-### `word_grading_service.grade_word(answer, words)`
+### `handwriting_grading_service.grade_kana(drawing, expected, alphabet)`
 
-Grades a `CellsAnswer` cell by cell with `grade_drawing` (an empty cell: every stroke
-`missing`) against each accepted word as long as it, and returns the closest
-`WordGrade`: the worst cell's verdict, the cells' average score.
+A kana's grade, also against every kana of `alphabet`: another that fits clearly
+better makes it `wrong` with `looks_like`; otherwise a recognisable kana is at worst
+`close`.
+
+### `word_grading_service.grade_word(answer, words, alphabet)`
+
+Grades a `CellsAnswer` cell by cell (an empty cell: every stroke `missing`; a kana
+with `grade_kana` when `alphabet`, the kana's references, is given; small kana by
+size against the word's other kana) against each accepted word as long as it, and
+returns the closest `WordGrade`: the worst cell's verdict, the cells' average score.
+`KANA`, `TWINS` and `SMALL_TWINS` list the kana and their small / big twins.
 [exercises](../exercises.md#words).
 
 ## Exceptions (`domain/exceptions.py`)

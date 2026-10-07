@@ -10,6 +10,7 @@ is graded here before the session records it. None of them commit; the
 caller owns the transaction.
 """
 
+from collections.abc import Callable, Mapping
 from random import Random
 from uuid import UUID
 
@@ -26,6 +27,7 @@ from ...domain.entities import (
     HandwritingGrade,
     HandwritingQuestion,
     ItemKind,
+    ReferenceKanji,
     StrokesAnswer,
     WordGrade,
     WordHandwritingQuestion,
@@ -45,6 +47,7 @@ from ...domain.repositories import (
     UserRepository,
 )
 from ...domain.services import (
+    KANA,
     StudyCard,
     build_next_question,
     draft_next_question,
@@ -109,6 +112,7 @@ class _Questions:
     def __init__(self, dictionary: DictionaryGateway, rng: Random) -> None:
         self._dictionary = dictionary
         self._rng = rng
+        self._kana: dict[str, ReferenceKanji] | None = None
 
     def ensure_enough(
         self, cards: list[StudyCard], settings: CardSettings, item_kind: ItemKind
@@ -147,6 +151,13 @@ class _Questions:
         assert isinstance(settings, ChoiceCardSettings)
         return build_next_question(cards, settings, history, self._rng)
 
+    def kana(self) -> dict[str, ReferenceKanji]:
+        """Every kana's strokes, to tell a written kana from the others; read
+        once per use case."""
+        if self._kana is None:
+            self._kana = self._dictionary.stroke_references(sorted(KANA))
+        return self._kana
+
     def _drawable(self, cards: list[StudyCard]) -> frozenset[str]:
         return self._dictionary.literals_with_strokes(
             text for card in cards if (text := kanji_literal(card)) is not None
@@ -159,7 +170,10 @@ class _Questions:
 
 
 def _grade(
-    session: ExerciseSession, question_id: int, answer: ExerciseAnswer
+    session: ExerciseSession,
+    question_id: int,
+    answer: ExerciseAnswer,
+    kana: Callable[[], Mapping[str, ReferenceKanji]],
 ) -> HandwritingGrade | WordGrade | None:
     """A drawing's grade, against the active question's kanji (or a written
     word's, against its words). Anything else (a drawing for another
@@ -174,7 +188,10 @@ def _grade(
         and isinstance(current, WordHandwritingQuestion)
         and len(answer.cells) == current.cell_count
     ):
-        return grade_word(answer, current.words)
+        # The kana's strokes tell a kana from the others; only read for words
+        # that have kana.
+        has_kana = any(char in KANA for word in current.words for char in word.text)
+        return grade_word(answer, current.words, kana() if has_kana else None)
     return None
 
 
@@ -286,7 +303,7 @@ class AnswerExerciseQuestion:
         response_ms: int | None = None,
     ) -> tuple[ExerciseSession, ExerciseQuestion, ExerciseQuestion | None]:
         session = _session_to_change(self._sessions, session_id, user_id)
-        grade = _grade(session, question_id, answer)
+        grade = _grade(session, question_id, answer, self._questions.kana)
         session.answer(question_id, answer, response_ms, grade)
         self._ask_next(session)
         stored = self._sessions.update(session)

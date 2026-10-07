@@ -194,7 +194,9 @@ class StrokeFeedback(BaseModel):
 
 
 class HandwritingGrade(BaseModel):
-    """How a drawing compares to the closest accepted kanji (`matched`)."""
+    """How a drawing compares to the closest accepted kanji (`matched`).
+    `looks_like` names the character it was taken for when it's wrong for
+    being another one (ろ for る, や for ゃ)."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -202,6 +204,7 @@ class HandwritingGrade(BaseModel):
     verdict: Verdict
     matched: str
     strokes: tuple[StrokeFeedback, ...]
+    looks_like: str | None = None
 
 
 class WordGrade(BaseModel):

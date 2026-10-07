@@ -267,11 +267,32 @@ and kana practice fit in.
   only part of the solution shown before answering), so a word of another length
   can't be what was meant. Each accepted word is a `ReferenceWord(text,
   characters)`, a `ReferenceKanji` per character.
-- **Grading** (`word_grading_service.grade_word`): each cell is graded on its own by
-  `grade_drawing` against its character; an empty cell is that character
-  `missing` (score 0, `wrong`). The word's verdict is the worst cell's (one wrong
-  character makes a wrong word) and its score the cells' average. The closest
-  accepted word counts. The grade is a `WordGrade(score, verdict, matched, cells)`.
+- **Grading** (`word_grading_service.grade_word`): each cell is graded on its own
+  against its character; an empty cell is that character `missing` (score 0,
+  `wrong`). The word's verdict is the worst cell's and its score the cells'
+  average. The closest accepted word counts. The grade is a `WordGrade(score,
+  verdict, matched, cells)`.
+- **Only another character fails a word** (#71). A word with a character written as
+  another one is another word (たべる with ろ for る), so it's `wrong`; a slip in the
+  right character leaves it at worst `close`:
+  - **Kana are recognised** (`grade_kana`): a kana cell is also graded against every
+    other kana (the use case reads their strokes, `KANA`, only for words that have
+    kana). One that fits clearly better (a better verdict, or `RECOGNITION_MARGIN`
+    = 10 more points) makes the cell `wrong`, naming it in the grade's
+    `looks_like`, even when the drawing passes for the expected kana (ろ passes for
+    る). Kana drawn alike in both scripts (へ / ヘ, べ / ベ, ぺ / ペ) and the small or
+    big twin aren't rivals. Otherwise a recognisable kana (likeness ≥
+    `SHAPE_CLOSE`, no marks missing or added whole) is at worst `close`: a stroke
+    too many or too few in the right kana is a slip, not another kana (the kanji
+    rule of no count errors under 5 strokes doesn't apply).
+  - **Small kana** (ゃ / や, っ / つ, ァ / ア...) are told apart by size, since grading
+    normalizes each cell by its own box. A cell's size is compared with the word's
+    other big kana (kanji are left out: drawn bigger, and some flat like 一), against
+    the sizes their references predict, and its twin's (a small kana is about
+    `SMALL_RATIO` = 0.78 of its big twin in KanjiVG). Closer to the twin's: `wrong`,
+    `looks_like` the twin; within `SIZE_BAND` (5 %) of the split: `close`. With no
+    other big kana in the word, only a size clearly the twin's (`ALONE_MARGIN`)
+    counts.
 - A close word counts and comes back as a review, as a close kanji does.
 
 Why one more question type rather than kanji as one-character words:
@@ -312,7 +333,17 @@ accept dozens of kanji). The use case passes the grade to the session
    `LENGTH_TOLERANCE` times **and** by more than `LENGTH_MIN_SHARE_GAP` of the total
    (the gap keeps a short stroke's natural wobble from counting). Dots (reference
    strokes under `MIN_LENGTH_CHECKED`) aren't checked. This is what tells 未 from 末.
-5. **A status per stroke**, the first that applies:
+5. **Marks.** Reference strokes smaller than `MARK_EXTENT` (0.2 of the
+   character: dakuten, handakuten, the dots of 犬 or 心) say nothing by their shape,
+   so they're left out of step 3 and pair afterwards, with the drawn strokes left
+   over, by the distance between their centres (up to `MARK_MATCH`, 0.2; further than
+   `MARK_OK`, 0.1, is `imprecise`); never `reversed`, length unchecked. A circle (゜,
+   a closed stroke) only pairs with a circle. A run of marks (゛'s two strokes) may
+   be drawn in any order. A run with none of its marks drawn, or short strokes drawn
+   where the character has no marks, make another character (は for ば, ぱ for ば, 大
+   for 犬): never `close`. Missing or extra marks don't count against the stroke
+   count rule below.
+6. **A status per stroke**, the first that applies:
 
    | Status | Meaning |
    |---|---|
@@ -324,7 +355,7 @@ accept dozens of kanji). The use case passes the grade to the session
    | `extra` | A drawn stroke with no pair |
    | `missing` | A reference stroke not drawn |
 
-6. **The verdict**, lenient on purpose: nobody writes as exactly as KanjiVG draws, so
+7. **The verdict**, lenient on purpose: nobody writes as exactly as KanjiVG draws, so
    `imprecise`, `too_long` and `too_short` strokes are **warnings only**: they never
    lower the verdict
    ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)). It
@@ -351,6 +382,7 @@ accept dozens of kanji). The use case passes the grade to the session
 | `SHAPE_OK` / `SHAPE_CLOSE` | 0.6 / 0.4 |
 | `ALLOWED_COUNT_ERRORS` / `COUNT_TOLERANCE_FROM` | 1 / 5 strokes |
 | `MISTAKE_CLOSE_SHARE` | ½ |
+| `MARK_EXTENT` / `MARK_MATCH` / `MARK_OK` | 0.2 / 0.2 / 0.1 |
 | `LENGTH_TOLERANCE` / `LENGTH_MIN_SHARE_GAP` / `MIN_LENGTH_CHECKED` (warning) | 1.35 / 0.045 / 0.1 |
 
 **Calibration.** The values were tuned on the KanjiVG strokes of 24 kanji drawn with
@@ -374,6 +406,14 @@ other:
   休 / 体, 問 for 間) is `close`, by design: it can't be told from forgetting a stroke.
 - **Other kanji** (a different stroke count or shape) are `wrong`, and so is a
   drawing too deformed to look like the kanji.
+
+**Kana and marks** (#71) were checked the same way on KanjiVG's kana: every kana
+drawn with noise (points up to 6 units off) is recognised as itself (0 of 177
+wrong); a dakuten drawn longer and off its place, or its two strokes swapped, stays
+`correct`; へ for べ, ぱ for ば, ば for は, ろ for る, ね for れ, シ for ツ, ソ for ン and
+大 / 犬 are `wrong`; a kana with a stroke missing or extra, or half a dakuten, is
+`close`. KanjiVG's marks measure 0.10–0.11 (゛), 0.18 (゜) and 0.12–0.17 (kanji
+dots); シ's dots (0.18–0.19) are marks, ツ's (0.21–0.23) and ふ's aren't.
 
 The values should be checked against real drawings once people use it. A handwriting
 recognition model could replace this later: everything sits behind `grade_drawing`.

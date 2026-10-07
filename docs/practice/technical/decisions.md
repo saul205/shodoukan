@@ -597,6 +597,29 @@ The exercise settings stay one type (`card.handwriting`); the direction's answer
 field (`literal`, or `writing` / `reading`) says what is written. Asking for the
 reading is how kana words and kana practice fit in, since KanjiVG draws every kana.
 
+## Only another character fails a written word
+
+Writing words (#67) showed the grader, tuned on kanji, was unfair to kana (#71):
+dakuten strokes are too small to pair by shape, so べ failed; ゃ and や are the same
+shape once normalized; and a kana with a stroke missing failed like a kanji does
+(the "no count errors under 5 strokes" rule). With the word taking its worst cell's
+verdict, one such slip failed the whole word.
+
+Softening the word rule alone wasn't an option: たべる with ろ for る must fail. So
+grading separates **which character** it is from **how well it's written**:
+
+- Marks (dakuten, handakuten, dots) pair by position, and only missing or adding a
+  whole run of them changes the character. This applies to kanji too (大 / 犬 / 太).
+- Kana are recognised against every other kana; only one that fits clearly better
+  makes a cell wrong, and the feedback names it. A recognised kana is at worst close.
+- Small kana are told apart by size against the word's other kana, from what their
+  references predict.
+
+The word still takes its worst cell's verdict, which now only fails on a wrong
+character. Recognition costs about 0.1 s per kana cell (grading against the ~180
+kana); kanji aren't recognised against other kanji (too many), so they keep the
+kanji rules.
+
 ## Stroke order comes from KanjiVG, without a hanzi-writer fallback
 
 Both dictionaries draw stroke order from KanjiVG, which the dictionary database ships
