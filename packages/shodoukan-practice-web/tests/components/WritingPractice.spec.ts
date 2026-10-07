@@ -138,4 +138,40 @@ describe('WritingPractice', () => {
     expect(text(wrapper, 'practice-text')).toBe('一')
     expect(text(wrapper, 'practice-step')).toBe('Guiado')
   })
+
+  it('restarts the same item when the mode changes', async () => {
+    const wrapper = await practice(chars('一', '二', '三'), 'guided-free', 2)
+    // 一 guided, then twice free: on to 二, guided (the fourth step).
+    for (let i = 0; i < 3; i++) await finishItem(wrapper)
+    expect(text(wrapper, 'practice-text')).toBe('二')
+
+    await wrapper.setProps({ mode: 'guided' })
+    await flushPromises()
+
+    expect(text(wrapper, 'practice-text')).toBe('二')
+    expect(text(wrapper, 'practice-step')).toBe('Guiado')
+  })
+
+  it("doesn't show the previous item while the next one loads", async () => {
+    const wrapper = await practice(chars('一', '二'), 'free')
+    const pending: ((value: unknown) => void)[] = []
+    const answer = api.getMockImplementation()!
+    api.mockImplementation((url: string) => new Promise(r => pending.push(() => r(answer(url)))))
+    wrapper.findComponent(WordWritingBoard).vm.$emit('done')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('[data-testid="practice-next"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="practice-text"]').text()).not.toBe('一')
+    expect(wrapper.findComponent(WordWritingBoard).exists()).toBe(false)
+
+    // The item, then its strokes.
+    while (pending.length) {
+      pending.splice(0).forEach(resolve => resolve(undefined))
+      await flushPromises()
+    }
+    expect(text(wrapper, 'practice-text')).toBe('二')
+    expect(wrapper.findComponent(WordWritingBoard).props('chars')).toEqual(['二'])
+  })
 })

@@ -10,7 +10,8 @@ import { entryWriting, type PracticeItem, type PracticeText } from '~/utils/writ
 // with the dictionary's meanings (none for kana). Items are fetched one at a
 // time, as they come up, and the next one ahead; `rememberPracticeItems`
 // saves those fetches when the caller already has them (the practice screen
-// loaded them to build the queue).
+// loaded them to build the queue). While another item loads, `useAsyncData`
+// keeps the previous one's data: it's never shown as this one's.
 
 type Loaded =
   | { kind: 'kanji'; kanji: PracticeKanji }
@@ -70,13 +71,20 @@ export function usePracticeItem(item: MaybeRefOrGetter<PracticeItem | null>, nex
       const current = toValue(item)
       const upcoming = toValue(next)
       if (upcoming) load(upcoming).catch(() => {})
-      return current ? await load(current) : null
+      return { key: current ? keyOf(current) : null, value: current ? await load(current) : null }
     },
     { watch: [() => toValue(item)] },
   )
 
+  const currentKey = () => {
+    const current = toValue(item)
+    return current ? keyOf(current) : null
+  }
+  const fresh = computed(() => data.value?.key === currentKey())
+  const loading = computed(() => (fresh.value ? status.value : status.value === 'error' ? 'error' : 'pending'))
+
   const text = computed<PracticeText | null>(() => {
-    const value = data.value
+    const value = fresh.value ? data.value?.value : null
     if (!value) return null
     if (value.kind === 'kanji') {
       const { kanji } = value
@@ -94,5 +102,5 @@ export function usePracticeItem(item: MaybeRefOrGetter<PracticeItem | null>, nex
     return { text: value.text, meanings: value.meanings.filter(m => m.lang === lang.value).map(m => m.text).slice(0, MEANINGS) }
   })
 
-  return { text, status }
+  return { text, status: loading }
 }

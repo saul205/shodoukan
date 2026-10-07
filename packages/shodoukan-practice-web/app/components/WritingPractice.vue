@@ -44,9 +44,11 @@ const missing = computed(() => {
 })
 const finished = computed(() => itemDone.value || Boolean(missing.value))
 
-// Another mode starts the current item over, in the new mode.
-watch(mode, () => {
-  const index = step.value?.index ?? 0
+// Another mode starts the current item over, in the new mode. The item is
+// found in the steps of the mode it was played in: `steps` has already moved
+// on to the new one.
+watch(mode, (_, previous) => {
+  const index = practiceSteps(props.items.length, previous, props.repetitions)[position.value]?.index ?? 0
   position.value = Math.max(0, steps.value.findIndex(s => s.index === index))
   again()
 })
