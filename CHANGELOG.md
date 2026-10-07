@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Handwriting exercises for words: an entry exercise can ask to
+  write a word's spelling (okurigana included) or its reading (in kana), a character
+  per cell; each cell is graded like a kanji and the worst one decides. Only words
+  whose every character has a stroke order are asked.
+- **shodoukan-practice-web:** "Escribir a mano" for word exercises: a box per character
+  (a row on a PC, two columns on a phone), one Comprobar for the whole word, then each
+  character's drawing over its model with its score, and "Practicar palabra".
 - **shodoukan-practice-web:** Writing practice for words and kana: a word is written
   whole, a box per character laid out as large as the screen allows (a row on a PC,
   two columns on a phone), guided character after character or free with one check;
