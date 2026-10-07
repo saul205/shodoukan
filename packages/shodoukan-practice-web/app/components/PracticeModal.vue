@@ -37,7 +37,7 @@ function again() {
         v-else
         :key="run"
         v-model:mode="mode"
-        :chars="props.chars"
+        :items="props.chars.map(text => ({ text }))"
         :repetitions="DEFAULT_REPETITIONS"
         @finished="finished = true"
       />

@@ -15,6 +15,12 @@ enableAutoUnmount(afterEach)
 
 const kanji = (id: number, literal: string) => ({ id, literal })
 
+/** A UCheckbox's box: the test id lands on its root or on the box itself. */
+function checkbox(wrapper: Awaited<ReturnType<typeof mountSuspended>>, testId: string) {
+  const element = wrapper.get(`[data-testid="${testId}"]`)
+  return element.attributes('role') === 'checkbox' ? element : element.get('[role="checkbox"]')
+}
+
 beforeEach(() => {
   clearNuxtData()
   navigate.mockReset()
@@ -28,6 +34,14 @@ beforeEach(() => {
       return { items, total: 3, limit: 100, offset }
     }
     if (url === '/library/kanji') return { items: [], total: 0, limit: 100, offset: 0 }
+    if (url === '/collections/entries') return [{ id: 4, name: 'Verbos', description: null, created_at: '', updated_at: '' }]
+    if (url === '/collections/entries/4/items') {
+      const word = (id: number, kanji: string | null, reading: string) => ({
+        id, kanji_readings: kanji ? [{ id, kanji, info: [], enabled: true }] : [],
+        readings: [{ id, text: reading, no_kanji: false, info: [], restricted_to: [], enabled: true }],
+      })
+      return { items: [word(1, '食べる', 'たべる'), word(2, null, 'これ')], total: 2, limit: 100, offset: 0 }
+    }
     throw new Error(`unexpected ${url}`)
   })
 })
@@ -64,5 +78,33 @@ describe('practice page', () => {
 
     expect(api).toHaveBeenCalledWith('/library/kanji', { query: { limit: 100, offset: 0, active: true } })
     expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it("practises a word collection's words, with their readings", async () => {
+    const wrapper = await mountSuspended(PracticePage, { route: '/practice?kind=entries&collection=4' })
+    await flushPromises()
+    await checkbox(wrapper, 'practice-shuffle').trigger('click') // in order
+
+    await wrapper.get('[data-testid="practice-start"]').trigger('click')
+    await flushPromises()
+
+    expect(navigate.mock.calls[0]![0].query).toMatchObject({ words: '食べる:たべる,これ', mode: 'guided-free' })
+  })
+
+  it('practises the chosen kana rows, without the library', async () => {
+    const wrapper = await mountSuspended(PracticePage, { route: '/practice' })
+    await flushPromises()
+    const tab = wrapper.findAll('[data-testid="practice-what"] [role="tab"]').find(t => t.text().includes('Kana'))!
+    await tab.trigger('mousedown', { button: 0 })
+    await tab.trigger('click')
+    await flushPromises()
+
+    await checkbox(wrapper, 'kana-row-hiragana-ka').trigger('click')
+    await wrapper.get('[data-testid="kana-all-katakana"]').trigger('click')
+    await wrapper.get('[data-testid="kana-all-katakana"]').trigger('click')
+    await wrapper.get('[data-testid="practice-start"]').trigger('click')
+    await flushPromises()
+
+    expect([...navigate.mock.calls[0]![0].query.chars].sort()).toEqual([...'かきくけこ'].sort())
   })
 })

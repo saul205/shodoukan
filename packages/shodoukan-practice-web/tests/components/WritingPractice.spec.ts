@@ -31,8 +31,8 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-async function practice(chars: string[], mode = 'guided-free', repetitions = 1) {
-  const wrapper = await mountSuspended(WritingPractice, { props: { chars, mode, repetitions } })
+async function practice(chars: string[], mode = 'guided-free', repetitions = 1, items = chars.map(text => ({ text }))) {
+  const wrapper = await mountSuspended(WritingPractice, { props: { items, mode, repetitions } })
   await flushPromises()
   return wrapper
 }
@@ -42,7 +42,7 @@ const text = (wrapper: Awaited<ReturnType<typeof practice>>, id: string) => wrap
 describe('WritingPractice', () => {
   it('guides a character once, then lets it be drawn freely, then goes on', async () => {
     const wrapper = await practice(['一', '二'])
-    expect(text(wrapper, 'practice-char')).toBe('一')
+    expect(text(wrapper, 'practice-text')).toBe('一')
     expect(text(wrapper, 'practice-step')).toBe('Guiado')
     expect(text(wrapper, 'practice-progress')).toBe('1 / 2')
     expect(wrapper.find('[data-testid="practice-next-row"]').exists()).toBe(false)
@@ -60,7 +60,7 @@ describe('WritingPractice', () => {
     await wrapper.get('[data-testid="practice-next"]').trigger('click')
     await flushPromises()
 
-    expect(text(wrapper, 'practice-char')).toBe('二')
+    expect(text(wrapper, 'practice-text')).toBe('二')
     expect(text(wrapper, 'practice-progress')).toBe('2 / 2')
   })
 
@@ -82,7 +82,7 @@ describe('WritingPractice', () => {
 
     await wrapper.get('[data-testid="practice-next"]').trigger('click')
     await flushPromises()
-    expect(text(wrapper, 'practice-char')).toBe('一')
+    expect(text(wrapper, 'practice-text')).toBe('一')
     expect(text(wrapper, 'practice-step')).toBe('Guiado')
 
     for (let i = 0; i < 3; i++) {
@@ -92,5 +92,46 @@ describe('WritingPractice', () => {
       await flushPromises()
     }
     expect(wrapper.emitted('finished')).toHaveLength(1)
+  })
+
+  it('writes a word one character after another, with a row of cells', async () => {
+    const wrapper = await practice([], 'free', 1, [{ text: '一〆二', reading: 'いち' }])
+    expect(text(wrapper, 'practice-text')).toBe('一〆二')
+    expect(text(wrapper, 'practice-reading')).toBe('いち')
+    const cells = () => wrapper.findAll('[data-testid="practice-cell"]')
+    expect(cells().map(c => c.text())).toEqual(['一', '〆', '二'])
+    expect(cells()[0]!.attributes('aria-current')).toBe('step')
+    expect(cells()[1]!.attributes('disabled')).toBeDefined()
+
+    wrapper.findComponent(FreeWritingPad).vm.$emit('done')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="practice-next"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="practice-next-cell"]').trigger('click')
+    await flushPromises()
+
+    // 〆 has no drawing: shown, then on to the next character.
+    expect(cells()[1]!.attributes('aria-current')).toBe('step')
+    expect(wrapper.find('[data-testid="practice-missing"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="practice-next-cell"]').trigger('click')
+    await flushPromises()
+
+    wrapper.findComponent(FreeWritingPad).vm.$emit('done')
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="practice-next"]').trigger('click')
+    expect(wrapper.emitted('finished')).toHaveLength(1)
+  })
+
+  it('draws a done character of a word again from its cell', async () => {
+    const wrapper = await practice([], 'free', 1, [{ text: '一二' }])
+    wrapper.findComponent(FreeWritingPad).vm.$emit('done')
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="practice-next-cell"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.findAll('[data-testid="practice-cell"]')[0]!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="practice-cell"]')[0]!.attributes('aria-current')).toBe('step')
+    expect(wrapper.find('[data-testid="practice-next-row"]').exists()).toBe(false)
   })
 })

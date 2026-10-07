@@ -1,14 +1,30 @@
 <script setup lang="ts">
 import { safeReturnPath } from '~/utils/return-path'
-import { parseMode, parseRepetitions, practiceChars, type PracticeMode } from '~/utils/writing-practice'
+import {
+  parseMode,
+  parseRepetitions,
+  parseWords,
+  practiceChars,
+  type PracticeItem,
+  type PracticeMode,
+} from '~/utils/writing-practice'
 
-// Writing practice of the characters in `?chars=` (`?mode=`, `?reps=`), so
-// any page can link to it. `?from=` is where Volver goes (a path in this
+// Writing practice of the characters in `?chars=` (kanji or kana, each on its
+// own) or the words in `?words=` (`食べる:たべる,飲む`), with `?mode=` and
+// `?reps=`, so any page can link to it. `?from=` is where Volver goes (a path in this
 // app); `/practice` by default.
 const route = useRoute()
 const router = useRouter()
 
-const chars = computed(() => practiceChars(typeof route.query.chars === 'string' ? route.query.chars : ''))
+const items = computed<PracticeItem[]>(() => {
+  if (route.query.words) return parseWords(route.query.words)
+  return practiceChars(typeof route.query.chars === 'string' ? route.query.chars : '').map(text => ({ text }))
+})
+const countLabel = computed(() => {
+  const n = items.value.length
+  if (route.query.words) return n === 1 ? '1 palabra' : `${n} palabras`
+  return n === 1 ? '1 carácter' : `${n} caracteres`
+})
 const mode = computed<PracticeMode>({
   get: () => parseMode(route.query.mode),
   set: value => router.replace({ query: { ...route.query, mode: value } }),
@@ -32,10 +48,10 @@ function again() {
     </template>
 
     <UEmpty
-      v-if="!chars.length"
+      v-if="!items.length"
       icon="i-lucide-pen-line"
       title="Nada que practicar"
-      description="Elige qué practicar: kanji de tu librería o de una colección."
+      description="Elige qué practicar: kanji, palabras o kana."
       :actions="[{ label: 'Elegir', to: '/practice', icon: 'i-lucide-arrow-right' }]"
     />
 
@@ -43,7 +59,7 @@ function again() {
       <UIcon name="i-lucide-circle-check" class="size-12 text-success" />
       <div>
         <p class="text-lg text-highlighted">Práctica terminada</p>
-        <p class="text-muted">{{ chars.length === 1 ? '1 carácter' : `${chars.length} caracteres` }}</p>
+        <p class="text-muted">{{ countLabel }}</p>
       </div>
       <div class="flex gap-2">
         <UButton label="Otra vez" icon="i-lucide-rotate-ccw" color="neutral" variant="outline" @click="again" />
@@ -55,7 +71,7 @@ function again() {
       v-else
       :key="run"
       v-model:mode="mode"
-      :chars="chars"
+      :items="items"
       :repetitions="repetitions"
       @finished="finished = true"
     />
