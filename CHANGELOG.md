@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Words of the user's own, for what the dictionary doesn't have
+  (e.g. counters with their numbers): `POST /library/entries/own` with readings,
+  optional spellings, a first meaning and collections; they have no `source_entry_id`
+  and everything in them is the user's. Any word can take spellings and readings of
+  the user's own (`POST` / `DELETE .../kanji-readings`, `.../readings`); a word keeps at
+  least one reading.
 - **shodoukan-practice:** Senses of the user's own on a library word
   (`POST /library/entries/{id}/senses`, created with their first meaning; removed with
   `DELETE .../senses/{sense_id}`, with their meanings and examples), and enabling or

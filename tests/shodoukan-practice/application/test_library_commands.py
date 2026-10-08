@@ -3,12 +3,16 @@ from factories import make_entry_collection, make_kanji_collection
 from sqlalchemy.orm import Session
 
 from shodoukan import Dictionary
-from shodoukan_practice.application.commands import ImportEntry, ImportKanji
+from shodoukan_practice.application.commands import (
+    CreateOwnEntry,
+    ImportEntry,
+    ImportKanji,
+)
 from shodoukan_practice.domain.exceptions import (
     DictionaryItemNotFoundError,
     EntityNotFoundError,
 )
-from shodoukan_practice.infrastructure.db.orm import UserORM
+from shodoukan_practice.infrastructure.db.orm import PracticeEntryORM, UserORM
 from shodoukan_practice.infrastructure.dictionary import ShodoukanDictionaryGateway
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
@@ -170,3 +174,45 @@ def test_import_kanji_into_an_unknown_collection_imports_nothing(
     assert (
         SqlAlchemyPracticeKanjiRepository(session).get_by_literal("食", user.id) is None
     )
+
+
+# --- Words of the user's own ---
+
+
+@pytest.fixture
+def create_own(session: Session) -> CreateOwnEntry:
+    return CreateOwnEntry(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
+def test_create_own_entry_stores_it_in_the_collections(
+    create_own: CreateOwnEntry, user: UserORM, session: Session
+) -> None:
+    collections = SqlAlchemyEntryCollectionRepository(session)
+    counters = collections.add(make_entry_collection(user.id, "counters"))
+    assert counters.id is not None
+
+    entry = create_own.execute(
+        user.id, ["三匹"], ["さんびき"], "three animals", "eng", [counters.id]
+    )
+
+    assert entry.id is not None and entry.is_own
+    stored = SqlAlchemyPracticeEntryRepository(session).get(entry.id, user.id)
+    assert stored == entry
+    assert [c.name for c in collections.list_for_item(entry)] == ["counters"]
+
+
+def test_create_own_entry_in_an_unknown_collection_creates_nothing(
+    create_own: CreateOwnEntry, user: UserORM, other_user: UserORM, session: Session
+) -> None:
+    theirs = SqlAlchemyEntryCollectionRepository(session).add(
+        make_entry_collection(other_user.id, "theirs")
+    )
+    assert theirs.id is not None
+
+    with pytest.raises(EntityNotFoundError):
+        create_own.execute(user.id, [], ["ねこ"], "cat", "eng", [theirs.id])
+
+    assert session.query(PracticeEntryORM).count() == 0

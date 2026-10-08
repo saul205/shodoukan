@@ -1,5 +1,6 @@
 from factories import USER_ID, make_entry
 
+from shodoukan_practice.domain.entities import PracticeEntry
 from shodoukan_practice.infrastructure.db.mappers import (
     practice_entry_to_db,
     practice_entry_to_domain,
@@ -42,4 +43,14 @@ def test_round_trip_keeps_own_and_disabled_senses() -> None:
         (False, "imported"),
         (True, "added"),
     ]
+    assert practice_entry_to_domain(row) == entry
+
+
+def test_round_trip_keeps_own_words() -> None:
+    entry = PracticeEntry.create_own(USER_ID, ["三匹"], ["さんびき"], "three", "eng")
+
+    row = practice_entry_to_db(entry)
+
+    assert row.source_entry_id is None
+    assert (row.kanji_readings[0].origin, row.readings[0].origin) == ("added", "added")
     assert practice_entry_to_domain(row) == entry

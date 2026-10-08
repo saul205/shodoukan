@@ -150,6 +150,55 @@ def test_own_senses(
     )
 
 
+def test_own_spellings_and_readings(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    imported_reading = entry["readings"][0]["id"]
+
+    spelling = client.post(
+        f"{url}/kanji-readings", json={"kanji": "喰べる"}, headers=headers
+    )
+    reading = client.post(f"{url}/readings", json={"text": "クウ"}, headers=headers)
+    assert (spelling.status_code, reading.status_code) == (201, 201)
+    own_spelling = spelling.json()["kanji_readings"][-1]
+    own_reading = reading.json()["readings"][-1]
+    assert (own_spelling["origin"], own_reading["origin"]) == ("added", "added")
+
+    assert (
+        client.post(
+            f"{url}/readings", json={"text": "kuu"}, headers=headers
+        ).status_code
+        == 422
+    )
+    assert (
+        client.delete(f"{url}/readings/{imported_reading}", headers=headers).status_code
+        == 409
+    )
+    client.delete(f"{url}/kanji-readings/{own_spelling['id']}", headers=headers)
+    removed = client.delete(f"{url}/readings/{own_reading['id']}", headers=headers)
+    assert removed.status_code == 200
+    assert all(r["origin"] == "imported" for r in removed.json()["readings"])
+    assert all(k["origin"] == "imported" for k in removed.json()["kanji_readings"])
+
+
+def test_an_own_word_keeps_its_last_reading(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    own = client.post(
+        "/library/entries/own",
+        json={"readings": ["ねこ"], "meaning": "cat", "lang": "eng"},
+        headers=headers,
+    ).json()
+    reading_id = own["readings"][0]["id"]
+
+    response = client.delete(
+        f"/library/entries/{own['id']}/readings/{reading_id}", headers=headers
+    )
+
+    assert response.status_code == 409
+
+
 def test_meaning_validation(
     client: TestClient, headers: dict[str, str], entry: dict[str, Any]
 ) -> None:

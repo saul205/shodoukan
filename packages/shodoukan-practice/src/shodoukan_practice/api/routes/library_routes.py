@@ -1,15 +1,17 @@
-"""The user's practice library: browsing it and importing entries and kanji."""
+"""The user's practice library: browsing it, importing entries and kanji, and
+creating words of the user's own."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import StringConstraints
 
-from ...application.commands import ImportEntry, ImportKanji
+from ...application.commands import CreateOwnEntry, ImportEntry, ImportKanji
 from ...application.queries import GetImportStatus, SearchEntries, SearchKanji
 from ..deps import (
     CurrentUserDep,
     SessionDep,
+    get_create_own_entry,
     get_import_entry,
     get_import_kanji,
     get_import_status,
@@ -24,6 +26,7 @@ from ..schemas import (
     ImportStatusResponse,
     MeaningLang,
     NotInCollection,
+    OwnEntryRequest,
     PracticeEntryPageResponse,
     PracticeEntryResponse,
     PracticeKanjiPageResponse,
@@ -200,6 +203,40 @@ def import_entry(
     if not result.created:
         response.status_code = status.HTTP_200_OK
     return PracticeEntryResponse.model_validate(result.item)
+
+
+@router.post(
+    "/entries/own",
+    response_model=PracticeEntryResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid token."},
+        status.HTTP_404_NOT_FOUND: {
+            "description": "A collection that isn't one of the user's."
+        },
+    },
+)
+def create_own_entry(
+    body: OwnEntryRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[CreateOwnEntry, Depends(get_create_own_entry)],
+) -> PracticeEntryResponse:
+    """Create a word of the user's own, one the dictionary doesn't have.
+
+    It has no `source_entry_id`; everything in it is the user's (`origin`
+    `added`), so it can all be edited. `collection_ids` work as for imports.
+    """
+    entry = use_case.execute(
+        user.id,
+        body.spellings,
+        body.readings,
+        body.meaning,
+        body.lang,
+        body.collection_ids,
+    )
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
 
 
 @router.post(

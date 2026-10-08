@@ -17,6 +17,7 @@ from shodoukan_practice.domain.entities import (
 )
 from shodoukan_practice.domain.exceptions import (
     EntityNotFoundError,
+    LastReadingError,
     OriginalDataError,
 )
 
@@ -255,3 +256,78 @@ def test_dictionary_senses_can_be_disabled_but_not_removed() -> None:
     with pytest.raises(EntityNotFoundError):
         entry.remove_sense(99)
     assert len(entry.senses) == 1
+
+
+def test_create_own_word() -> None:
+    entry = PracticeEntry.create_own(
+        USER_ID,
+        [" 三匹 ", "三匹"],
+        ["さんびき", " サンビキ "],
+        " three animals ",
+        "eng",
+    )
+
+    assert entry.is_own and entry.source_entry_id is None and entry.id is None
+    assert [(k.kanji, k.origin) for k in entry.kanji_readings] == [("三匹", "added")]
+    assert [(r.text, r.origin) for r in entry.readings] == [
+        ("さんびき", "added"),
+        ("サンビキ", "added"),
+    ]
+    (sense,) = entry.senses
+    assert sense.origin == "added"
+    assert [(g.text, g.lang, g.origin) for g in sense.glosses] == [
+        ("three animals", "eng", "added")
+    ]
+    assert (entry.jlpt, entry.is_common, entry.is_active) == (None, False, True)
+
+
+def test_imported_words_are_not_own() -> None:
+    assert make_entry().is_own is False
+
+
+def test_own_word_needs_a_kana_reading_and_a_meaning() -> None:
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, ["三匹"], [], "three animals", "eng")
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, ["三匹"], ["sanbiki"], "x", "eng")
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, [], ["さんびき"], "  ", "eng")
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, [" "], ["さんびき"], "x", "eng")
+
+
+def test_add_and_remove_own_spellings_and_readings() -> None:
+    entry = stored_entry()
+
+    spelling = entry.add_spelling(" 喰べる ")
+    reading = entry.add_reading("クウ")
+    assert (spelling.kanji, spelling.origin) == ("喰べる", "added")
+    assert (reading.text, reading.origin) == ("クウ", "added")
+    assert entry.updated_at > NOW
+
+    spelling.id, reading.id = 2, 3  # as stored
+    entry.remove_spelling(2)
+    entry.remove_reading(3)
+    assert [k.id for k in entry.kanji_readings] == [1]
+    assert [r.text for r in entry.readings] == ["たべる"]
+    with pytest.raises(ValueError):
+        entry.add_reading("taberu")
+
+
+def test_dictionary_spellings_and_readings_are_only_disabled() -> None:
+    entry = stored_entry()
+    with pytest.raises(OriginalDataError):
+        entry.remove_spelling(1)
+    with pytest.raises(OriginalDataError):
+        entry.remove_reading(1)
+    with pytest.raises(EntityNotFoundError):
+        entry.remove_reading(99)
+
+
+def test_a_word_keeps_its_last_reading() -> None:
+    entry = PracticeEntry.create_own(USER_ID, [], ["ねこ"], "cat", "eng")
+    entry.readings[0].id = 1
+
+    with pytest.raises(LastReadingError):
+        entry.remove_reading(1)
+    assert len(entry.readings) == 1

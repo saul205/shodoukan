@@ -1,4 +1,5 @@
-"""Use cases that add dictionary items to a user's practice library."""
+"""Use cases that add items to a user's practice library: dictionary items,
+and words of the user's own."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -73,6 +74,44 @@ class ImportEntry:
             raise DictionaryItemNotFoundError(f"entry {source_entry_id} not found")
         item, created = self._entries.add_if_absent(snapshot)
         return ImportResult(item, created)
+
+
+class CreateOwnEntry:
+    """Create a word of the user's own (not in the dictionary), and put it in
+    collections.
+
+    The collections are checked first, so an unknown one
+    (`EntityNotFoundError`) creates nothing. Not idempotent: the user can
+    have any number of words of their own, even alike. Doesn't commit.
+    """
+
+    def __init__(
+        self,
+        entries: PracticeEntryRepository,
+        collections: EntryCollectionRepository,
+    ) -> None:
+        self._entries = entries
+        self._collections = collections
+
+    def execute(
+        self,
+        user_id: UUID,
+        spellings: Sequence[str],
+        readings: Sequence[str],
+        meaning: str,
+        lang: str,
+        collection_ids: Sequence[int] = (),
+    ) -> PracticeEntry:
+        targets = [
+            entry_collection(self._collections, collection_id, user_id)
+            for collection_id in dict.fromkeys(collection_ids)
+        ]
+        entry = self._entries.add(
+            PracticeEntry.create_own(user_id, spellings, readings, meaning, lang)
+        )
+        for collection in targets:
+            self._collections.add_item(collection, entry)
+        return entry
 
 
 class ImportKanji:
