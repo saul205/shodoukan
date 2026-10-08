@@ -51,8 +51,12 @@ const sourceId = computed(() => entry.value?.source_entry_id)
 const ownLiterals = computed(() =>
   entry.value && entry.value.source_entry_id === null ? kanjiIn(entry.value.kanji_readings[0]?.kanji ?? '') : [],
 )
+// Watched as a string: every edit replaces `entry`, so `ownLiterals` is a new
+// array each time, and Vue compares arrays by reference; the string only
+// changes when the kanji do, so edits don't fetch the list again.
+const ownLiteralsKey = computed(() => ownLiterals.value.join(''))
 const { data: wordKanji } = useAsyncData(
-  () => `library-entry-kanji-${sourceId.value}-${ownLiterals.value.join('')}`,
+  () => `library-entry-kanji-${sourceId.value}-${ownLiteralsKey.value}`,
   async () => {
     if (sourceId.value === undefined) return null
     const kanji = sourceId.value === null
@@ -62,7 +66,7 @@ const { data: wordKanji } = useAsyncData(
     await kanjiStatus.refresh([], kanji.map(k => k.literal))
     return kanji
   },
-  { watch: [sourceId, ownLiterals] },
+  { watch: [sourceId, ownLiteralsKey] },
 )
 
 const spellings = computed(() => entry.value?.kanji_readings.map(k => ({ ...k, text: k.kanji })) ?? [])
