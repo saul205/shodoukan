@@ -5,6 +5,7 @@ seeded random, the mistakes people make (a stroke backwards, two swapped, one
 left out), and other kanji.
 """
 
+import math
 from random import Random
 
 import pytest
@@ -367,3 +368,51 @@ def test_a_slip_in_the_right_kana_is_close_not_wrong() -> None:
     # would make it another one.
     assert _grade("た", "た", keep=[0, 1, 2]).verdict == "wrong"
     assert _kana("た", "た", keep=[0, 1, 2]).verdict == "close"
+
+
+def test_a_mark_drawn_the_other_way_is_reversed_but_its_angle_is_free() -> None:
+    be = kanjivg_strokes("べ")
+    rivals = [kanjivg_reference(k) for k in KANA if k != "べ"]
+
+    def kana(strokes: list[tuple[Point, ...]]) -> HandwritingGrade:
+        drawing = StrokesAnswer(strokes=hand_drawn(strokes))
+        return grade_kana(drawing, kanjivg_reference("べ"), rivals)
+
+    backwards = kana([be[0], be[1][::-1], be[2][::-1]])
+    assert backwards.verdict == "close"
+    assert [f.status for f in backwards.strokes] == ["ok", "reversed", "reversed"]
+    assert kana([be[0], _turn(be[1], 60), _turn(be[2], 60)]).verdict == "correct"
+
+
+def _turn(stroke: tuple[Point, ...], degrees: float) -> tuple[Point, ...]:
+    """`stroke` turned about its centre."""
+    cx = sum(x for x, _ in stroke) / len(stroke)
+    cy = sum(y for _, y in stroke) / len(stroke)
+    a = math.radians(degrees)
+    return tuple(
+        (
+            cx + (x - cx) * math.cos(a) - (y - cy) * math.sin(a),
+            cy + (x - cx) * math.sin(a) + (y - cy) * math.cos(a),
+        )
+        for x, y in stroke
+    )
+
+
+def test_short_strokes_of_a_dense_kanji_are_ordinary_strokes() -> None:
+    # 曜 has 18 strokes: its short ones (the inner strokes of 日) aren't marks,
+    # so their direction counts and one missing is a slip, not another kanji.
+    yo = kanjivg_strokes("曜")
+    backwards = [*yo[:1], yo[1][::-1], *yo[2:]]
+    grade = grade_drawing(
+        StrokesAnswer(strokes=hand_drawn(backwards)), [kanjivg_reference("曜")]
+    )
+    assert grade.verdict == "close"
+    assert [f.status for f in grade.strokes if f.status != "ok"] == ["reversed"]
+
+    missing = yo[:11] + yo[12:]
+    assert (
+        grade_drawing(
+            StrokesAnswer(strokes=hand_drawn(missing)), [kanjivg_reference("曜")]
+        ).verdict
+        == "close"
+    )

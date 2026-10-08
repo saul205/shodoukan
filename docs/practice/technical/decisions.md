@@ -609,7 +609,11 @@ Softening the word rule alone wasn't an option: たべる with ろ for る must 
 grading separates **which character** it is from **how well it's written**:
 
 - Marks (dakuten, handakuten, dots) pair by position, and only missing or adding a
-  whole run of them changes the character. This applies to kanji too (大 / 犬 / 太).
+  whole run of them changes the character. This applies to kanji too (大 / 犬 / 太),
+  but only to characters of up to 6 strokes: a review of #76 found dense kanji
+  have many short strokes (9 of 識's 19), whose direction then went unchecked and
+  one of which missing failed the drawing. Their direction counts too, loosely: only
+  a mark turned more than 120° is `reversed`.
 - Kana are recognised against every other kana; only one that fits clearly better
   makes a cell wrong, and the feedback names it. A recognised kana is at worst close.
 - Small kana are told apart by size against the word's other kana, from what their
