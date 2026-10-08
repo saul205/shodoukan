@@ -137,7 +137,12 @@ async function remove() {
       <UButton label="Añadir" icon="i-lucide-plus" @click="addItems" />
       <UDropdownMenu
         :items="[
-          [{ label: 'Editar', icon: 'i-lucide-pencil', onSelect: edit }],
+          [
+            ...(kind === 'entries'
+              ? [{ label: 'Nueva palabra propia', icon: 'i-lucide-file-plus', to: { path: '/library/entries/new', query: { collection: id } } }]
+              : []),
+            { label: 'Editar', icon: 'i-lucide-pencil', onSelect: edit },
+          ],
           [{ label: 'Eliminar colección', icon: 'i-lucide-trash-2', color: 'error', onSelect: remove }],
         ]"
         :content="{ align: 'end' }"
