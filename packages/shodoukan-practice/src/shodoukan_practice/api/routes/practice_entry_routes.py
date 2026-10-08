@@ -2,7 +2,7 @@
 
 Every edit returns the whole entry as it is now, so the client re-renders
 from the response. Dictionary data is only ever disabled: editing or
-removing an imported sense or meaning is a 409.
+removing an imported sense, meaning or example is a 409.
 """
 
 from enum import StrEnum
@@ -11,9 +11,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, status
 
 from ...application.commands import (
+    AddEntryExample,
     AddEntryGloss,
     AddEntrySense,
+    EditEntryExample,
     EditEntryGloss,
+    RemoveEntryExample,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
     RemoveEntrySense,
@@ -27,11 +30,14 @@ from ...domain.entities import EntryPart
 from ..deps import (
     CurrentUserDep,
     SessionDep,
+    get_add_entry_example,
     get_add_entry_gloss,
     get_add_entry_sense,
+    get_edit_entry_example,
     get_edit_entry_gloss,
     get_get_library_entry,
     get_list_collections_of_entry,
+    get_remove_entry_example,
     get_remove_entry_from_library,
     get_remove_entry_gloss,
     get_remove_entry_sense,
@@ -44,6 +50,7 @@ from ..schemas import (
     ActiveRequest,
     CollectionResponse,
     EnabledRequest,
+    ExampleRequest,
     MeaningTextRequest,
     NewGlossRequest,
     NotesRequest,
@@ -58,7 +65,8 @@ _RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 _ORIGINAL: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {
-        "description": "A dictionary sense or meaning: it can only be disabled."
+        "description": "Dictionary data (a sense, meaning or example): it can only be "
+        "disabled."
     }
 }
 
@@ -275,5 +283,69 @@ def remove_gloss(
 ) -> PracticeEntryResponse:
     """Remove one of the user's own meanings."""
     entry = use_case.execute(user.id, entry_id, gloss_id)
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.post(
+    "/{entry_id}/senses/{sense_id}/examples",
+    response_model=PracticeEntryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_example(
+    entry_id: int,
+    sense_id: int,
+    body: ExampleRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[AddEntryExample, Depends(get_add_entry_example)],
+) -> PracticeEntryResponse:
+    """Add an example sentence of the user's own at the end of the sense."""
+    entry = use_case.execute(
+        user.id, entry_id, sense_id, body.japanese, body.translation, body.lang
+    )
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.put(
+    "/{entry_id}/examples/{example_id}",
+    response_model=PracticeEntryResponse,
+    responses=_ORIGINAL,
+)
+def edit_example(
+    entry_id: int,
+    example_id: int,
+    body: ExampleRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[EditEntryExample, Depends(get_edit_entry_example)],
+) -> PracticeEntryResponse:
+    """Rewrite one of the user's own examples.
+
+    Replaces the Japanese sentence and the translation in `lang`; translations
+    in other languages are kept.
+    """
+    entry = use_case.execute(
+        user.id, entry_id, example_id, body.japanese, body.translation, body.lang
+    )
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.delete(
+    "/{entry_id}/examples/{example_id}",
+    response_model=PracticeEntryResponse,
+    responses=_ORIGINAL,
+)
+def remove_example(
+    entry_id: int,
+    example_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[RemoveEntryExample, Depends(get_remove_entry_example)],
+) -> PracticeEntryResponse:
+    """Remove one of the user's own examples."""
+    entry = use_case.execute(user.id, entry_id, example_id)
     session.commit()
     return PracticeEntryResponse.model_validate(entry)

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from shodoukan import Dictionary
 
 from ..application.commands import (
+    AddEntryExample,
     AddEntryGloss,
     AddEntrySense,
     AddEntryToCollection,
@@ -29,12 +30,14 @@ from ..application.commands import (
     DeleteEntryCollection,
     DeleteExercise,
     DeleteKanjiCollection,
+    EditEntryExample,
     EditEntryGloss,
     EditKanjiMeaning,
     EnsureUser,
     FinishExerciseSession,
     ImportEntry,
     ImportKanji,
+    RemoveEntryExample,
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
@@ -260,6 +263,18 @@ def get_search_kanji(session: SessionDep, kana: KanaGatewayDep) -> SearchKanji:
 
 
 # --- Library items ---
+
+
+def get_add_entry_example(session: SessionDep) -> AddEntryExample:
+    return AddEntryExample(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_edit_entry_example(session: SessionDep) -> EditEntryExample:
+    return EditEntryExample(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_example(session: SessionDep) -> RemoveEntryExample:
+    return RemoveEntryExample(SqlAlchemyPracticeEntryRepository(session))
 
 
 def get_add_entry_gloss(session: SessionDep) -> AddEntryGloss:

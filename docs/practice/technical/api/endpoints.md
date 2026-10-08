@@ -66,20 +66,24 @@ disabled.
 | `POST` | `/library/entries/{id}/senses/{sense_id}/glosses` | `{"text": "...", "lang": "eng"}` (ISO 639-2) | `201` |
 | `PUT` | `/library/entries/{id}/glosses/{gloss_id}` | `{"text": "..."}` | `200`; `409` for a dictionary meaning |
 | `DELETE` | `/library/entries/{id}/glosses/{gloss_id}` | — | `200`; `409` for a dictionary meaning |
+| `POST` | `/library/entries/{id}/senses/{sense_id}/examples` | `{"japanese": "...", "translation": "..." \| null, "lang": "eng"}` | `201`; an own example at the end of the sense |
+| `PUT` | `/library/entries/{id}/examples/{example_id}` | same body | `200`; replaces the Japanese sentence and the translation in `lang`, keeps the others; `409` for a dictionary example |
+| `DELETE` | `/library/entries/{id}/examples/{example_id}` | — | `200`; `409` for a dictionary example |
 
 Kanji, under `/library/kanji/{id}`: the same `GET`, `DELETE`, `/collections`,
 `/active` and `/notes`; `/{part}/{item_id}/enabled` with `part` `readings` (on, kun and
 nanori) or `meanings`; `POST /meanings` with `{"text", "lang"}` (ISO 639-1, e.g. `en`);
 `PUT` / `DELETE /meanings/{meaning_id}`.
 
-Meaning texts are stripped and must be 1–500 characters. The responses carry `notes` on
+Meaning texts are stripped and must be 1–500 characters, as must an example's Japanese
+sentence; its translation is optional (≤ 500) and its `lang` can't be `jpn`. The responses carry `notes` on
 the item and, for entries, on each sense, which also has `enabled` and `origin`.
 
 | Status | When |
 |---|---|
 | `401` | Missing or invalid token |
 | `404` | Not in the user's library (or another user's), or no such sense or nested item |
-| `409` | Editing or removing a dictionary meaning, or removing a dictionary sense |
+| `409` | Editing or removing a dictionary meaning or example, or removing a dictionary sense |
 | `422` | Unknown `part`, invalid body (empty meaning, wrong `lang` format, note too long) |
 
 Why one endpoint per edit: [decisions](../decisions.md#one-endpoint-per-customisation).

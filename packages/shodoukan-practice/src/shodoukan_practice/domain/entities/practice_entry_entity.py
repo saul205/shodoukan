@@ -13,13 +13,16 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from ..exceptions import EntityNotFoundError, OriginalDataError
-from .nested_item_lookup import Toggleable, clean_meaning, find_item
+from .nested_item_lookup import Toggleable, clean_meaning, clean_sentence, find_item
 from .notes_value import Notes, parse_notes
 from .timestamped_entity import TimestampedEntity
 
 # The parts of an entry the user can enable or disable, one item at a time.
 EntryPart = Literal["kanji_readings", "readings", "senses", "glosses", "examples"]
 Origin = Literal["imported", "added"]
+
+# Example sentences store the Japanese one under this language, like JMDict.
+JAPANESE = "jpn"
 
 
 class PracticeGloss(BaseModel):
@@ -38,6 +41,7 @@ class PracticeExampleSentence(BaseModel):
 
 class PracticeExample(BaseModel):
     id: int | None
+    # JMDict's form of the word in the sentence; empty in the user's own.
     text: str
     sentences: list[PracticeExampleSentence]
     enabled: bool = True
@@ -182,6 +186,44 @@ class PracticeEntry(TimestampedEntity):
         sense.glosses.remove(gloss)
         self.touch()
 
+    def add_example(
+        self, sense_id: int, japanese: str, translation: str | None, lang: str
+    ) -> PracticeExample:
+        """Add an example sentence of the user's own at the end of the sense.
+
+        `translation` (optional) is in `lang` (ISO 639-2, e.g. "eng"). The new
+        example has no id until the entry is stored.
+        """
+        example = PracticeExample(
+            id=None,
+            text="",
+            sentences=_sentences([], japanese, translation, lang),
+            origin="added",
+        )
+        self._sense(sense_id).examples.append(example)
+        self.touch()
+        return example
+
+    def edit_example(
+        self, example_id: int, japanese: str, translation: str | None, lang: str
+    ) -> None:
+        """Rewrite one of the user's own examples.
+
+        The Japanese sentence and the translation in `lang` are replaced (no
+        translation removes it); translations in other languages are kept.
+        """
+        _, example = self._own_example(example_id)
+        sentences = _sentences(example.sentences, japanese, translation, lang)
+        if sentences != example.sentences:
+            example.sentences = sentences
+            self.touch()
+
+    def remove_example(self, example_id: int) -> None:
+        """Remove one of the user's own examples."""
+        sense, example = self._own_example(example_id)
+        sense.examples.remove(example)
+        self.touch()
+
     def _sense(self, sense_id: int) -> PracticeSense:
         return find_item(self.senses, sense_id, "sense")
 
@@ -196,6 +238,17 @@ class PracticeEntry(TimestampedEntity):
                     return sense, gloss
         raise EntityNotFoundError(f"gloss {gloss_id} not found")
 
+    def _own_example(self, example_id: int) -> tuple[PracticeSense, PracticeExample]:
+        for sense in self.senses:
+            for example in sense.examples:
+                if example.id == example_id:
+                    if example.origin == "imported":
+                        raise OriginalDataError(
+                            "dictionary examples can only be disabled"
+                        )
+                    return sense, example
+        raise EntityNotFoundError(f"example {example_id} not found")
+
     def _items(self, part: EntryPart) -> Iterable[Toggleable]:
         if part == "kanji_readings":
             return self.kanji_readings
@@ -206,3 +259,23 @@ class PracticeEntry(TimestampedEntity):
         if part == "glosses":
             return [g for s in self.senses for g in s.glosses]
         return [e for s in self.senses for e in s.examples]
+
+
+def _sentences(
+    current: list[PracticeExampleSentence],
+    japanese: str,
+    translation: str | None,
+    lang: str,
+) -> list[PracticeExampleSentence]:
+    """The Japanese sentence, then the translation in `lang` (none when
+    blank), then the other translations already there, in their order."""
+    if lang == JAPANESE:
+        raise ValueError("a translation can't be in Japanese")
+    sentences = [PracticeExampleSentence(lang=JAPANESE, text=clean_sentence(japanese))]
+    for sentence in current:
+        if sentence.lang not in (JAPANESE, lang):
+            sentences.append(sentence)
+    translation = (translation or "").strip()
+    if translation:
+        sentences.insert(1, PracticeExampleSentence(lang=lang, text=translation))
+    return sentences

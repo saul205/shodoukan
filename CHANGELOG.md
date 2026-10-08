@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Example sentences of the user's own in a word's senses
+  (`POST /library/entries/{id}/senses/{sense_id}/examples`, `PUT` / `DELETE
+  .../examples/{example_id}`): a Japanese sentence and an optional translation; editing
+  keeps the translations in other languages. Dictionary examples can only be disabled.
 - **shodoukan-practice:** Senses of the user's own on a library word
   (`POST /library/entries/{id}/senses`, created with their first meaning; removed with
   `DELETE .../senses/{sense_id}`, with their meanings and examples), and enabling or

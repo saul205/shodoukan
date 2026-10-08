@@ -255,3 +255,61 @@ def test_dictionary_senses_can_be_disabled_but_not_removed() -> None:
     with pytest.raises(EntityNotFoundError):
         entry.remove_sense(99)
     assert len(entry.senses) == 1
+
+
+def _texts(example: PracticeExample) -> list[tuple[str, str]]:
+    return [(s.lang, s.text) for s in example.sentences]
+
+
+def test_add_edit_and_remove_own_examples() -> None:
+    entry = stored_entry()
+
+    added = entry.add_example(1, " 朝ご飯を食べる。 ", " I eat breakfast. ", "eng")
+    assert (added.id, added.origin, added.text) == (None, "added", "")
+    assert entry.senses[0].examples[-1] is added
+    assert _texts(added) == [("jpn", "朝ご飯を食べる。"), ("eng", "I eat breakfast.")]
+    assert entry.updated_at > NOW
+
+    added.id = 2  # as stored
+    entry.edit_example(2, "朝ご飯を食べた。", "Desayuné.", "spa")
+    assert _texts(added) == [
+        ("jpn", "朝ご飯を食べた。"),
+        ("spa", "Desayuné."),
+        ("eng", "I eat breakfast."),
+    ]
+    entry.edit_example(2, "朝ご飯を食べた。", "  ", "eng")
+    assert _texts(added) == [("jpn", "朝ご飯を食べた。"), ("spa", "Desayuné.")]
+
+    entry.remove_example(2)
+    assert [e.id for e in entry.senses[0].examples] == [1]
+
+
+def test_own_examples_without_a_translation_or_change() -> None:
+    entry = stored_entry()
+    added = entry.add_example(1, "食べる。", None, "eng")
+    assert _texts(added) == [("jpn", "食べる。")]
+
+    added.id = 2
+    touched = entry.updated_at
+    entry.edit_example(2, "食べる。", None, "eng")
+    assert entry.updated_at == touched
+
+
+def test_own_examples_need_a_sentence_and_a_foreign_translation() -> None:
+    entry = stored_entry()
+    with pytest.raises(ValueError):
+        entry.add_example(1, "   ", "x", "eng")
+    with pytest.raises(ValueError):
+        entry.add_example(1, "食べる。", "食べる。", "jpn")
+    with pytest.raises(EntityNotFoundError):
+        entry.add_example(99, "食べる。", None, "eng")
+
+
+def test_dictionary_examples_can_be_disabled_but_not_changed() -> None:
+    entry = stored_entry()
+    with pytest.raises(OriginalDataError):
+        entry.edit_example(1, "x", None, "eng")
+    with pytest.raises(OriginalDataError):
+        entry.remove_example(1)
+    with pytest.raises(EntityNotFoundError):
+        entry.remove_example(99)

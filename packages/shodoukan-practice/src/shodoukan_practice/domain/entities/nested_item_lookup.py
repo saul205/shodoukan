@@ -35,3 +35,11 @@ def clean_meaning(text: str) -> str:
     if not text:
         raise ValueError("a meaning can't be empty")
     return text
+
+
+def clean_sentence(text: str) -> str:
+    """An example sentence without surrounding whitespace; it can't be empty."""
+    text = text.strip()
+    if not text:
+        raise ValueError("a sentence can't be empty")
+    return text

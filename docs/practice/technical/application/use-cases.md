@@ -155,6 +155,9 @@ and returns the stored item, with ids for anything new.
 | `AddEntryGloss` | `AddKanjiMeaning` | add a meaning of the user's own |
 | `EditEntryGloss` | `EditKanjiMeaning` | change an own meaning's text (`OriginalDataError` for imported ones) |
 | `RemoveEntryGloss` | `RemoveKanjiMeaning` | remove an own meaning (`OriginalDataError` for imported ones) |
+| `AddEntryExample` | — | add an example of the user's own to a sense |
+| `EditEntryExample` | — | rewrite an own example (`OriginalDataError` for imported ones) |
+| `RemoveEntryExample` | — | remove an own example (`OriginalDataError` for imported ones) |
 | `RemoveEntryFromLibrary` | `RemoveKanjiFromLibrary` | `delete(item)`: the copy and its collection links go; returns nothing |
 
 ## Commands (`commands/user_commands.py`)

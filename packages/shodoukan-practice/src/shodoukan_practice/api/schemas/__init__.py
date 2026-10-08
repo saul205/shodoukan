@@ -38,6 +38,7 @@ from .exercise_statistics_schemas import (
 from .library_schemas import (
     ActiveRequest,
     EnabledRequest,
+    ExampleRequest,
     ImportedEntryResponse,
     ImportedKanjiResponse,
     ImportEntryRequest,
@@ -70,6 +71,7 @@ __all__ = [
     "DictionarySearchResponse",
     "DirectionStatisticsResponse",
     "EnabledRequest",
+    "ExampleRequest",
     "ExerciseRequest",
     "ExerciseResponse",
     "ExerciseStatisticsResponse",

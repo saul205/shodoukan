@@ -788,3 +788,12 @@ Narrows "Dictionary data in the library is only ever disabled": senses now have 
 - Disabling a sense doesn't touch the flags of its glosses and examples: whether a gloss
   counts is `sense.enabled and gloss.enabled`. Re-enabling the sense brings it back
   exactly as it was, and there's one write per toggle.
+
+## Own examples are a sentence and one translation at a time
+
+An own example has the shape of JMDict's (a sense's example, one sentence per
+language), so the views, the toggles and a future re-sync treat both alike. The user
+writes the Japanese sentence and, optionally, its translation in the language they're
+reading in; editing touches only that language and keeps translations written in
+others, so switching language never loses one. `text` (JMDict's form of the word in the
+sentence) stays empty: nothing shows it, and asking for it would only slow the user down.
