@@ -8,10 +8,10 @@ import { entryWriting, type PracticeItem, type PracticeText } from '~/utils/writ
 // What a practice item writes and shows: a library kanji or word with the
 // user's own meanings and readings (only what's enabled), or a bare character
 // with the dictionary's meanings (none for kana). Items are fetched one at a
-// time, as they come up, and the next one ahead; `rememberPracticeItems`
-// saves those fetches when the caller already has them (the practice screen
-// loaded them to build the queue). While another item loads, `useAsyncData`
-// keeps the previous one's data: it's never shown as this one's.
+// time, as they come up, and the next one ahead. What's fetched is kept only
+// for this practice (this call), so a practice started later shows the item
+// as it is then: edited, or gone from the library. While another item loads,
+// `useAsyncData` keeps the previous one's data: it's never shown as this one's.
 
 type Loaded =
   | { kind: 'kanji'; kanji: PracticeKanji }
@@ -22,23 +22,15 @@ type Loaded =
 const MEANINGS = 3
 const KANA = /^[぀-ヿ]$/
 
-const loaded = new Map<string, Promise<Loaded | null>>()
-
 function keyOf(item: PracticeItem) {
   return item.kind === 'char' ? `char-${item.text}` : `${item.kind}-${item.id}`
-}
-
-/** Library items already at hand, so practising them doesn't fetch them again. */
-export function rememberPracticeItems(items: ({ kanji: PracticeKanji } | { entry: PracticeEntry })[]) {
-  for (const item of items) {
-    if ('kanji' in item) loaded.set(`kanji-${item.kanji.id}`, Promise.resolve({ kind: 'kanji', kanji: item.kanji }))
-    else loaded.set(`entry-${item.entry.id}`, Promise.resolve({ kind: 'entry', entry: item.entry }))
-  }
 }
 
 export function usePracticeItem(item: MaybeRefOrGetter<PracticeItem | null>, next?: MaybeRefOrGetter<PracticeItem | null>) {
   const api = useApi()
   const { lang, glossCode } = useMeaningLang()
+  // This practice's items, fetched or being fetched (the next one ahead).
+  const loaded = new Map<string, Promise<Loaded | null>>()
 
   async function fetchItem(item: PracticeItem): Promise<Loaded | null> {
     try {

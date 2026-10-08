@@ -140,13 +140,11 @@ async function start() {
     else if (what.value === 'words') {
       const words = await loadWords()
       if (!words.length) return nothingToPractise('No hay palabras activas que practicar')
-      rememberPracticeItems(words.map(entry => ({ entry })))
       query = { entries: formatIds((shuffle.value ? shuffled(words) : words).map(w => w.id)) }
     }
     else {
       const kanji = await loadKanji()
       if (!kanji.length) return nothingToPractise('No hay kanji activos que practicar')
-      rememberPracticeItems(kanji.map(k => ({ kanji: k })))
       query = { kanji: formatIds((shuffle.value ? shuffled(kanji) : kanji).map(k => k.id)) }
     }
     await navigateTo({

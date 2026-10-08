@@ -333,11 +333,16 @@ accept dozens of kanji). The use case passes the grade to the session
    `LENGTH_TOLERANCE` times **and** by more than `LENGTH_MIN_SHARE_GAP` of the total
    (the gap keeps a short stroke's natural wobble from counting). Dots (reference
    strokes under `MIN_LENGTH_CHECKED`) aren't checked. This is what tells 未 from 末.
-5. **Marks.** Reference strokes smaller than `MARK_EXTENT` (0.2 of the
-   character: dakuten, handakuten, the dots of 犬 or 心) say nothing by their shape,
-   so they're left out of step 3 and pair afterwards, with the drawn strokes left
-   over, by the distance between their centres (up to `MARK_MATCH`, 0.2; further than
-   `MARK_OK`, 0.1, is `imprecise`); never `reversed`, length unchecked. A circle (゜,
+5. **Marks.** In characters of up to `MARK_MAX_STROKES` (6) strokes, where a dot or
+   a dakuten changes the character (kana, 犬, 太, 心), reference strokes smaller than
+   `MARK_EXTENT` (0.2 of the character: dakuten, handakuten, dots) say little by
+   their shape, so they're left out of step 3 and pair afterwards, with the drawn
+   strokes left over, by the distance between their centres (up to `MARK_MATCH`,
+   0.2; further than `MARK_OK`, 0.1, is `imprecise`), length unchecked. Their
+   direction only counts when it's turned more than `MARK_REVERSED_ANGLE` (120°)
+   from the reference's (`reversed`): a dakuten drawn at another angle is fine. In
+   denser kanji, short strokes are ordinary strokes: 18 of 曜's are under 0.2, and
+   treating them as marks hid their direction and failed a drawing missing one. A circle (゜,
    a closed stroke) only pairs with a circle. A run of marks (゛'s two strokes) may
    be drawn in any order. A run with none of its marks drawn, or short strokes drawn
    where the character has no marks, make another character (は for ば, ぱ for ば, 大
@@ -383,6 +388,7 @@ accept dozens of kanji). The use case passes the grade to the session
 | `ALLOWED_COUNT_ERRORS` / `COUNT_TOLERANCE_FROM` | 1 / 5 strokes |
 | `MISTAKE_CLOSE_SHARE` | ½ |
 | `MARK_EXTENT` / `MARK_MATCH` / `MARK_OK` | 0.2 / 0.2 / 0.1 |
+| `MARK_MAX_STROKES` / `MARK_REVERSED_ANGLE` | 6 strokes / 120° |
 | `LENGTH_TOLERANCE` / `LENGTH_MIN_SHARE_GAP` / `MIN_LENGTH_CHECKED` (warning) | 1.35 / 0.045 / 0.1 |
 
 **Calibration.** The values were tuned on the KanjiVG strokes of 24 kanji drawn with
@@ -412,7 +418,9 @@ drawn with noise (points up to 6 units off) is recognised as itself (0 of 177
 wrong); a dakuten drawn longer and off its place, or its two strokes swapped, stays
 `correct`; へ for べ, ぱ for ば, ば for は, ろ for る, ね for れ, シ for ツ, ソ for ン and
 大 / 犬 are `wrong`; a kana with a stroke missing or extra, or half a dakuten, is
-`close`. KanjiVG's marks measure 0.10–0.11 (゛), 0.18 (゜) and 0.12–0.17 (kanji
+`close`; a dakuten drawn the other way is `close` (`reversed`), turned 60–100°
+still `correct`; 曜 or 識 with a short stroke backwards report it (`close`), and 曜
+without a short stroke is `close`, as without a long one. KanjiVG's marks measure 0.10–0.11 (゛), 0.18 (゜) and 0.12–0.17 (kanji
 dots); シ's dots (0.18–0.19) are marks, ツ's (0.21–0.23) and ふ's aren't.
 
 The values should be checked against real drawings once people use it. A handwriting

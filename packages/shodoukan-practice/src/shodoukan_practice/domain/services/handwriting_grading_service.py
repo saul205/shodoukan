@@ -19,14 +19,18 @@ counts, not where or how big it was drawn. Two things are compared:
   `LENGTH_MIN_SHARE_GAP` of the total, is `too_long` / `too_short`: 未 and 末
   differ only there. The gap keeps a short stroke's natural wobble from
   counting. Strokes shorter than `MIN_LENGTH_CHECKED` (dots) aren't checked.
-- **The marks**: reference strokes smaller than `MARK_EXTENT` (dakuten,
-  handakuten, the dots of 犬 or 心) are too small for their shape to say
-  anything, so after the other strokes are paired they pair with what's left
-  by **position** (their centres closer than `MARK_MATCH`; further than
-  `MARK_OK` is `imprecise`), never `reversed`, length unchecked; a circle (゜)
-  only pairs with a circle. A run of marks (゛'s two strokes) may be drawn in
-  any order. A run with none of its marks drawn, or marks drawn where the
-  character has none (大 with a dot, は with ゛), make another character.
+- **The marks**: in characters of up to `MARK_MAX_STROKES` strokes, where a
+  dot or a dakuten changes the character, reference strokes smaller than
+  `MARK_EXTENT` (dakuten, handakuten, the dots of 犬 or 心) are too small for
+  their shape to say much, so after the other strokes are paired they pair
+  with what's left by **position** (their centres closer than `MARK_MATCH`;
+  further than `MARK_OK` is `imprecise`), length unchecked; a circle (゜) only
+  pairs with a circle. Their direction only counts when it's way off (more
+  than `MARK_REVERSED_ANGLE` from the reference's: `reversed`). In denser
+  characters short strokes are ordinary strokes (the inner ones of 曜). A run
+  of marks (゛'s two strokes) may be drawn in any order. A run with none of its
+  marks drawn, or marks drawn where the character has none (大 with a dot, は
+  with ゛), make another character.
 
 The verdict leans to the learner: nobody writes as exactly as KanjiVG draws,
 so imprecise strokes and strokes of the wrong length are only warnings (see
@@ -96,6 +100,10 @@ MISTAKE_CLOSE_SHARE = 1 / 2
 MARK_EXTENT = 0.2
 MARK_MATCH = 0.2
 MARK_OK = 0.1
+# Only characters this simple have marks: kana (ぼ has 6 strokes), 犬, 心.
+MARK_MAX_STROKES = 6
+# How far (in degrees) a mark's direction may turn from the reference's.
+MARK_REVERSED_ANGLE = 120
 # A stroke this many times longer than its extent, ending this close to its
 # start (in extents), is a circle (゜).
 CIRCLE_LENGTH = 2.0
@@ -193,7 +201,11 @@ def _grade_one(drawn: list[Stroke], reference: ReferenceKanji) -> _Graded:
         chamfer([p for s in drawn for p in s], [p for s in expected for p in s]),
         SHAPE_SCALE,
     )
-    marks = [j for j, stroke in enumerate(expected) if _extent(stroke) < MARK_EXTENT]
+    marks = (
+        [j for j, stroke in enumerate(expected) if _extent(stroke) < MARK_EXTENT]
+        if len(expected) <= MARK_MAX_STROKES
+        else []
+    )
     strokes = [j for j in range(len(expected)) if j not in marks]
     pairs = _pair(drawn, expected, range(len(drawn)), strokes)
     left = [i for i in range(len(drawn)) if i not in {p.drawn for p in pairs}]
@@ -295,12 +307,35 @@ def _pair_marks(
     """The drawn strokes left with the reference marks, by the distance
     between their centres; a circle only with a circle."""
     candidates = [
-        _Pair(i, j, math.dist(_centre(drawn[i]), _centre(expected[j])), False, True)
+        _Pair(
+            i,
+            j,
+            math.dist(_centre(drawn[i]), _centre(expected[j])),
+            _turned(drawn[i], expected[j]),
+            True,
+        )
         for i in drawn_indexes
         for j in marks
         if _is_circle(drawn[i]) == _is_circle(expected[j])
     ]
     return _take_closest(candidates, MARK_MATCH)
+
+
+def _turned(drawn: Stroke, expected: Stroke) -> bool:
+    """Whether a mark was drawn the other way: its direction (start to end)
+    more than `MARK_REVERSED_ANGLE` off the reference's. A circle, or a tap,
+    has no direction."""
+    if _is_circle(expected):
+        return False
+    (dx, dy), (ex, ey) = _direction(drawn), _direction(expected)
+    if math.hypot(dx, dy) == 0 or math.hypot(ex, ey) == 0:
+        return False
+    turn = abs(math.degrees(math.atan2(dy, dx) - math.atan2(ey, ex))) % 360
+    return min(turn, 360 - turn) > MARK_REVERSED_ANGLE
+
+
+def _direction(stroke: Stroke) -> Point:
+    return (stroke[-1][0] - stroke[0][0], stroke[-1][1] - stroke[0][1])
 
 
 def _take_closest(candidates: list[_Pair], limit: float) -> list[_Pair]:

@@ -174,4 +174,33 @@ describe('WritingPractice', () => {
     expect(text(wrapper, 'practice-text')).toBe('二')
     expect(wrapper.findComponent(WordWritingBoard).props('chars')).toEqual(['二'])
   })
+
+  it('shows a library item as it is when a later practice starts, edited or removed', async () => {
+    const first = await practice([{ kind: 'entry', id: 9 }], 'free')
+    expect(text(first, 'practice-text')).toBe('食べる')
+    first.unmount()
+
+    // The first spelling is hidden in the library meanwhile: the next one is written.
+    const edited = {
+      ...ENTRY,
+      kanji_readings: [
+        { ...ENTRY.kanji_readings[0]!, enabled: false },
+        { id: 2, kanji: '喰べる', info: [], enabled: true },
+      ],
+      senses: [{ id: 1, glosses: [{ id: 1, text: 'to devour', lang: 'eng', enabled: true }] }],
+    }
+    const answer = api.getMockImplementation()!
+    api.mockImplementation(async (url: string) => (url === '/library/entries/9' ? edited : answer(url)))
+    const second = await practice([{ kind: 'entry', id: 9 }], 'free')
+    expect(text(second, 'practice-text')).toBe('喰べる')
+    expect(text(second, 'practice-meanings')).toBe('to devour')
+    second.unmount()
+
+    api.mockImplementation(async (url: string) => {
+      if (url === '/library/entries/9') throw notFound()
+      return answer(url)
+    })
+    const third = await practice([{ kind: 'entry', id: 9 }], 'free')
+    expect(text(third, 'practice-missing')).toContain('Ya no está en tu librería')
+  })
 })
