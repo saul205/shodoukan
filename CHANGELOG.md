@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Senses of the user's own on a library word
+  (`POST /library/entries/{id}/senses`, created with their first meaning; removed with
+  `DELETE .../senses/{sense_id}`, with their meanings and examples), and enabling or
+  disabling a whole sense (`PUT .../senses/{sense_id}/enabled`). A disabled sense keeps
+  its meanings' own flags and is left out when practising. Dictionary senses can only
+  be disabled.
 - **shodoukan-practice:** Fairer handwriting grading for kana and words: dakuten,
   handakuten and dots of simple characters pair by position (direction only
   checked loosely) (only adding or leaving out a whole set

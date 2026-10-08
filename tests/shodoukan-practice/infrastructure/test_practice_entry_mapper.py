@@ -29,3 +29,17 @@ def test_round_trip_keeps_notes() -> None:
         "only for people",
     )
     assert practice_entry_to_domain(row) == entry
+
+
+def test_round_trip_keeps_own_and_disabled_senses() -> None:
+    entry = make_entry(user_id=USER_ID)
+    entry.senses[0].enabled = False
+    entry.add_sense("to dine", "eng")
+
+    row = practice_entry_to_db(entry)
+
+    assert [(s.enabled, s.origin) for s in row.senses] == [
+        (False, "imported"),
+        (True, "added"),
+    ]
+    assert practice_entry_to_domain(row) == entry

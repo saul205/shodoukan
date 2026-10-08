@@ -60,7 +60,9 @@ disabled.
 | `PUT` | `/library/entries/{id}/active` | `{"active": false}` | `200` |
 | `PUT` | `/library/entries/{id}/notes` | `{"notes": "..."}` (≤ 2000; blank or `null` removes it) | `200` |
 | `PUT` | `/library/entries/{id}/senses/{sense_id}/notes` | `{"notes": "..."}` | `200` |
-| `PUT` | `/library/entries/{id}/{part}/{item_id}/enabled` | `{"enabled": false}` | `200`; `part` is `kanji-readings`, `readings`, `glosses` or `examples` |
+| `PUT` | `/library/entries/{id}/{part}/{item_id}/enabled` | `{"enabled": false}` | `200`; `part` is `kanji-readings`, `readings`, `senses`, `glosses` or `examples` (a disabled sense hides its meanings and examples, keeping their flags) |
+| `POST` | `/library/entries/{id}/senses` | `{"text": "...", "lang": "eng"}`: its first meaning | `201`; an own sense at the end |
+| `DELETE` | `/library/entries/{id}/senses/{sense_id}` | — | `200`; with its meanings and examples; `409` for a dictionary sense |
 | `POST` | `/library/entries/{id}/senses/{sense_id}/glosses` | `{"text": "...", "lang": "eng"}` (ISO 639-2) | `201` |
 | `PUT` | `/library/entries/{id}/glosses/{gloss_id}` | `{"text": "..."}` | `200`; `409` for a dictionary meaning |
 | `DELETE` | `/library/entries/{id}/glosses/{gloss_id}` | — | `200`; `409` for a dictionary meaning |
@@ -71,13 +73,13 @@ nanori) or `meanings`; `POST /meanings` with `{"text", "lang"}` (ISO 639-1, e.g.
 `PUT` / `DELETE /meanings/{meaning_id}`.
 
 Meaning texts are stripped and must be 1–500 characters. The responses carry `notes` on
-the item and, for entries, on each sense.
+the item and, for entries, on each sense, which also has `enabled` and `origin`.
 
 | Status | When |
 |---|---|
 | `401` | Missing or invalid token |
 | `404` | Not in the user's library (or another user's), or no such sense or nested item |
-| `409` | Editing or removing a dictionary meaning |
+| `409` | Editing or removing a dictionary meaning, or removing a dictionary sense |
 | `422` | Unknown `part`, invalid body (empty meaning, wrong `lang` format, note too long) |
 
 Why one endpoint per edit: [decisions](../decisions.md#one-endpoint-per-customisation).

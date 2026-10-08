@@ -113,6 +113,8 @@ class SenseResponse(_Response):
     glosses: list[GlossResponse]
     examples: list[ExampleResponse]
     notes: str | None
+    enabled: bool
+    origin: Origin
 
 
 class ReadingResponse(_Response):

@@ -150,6 +150,8 @@ and returns the stored item, with ids for anything new.
 | `SetEntryNotes` | `SetKanjiNotes` | the general note |
 | `SetSenseNotes` | — | a sense's note |
 | `SetEntryPartEnabled` | `SetKanjiPartEnabled` | enable or disable one nested item |
+| `AddEntrySense` | — | add a sense of the user's own, with its first meaning |
+| `RemoveEntrySense` | — | remove an own sense with its meanings and examples (`OriginalDataError` for imported ones) |
 | `AddEntryGloss` | `AddKanjiMeaning` | add a meaning of the user's own |
 | `EditEntryGloss` | `EditKanjiMeaning` | change an own meaning's text (`OriginalDataError` for imported ones) |
 | `RemoveEntryGloss` | `RemoveKanjiMeaning` | remove an own meaning (`OriginalDataError` for imported ones) |

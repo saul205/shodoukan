@@ -73,6 +73,8 @@ def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
         misc=row.misc,
         dialects=row.dialects,
         info=row.info,
+        enabled=row.enabled,
+        origin=_origin(row.origin),
         glosses=[
             PracticeGloss(
                 id=g.id,
@@ -142,6 +144,8 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
         misc=entity.misc,
         dialects=entity.dialects,
         info=entity.info,
+        enabled=entity.enabled,
+        origin=entity.origin,
         glosses=[
             PracticeGlossORM(
                 id=g.id,

@@ -2,7 +2,7 @@
 
 Every edit returns the whole entry as it is now, so the client re-renders
 from the response. Dictionary data is only ever disabled: editing or
-removing an imported meaning is a 409.
+removing an imported sense or meaning is a 409.
 """
 
 from enum import StrEnum
@@ -12,9 +12,11 @@ from fastapi import APIRouter, Depends, status
 
 from ...application.commands import (
     AddEntryGloss,
+    AddEntrySense,
     EditEntryGloss,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntrySense,
     SetEntryActive,
     SetEntryNotes,
     SetEntryPartEnabled,
@@ -26,11 +28,13 @@ from ..deps import (
     CurrentUserDep,
     SessionDep,
     get_add_entry_gloss,
+    get_add_entry_sense,
     get_edit_entry_gloss,
     get_get_library_entry,
     get_list_collections_of_entry,
     get_remove_entry_from_library,
     get_remove_entry_gloss,
+    get_remove_entry_sense,
     get_set_entry_active,
     get_set_entry_notes,
     get_set_entry_part_enabled,
@@ -54,7 +58,7 @@ _RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 _ORIGINAL: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {
-        "description": "A dictionary meaning: it can only be disabled."
+        "description": "A dictionary sense or meaning: it can only be disabled."
     }
 }
 
@@ -66,6 +70,7 @@ class EntryPartPath(StrEnum):
 
     KANJI_READINGS = "kanji-readings"
     READINGS = "readings"
+    SENSES = "senses"
     GLOSSES = "glosses"
     EXAMPLES = "examples"
 
@@ -73,6 +78,7 @@ class EntryPartPath(StrEnum):
 _PARTS: dict[EntryPartPath, EntryPart] = {
     EntryPartPath.KANJI_READINGS: "kanji_readings",
     EntryPartPath.READINGS: "readings",
+    EntryPartPath.SENSES: "senses",
     EntryPartPath.GLOSSES: "glosses",
     EntryPartPath.EXAMPLES: "examples",
 }
@@ -171,8 +177,48 @@ def set_enabled(
     session: SessionDep,
     use_case: Annotated[SetEntryPartEnabled, Depends(get_set_entry_part_enabled)],
 ) -> PracticeEntryResponse:
-    """Show or hide one spelling, reading, meaning or example by its `id`."""
+    """Show or hide one spelling, reading, sense, meaning or example by its `id`.
+
+    A disabled sense hides its meanings and examples; their own flags are
+    kept for when it's enabled again.
+    """
     entry = use_case.execute(user.id, entry_id, _PARTS[part], item_id, body.enabled)
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.post(
+    "/{entry_id}/senses",
+    response_model=PracticeEntryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_sense(
+    entry_id: int,
+    body: NewGlossRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[AddEntrySense, Depends(get_add_entry_sense)],
+) -> PracticeEntryResponse:
+    """Add a sense of the user's own at the end, with its first meaning."""
+    entry = use_case.execute(user.id, entry_id, body.text, body.lang)
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.delete(
+    "/{entry_id}/senses/{sense_id}",
+    response_model=PracticeEntryResponse,
+    responses=_ORIGINAL,
+)
+def remove_sense(
+    entry_id: int,
+    sense_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[RemoveEntrySense, Depends(get_remove_entry_sense)],
+) -> PracticeEntryResponse:
+    """Remove one of the user's own senses, with its meanings and examples."""
+    entry = use_case.execute(user.id, entry_id, sense_id)
     session.commit()
     return PracticeEntryResponse.model_validate(entry)
 

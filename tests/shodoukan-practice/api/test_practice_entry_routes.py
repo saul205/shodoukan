@@ -79,7 +79,7 @@ def test_unknown_part_or_item(
     url = f"/library/entries/{entry['id']}"
     body = {"enabled": False}
     assert (
-        client.put(f"{url}/senses/1/enabled", json=body, headers=headers).status_code
+        client.put(f"{url}/notes/1/enabled", json=body, headers=headers).status_code
         == 422
     )
     assert (
@@ -111,6 +111,43 @@ def test_own_meanings(
     removed = client.delete(f"{url}/glosses/{gloss['id']}", headers=headers)
     assert removed.status_code == 200
     assert len(removed.json()["senses"][0]["glosses"]) == 2
+
+
+def test_own_senses(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    imported_id = entry["senses"][0]["id"]
+    assert (entry["senses"][0]["enabled"], entry["senses"][0]["origin"]) == (
+        True,
+        "imported",
+    )
+
+    added = client.post(
+        f"{url}/senses", json={"text": " to dine ", "lang": "eng"}, headers=headers
+    )
+    assert added.status_code == 201
+    sense = added.json()["senses"][-1]
+    assert sense["origin"] == "added"
+    assert [g["text"] for g in sense["glosses"]] == ["to dine"]
+
+    hidden = client.put(
+        f"{url}/senses/{imported_id}/enabled", json={"enabled": False}, headers=headers
+    )
+    assert hidden.json()["senses"][0]["enabled"] is False
+
+    removed = client.delete(f"{url}/senses/{sense['id']}", headers=headers)
+    assert removed.status_code == 200
+    assert [s["id"] for s in removed.json()["senses"]] == [imported_id]
+    assert (
+        client.delete(f"{url}/senses/{imported_id}", headers=headers).status_code == 409
+    )
+    assert (
+        client.post(
+            f"{url}/senses", json={"text": " ", "lang": "eng"}, headers=headers
+        ).status_code
+        == 422
+    )
 
 
 def test_meaning_validation(

@@ -18,6 +18,7 @@ from shodoukan import Dictionary
 
 from ..application.commands import (
     AddEntryGloss,
+    AddEntrySense,
     AddEntryToCollection,
     AddKanjiMeaning,
     AddKanjiToCollection,
@@ -37,6 +38,7 @@ from ..application.commands import (
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntrySense,
     RemoveKanjiFromCollection,
     RemoveKanjiFromLibrary,
     RemoveKanjiMeaning,
@@ -264,6 +266,10 @@ def get_add_entry_gloss(session: SessionDep) -> AddEntryGloss:
     return AddEntryGloss(SqlAlchemyPracticeEntryRepository(session))
 
 
+def get_add_entry_sense(session: SessionDep) -> AddEntrySense:
+    return AddEntrySense(SqlAlchemyPracticeEntryRepository(session))
+
+
 def get_edit_entry_gloss(session: SessionDep) -> EditEntryGloss:
     return EditEntryGloss(SqlAlchemyPracticeEntryRepository(session))
 
@@ -274,6 +280,10 @@ def get_remove_entry_from_library(session: SessionDep) -> RemoveEntryFromLibrary
 
 def get_remove_entry_gloss(session: SessionDep) -> RemoveEntryGloss:
     return RemoveEntryGloss(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_sense(session: SessionDep) -> RemoveEntrySense:
+    return RemoveEntrySense(SqlAlchemyPracticeEntryRepository(session))
 
 
 def get_set_entry_active(session: SessionDep) -> SetEntryActive:

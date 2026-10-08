@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 
 from shodoukan_practice.application.commands import (
     AddEntryGloss,
+    AddEntrySense,
     EditEntryGloss,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntrySense,
     SetEntryActive,
     SetEntryNotes,
     SetEntryPartEnabled,
@@ -82,6 +84,28 @@ def test_own_meanings_lifecycle(
 
     removed = RemoveEntryGloss(entries).execute(user.id, entry_id, gloss.id)
     assert [g.origin for g in removed.senses[0].glosses] == ["imported", "imported"]
+
+
+def test_own_senses_lifecycle(
+    entries: SqlAlchemyPracticeEntryRepository, entry: PracticeEntry, user: UserORM
+) -> None:
+    entry_id, sense_id, _ = _ids(entry)
+
+    added = AddEntrySense(entries).execute(user.id, entry_id, "to dine", "eng")
+    sense = added.senses[-1]
+    assert sense.id is not None and sense.origin == "added"
+    assert sense.glosses[0].id is not None
+    assert entries.get(entry_id, user.id) == added
+
+    hidden = SetEntryPartEnabled(entries).execute(
+        user.id, entry_id, "senses", sense_id, False
+    )
+    assert hidden.senses[0].enabled is False
+
+    removed = RemoveEntrySense(entries).execute(user.id, entry_id, sense.id)
+    assert [s.id for s in removed.senses] == [sense_id]
+    with pytest.raises(OriginalDataError):
+        RemoveEntrySense(entries).execute(user.id, entry_id, sense_id)
 
 
 def test_dictionary_meanings_cant_be_edited_or_removed(

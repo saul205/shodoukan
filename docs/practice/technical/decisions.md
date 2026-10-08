@@ -774,3 +774,17 @@ Rejected:
 - **Funnel with closed registration.** No app to install, but the login page would be
   public.
 - **Cloudflare Tunnel with Access.** It needs a paid domain.
+
+## Own senses start with a meaning; a disabled sense keeps its parts' flags
+
+Narrows "Dictionary data in the library is only ever disabled": senses now have an
+`origin` and an `enabled` flag too.
+
+- A sense of the user's own is created with its first meaning (`POST .../senses` takes
+  the gloss), so a new sense never shows up empty and doesn't need its own fields:
+  `pos` / `misc` stay empty, and its content is its meanings, examples and note.
+- Only own senses are removed, with their meanings and examples. Imported senses are
+  only disabled, and still take the user's own meanings.
+- Disabling a sense doesn't touch the flags of its glosses and examples: whether a gloss
+  counts is `sense.enabled and gloss.enabled`. Re-enabling the sense brings it back
+  exactly as it was, and there's one write per toggle.

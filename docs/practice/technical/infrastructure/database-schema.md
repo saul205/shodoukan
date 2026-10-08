@@ -15,7 +15,7 @@ The models that define these tables are described in
 | `practice_entries` | `users` | `UNIQUE(user_id, source_entry_id)`, `notes` text (nullable) |
 | `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled` |
 | `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled` |
-| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable) |
+| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable), `enabled`, `origin` (CHECK) |
 | `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')` |
 | `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK) |
 | `practice_example_sentences` | `practice_examples` | `position`, `lang`, `text` |

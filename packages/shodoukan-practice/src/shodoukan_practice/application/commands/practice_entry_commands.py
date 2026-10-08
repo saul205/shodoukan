@@ -58,7 +58,7 @@ class SetSenseNotes(_EntryCommand):
 
 
 class SetEntryPartEnabled(_EntryCommand):
-    """Show or hide one spelling, reading, meaning or example."""
+    """Show or hide one spelling, reading, sense, meaning or example."""
 
     def execute(
         self,
@@ -70,6 +70,26 @@ class SetEntryPartEnabled(_EntryCommand):
     ) -> PracticeEntry:
         entry = self._load(user_id, entry_id)
         entry.set_enabled(part, item_id, enabled)
+        return self._entries.update(entry)
+
+
+class AddEntrySense(_EntryCommand):
+    """Add a sense of the user's own to the entry, with its first meaning."""
+
+    def execute(
+        self, user_id: UUID, entry_id: int, text: str, lang: str
+    ) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_sense(text, lang)
+        return self._entries.update(entry)
+
+
+class RemoveEntrySense(_EntryCommand):
+    """Remove one of the user's own senses, with its meanings and examples."""
+
+    def execute(self, user_id: UUID, entry_id: int, sense_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_sense(sense_id)
         return self._entries.update(entry)
 
 

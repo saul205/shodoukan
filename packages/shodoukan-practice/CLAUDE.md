@@ -124,7 +124,8 @@ standalone: never call shodoukan-api from here.
   `add_if_absent` uses a savepoint to handle concurrent duplicates.
 - Mutating methods: `Collection.rename` / `describe`; `PracticeEntry` /
   `PracticeKanji`: `activate` / `deactivate`, `set_notes`, `set_enabled(part, id, …)`,
-  own meanings (`add_gloss` / `edit_gloss` / `remove_gloss`, `add_meaning` / ...),
+  own senses (`add_sense` / `remove_sense`), own meanings (`add_gloss` /
+  `edit_gloss` / `remove_gloss`, `add_meaning` / ...),
   `PracticeEntry.set_sense_notes`; `Exercise.rename` / `describe` / `configure` /
   `use_collections`. Each calls `touch()` only on a real change.
 - Exercises are `EntryExercise` / `KanjiExercise` (one `exercises` table, `item_kind`);
@@ -153,8 +154,9 @@ standalone: never call shodoukan-api from here.
   exercises write a word (spelling or reading) a character per cell: only words whose
   every character has a stroke order, graded per cell (`grade_word`, worst cell wins).
 - Dictionary data in the library is never edited or deleted, only disabled
-  (`OriginalDataError` → 409); only the user's own meanings change. Readings can't be
-  added. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).
+  (`OriginalDataError` → 409); only the user's own senses and meanings change. A
+  disabled sense hides its glosses and examples (a gloss counts when
+  `sense.enabled and gloss.enabled`). Readings can't be added. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).
 
 ## Database
 

@@ -109,8 +109,8 @@ def entry_card(
 ) -> StudyCard:
     """`meaning_lang` as entry glosses store it (ISO 639-2, e.g. "eng").
 
-    The meaning is the glosses of the first sense that has enabled glosses in
-    that language. Only the first enabled spelling and reading are asked:
+    The meaning is the glosses of the first enabled sense that has enabled
+    glosses in that language. Only the first enabled spelling and reading are asked:
     the dictionary lists a word's usual form first, and the user can disable
     it to be asked another.
     """
@@ -122,7 +122,7 @@ def entry_card(
         values["reading"] = _kana([r.text for r in entry.readings if r.enabled])
     if "meaning" in fields:
         glosses: list[str] = []
-        for sense in entry.senses:
+        for sense in (s for s in entry.senses if s.enabled):
             glosses = [
                 g.text for g in sense.glosses if g.enabled and g.lang == meaning_lang
             ]

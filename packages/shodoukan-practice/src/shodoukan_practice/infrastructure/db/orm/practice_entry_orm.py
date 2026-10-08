@@ -85,6 +85,7 @@ class PracticeEntryReadingORM(Base):
 
 class PracticeSenseORM(Base):
     __tablename__ = "practice_senses"
+    __table_args__ = (CheckConstraint(in_check("origin", ORIGINS), name="origin"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(
@@ -96,6 +97,10 @@ class PracticeSenseORM(Base):
     dialects: Mapped[list[str]] = mapped_column(JSON)
     info: Mapped[list[str]] = mapped_column(JSON)
     notes: Mapped[str | None] = mapped_column(Text)
+    enabled: Mapped[bool] = mapped_column(default=True, server_default=true())
+    origin: Mapped[str] = mapped_column(
+        String(16), default="imported", server_default="imported"
+    )
 
     glosses: Mapped[list[PracticeGlossORM]] = children("PracticeGlossORM.position")
     examples: Mapped[list[PracticeExampleORM]] = children("PracticeExampleORM.position")

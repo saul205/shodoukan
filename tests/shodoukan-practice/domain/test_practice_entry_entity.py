@@ -148,6 +148,7 @@ def test_set_sense_notes() -> None:
     [
         ("kanji_readings", lambda e: e.kanji_readings[0]),
         ("readings", lambda e: e.readings[0]),
+        ("senses", lambda e: e.senses[0]),
         ("glosses", lambda e: e.senses[0].glosses[0]),
         ("examples", lambda e: e.senses[0].examples[0]),
     ],
@@ -156,7 +157,11 @@ def test_set_enabled_toggles_one_item(
     part: EntryPart,
     get: Callable[
         [PracticeEntry],
-        PracticeKanjiReading | PracticeReading | PracticeGloss | PracticeExample,
+        PracticeKanjiReading
+        | PracticeReading
+        | PracticeSense
+        | PracticeGloss
+        | PracticeExample,
     ],
 ) -> None:
     entry = stored_entry()
@@ -212,3 +217,41 @@ def test_own_meanings_cant_be_empty() -> None:
         entry.edit_gloss(2, "")
     with pytest.raises(EntityNotFoundError):
         entry.add_gloss(99, "x", "eng")
+
+
+def test_disabling_a_sense_keeps_its_meanings_flags() -> None:
+    entry = stored_entry()
+    entry.set_enabled("glosses", 2, False)
+
+    entry.set_enabled("senses", 1, False)
+    entry.set_enabled("senses", 1, True)
+
+    assert [g.enabled for g in entry.senses[0].glosses] == [True, False]
+
+
+def test_add_and_remove_own_senses() -> None:
+    entry = stored_entry()
+
+    sense = entry.add_sense("  to dine  ", "eng")
+
+    assert entry.senses[-1] is sense
+    assert (sense.id, sense.origin, sense.enabled) == (None, "added", True)
+    assert [(g.text, g.origin) for g in sense.glosses] == [("to dine", "added")]
+    assert entry.updated_at > NOW
+    sense.id = 2  # as stored
+    entry.remove_sense(2)
+    assert [s.id for s in entry.senses] == [1]
+
+
+def test_own_senses_start_with_a_meaning() -> None:
+    with pytest.raises(ValueError):
+        stored_entry().add_sense("   ", "eng")
+
+
+def test_dictionary_senses_can_be_disabled_but_not_removed() -> None:
+    entry = stored_entry()
+    with pytest.raises(OriginalDataError):
+        entry.remove_sense(1)
+    with pytest.raises(EntityNotFoundError):
+        entry.remove_sense(99)
+    assert len(entry.senses) == 1

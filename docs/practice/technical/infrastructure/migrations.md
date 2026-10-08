@@ -57,6 +57,8 @@ Once any environment is deployed, migrations are append-only.
 | `f59399cff4a5` | One question per position in a session |
 | `bfad9df5a138` | One open session per user (closes the extra ones first) |
 | `33f2afbdd7cf` | Questions by `type`: a choice card's `options` and `correct_option` move into `details` (JSON); downgrading moves them back and deletes the questions and exercises of other types (handwriting), which the older code can't read |
+| `0e2585638e77` | Word handwriting questions (`card.handwriting_word`) join the `type` check; downgrading deletes them and the word handwriting exercises |
+| `23728b417aff` | `enabled` and `origin` on `practice_senses`; downgrading deletes the user's own senses |
 
 ## Safety nets
 

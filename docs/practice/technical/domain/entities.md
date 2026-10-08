@@ -29,10 +29,12 @@ time, so dictionary updates never overwrite the user's edits. The only link back
 
 On top of the snapshot:
 
-- `enabled: bool` on readings, kanji spellings, glosses, examples, kanji reading items
-  and kanji meanings: the user can hide individual parts.
-- `origin: "imported" | "added"` on glosses, examples and kanji meanings: the user can
-  add their own, and they stay distinguishable from imported ones.
+- `enabled: bool` on readings, kanji spellings, senses, glosses, examples, kanji
+  reading items and kanji meanings: the user can hide individual parts. A disabled
+  sense hides its glosses and examples without changing their own flags, so a gloss
+  counts only when `sense.enabled and gloss.enabled`.
+- `origin: "imported" | "added"` on senses, glosses, examples and kanji meanings: the
+  user can add their own, and they stay distinguishable from imported ones.
 - `notes` on the entry, on each of its senses, and on the kanji: the user's own
   free text (`Notes` in `notes_value.py`: stripped, blank becomes `None`, at most
   2000 characters).
@@ -174,10 +176,11 @@ Current methods:
 | `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
-| `PracticeEntry` | `set_sense_notes(sense_id, notes)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)` |
+| `PracticeEntry` | `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)` |
 | `PracticeKanji` | `add_meaning(text, lang)`, `edit_meaning(meaning_id, text)`, `remove_meaning(meaning_id)` |
 
-`part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"glosses"`, `"examples"`)
+`part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"senses"`, `"glosses"`,
+`"examples"`)
 or a `KanjiPart` (`"readings"`, covering on, kun and nanori, or `"meanings"`). A nested
 id that isn't there raises `EntityNotFoundError`. Nested models don't validate on
 assignment, so notes go through `parse_notes` and meaning texts through
@@ -189,8 +192,11 @@ The library copy keeps the dictionary's data intact; the user layers their choic
 top:
 
 - **Dictionary data is never edited or deleted, only disabled.** That covers every
-  reading, spelling, example and imported (`origin="imported"`) meaning. Editing or
-  removing an imported meaning raises `OriginalDataError`.
+  reading, spelling, example and imported (`origin="imported"`) sense and meaning.
+  Editing or removing an imported sense or meaning raises `OriginalDataError`.
+- **Senses of their own.** The user adds a sense (`origin="added"`, appended to the
+  entry, `pos` / `misc` empty) with its first meaning, so it's never empty, and can
+  remove it with its meanings and examples. Imported senses take own meanings too.
 - **Meanings are an editable list.** The user adds meanings of their own
   (`origin="added"`, appended to the sense or kanji) and can edit their text or remove
   them. Entry glosses use ISO 639-2 language codes (`eng`), kanji meanings ISO 639-1

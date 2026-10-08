@@ -2,7 +2,8 @@
 (enabled/disabled, added items, notes) layered on top.
 
 The dictionary's data is never edited or removed: the user disables what
-they don't want, and adds, edits and removes meanings of their own.
+they don't want, and adds, edits and removes senses and meanings of their
+own.
 """
 
 from collections.abc import Iterable
@@ -17,7 +18,8 @@ from .notes_value import Notes, parse_notes
 from .timestamped_entity import TimestampedEntity
 
 # The parts of an entry the user can enable or disable, one item at a time.
-EntryPart = Literal["kanji_readings", "readings", "glosses", "examples"]
+EntryPart = Literal["kanji_readings", "readings", "senses", "glosses", "examples"]
+Origin = Literal["imported", "added"]
 
 
 class PracticeGloss(BaseModel):
@@ -26,7 +28,7 @@ class PracticeGloss(BaseModel):
     lang: str
     type: str | None
     enabled: bool = True
-    origin: Literal["imported", "added"] = "imported"
+    origin: Origin = "imported"
 
 
 class PracticeExampleSentence(BaseModel):
@@ -39,7 +41,7 @@ class PracticeExample(BaseModel):
     text: str
     sentences: list[PracticeExampleSentence]
     enabled: bool = True
-    origin: Literal["imported", "added"] = "imported"
+    origin: Origin = "imported"
 
 
 class PracticeSense(BaseModel):
@@ -51,6 +53,10 @@ class PracticeSense(BaseModel):
     glosses: list[PracticeGloss]
     examples: list[PracticeExample]
     notes: Notes = None
+    # A disabled sense hides its glosses and examples without changing their
+    # own flags, so enabling it again brings it back as it was.
+    enabled: bool = True
+    origin: Origin = "imported"
 
 
 class PracticeReading(BaseModel):
@@ -111,11 +117,43 @@ class PracticeEntry(TimestampedEntity):
             self.touch()
 
     def set_enabled(self, part: EntryPart, item_id: int, enabled: bool) -> None:
-        """Show or hide one reading, spelling, meaning or example."""
+        """Show or hide one reading, spelling, sense, meaning or example."""
         item = find_item(self._items(part), item_id, part)
         if item.enabled != enabled:
             item.enabled = enabled
             self.touch()
+
+    def add_sense(self, text: str, lang: str) -> PracticeSense:
+        """Add a sense of the user's own at the end, with its first meaning.
+
+        A sense always starts with a meaning, so it never shows up empty.
+        `lang` follows the stored glosses (ISO 639-2). The new sense and its
+        gloss have no id until the entry is stored.
+        """
+        gloss = PracticeGloss(
+            id=None, text=clean_meaning(text), lang=lang, type=None, origin="added"
+        )
+        sense = PracticeSense(
+            id=None,
+            pos=[],
+            misc=[],
+            dialects=[],
+            info=[],
+            glosses=[gloss],
+            examples=[],
+            origin="added",
+        )
+        self.senses.append(sense)
+        self.touch()
+        return sense
+
+    def remove_sense(self, sense_id: int) -> None:
+        """Remove one of the user's own senses, with its meanings and examples."""
+        sense = self._sense(sense_id)
+        if sense.origin == "imported":
+            raise OriginalDataError("dictionary senses can only be disabled")
+        self.senses.remove(sense)
+        self.touch()
 
     def add_gloss(self, sense_id: int, text: str, lang: str) -> PracticeGloss:
         """Add a meaning of the user's own at the end of the sense.
@@ -163,6 +201,8 @@ class PracticeEntry(TimestampedEntity):
             return self.kanji_readings
         if part == "readings":
             return self.readings
+        if part == "senses":
+            return self.senses
         if part == "glosses":
             return [g for s in self.senses for g in s.glosses]
         return [e for s in self.senses for e in s.examples]
