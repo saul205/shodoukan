@@ -4,11 +4,15 @@ from sqlalchemy.orm import Session
 
 from shodoukan_practice.application.commands import (
     AddEntryGloss,
+    AddEntryReading,
     AddEntrySense,
+    AddEntrySpelling,
     EditEntryGloss,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntryReading,
     RemoveEntrySense,
+    RemoveEntrySpelling,
     SetEntryActive,
     SetEntryNotes,
     SetEntryPartEnabled,
@@ -106,6 +110,24 @@ def test_own_senses_lifecycle(
     assert [s.id for s in removed.senses] == [sense_id]
     with pytest.raises(OriginalDataError):
         RemoveEntrySense(entries).execute(user.id, entry_id, sense_id)
+
+
+def test_own_spellings_and_readings_lifecycle(
+    entries: SqlAlchemyPracticeEntryRepository, entry: PracticeEntry, user: UserORM
+) -> None:
+    entry_id = _ids(entry)[0]
+
+    AddEntrySpelling(entries).execute(user.id, entry_id, "喰べる")
+    added = AddEntryReading(entries).execute(user.id, entry_id, "くう")
+    spelling, reading = added.kanji_readings[-1], added.readings[-1]
+    assert spelling.id is not None and reading.id is not None
+    assert (spelling.origin, reading.origin) == ("added", "added")
+    assert entries.get(entry_id, user.id) == added
+
+    RemoveEntrySpelling(entries).execute(user.id, entry_id, spelling.id)
+    removed = RemoveEntryReading(entries).execute(user.id, entry_id, reading.id)
+    assert all(k.origin == "imported" for k in removed.kanji_readings)
+    assert all(r.origin == "imported" for r in removed.readings)
 
 
 def test_dictionary_meanings_cant_be_edited_or_removed(

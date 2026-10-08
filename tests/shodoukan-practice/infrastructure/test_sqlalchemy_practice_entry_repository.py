@@ -5,7 +5,11 @@ import pytest
 from factories import NOW, make_entry, make_entry_collection, make_word
 from sqlalchemy.orm import Session
 
-from shodoukan_practice.domain.entities import EntryCollection, PracticeGloss
+from shodoukan_practice.domain.entities import (
+    EntryCollection,
+    PracticeEntry,
+    PracticeGloss,
+)
 from shodoukan_practice.domain.exceptions import EntityNotFoundError
 from shodoukan_practice.domain.gateways import KanaForms
 from shodoukan_practice.domain.searches import (
@@ -430,3 +434,21 @@ def test_find_is_scoped_to_the_user(
 
     assert _found(repo, user, _search("eat")) == []
     assert _found(repo, user, LibrarySearch()) == []
+
+
+def test_own_words_have_no_source_and_can_repeat(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM, session: Session
+) -> None:
+    def own() -> PracticeEntry:
+        return PracticeEntry.create_own(user.id, ["三匹"], ["さんびき"], "x", "eng")
+
+    first, second = repo.add(own()), repo.add(own())
+    repo.add(make_entry(user.id))
+    session.expunge_all()
+
+    assert first.id != second.id
+    assert first.id is not None
+    assert repo.get(first.id, user.id) == first
+    assert list(repo.practice_ids_by_source_entry_id([1000001], user.id)) == [1000001]
+    with pytest.raises(ValueError):
+        repo.add_if_absent(own())

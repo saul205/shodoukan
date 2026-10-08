@@ -46,6 +46,7 @@ export interface PracticeReading {
   info: string[]
   restricted_to: string[]
   enabled: boolean
+  origin: Origin
 }
 
 export interface PracticeKanjiReading {
@@ -53,11 +54,13 @@ export interface PracticeKanjiReading {
   kanji: string
   info: string[]
   enabled: boolean
+  origin: Origin
 }
 
 export interface PracticeEntry {
   id: number
-  source_entry_id: number
+  /** The dictionary entry it was imported from; null for a word of the user's own. */
+  source_entry_id: number | null
   kanji_readings: PracticeKanjiReading[]
   readings: PracticeReading[]
   senses: PracticeSense[]

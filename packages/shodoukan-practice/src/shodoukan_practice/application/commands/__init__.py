@@ -18,14 +18,18 @@ from .exercise_session_commands import (
     FinishExerciseSession,
     StartExerciseSession,
 )
-from .library_commands import ImportEntry, ImportKanji, ImportResult
+from .library_commands import CreateOwnEntry, ImportEntry, ImportKanji, ImportResult
 from .practice_entry_commands import (
     AddEntryGloss,
+    AddEntryReading,
     AddEntrySense,
+    AddEntrySpelling,
     EditEntryGloss,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntryReading,
     RemoveEntrySense,
+    RemoveEntrySpelling,
     SetEntryActive,
     SetEntryNotes,
     SetEntryPartEnabled,
@@ -44,7 +48,9 @@ from .user_commands import EnsureUser
 
 __all__ = [
     "AddEntryGloss",
+    "AddEntryReading",
     "AddEntrySense",
+    "AddEntrySpelling",
     "AddEntryToCollection",
     "AddKanjiMeaning",
     "AddKanjiToCollection",
@@ -52,6 +58,7 @@ __all__ = [
     "CreateEntryCollection",
     "CreateExercise",
     "CreateKanjiCollection",
+    "CreateOwnEntry",
     "DeleteEntryCollection",
     "DeleteExercise",
     "DeleteKanjiCollection",
@@ -65,7 +72,9 @@ __all__ = [
     "RemoveEntryFromCollection",
     "RemoveEntryFromLibrary",
     "RemoveEntryGloss",
+    "RemoveEntryReading",
     "RemoveEntrySense",
+    "RemoveEntrySpelling",
     "RemoveKanjiFromCollection",
     "RemoveKanjiFromLibrary",
     "RemoveKanjiMeaning",

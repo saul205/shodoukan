@@ -40,7 +40,11 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
         source_entry_id=row.source_entry_id,
         kanji_readings=[
             PracticeKanjiReading(
-                id=kr.id, kanji=kr.kanji, info=kr.info, enabled=kr.enabled
+                id=kr.id,
+                kanji=kr.kanji,
+                info=kr.info,
+                enabled=kr.enabled,
+                origin=_origin(kr.origin),
             )
             for kr in row.kanji_readings
         ],
@@ -52,6 +56,7 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
                 info=r.info,
                 restricted_to=r.restricted_to,
                 enabled=r.enabled,
+                origin=_origin(r.origin),
             )
             for r in row.readings
         ],
@@ -109,7 +114,12 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
         source_entry_id=entity.source_entry_id,
         kanji_readings=[
             PracticeEntryKanjiReadingORM(
-                id=kr.id, position=i, kanji=kr.kanji, info=kr.info, enabled=kr.enabled
+                id=kr.id,
+                position=i,
+                kanji=kr.kanji,
+                info=kr.info,
+                enabled=kr.enabled,
+                origin=kr.origin,
             )
             for i, kr in enumerate(entity.kanji_readings)
         ],
@@ -122,6 +132,7 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
                 info=r.info,
                 restricted_to=r.restricted_to,
                 enabled=r.enabled,
+                origin=r.origin,
             )
             for i, r in enumerate(entity.readings)
         ],

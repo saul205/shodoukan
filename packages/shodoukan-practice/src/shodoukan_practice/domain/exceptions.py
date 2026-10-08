@@ -28,6 +28,10 @@ class OriginalDataError(ValueError):
     """
 
 
+class LastReadingError(ValueError):
+    """The only reading of an entry was removed: a word always keeps one."""
+
+
 class ExercisePoolTooSmallError(ValueError):
     """An exercise's collections don't have enough usable items to ask about."""
 

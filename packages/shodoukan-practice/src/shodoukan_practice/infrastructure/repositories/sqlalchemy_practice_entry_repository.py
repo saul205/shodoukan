@@ -110,9 +110,13 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
             PracticeEntryORM.source_entry_id.in_(list(source_entry_ids)),
             PracticeEntryORM.user_id == user_id,
         )
-        return dict(self._session.execute(query).tuples().all())
+        rows = self._session.execute(query).tuples().all()
+        # The IN leaves the user's own words (no source) out; this tells mypy.
+        return {source: id_ for source, id_ in rows if source is not None}
 
     def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:
+        if entry.source_entry_id is None:
+            raise ValueError("only dictionary entries are added if absent")
         row = practice_entry_to_db(entry)
         try:
             # Savepoint: a unique-constraint clash (a concurrent import of the

@@ -23,19 +23,9 @@ Built: see [entities](../technical/domain/entities.md#customisation-rules) and
 
 ## Entries from scratch (#81)
 
-For groups JMDict doesn't have, such as counters with their numbers (三匹).
-
-- `source_entry_id: int | None`. Whether an entry is the user's own is derived from
-  `None` (a property, no stored flag that could disagree with it). The
-  `(user_id, source_entry_id)` unique constraint still holds: NULLs are distinct in
-  PostgreSQL.
-- `origin` on every part: `PracticeReading` and `PracticeKanjiReading` get it too.
-  Everything in an own entry is `added`; imported data behaves as before.
-- Own entries can be deleted; imported ones are still deactivated.
-- When the spelling matches a dictionary entry, offer to import it instead (a warning,
-  not a block).
-- Handwriting already works, since KanjiVG goes character by character. The choice
-  questions' distractors need checking with entries that have no dictionary data.
+Built: see [entities](../technical/domain/entities.md#snapshot-and-practice-state),
+[decisions](../technical/decisions.md#words-of-the-users-own-have-no-source-readings-can-be-added)
+and [creating words of your own](../functional/library/create.md).
 
 ## Importing public collections (#82, future)
 

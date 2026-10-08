@@ -34,6 +34,10 @@ start with it, as on Jisho.
   the meanings and examples the user had hidden inside it still hidden.
 - **Add their own meanings.** Words get them per meaning group (sense), kanji on the
   kanji. The user's meanings are marked as their own, and they can edit or delete them.
+- **Add their own spellings and readings.** Beside a word's spellings and readings, a
+  box adds one of the user's own (readings in kana), marked as their own and deletable.
+  A word always keeps at least one reading. Words of the user's own are made of these
+  (see [creating words of your own](create.md)).
 - **Add their own meaning groups.** Under a word's meanings, **Nuevo significado**
   creates a group of the user's own with its first meaning (in the language chosen in
   the side menu), for a sense the dictionary doesn't cover. It takes more meanings and a
@@ -51,8 +55,7 @@ start with it, as on Jisho.
 
 The dictionary's own data is never edited or deleted: readings, spellings, examples
 and the dictionary's meaning groups and meanings can only be disabled. That way nothing original is ever
-lost, and re-enabling it is always possible. Adding readings of their own isn't
-possible yet.
+lost, and re-enabling it is always possible.
 
 ## When it doesn't work
 

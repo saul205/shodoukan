@@ -117,7 +117,8 @@ returns the closest `WordGrade`: the worst cell's verdict, the cells' average sc
 | `CollectionKindMismatchError` | `ValueError` | Entry and kanji collections are combined |
 | `EntityNotFoundError` | `LookupError` | An update/delete targets something that doesn't exist or belongs to another user |
 | `CollectionNameTakenError` | `ValueError` | A collection is added or renamed to a name the user already has for that kind (HTTP `409`) |
-| `OriginalDataError` | `ValueError` | An imported (dictionary) meaning is edited or removed; it can only be disabled (HTTP `409`) |
+| `OriginalDataError` | `ValueError` | An imported (dictionary) spelling, reading, sense or meaning is edited or removed; it can only be disabled (HTTP `409`) |
+| `LastReadingError` | `ValueError` | A word's only reading is removed: a word keeps one (HTTP `409`) |
 | `DictionaryItemNotFoundError` | `LookupError` | An import asks for an entry or kanji the dictionary doesn't have (HTTP `404`) |
 | `ExercisePoolTooSmallError` | `ValueError` | An exercise's collections don't have enough usable items for a session (HTTP `422`) |
 | `QuestionNotActiveError` | `ValueError` | An answer to a question that isn't the session's active one, or a question asked while another is active (HTTP `409`) |

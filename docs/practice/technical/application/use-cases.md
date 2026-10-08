@@ -32,6 +32,13 @@ into some of the user's entry collections.
 Returns `ImportResult[PracticeEntry]` (`item`, `created`). Why collections are part
 of the import: [decisions](../decisions.md#importing-into-collections-is-one-request).
 
+### `CreateOwnEntry(entries, collections).execute(user_id, spellings, readings, meaning, lang, collection_ids=())`
+
+Creates a word of the user's own (`PracticeEntry.create_own`) and puts it in some of
+their entry collections. The collections are looked up first, as for imports, so an
+unknown one creates nothing. Not idempotent: own words have no key to match, and a user
+may want two alike. Stored with `entries.add`; returns the `PracticeEntry`.
+
 ### `ImportKanji(dictionary, kanji, collections).execute(user_id, literal, collection_ids=())`
 
 Same flow for kanji, keyed by `literal` (`kanji.get_by_literal`,
@@ -150,6 +157,8 @@ and returns the stored item, with ids for anything new.
 | `SetEntryNotes` | `SetKanjiNotes` | the general note |
 | `SetSenseNotes` | — | a sense's note |
 | `SetEntryPartEnabled` | `SetKanjiPartEnabled` | enable or disable one nested item |
+| `AddEntrySpelling` / `AddEntryReading` | — | add a spelling / reading (kana) of the user's own |
+| `RemoveEntrySpelling` / `RemoveEntryReading` | — | remove an own one (`OriginalDataError` for imported ones; `LastReadingError` for a word's last reading) |
 | `AddEntrySense` | — | add a sense of the user's own, with its first meaning |
 | `RemoveEntrySense` | — | remove an own sense with its meanings and examples (`OriginalDataError` for imported ones) |
 | `AddEntryGloss` | `AddKanjiMeaning` | add a meaning of the user's own |

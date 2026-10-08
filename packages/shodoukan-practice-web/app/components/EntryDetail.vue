@@ -66,6 +66,7 @@ function examplesOf(sense: PracticeEntry['senses'][number]) {
       <div class="flex flex-wrap gap-1">
         <UBadge v-if="entry.jlpt" :label="`JLPT N${entry.jlpt}`" variant="soft" />
         <UBadge v-if="entry.is_common" label="común" color="success" variant="soft" />
+        <UBadge v-if="entry.source_entry_id === null" label="palabra propia" color="primary" variant="soft" data-testid="own-word" />
       </div>
     </header>
 
