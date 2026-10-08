@@ -2,11 +2,10 @@
 import { shortenPos } from 'shodoukan-ui'
 import type { EntryPart, PracticeEntry } from '~/models/practice'
 import { entryHeadword, entryReading, sensesIn } from '~/utils/practice-text'
-import { japaneseSentence, translatedSentence } from '~/utils/sentences'
 
 // A library word: its headword and its senses in the meaning language, with
-// their examples and notes. Editable (switches, own senses and meanings, sense
-// notes: it emits, the page saves) or `view-only`, showing only what the user
+// their examples and notes. Editable (switches, own senses, meanings and
+// examples, sense notes: it emits, the page saves) or `view-only`, showing only what the user
 // keeps enabled, as in the item detail opened from a session.
 const props = withDefaults(defineProps<{
   entry: PracticeEntry
@@ -21,6 +20,9 @@ const emit = defineEmits<{
   'add-gloss': [senseId: number, text: string]
   'edit-gloss': [glossId: number, text: string]
   'remove-gloss': [glossId: number]
+  'add-example': [senseId: number, japanese: string, translation: string | null]
+  'edit-example': [exampleId: number, japanese: string, translation: string | null]
+  'remove-example': [exampleId: number]
   'sense-notes': [senseId: number, notes: string | null]
 }>()
 
@@ -53,9 +55,6 @@ function addSense() {
   newSense.value = ''
 }
 
-function examplesOf(sense: PracticeEntry['senses'][number]) {
-  return props.viewOnly ? sense.examples.filter(e => e.enabled) : sense.examples
-}
 </script>
 
 <template>
@@ -122,26 +121,16 @@ function examplesOf(sense: PracticeEntry['senses'][number]) {
             @remove="glossId => emit('remove-gloss', glossId)"
           />
 
-          <div v-if="examplesOf(sense).length" class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wide text-dimmed">Ejemplos</h3>
-            <div v-for="example in examplesOf(sense)" :key="example.id" class="flex items-start gap-3">
-              <USwitch
-                v-if="!viewOnly"
-                :model-value="example.enabled"
-                :disabled="saving"
-                size="sm"
-                class="mt-1"
-                aria-label="Mostrar u ocultar el ejemplo"
-                @update:model-value="emit('toggle', 'examples', example.id, $event)"
-              />
-              <div :class="{ 'opacity-50': !example.enabled }">
-                <p class="font-japanese text-sm text-default">{{ japaneseSentence(example.sentences) }}</p>
-                <p v-if="translatedSentence(example.sentences, glossCode)" class="text-sm text-muted">
-                  {{ translatedSentence(example.sentences, glossCode) }}
-                </p>
-              </div>
-            </div>
-          </div>
+          <ExampleList
+            :examples="sense.examples"
+            :gloss-lang="glossCode"
+            :view-only="viewOnly"
+            :disabled="saving"
+            @toggle="(exampleId, enabled) => emit('toggle', 'examples', exampleId, enabled)"
+            @add="(japanese, translation) => emit('add-example', sense.id, japanese, translation)"
+            @edit="(exampleId, japanese, translation) => emit('edit-example', exampleId, japanese, translation)"
+            @remove="exampleId => emit('remove-example', exampleId)"
+          />
 
           <p v-if="viewOnly && sense.notes" class="text-sm whitespace-pre-line text-toned" data-testid="sense-notes">
             {{ sense.notes }}

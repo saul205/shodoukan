@@ -128,6 +128,40 @@ export function removeGloss(api: ApiClient, id: number, glossId: number): Promis
   return api<PracticeEntry>(`/library/entries/${id}/glosses/${glossId}`, { method: 'DELETE' })
 }
 
+/** An example of the user's own: a Japanese sentence and an optional translation in `lang` (ISO 639-2). */
+export function addExample(
+  api: ApiClient,
+  id: number,
+  senseId: number,
+  japanese: string,
+  translation: string | null,
+  lang: string,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}/examples`, {
+    method: 'POST',
+    body: { japanese, translation, lang },
+  })
+}
+
+/** Rewrite an own example: its sentence and the translation in `lang`; others are kept. */
+export function editExample(
+  api: ApiClient,
+  id: number,
+  exampleId: number,
+  japanese: string,
+  translation: string | null,
+  lang: string,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/examples/${exampleId}`, {
+    method: 'PUT',
+    body: { japanese, translation, lang },
+  })
+}
+
+export function removeExample(api: ApiClient, id: number, exampleId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/examples/${exampleId}`, { method: 'DELETE' })
+}
+
 // --- Kanji ---
 
 export function listLibraryKanji(api: ApiClient, query: LibraryQuery = {}): Promise<Page<PracticeKanji>> {

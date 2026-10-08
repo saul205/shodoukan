@@ -5,12 +5,15 @@ import { answerQuestion, finishSession, getSession, listSessions, startSession }
 import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
 import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
+  addExample,
   addGloss,
   addSense,
   getImportStatus,
   importEntry,
   listLibraryEntries,
+  editExample,
   listLibraryKanji,
+  removeExample,
   removeSense,
   setEntryPartEnabled,
   setKanjiNotes,
@@ -46,6 +49,9 @@ describe('practice API services', () => {
     await addGloss(api, 3, 5, 'to scoff', 'eng')
     await addSense(api, 3, 'to dine', 'eng')
     await removeSense(api, 3, 6)
+    await addExample(api, 3, 5, '水を飲む。', null, 'eng')
+    await editExample(api, 3, 8, '水を飲んだ。', 'I drank water.', 'eng')
+    await removeExample(api, 3, 8)
     await setKanjiNotes(api, 4, null)
 
     expect(calls).toEqual([
@@ -55,6 +61,9 @@ describe('practice API services', () => {
       ['/library/entries/3/senses/5/glosses', { method: 'POST', body: { text: 'to scoff', lang: 'eng' } }],
       ['/library/entries/3/senses', { method: 'POST', body: { text: 'to dine', lang: 'eng' } }],
       ['/library/entries/3/senses/6', { method: 'DELETE' }],
+      ['/library/entries/3/senses/5/examples', { method: 'POST', body: { japanese: '水を飲む。', translation: null, lang: 'eng' } }],
+      ['/library/entries/3/examples/8', { method: 'PUT', body: { japanese: '水を飲んだ。', translation: 'I drank water.', lang: 'eng' } }],
+      ['/library/entries/3/examples/8', { method: 'DELETE' }],
       ['/library/kanji/4/notes', { method: 'PUT', body: { notes: null } }],
     ])
   })

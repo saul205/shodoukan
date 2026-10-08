@@ -2,10 +2,13 @@
 import ConfirmModal from '~/components/ConfirmModal.vue'
 import type { EntryPart, PracticeEntry } from '~/models/practice'
 import {
+  addExample,
   addGloss,
   addSense,
+  editExample,
   editGloss,
   getLibraryEntry,
+  removeExample,
   removeGloss,
   removeLibraryEntry,
   removeSense,
@@ -132,6 +135,9 @@ async function remove() {
           @add-gloss="(senseId, text) => save(() => addGloss(api, id, senseId, text, glossCode))"
           @edit-gloss="(glossId, text) => save(() => editGloss(api, id, glossId, text))"
           @remove-gloss="glossId => save(() => removeGloss(api, id, glossId))"
+          @add-example="(senseId, japanese, translation) => save(() => addExample(api, id, senseId, japanese, translation, glossCode))"
+          @edit-example="(exampleId, japanese, translation) => save(() => editExample(api, id, exampleId, japanese, translation, glossCode))"
+          @remove-example="exampleId => save(() => removeExample(api, id, exampleId))"
           @sense-notes="(senseId, notes) => save(() => setSenseNotes(api, id, senseId, notes))"
         />
 
