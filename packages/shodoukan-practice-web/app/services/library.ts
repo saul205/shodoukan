@@ -96,6 +96,16 @@ export function setEntryPartEnabled(
   })
 }
 
+/** A sense of the user's own, created with its first meaning; `lang` is ISO 639-2. */
+export function addSense(api: ApiClient, id: number, text: string, lang: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses`, { method: 'POST', body: { text, lang } })
+}
+
+/** Remove one of the user's own senses, with its meanings and examples. */
+export function removeSense(api: ApiClient, id: number, senseId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}`, { method: 'DELETE' })
+}
+
 /** `lang` is ISO 639-2 (e.g. "eng"), like the entry's glosses. */
 export function addGloss(
   api: ApiClient,

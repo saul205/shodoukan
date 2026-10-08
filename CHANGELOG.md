@@ -14,6 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   disabling a whole sense (`PUT .../senses/{sense_id}/enabled`). A disabled sense keeps
   its meanings' own flags and is left out when practising. Dictionary senses can only
   be disabled.
+- **shodoukan-practice-web:** On a library word, a switch per meaning group hides the
+  whole sense (faded, "oculto al practicar"), and **Nuevo significado** adds a group of
+  the user's own with its first meaning, marked "propio" and deletable after confirming.
 - **shodoukan-practice:** Fairer handwriting grading for kana and words: dakuten,
   handakuten and dots of simple characters pair by position (direction only
   checked loosely) (only adding or leaving out a whole set

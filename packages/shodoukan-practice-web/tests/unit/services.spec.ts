@@ -6,10 +6,12 @@ import { getExerciseStatistics, getPracticeStatistics } from '../../app/services
 import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
   addGloss,
+  addSense,
   getImportStatus,
   importEntry,
   listLibraryEntries,
   listLibraryKanji,
+  removeSense,
   setEntryPartEnabled,
   setKanjiNotes,
 } from '../../app/services/library'
@@ -42,6 +44,8 @@ describe('practice API services', () => {
     await importEntry(api, 1000002, [4])
     await setEntryPartEnabled(api, 3, 'kanji-readings', 7, false)
     await addGloss(api, 3, 5, 'to scoff', 'eng')
+    await addSense(api, 3, 'to dine', 'eng')
+    await removeSense(api, 3, 6)
     await setKanjiNotes(api, 4, null)
 
     expect(calls).toEqual([
@@ -49,6 +53,8 @@ describe('practice API services', () => {
       ['/library/entries', { method: 'POST', body: { entry_id: 1000002, collection_ids: [4] } }],
       ['/library/entries/3/kanji-readings/7/enabled', { method: 'PUT', body: { enabled: false } }],
       ['/library/entries/3/senses/5/glosses', { method: 'POST', body: { text: 'to scoff', lang: 'eng' } }],
+      ['/library/entries/3/senses', { method: 'POST', body: { text: 'to dine', lang: 'eng' } }],
+      ['/library/entries/3/senses/6', { method: 'DELETE' }],
       ['/library/kanji/4/notes', { method: 'PUT', body: { notes: null } }],
     ])
   })

@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { PracticeEntry, PracticeGloss, PracticeSense } from '../../app/models/practice'
-import { sensesIn } from '../../app/utils/practice-text'
+import { entryMeanings, sensesIn } from '../../app/utils/practice-text'
 
 let nextId = 1
 function gloss(lang: string, text: string, extra: Partial<PracticeGloss> = {}): PracticeGloss {
   return { id: nextId++, text, lang, type: null, enabled: true, origin: 'imported', ...extra }
 }
 function sense(...glosses: PracticeGloss[]): PracticeSense {
-  return { id: nextId++, pos: ['n'], misc: [], dialects: [], info: [], glosses, examples: [], notes: null }
+  return {
+    id: nextId++, pos: ['n'], misc: [], dialects: [], info: [], glosses, examples: [], notes: null,
+    enabled: true, origin: 'imported',
+  }
 }
 function entry(...senses: PracticeSense[]): PracticeEntry {
   return {
@@ -29,5 +32,14 @@ describe('sensesIn', () => {
     expect(sensesIn(word, 'spa')).toEqual([disabled, own])
     expect(sensesIn(word, 'eng')).toEqual([english, disabled])
     expect(sensesIn(word, 'ger')).toEqual([])
+  })
+})
+
+describe('entryMeanings', () => {
+  it('leaves out disabled meanings and the meanings of disabled senses', () => {
+    const hidden = { ...sense(gloss('eng', 'elder brother')), enabled: false }
+    const shown = sense(gloss('eng', 'older brother'), gloss('eng', 'big bro', { enabled: false }))
+
+    expect(entryMeanings(entry(hidden, shown), 'eng')).toEqual(['older brother'])
   })
 })

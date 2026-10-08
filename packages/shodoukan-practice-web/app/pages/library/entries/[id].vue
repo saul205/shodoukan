@@ -3,10 +3,12 @@ import ConfirmModal from '~/components/ConfirmModal.vue'
 import type { EntryPart, PracticeEntry } from '~/models/practice'
 import {
   addGloss,
+  addSense,
   editGloss,
   getLibraryEntry,
   removeGloss,
   removeLibraryEntry,
+  removeSense,
   setEntryActive,
   setEntryNotes,
   setEntryPartEnabled,
@@ -52,6 +54,16 @@ const { data: wordKanji } = useAsyncData(
 
 const toggle = (part: EntryPart, itemId: number, enabled: boolean) =>
   save(() => setEntryPartEnabled(api, id.value, part, itemId, enabled))
+
+// An own sense goes with its meanings, examples and note, so it asks first.
+async function deleteSense(senseId: number) {
+  const confirmed = await overlay.create(ConfirmModal).open({
+    title: '¿Eliminar este significado?',
+    description: 'Se borran sus significados, ejemplos y nota propios.',
+    confirmLabel: 'Eliminar',
+  }).result
+  if (confirmed) await save(() => removeSense(api, id.value, senseId))
+}
 
 async function remove() {
   const confirmed = await overlay.create(ConfirmModal).open({
@@ -115,6 +127,8 @@ async function remove() {
           :entry="entry"
           :saving="saving"
           @toggle="toggle"
+          @add-sense="text => save(() => addSense(api, id, text, glossCode))"
+          @remove-sense="deleteSense"
           @add-gloss="(senseId, text) => save(() => addGloss(api, id, senseId, text, glossCode))"
           @edit-gloss="(glossId, text) => save(() => editGloss(api, id, glossId, text))"
           @remove-gloss="glossId => save(() => removeGloss(api, id, glossId))"

@@ -11,19 +11,8 @@ Issues: #79 own senses (parent), #80 own example sentences and #81 entries from 
 
 ## Own senses (#79)
 
-Today glosses can be added to imported senses, but senses can't be created, nor
-enabled or disabled (`EntryPart` has no `senses`).
-
-- `PracticeSense` gets `origin` (`imported` / `added`) and `enabled`; `"senses"` joins
-  `EntryPart`.
-- Own senses can be added to imported and own entries. They hold glosses, examples and
-  notes; `pos` / `misc` stay empty for now (later, picked from JMDict's codes).
-- Only own senses are edited and removed (with their glosses and examples). Imported
-  senses are only disabled, like the rest of the dictionary data. Both still take new
-  glosses and examples.
-- Disabling a sense keeps its glosses' and examples' own flags, so re-enabling restores
-  it as it was. A gloss shows when `sense.enabled and gloss.enabled`: applied in the
-  views, the library search and the exercise questions.
+Built: see [entities](../technical/domain/entities.md#customisation-rules) and
+[decisions](../technical/decisions.md#own-senses-start-with-a-meaning-a-disabled-sense-keeps-its-parts-flags).
 
 ## Own example sentences (#80)
 

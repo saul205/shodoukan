@@ -34,6 +34,9 @@ export interface PracticeSense {
   glosses: PracticeGloss[]
   examples: PracticeExample[]
   notes: string | null
+  // A disabled sense hides its meanings and examples, keeping their own flags.
+  enabled: boolean
+  origin: Origin
 }
 
 export interface PracticeReading {
@@ -114,7 +117,7 @@ export interface CollectionInput {
 export type ItemKind = 'entries' | 'kanji'
 
 /** Parts of an entry that can be enabled or disabled, as in the API's URLs. */
-export type EntryPart = 'kanji-readings' | 'readings' | 'glosses' | 'examples'
+export type EntryPart = 'kanji-readings' | 'readings' | 'senses' | 'glosses' | 'examples'
 /** Parts of a kanji that can be enabled or disabled (readings = on, kun and nanori). */
 export type KanjiPart = 'readings' | 'meanings'
 

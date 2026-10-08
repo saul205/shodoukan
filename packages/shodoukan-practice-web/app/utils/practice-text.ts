@@ -14,9 +14,11 @@ export function entryReading(entry: PracticeEntry): string {
   return (entry.readings.find(r => r.enabled) ?? entry.readings[0])?.text ?? ''
 }
 
-/** Enabled meanings of the entry in one language (ISO 639-2), first sense first. */
+/** Enabled meanings of enabled senses in one language (ISO 639-2), first sense first. */
 export function entryMeanings(entry: PracticeEntry, glossLang: string): string[] {
-  return entry.senses.flatMap(s => s.glosses.filter(g => g.enabled && g.lang === glossLang).map(g => g.text))
+  return entry.senses
+    .filter(s => s.enabled)
+    .flatMap(s => s.glosses.filter(g => g.enabled && g.lang === glossLang).map(g => g.text))
 }
 
 /**

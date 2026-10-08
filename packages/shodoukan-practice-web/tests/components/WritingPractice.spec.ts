@@ -32,7 +32,7 @@ const ENTRY = {
   id: 9,
   kanji_readings: [{ id: 1, kanji: '食べる', info: [], enabled: true }],
   readings: [{ id: 1, text: 'たべる', no_kanji: false, info: [], restricted_to: [], enabled: true }],
-  senses: [{ id: 1, glosses: [{ id: 1, text: 'to eat', lang: 'eng', enabled: true }] }],
+  senses: [{ id: 1, enabled: true, glosses: [{ id: 1, text: 'to eat', lang: 'eng', enabled: true }] }],
 }
 
 beforeEach(() => {
@@ -187,7 +187,7 @@ describe('WritingPractice', () => {
         { ...ENTRY.kanji_readings[0]!, enabled: false },
         { id: 2, kanji: '喰べる', info: [], enabled: true },
       ],
-      senses: [{ id: 1, glosses: [{ id: 1, text: 'to devour', lang: 'eng', enabled: true }] }],
+      senses: [{ id: 1, enabled: true, glosses: [{ id: 1, text: 'to devour', lang: 'eng', enabled: true }] }],
     }
     const answer = api.getMockImplementation()!
     api.mockImplementation(async (url: string) => (url === '/library/entries/9' ? edited : answer(url)))

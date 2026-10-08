@@ -29,9 +29,16 @@ start with it, as on Jisho.
 
 - **Hide what they don't need.** Any reading, spelling, meaning or example can be
   disabled, and enabled again later. A disabled part stays visible on the detail page
-  (greyed out) but is left out when practising.
+  (greyed out) but is left out when practising. A word's whole meaning group (sense)
+  can be hidden with one switch too; enabling it again brings it back as it was, with
+  the meanings and examples the user had hidden inside it still hidden.
 - **Add their own meanings.** Words get them per meaning group (sense), kanji on the
   kanji. The user's meanings are marked as their own, and they can edit or delete them.
+- **Add their own meaning groups.** Under a word's meanings, **Nuevo significado**
+  creates a group of the user's own with its first meaning (in the language chosen in
+  the side menu), for a sense the dictionary doesn't cover. It takes more meanings and a
+  note like any other, and deleting it (after confirming) takes its meanings and note
+  with it.
 - **Write notes.** A general note on the word or kanji, and for words one note per
   meaning group. Notes are free text up to 2000 characters; emptying a note removes it.
 - **Deactivate the item.** It stays in the library and in its collections, but isn't
@@ -43,7 +50,7 @@ start with it, as on Jisho.
 ## What the user can't change
 
 The dictionary's own data is never edited or deleted: readings, spellings, examples
-and the dictionary's meanings can only be disabled. That way nothing original is ever
+and the dictionary's meaning groups and meanings can only be disabled. That way nothing original is ever
 lost, and re-enabling it is always possible. Adding readings of their own isn't
 possible yet.
 
