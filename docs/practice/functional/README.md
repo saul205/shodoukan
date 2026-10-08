@@ -29,6 +29,12 @@ page per use case.
 - [Managing collections](collections/manage.md): group words and kanji from the
   library, and use collections as tags.
 
+## Writing practice
+
+- [Writing practice](writing-practice/README.md): learn to write kanji, words and
+  kana, guided
+  stroke by stroke, tracing the model or from memory; ungraded and not stored.
+
 ## Exercises
 
 - [Exercises](exercises/README.md): practise a collection with choice cards (and,

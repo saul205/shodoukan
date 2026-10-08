@@ -35,7 +35,7 @@ changes.
 | `card.choice` | Card | Sees the front, picks the right answer among N options | Phase 1–5 |
 | `card.flip` | Card | Sees the front, flips the card, says whether they knew it | Future |
 | `card.typed` | Card | Types the answer (kana, meaning) | Future |
-| `card.handwriting` | Card | Draws the kanji; the strokes are graded against KanjiVG | #37 **(built)** |
+| `card.handwriting` | Card | Draws the kanji, or writes a word (its spelling or reading) a character per cell; the strokes are graded against KanjiVG | #37, #67 **(built)** |
 | `sentence.gap` | Sentence | Fills the gaps of an example sentence with kanji, given the kana | Future |
 
 All card types share `CardSettings`:
@@ -52,7 +52,9 @@ All card types share `CardSettings`:
 | `distractor_source` | `"collection"` (later `"library"`) | `"collection"` |
 
 `HandwritingCardSettings` (`type = "card.handwriting"`) adds nothing, but every
-direction must ask for `literal`, so only kanji exercises use it.
+direction must ask for something to write (`HANDWRITING_ANSWERS`): `literal` in a
+kanji exercise, `writing` or `reading` in an entry exercise (the item kind's fields
+decide which).
 
 ## Sessions (built)
 
@@ -246,6 +248,56 @@ paths) and builds the `HandwritingQuestion`, which keeps them as its snapshot. T
 drawing is graded against the closest. Nothing else changes: back fields, missed
 items coming back, the deck.
 
+### Words
+
+In an entry exercise, a handwriting card asks to write a word: its first spelling
+(`writing`, okurigana included: 食べる) or its first reading (`reading`, in kana),
+the same values a choice card asks. The question is a `WordHandwritingQuestion`
+(`card.handwriting_word`), answered with a `CellsAnswer`: one drawing per character,
+in the same space as a kanji, in order. Writing the reading is how kana words (これ)
+and kana practice fit in.
+
+- **Which words.** `word_handwriting_question_service.draft_next_word_question`
+  picks the item like any card, among the words whose **every character** has a
+  stroke order (KanjiVG draws the kana too: all of hiragana and katakana) and that
+  fit in `MAX_CELLS` (12). The use case asks the dictionary about every character
+  the exercise's words could need (`word_characters`).
+- **Any word that fits the prompt is right**, like kanji, if it has **as many
+  characters**: the question shows how many cells to write in (`cell_count`, the
+  only part of the solution shown before answering), so a word of another length
+  can't be what was meant. Each accepted word is a `ReferenceWord(text,
+  characters)`, a `ReferenceKanji` per character.
+- **Grading** (`word_grading_service.grade_word`): each cell is graded on its own
+  against its character; an empty cell is that character `missing` (score 0,
+  `wrong`). The word's verdict is the worst cell's and its score the cells'
+  average. The closest accepted word counts. The grade is a `WordGrade(score,
+  verdict, matched, cells)`.
+- **Only another character fails a word** (#71). A word with a character written as
+  another one is another word (たべる with ろ for る), so it's `wrong`; a slip in the
+  right character leaves it at worst `close`:
+  - **Kana are recognised** (`grade_kana`): a kana cell is also graded against every
+    other kana (the use case reads their strokes, `KANA`, only for words that have
+    kana). One that fits clearly better (a better verdict, or `RECOGNITION_MARGIN`
+    = 10 more points) makes the cell `wrong`, naming it in the grade's
+    `looks_like`, even when the drawing passes for the expected kana (ろ passes for
+    る). Kana drawn alike in both scripts (へ / ヘ, べ / ベ, ぺ / ペ) and the small or
+    big twin aren't rivals. Otherwise a recognisable kana (likeness ≥
+    `SHAPE_CLOSE`, no marks missing or added whole) is at worst `close`: a stroke
+    too many or too few in the right kana is a slip, not another kana (the kanji
+    rule of no count errors under 5 strokes doesn't apply).
+  - **Small kana** (ゃ / や, っ / つ, ァ / ア...) are told apart by size, since grading
+    normalizes each cell by its own box. A cell's size is compared with the word's
+    other big kana (kanji are left out: drawn bigger, and some flat like 一), against
+    the sizes their references predict, and its twin's (a small kana is about
+    `SMALL_RATIO` = 0.78 of its big twin in KanjiVG). Closer to the twin's: `wrong`,
+    `looks_like` the twin; within `SIZE_BAND` (5 %) of the split: `close`. With no
+    other big kana in the word, only a size clearly the twin's (`ALONE_MARGIN`)
+    counts.
+- A close word counts and comes back as a review, as a close kanji does.
+
+Why one more question type rather than kanji as one-character words:
+[decisions](decisions.md#words-are-written-a-character-per-cell-in-their-own-question-type).
+
 ### The drawing space
 
 Points are in KanjiVG's own space, a 109-unit square (`CANVAS_SIZE`), the space the
@@ -281,7 +333,22 @@ accept dozens of kanji). The use case passes the grade to the session
    `LENGTH_TOLERANCE` times **and** by more than `LENGTH_MIN_SHARE_GAP` of the total
    (the gap keeps a short stroke's natural wobble from counting). Dots (reference
    strokes under `MIN_LENGTH_CHECKED`) aren't checked. This is what tells 未 from 末.
-5. **A status per stroke**, the first that applies:
+5. **Marks.** In characters of up to `MARK_MAX_STROKES` (6) strokes, where a dot or
+   a dakuten changes the character (kana, 犬, 太, 心), reference strokes smaller than
+   `MARK_EXTENT` (0.2 of the character: dakuten, handakuten, dots) say little by
+   their shape, so they're left out of step 3 and pair afterwards, with the drawn
+   strokes left over, by the distance between their centres (up to `MARK_MATCH`,
+   0.2; further than `MARK_OK`, 0.1, is `imprecise`), length unchecked. Their
+   direction only counts when it's turned more than `MARK_REVERSED_ANGLE` (120°)
+   from the reference's (`reversed`): a dakuten drawn at another angle is fine. In
+   denser kanji, short strokes are ordinary strokes: 18 of 曜's are under 0.2, and
+   treating them as marks hid their direction and failed a drawing missing one. A circle (゜,
+   a closed stroke) only pairs with a circle. A run of marks (゛'s two strokes) may
+   be drawn in any order. A run with none of its marks drawn, or short strokes drawn
+   where the character has no marks, make another character (は for ば, ぱ for ば, 大
+   for 犬): never `close`. Missing or extra marks don't count against the stroke
+   count rule below.
+6. **A status per stroke**, the first that applies:
 
    | Status | Meaning |
    |---|---|
@@ -293,7 +360,7 @@ accept dozens of kanji). The use case passes the grade to the session
    | `extra` | A drawn stroke with no pair |
    | `missing` | A reference stroke not drawn |
 
-6. **The verdict**, lenient on purpose: nobody writes as exactly as KanjiVG draws, so
+7. **The verdict**, lenient on purpose: nobody writes as exactly as KanjiVG draws, so
    `imprecise`, `too_long` and `too_short` strokes are **warnings only**: they never
    lower the verdict
    ([decisions](decisions.md#a-drawing-close-enough-counts-and-comes-back)). It
@@ -320,6 +387,8 @@ accept dozens of kanji). The use case passes the grade to the session
 | `SHAPE_OK` / `SHAPE_CLOSE` | 0.6 / 0.4 |
 | `ALLOWED_COUNT_ERRORS` / `COUNT_TOLERANCE_FROM` | 1 / 5 strokes |
 | `MISTAKE_CLOSE_SHARE` | ½ |
+| `MARK_EXTENT` / `MARK_MATCH` / `MARK_OK` | 0.2 / 0.2 / 0.1 |
+| `MARK_MAX_STROKES` / `MARK_REVERSED_ANGLE` | 6 strokes / 120° |
 | `LENGTH_TOLERANCE` / `LENGTH_MIN_SHARE_GAP` / `MIN_LENGTH_CHECKED` (warning) | 1.35 / 0.045 / 0.1 |
 
 **Calibration.** The values were tuned on the KanjiVG strokes of 24 kanji drawn with
@@ -343,6 +412,16 @@ other:
   休 / 体, 問 for 間) is `close`, by design: it can't be told from forgetting a stroke.
 - **Other kanji** (a different stroke count or shape) are `wrong`, and so is a
   drawing too deformed to look like the kanji.
+
+**Kana and marks** (#71) were checked the same way on KanjiVG's kana: every kana
+drawn with noise (points up to 6 units off) is recognised as itself (0 of 177
+wrong); a dakuten drawn longer and off its place, or its two strokes swapped, stays
+`correct`; へ for べ, ぱ for ば, ば for は, ろ for る, ね for れ, シ for ツ, ソ for ン and
+大 / 犬 are `wrong`; a kana with a stroke missing or extra, or half a dakuten, is
+`close`; a dakuten drawn the other way is `close` (`reversed`), turned 60–100°
+still `correct`; 曜 or 識 with a short stroke backwards report it (`close`), and 曜
+without a short stroke is `close`, as without a long one. KanjiVG's marks measure 0.10–0.11 (゛), 0.18 (゜) and 0.12–0.17 (kanji
+dots); シ's dots (0.18–0.19) are marks, ツ's (0.21–0.23) and ふ's aren't.
 
 The values should be checked against real drawings once people use it. A handwriting
 recognition model could replace this later: everything sits behind `grade_drawing`.
@@ -381,9 +460,11 @@ review; that id isn't updated if the item is later removed.
 The queryable columns (`item_id`, `answer_field`, `is_correct`, `answered_at`, ...) are
 what statistics filter and group by. `details` holds what only the
 question's type has: `{options, correct_option}` for a choice card, `{references,
-grade}` for a handwriting card ([decisions](decisions.md#questions-are-a-union-too-with-what-each-type-adds-in-one-json-column)).
+grade}` for a handwriting card, `{words, grade}` for a word
+([decisions](decisions.md#questions-are-a-union-too-with-what-each-type-adds-in-one-json-column)).
 `answer` is a discriminated union like `settings`: `{type: "option", option}`,
-`{type: "strokes", strokes}` and `{type: "skip"}` (a miss) now; later
+`{type: "strokes", strokes}`, `{type: "cells", cells}` (a word) and
+`{type: "skip"}` (a miss) now; later
 `{type: "text", text}` and `{type: "self_grade", knew}`.
 
 The snapshot keeps a past session readable exactly as it was, even after the item is
@@ -408,7 +489,7 @@ Details: [endpoints](api/endpoints.md#exercises).
 | Method | Route | Body / result |
 |---|---|---|
 | `POST` | `/exercises/{id}/sessions` | `{meaning_lang}` → the session with its first active question, **without** the solution (item, correct option, back) |
-| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option}, {type: "strokes", strokes} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
+| `POST` | `/exercise-sessions/{id}/answer` | `{question_id, answer: {type: "option", option}, {type: "strokes", strokes}, {type: "cells", cells} or {type: "skip"}, response_ms}` → the graded question with its solution, the `next` active question, the counts |
 | `GET` | `/exercise-sessions/{id}` | The session: its active question (without solution) and its history (with) |
 | `POST` | `/exercise-sessions/{id}/finish` | Close it; idempotent |
 
@@ -431,8 +512,9 @@ Details: [endpoints](api/endpoints.md#exercise-sessions).
 - Answers per day are grouped in Python with `zoneinfo` over the `answered_at` of the
   window (at most 365 days), so SQLite and PostgreSQL agree and days follow the
   user's time zone.
-- Each question in a response carries `type` (`"card.choice"` or
-  `"card.handwriting"`), so the frontend picks the player by type.
+- Each question in a response carries `type` (`"card.choice"`,
+  `"card.handwriting"` or `"card.handwriting_word"`), so the frontend picks the
+  player by type.
 
 Details: [endpoints](api/endpoints.md#exercise-statistics), [use
 cases](application/use-cases.md#queries-queriesexercise_statistics_queriespy) and
@@ -508,4 +590,5 @@ go in the order 3 → A → 4 → 5 → C.
 | 6 | Library distractors, #34 | `distractor_source = "library"` |
 | 7 | Handwriting (backend), #58 **(built)** | `card.handwriting`: KanjiVG references, grading, questions by type in storage |
 | 8 | Handwriting (frontend), #59 **(built)** | Drawing pad, the handwriting player, reviewing drawings |
+| 9 | Writing words, #67 **(built)** | `card.handwriting_word`: a word's spelling or reading written a character per cell, graded per cell; its player and review |
 | — | Future types | `card.flip`, `card.typed`, `sentence.gap` |

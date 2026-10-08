@@ -1,11 +1,11 @@
 """Request and response models for exercise sessions.
 
 The active question shows only what the card's front shows: its prompt, and
-a choice card's option texts. Its item and back, a choice card's right option
-and the options' items, and a handwriting card's reference strokes and grade,
-appear once it's answered (in the history), so a client can't read the
-solution ahead. Questions are a union keyed by `type`, so the client picks
-how to play each one.
+a choice card's option texts (a word to write, how many cells it takes). Its
+item and back, a choice card's right option and the options' items, and a
+handwriting card's reference strokes and grade, appear once it's answered (in
+the history), so a client can't read the solution ahead. Questions are a
+union keyed by `type`, so the client picks how to play each one.
 """
 
 from datetime import datetime
@@ -23,8 +23,11 @@ from ...domain.entities import (
     ItemKind,
     Point,
     ReferenceKanji,
+    ReferenceWord,
     ShownField,
     StudyField,
+    WordGrade,
+    WordHandwritingQuestion,
 )
 from ...domain.repositories import SessionSummary
 
@@ -51,8 +54,10 @@ class AnswerRequest(BaseModel):
         description='The answer, by type. Choice cards: `{"type": "option", '
         '"option": <index>}`. Handwriting cards: `{"type": "strokes", "strokes": '
         "[[[x, y], ...], ...]}`, the strokes in the order drawn, in KanjiVG's "
-        "109-unit square (a margin of 6 around it is allowed). "
-        '`{"type": "skip"}` skips either, which counts as a miss.'
+        "109-unit square (a margin of 6 around it is allowed). Word handwriting "
+        'cards: `{"type": "cells", "cells": [[[[x, y], ...], ...], ...]}`, one '
+        "drawing per character in the same space (a cell may be empty). "
+        '`{"type": "skip"}` skips any card, which counts as a miss.'
     )
     response_ms: int | None = Field(
         default=None,
@@ -173,19 +178,78 @@ class HandwritingQuestionResponse(_QuestionResponse):
         )
 
 
+class ReferenceWordResponse(BaseModel):
+    text: str
+    characters: list[ReferenceKanjiResponse]
+
+    @classmethod
+    def of(cls, word: ReferenceWord) -> "ReferenceWordResponse":
+        return cls(
+            text=word.text,
+            characters=[ReferenceKanjiResponse.of(c) for c in word.characters],
+        )
+
+
+class WordHandwritingQuestionResponse(_QuestionResponse):
+    type: Literal["card.handwriting_word"] = "card.handwriting_word"
+    cell_count: int = Field(description="The cells to write in, one per character.")
+    words: list[ReferenceWordResponse] | None = Field(
+        description="The words it accepts, with their characters' strokes; null "
+        "until answered."
+    )
+    grade: WordGrade | None = Field(
+        description="How each cell compares to the closest accepted word; null "
+        "until answered, and when skipped."
+    )
+
+    @classmethod
+    def of(cls, question: WordHandwritingQuestion) -> "WordHandwritingQuestionResponse":
+        assert question.id is not None
+        answered = question.answered
+        return cls(
+            id=question.id,
+            position=question.position,
+            prompt_fields=list(question.prompt_fields),
+            answer_field=question.answer_field,
+            prompt=list(question.prompt),
+            answered=answered,
+            item_id=question.item_id if answered else None,
+            back=list(question.back) if answered else None,
+            answer=question.answer,
+            is_correct=question.is_correct,
+            answered_at=question.answered_at,
+            response_ms=question.response_ms,
+            cell_count=question.cell_count,
+            words=(
+                [ReferenceWordResponse.of(w) for w in question.words]
+                if answered
+                else None
+            ),
+            grade=question.grade,
+        )
+
+
 QuestionResponse = Annotated[
-    ChoiceQuestionResponse | HandwritingQuestionResponse,
+    ChoiceQuestionResponse
+    | HandwritingQuestionResponse
+    | WordHandwritingQuestionResponse,
     Field(discriminator="type"),
 ]
 
 
 def question_response(
     question: ExerciseQuestion,
-) -> ChoiceQuestionResponse | HandwritingQuestionResponse:
+) -> (
+    ChoiceQuestionResponse
+    | HandwritingQuestionResponse
+    | WordHandwritingQuestionResponse
+):
     if isinstance(question, ChoiceQuestion):
         return ChoiceQuestionResponse.of(question)
     if isinstance(question, HandwritingQuestion):
         return HandwritingQuestionResponse.of(question)
+    if isinstance(question, WordHandwritingQuestion):
+        return WordHandwritingQuestionResponse.of(question)
     assert_never(question)
 
 

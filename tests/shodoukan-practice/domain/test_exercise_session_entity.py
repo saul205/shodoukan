@@ -1,18 +1,30 @@
 from datetime import timedelta
 
 import pytest
-from factories import USER_ID, make_grade, make_question, make_session
+from factories import (
+    USER_ID,
+    make_grade,
+    make_question,
+    make_reference,
+    make_reference_word,
+    make_session,
+    make_word_grade,
+)
 from pydantic import ValidationError
 
 from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     CANVAS_MARGIN,
     CANVAS_SIZE,
+    MAX_CELLS,
+    CellsAnswer,
     ExerciseSession,
     HandwritingQuestion,
     OptionAnswer,
+    ReferenceWord,
     SkipAnswer,
     StrokesAnswer,
+    WordHandwritingQuestion,
     session_end,
 )
 from shodoukan_practice.domain.entities.exercise_session_entity import IDLE_TIMEOUT
@@ -251,3 +263,80 @@ def test_drawn_points_must_stay_on_the_canvas() -> None:
         StrokesAnswer(strokes=())
     with pytest.raises(ValidationError):
         StrokesAnswer(strokes=((),))
+
+
+STROKE = ((10.0, 54.0), (90.0, 52.0))
+WORD = CellsAnswer(cells=((STROKE,), (STROKE,)))
+
+
+def test_a_written_word_is_graded_by_the_grade_passed() -> None:
+    session = make_session(USER_ID, word=True)
+
+    graded = session.answer(1, WORD, grade=make_word_grade("close"))
+
+    assert isinstance(graded, WordHandwritingQuestion)
+    assert (graded.is_correct, graded.needs_review) == (True, True)
+    assert graded.grade == make_word_grade("close")
+
+
+def test_a_wrong_word_is_a_miss() -> None:
+    session = make_session(USER_ID, word=True)
+
+    graded = session.answer(1, WORD, grade=make_word_grade("wrong"))
+
+    assert graded.is_correct is False
+
+
+def test_a_word_is_written_in_its_cells() -> None:
+    session = make_session(USER_ID, word=True)
+
+    with pytest.raises(InvalidAnswerError, match="2 cells"):
+        session.answer(1, CellsAnswer(cells=((STROKE,),)), grade=make_word_grade())
+    with pytest.raises(InvalidAnswerError):
+        session.answer(1, DRAWING, grade=make_grade())
+    with pytest.raises(ValueError, match="needs its grade"):
+        session.answer(1, WORD, grade=make_grade())
+    with pytest.raises(ValueError, match="isn't a word"):
+        session.answer(1, WORD, grade=make_word_grade(matched="二一"))
+    assert session.current is not None and not session.current.answered
+
+
+def test_a_kanji_drawing_isnt_graded_as_a_word() -> None:
+    session = make_session(USER_ID, handwriting=True)
+
+    with pytest.raises(InvalidAnswerError):
+        session.answer(1, WORD, grade=make_word_grade())
+
+
+def test_cells_need_one_drawing_and_stay_on_the_canvas() -> None:
+    CellsAnswer(cells=((), (STROKE,)))
+
+    with pytest.raises(ValidationError, match="at least one character"):
+        CellsAnswer(cells=((), ()))
+    with pytest.raises(ValidationError):
+        CellsAnswer(cells=((((0.0, 0.0), (CANVAS_SIZE + CANVAS_MARGIN + 1, 0.0)),),))
+    with pytest.raises(ValidationError):
+        CellsAnswer(cells=tuple((STROKE,) for _ in range(MAX_CELLS + 1)))
+
+
+def test_a_reference_word_spells_its_text() -> None:
+    assert make_reference_word("一二").text == "一二"
+
+    with pytest.raises(ValidationError, match="spell it"):
+        ReferenceWord(
+            text="一三", characters=(make_reference("一"), make_reference("二"))
+        )
+
+
+def test_the_words_a_question_accepts_are_as_long() -> None:
+    question = make_session(USER_ID, word=True).current
+    assert isinstance(question, WordHandwritingQuestion)
+    assert question.cell_count == 2
+
+    with pytest.raises(ValidationError, match="as many characters"):
+        WordHandwritingQuestion.model_validate(
+            {
+                **question.model_dump(),
+                "words": [make_reference_word("一二"), make_reference_word("一")],
+            }
+        )

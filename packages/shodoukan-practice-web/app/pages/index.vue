@@ -21,6 +21,12 @@ const sections = [
     to: '/collections',
   },
   {
+    title: 'Practicar',
+    description: 'Aprende a escribir tus kanji: guiado trazo a trazo, calcando el modelo o de memoria.',
+    icon: 'i-lucide-pen-line',
+    to: '/practice',
+  },
+  {
     title: 'Ejercicios',
     description: 'Practica tus colecciones con tarjetas: elige qué se muestra y qué se pregunta.',
     icon: 'i-lucide-dumbbell',

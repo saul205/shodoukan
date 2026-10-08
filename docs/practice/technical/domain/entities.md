@@ -70,7 +70,8 @@ A saved exercise. The design (types, sessions, statistics) is in
   - `ChoiceCardSettings` (`card.choice`): `option_count` (2–8, default 4),
     `distractor_source` (`"collection"`).
   - `HandwritingCardSettings` (`card.handwriting`): every direction asks for
-    `literal`, so it only fits a `KanjiExercise`.
+    something to write (`HANDWRITING_ANSWERS`): `literal` (a `KanjiExercise`), or
+    `writing` / `reading` (an `EntryExercise`, a word written a character per cell).
 - **`Direction(prompt, answer)`**: the fields shown (at least one, no repeats) and the
   field asked, which can't be one of them. An exercise needs at least one direction
   and can't repeat one (the prompt's order doesn't count); back fields can't repeat.
@@ -85,8 +86,8 @@ An open-ended study session of an exercise: one active question (`current`) and 
 answered ones (`history`). Its questions are built by the
 [question services](services-and-errors.md#services-domainservices).
 `ExerciseQuestion` is a union discriminated by `type`, like the settings:
-`ChoiceQuestion` (`card.choice`) and `HandwritingQuestion` (`card.handwriting`), on a
-shared `QuestionBase`. Each is a snapshot of the card, so the session reads the same
+`ChoiceQuestion` (`card.choice`), `HandwritingQuestion` (`card.handwriting`) and
+`WordHandwritingQuestion` (`card.handwriting_word`), on a shared `QuestionBase`. Each is a snapshot of the card, so the session reads the same
 after its items or its exercise change:
 
 - `item_id` (the item asked about; `None` once it leaves the library),
@@ -98,12 +99,20 @@ after its items or its exercise change:
   `ReferenceKanji(literal, strokes)`, each stroke a `ReferenceStroke(path, label,
   points)` from KanjiVG (the path to draw it, its number's place, its centre line as
   points to grade against); and `grade`, a `HandwritingGrade(score, verdict, matched,
-  strokes)` once drawn: a 0–100 score, `correct` / `close` / `wrong`, the accepted
-  kanji it's closest to, and a `StrokeFeedback(drawn, reference, status)` per stroke;
+  strokes, looks_like)` once drawn: a 0–100 score, `correct` / `close` / `wrong`, the
+  accepted kanji it's closest to, a `StrokeFeedback(drawn, reference, status)` per
+  stroke, and the character it was taken for when it's another one (a kana in a
+  word: ろ for る, や for ゃ);
+- word handwriting cards: `words`, the words it accepts, all as long:
+  `ReferenceWord(text, characters)`, a `ReferenceKanji` per character spelling
+  `text`; `cell_count`, their length; and `grade`, a `WordGrade(score, verdict,
+  matched, cells)` once written, a `HandwritingGrade` per cell;
 - `answer`: `ExerciseAnswer`, a union discriminated by `type`:
   `OptionAnswer(type="option", option)`, `StrokesAnswer(type="strokes", strokes)` (the
   drawing: up to `MAX_STROKES` strokes of up to `MAX_STROKE_POINTS` points each,
-  inside `CANVAS_SIZE` plus `CANVAS_MARGIN`) or `SkipAnswer(type="skip")`, which is
+  inside `CANVAS_SIZE` plus `CANVAS_MARGIN`), `CellsAnswer(type="cells", cells)` (a
+  word: up to `MAX_CELLS` drawings in that space, one per character, some may be
+  empty but not all) or `SkipAnswer(type="skip")`, which is
   graded as a miss ([decisions](../decisions.md#skipping-is-a-miss)). Then
   `is_correct`, `answered_at`, `response_ms` (measured by the client). All `None`
   until answered.

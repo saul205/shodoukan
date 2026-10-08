@@ -29,7 +29,7 @@ from shodoukan import path_points
 points = path_points(strokes.strokes[0].path)        # a stroke as evenly spaced points
 ```
 
-Supports lookup by kanji, kana, Hepburn romaji, or gloss in any JMDict language. Each `Entry` includes its JLPT level (`jlpt: int | None`). Stroke order comes from [KanjiVG](https://kanjivg.tagaini.net/) (Japanese stroke order, all jōyō kanji and about 6,400 in total). See [packages/shodoukan/](packages/shodoukan/) for the full API.
+Supports lookup by kanji, kana, Hepburn romaji, or gloss in any JMDict language. Each `Entry` includes its JLPT level (`jlpt: int | None`). Stroke order comes from [KanjiVG](https://kanjivg.tagaini.net/) (Japanese stroke order, all jōyō kanji and about 6,400 in total, plus hiragana and katakana). See [packages/shodoukan/](packages/shodoukan/) for the full API.
 
 ### `shodoukan-api` — REST API
 
@@ -61,7 +61,8 @@ through Keycloak (OAuth2 / OpenID Connect), its own dictionary search
 `POST /library/kanji`), grouping them into collections (`/collections/entries`,
 `/collections/kanji`), searching the library and its collections (`q` on the list
 endpoints), and exercises: saved choice-card and kanji handwriting exercises
-(`/exercises`; drawings are graded against KanjiVG's strokes), open-ended
+(`/exercises`; drawings, of a kanji or of a word a character per cell, are graded
+against KanjiVG's strokes), open-ended
 study sessions graded on the server (`/exercises/{id}/sessions`,
 `/exercise-sessions`), their history and statistics (`/exercises/{id}/statistics`,
 `/statistics`). See the [practice app documentation](docs/practice/README.md).
@@ -75,8 +76,9 @@ published as a static site. See the [frontend docs](docs/technical/frontend.md).
 
 Nuxt 4 + Nuxt UI app for the practice API on <http://localhost:3001>: sign in with
 Keycloak, then search the dictionary and import, customise your library (meanings,
-notes, readings), group it into collections, and practise them with exercises (choose
-the answer, or draw the kanji), with a
+notes, readings), group it into collections, and practise writing their kanji, words and the kana (guided stroke by stroke, tracing
+the model or from memory), practise them with exercises (choose
+the answer, or write the kanji or the word by hand), with a
 history, a review of each session and statistics. See the
 [frontend docs](docs/practice/technical/frontend.md).
 

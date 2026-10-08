@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { KanjiDrawingPad } from 'shodoukan-ui'
+import PracticeModal from '~/components/PracticeModal.vue'
+import type { PracticeItem } from '~/utils/writing-practice'
 import type { DrawnPoint, ExerciseAnswer, HandwritingQuestion, StudyField } from '~/models/practice'
+import { MAX_STROKE_POINTS, MAX_STROKES } from '~/utils/drawing'
 import { strokeProblem, VERDICT_COLORS, verdictOf } from '~/utils/verdict'
 
 // Plays a handwriting card: draw the kanji the front asks for.
@@ -54,13 +57,22 @@ function clear() {
   if (!props.busy && !props.question.answered) strokes.value = []
 }
 
-// What the server takes (MAX_STROKES, MAX_STROKE_POINTS in the practice API).
-const MAX_STROKES = 40
-const MAX_STROKE_POINTS = 300
 const atLimit = computed(() => strokes.value.length >= MAX_STROKES)
 
 function elapsed() {
   return Math.round(performance.now() - shownAt.value)
+}
+
+// Practising the kanji asked for opens over the session, which stays as it is.
+const overlay = useOverlay()
+const asked = computed(() => props.question.references?.[0]?.literal ?? null)
+
+function practise() {
+  if (!asked.value) return
+  const itemId = props.question.item_id
+  // The item is the library kanji: practising it shows its own meanings.
+  const items: PracticeItem[] = itemId ? [{ kind: 'kanji', id: itemId }] : [{ kind: 'char', text: asked.value }]
+  overlay.create(PracticeModal, { destroyOnClose: true }).open({ items, title: `Practicar ${asked.value}` })
 }
 
 const verdict = computed(() => verdictOf(props.question))
@@ -75,22 +87,8 @@ const problems = computed(() =>
 // boxes come and go with the question, so the observer follows them.
 const padBox = useTemplateRef<HTMLElement>('padBox')
 const compareBox = useTemplateRef<HTMLElement>('compareBox')
-const padRoom = ref({ width: 0, height: 0 })
-const compareRoom = ref({ width: 0, height: 0 })
-
-function observe(box: Ref<HTMLElement | null>, room: Ref<{ width: number; height: number }>) {
-  if (typeof ResizeObserver === 'undefined') return
-  const observer = new ResizeObserver(([entry]) => {
-    if (entry) room.value = { width: entry.contentRect.width, height: entry.contentRect.height }
-  })
-  watch(box, (element, previous) => {
-    if (previous) observer.unobserve(previous)
-    if (element) observer.observe(element)
-  }, { immediate: true, flush: 'post' })
-  onBeforeUnmount(() => observer.disconnect())
-}
-observe(padBox, padRoom)
-observe(compareBox, compareRoom)
+const padRoom = useMeasuredBox(padBox)
+const compareRoom = useMeasuredBox(compareBox)
 
 const padSize = computed(() => Math.floor(Math.min(padRoom.value.width, padRoom.value.height)))
 // The comparison: from sm two squares side by side over their captions (1.5rem);
@@ -231,6 +229,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           {{ VERDICT_TEXT[verdict] }}
           <span v-if="question.grade" class="ml-1 text-sm text-dimmed tabular-nums" data-testid="score">· {{ question.grade.score }}</span>
         </p>
+        <UButton
+          v-if="asked"
+          label="Practicar kanji"
+          icon="i-lucide-pen-line"
+          color="neutral"
+          variant="outline"
+          size="lg"
+          class="ml-auto"
+          data-testid="practise"
+          @click="practise"
+        />
         <UButton label="Siguiente" size="lg" data-testid="next" @click="emit('next')">
           <template #trailing>
             <UKbd value="enter" class="hidden sm:inline-flex" />

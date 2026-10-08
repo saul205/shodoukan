@@ -579,6 +579,51 @@ mistakes `close` and many imprecise strokes `wrong`: trying it showed it was too
 strict. A handwriting recognition model may replace this grader later. The thresholds
 and their calibration are in [exercises](exercises.md#grading).
 
+## Words are written a character per cell, in their own question type
+
+Writing a word by hand (#67) reuses the kanji grader cell by cell rather than
+grading a whole word drawn freely: cutting handwriting into characters isn't
+reliable, and a cell per character gives each one its own comparison and feedback.
+The cells are shown, so their number is a hint; without it the user couldn't know
+where a character ends. Words of another length are therefore never accepted.
+
+A word's verdict is its worst cell's: one wrong character makes another word. The
+score is the cells' average, for the user's eyes only, as for kanji.
+
+It's a new question type, `card.handwriting_word` with a `CellsAnswer` and a
+`WordGrade`, not kanji turned into one-character words: kanji questions keep their
+stored shape, so no stored JSON had to be migrated, and each player stays simple.
+The exercise settings stay one type (`card.handwriting`); the direction's answer
+field (`literal`, or `writing` / `reading`) says what is written. Asking for the
+reading is how kana words and kana practice fit in, since KanjiVG draws every kana.
+
+## Only another character fails a written word
+
+Writing words (#67) showed the grader, tuned on kanji, was unfair to kana (#71):
+dakuten strokes are too small to pair by shape, so べ failed; ゃ and や are the same
+shape once normalized; and a kana with a stroke missing failed like a kanji does
+(the "no count errors under 5 strokes" rule). With the word taking its worst cell's
+verdict, one such slip failed the whole word.
+
+Softening the word rule alone wasn't an option: たべる with ろ for る must fail. So
+grading separates **which character** it is from **how well it's written**:
+
+- Marks (dakuten, handakuten, dots) pair by position, and only missing or adding a
+  whole run of them changes the character. This applies to kanji too (大 / 犬 / 太),
+  but only to characters of up to 6 strokes: a review of #76 found dense kanji
+  have many short strokes (9 of 識's 19), whose direction then went unchecked and
+  one of which missing failed the drawing. Their direction counts too, loosely: only
+  a mark turned more than 120° is `reversed`.
+- Kana are recognised against every other kana; only one that fits clearly better
+  makes a cell wrong, and the feedback names it. A recognised kana is at worst close.
+- Small kana are told apart by size against the word's other kana, from what their
+  references predict.
+
+The word still takes its worst cell's verdict, which now only fails on a wrong
+character. Recognition costs about 0.1 s per kana cell (grading against the ~180
+kana); kanji aren't recognised against other kanji (too many), so they keep the
+kanji rules.
+
 ## Stroke order comes from KanjiVG, without a hanzi-writer fallback
 
 Both dictionaries draw stroke order from KanjiVG, which the dictionary database ships
@@ -610,6 +655,39 @@ source, not in the frontend. Strokes are served as JSON (paths and number positi
 not raw SVG, so the contract is typed and the frontend renders plain SVG without
 parsing XML. A few KanjiVG drawings use an older component form, so their stroke count
 can differ from KANJIDIC2's (108 of 6,417).
+
+KanjiVG also draws the kana: `kanji_svg` holds all of hiragana (90) and katakana (94,
+ー included), plus digits and some punctuation, and the strokes endpoints serve any
+single character. Only the library is limited to KANJIDIC2's kanji.
+
+## Writing practice is ephemeral and frontend-only
+
+Writing practice (`/practice`) is for learning to write a kanji, before the exercises
+or as a review in the middle of a session. It stores nothing: no sessions, no history,
+no statistics. Those belong to the exercises, which test; mixing in drawings that were
+traced over a model would skew them. With nothing to store, it needs no endpoint: the
+frontend loads the strokes (`/dictionary/kanji/{literal}/strokes`) and does the rest.
+
+For the same reason, free practice has no grade: checking lays the drawing over the
+model and lets the user judge. Sending it to the grader would need a new endpoint
+outside sessions, and a score while tracing over the model says little.
+
+## Guided strokes are matched in the frontend
+
+Guided practice judges each stroke as soon as it's drawn, so a round trip per stroke
+was ruled out. `shodoukan-ui` has `pathPoints` (a port of `shodoukan`'s
+`path_points`, same sampling) and `matchStroke`, which uses the grader's stroke
+distance (the mean point distance and the larger end-point distance, averaged, over 16
+resampled points) with two differences:
+
+- The distance is in absolute KanjiVG units, not normalised by the drawing's box:
+  the stroke is traced on the model's own canvas, so where it lies matters.
+- It compares one stroke with the one expected next, so there is no pairing or order
+  check. A stroke that matches backwards is flagged as such.
+
+The threshold (`GUIDED_STROKE_MATCH`, 0.12 of the square, about 13 units) is its
+own, tuned by hand. The two implementations can drift apart; if guided practice ever
+needs to agree with the exercises' verdicts, the grader should be the reference.
 
 ## Sources are credited once, on an About page
 

@@ -53,6 +53,14 @@ async function remove() {
     </template>
     <template v-if="kanji" #actions>
       <UButton
+        :to="{ path: '/practice/play', query: { kanji: kanji.id, from: route.fullPath } }"
+        icon="i-lucide-pen-line"
+        label="Practicar"
+        color="neutral"
+        variant="outline"
+        data-testid="practice-kanji"
+      />
+      <UButton
         :to="`/dictionary/kanji/${kanji.literal}`"
         icon="i-lucide-book-open"
         label="Abrir en el diccionario"
