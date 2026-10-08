@@ -2,7 +2,7 @@
 
 Every edit returns the whole entry as it is now, so the client re-renders
 from the response. Dictionary data is only ever disabled: editing or
-removing an imported sense, meaning or example is a 409.
+removing an imported spelling, reading, sense, meaning or example is a 409.
 """
 
 from enum import StrEnum
@@ -13,13 +13,17 @@ from fastapi import APIRouter, Depends, status
 from ...application.commands import (
     AddEntryExample,
     AddEntryGloss,
+    AddEntryReading,
     AddEntrySense,
+    AddEntrySpelling,
     EditEntryExample,
     EditEntryGloss,
     RemoveEntryExample,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntryReading,
     RemoveEntrySense,
+    RemoveEntrySpelling,
     SetEntryActive,
     SetEntryNotes,
     SetEntryPartEnabled,
@@ -32,7 +36,9 @@ from ..deps import (
     SessionDep,
     get_add_entry_example,
     get_add_entry_gloss,
+    get_add_entry_reading,
     get_add_entry_sense,
+    get_add_entry_spelling,
     get_edit_entry_example,
     get_edit_entry_gloss,
     get_get_library_entry,
@@ -40,7 +46,9 @@ from ..deps import (
     get_remove_entry_example,
     get_remove_entry_from_library,
     get_remove_entry_gloss,
+    get_remove_entry_reading,
     get_remove_entry_sense,
+    get_remove_entry_spelling,
     get_set_entry_active,
     get_set_entry_notes,
     get_set_entry_part_enabled,
@@ -55,6 +63,8 @@ from ..schemas import (
     NewGlossRequest,
     NotesRequest,
     PracticeEntryResponse,
+    ReadingRequest,
+    SpellingRequest,
 )
 
 _RESPONSES: dict[int | str, dict[str, Any]] = {
@@ -65,8 +75,8 @@ _RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 _ORIGINAL: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {
-        "description": "Dictionary data (a sense, meaning or example): it can only be "
-        "disabled."
+        "description": "Dictionary data (a spelling, reading, sense, meaning or "
+        "example): it can only be disabled. Or the word's last reading."
     }
 }
 
@@ -283,6 +293,78 @@ def remove_gloss(
 ) -> PracticeEntryResponse:
     """Remove one of the user's own meanings."""
     entry = use_case.execute(user.id, entry_id, gloss_id)
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.post(
+    "/{entry_id}/kanji-readings",
+    response_model=PracticeEntryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_spelling(
+    entry_id: int,
+    body: SpellingRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[AddEntrySpelling, Depends(get_add_entry_spelling)],
+) -> PracticeEntryResponse:
+    """Add a written form of the user's own at the end."""
+    entry = use_case.execute(user.id, entry_id, body.kanji)
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.delete(
+    "/{entry_id}/kanji-readings/{spelling_id}",
+    response_model=PracticeEntryResponse,
+    responses=_ORIGINAL,
+)
+def remove_spelling(
+    entry_id: int,
+    spelling_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[RemoveEntrySpelling, Depends(get_remove_entry_spelling)],
+) -> PracticeEntryResponse:
+    """Remove one of the user's own written forms."""
+    entry = use_case.execute(user.id, entry_id, spelling_id)
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.post(
+    "/{entry_id}/readings",
+    response_model=PracticeEntryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_reading(
+    entry_id: int,
+    body: ReadingRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[AddEntryReading, Depends(get_add_entry_reading)],
+) -> PracticeEntryResponse:
+    """Add a reading (kana) of the user's own at the end."""
+    entry = use_case.execute(user.id, entry_id, body.text)
+    session.commit()
+    return PracticeEntryResponse.model_validate(entry)
+
+
+@router.delete(
+    "/{entry_id}/readings/{reading_id}",
+    response_model=PracticeEntryResponse,
+    responses=_ORIGINAL,
+)
+def remove_reading(
+    entry_id: int,
+    reading_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[RemoveEntryReading, Depends(get_remove_entry_reading)],
+) -> PracticeEntryResponse:
+    """Remove one of the user's own readings; a word keeps at least one (409)."""
+    entry = use_case.execute(user.id, entry_id, reading_id)
     session.commit()
     return PracticeEntryResponse.model_validate(entry)
 

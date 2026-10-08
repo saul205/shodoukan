@@ -3,7 +3,8 @@
 Each loads the user's entry (`EntityNotFoundError` if it isn't theirs),
 calls one domain method and stores the result, which it returns so the
 caller can show the entry as it is now. The domain enforces that dictionary
-data is only ever disabled (`OriginalDataError` otherwise). None of them
+data is only ever disabled (`OriginalDataError` otherwise), and a word keeps
+a reading (`LastReadingError`). None of them
 commit; the caller owns the transaction.
 """
 
@@ -90,6 +91,42 @@ class RemoveEntrySense(_EntryCommand):
     def execute(self, user_id: UUID, entry_id: int, sense_id: int) -> PracticeEntry:
         entry = self._load(user_id, entry_id)
         entry.remove_sense(sense_id)
+        return self._entries.update(entry)
+
+
+class AddEntrySpelling(_EntryCommand):
+    """Add a written form of the user's own to the entry."""
+
+    def execute(self, user_id: UUID, entry_id: int, kanji: str) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_spelling(kanji)
+        return self._entries.update(entry)
+
+
+class RemoveEntrySpelling(_EntryCommand):
+    """Remove one of the user's own written forms."""
+
+    def execute(self, user_id: UUID, entry_id: int, spelling_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_spelling(spelling_id)
+        return self._entries.update(entry)
+
+
+class AddEntryReading(_EntryCommand):
+    """Add a reading (kana) of the user's own to the entry."""
+
+    def execute(self, user_id: UUID, entry_id: int, text: str) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_reading(text)
+        return self._entries.update(entry)
+
+
+class RemoveEntryReading(_EntryCommand):
+    """Remove one of the user's own readings (`LastReadingError` for the last)."""
+
+    def execute(self, user_id: UUID, entry_id: int, reading_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_reading(reading_id)
         return self._entries.update(entry)
 
 

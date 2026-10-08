@@ -19,10 +19,12 @@ page per use case.
 
 - [Importing into the library](library/import.md): add a dictionary word or kanji to
   your library.
+- [Creating words of your own](library/create.md): add a word the dictionary doesn't
+  have, such as a number with its counter.
 - [Browsing the library](library/browse.md): see every imported word and kanji, and
   pick items for collections.
 - [Customising the library](library/customise.md): notes, hiding parts, own meanings,
-  deactivating and removing items.
+  meaning groups, examples, spellings and readings, deactivating and removing items.
 
 ## Collections
 

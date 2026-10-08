@@ -19,7 +19,9 @@ from shodoukan import Dictionary
 from ..application.commands import (
     AddEntryExample,
     AddEntryGloss,
+    AddEntryReading,
     AddEntrySense,
+    AddEntrySpelling,
     AddEntryToCollection,
     AddKanjiMeaning,
     AddKanjiToCollection,
@@ -27,6 +29,7 @@ from ..application.commands import (
     CreateEntryCollection,
     CreateExercise,
     CreateKanjiCollection,
+    CreateOwnEntry,
     DeleteEntryCollection,
     DeleteExercise,
     DeleteKanjiCollection,
@@ -41,7 +44,9 @@ from ..application.commands import (
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntryReading,
     RemoveEntrySense,
+    RemoveEntrySpelling,
     RemoveKanjiFromCollection,
     RemoveKanjiFromLibrary,
     RemoveKanjiMeaning,
@@ -179,6 +184,13 @@ def get_current_user(
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
+def get_create_own_entry(session: SessionDep) -> CreateOwnEntry:
+    return CreateOwnEntry(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
 def get_import_entry(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
@@ -279,6 +291,22 @@ def get_remove_entry_example(session: SessionDep) -> RemoveEntryExample:
 
 def get_add_entry_gloss(session: SessionDep) -> AddEntryGloss:
     return AddEntryGloss(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_add_entry_spelling(session: SessionDep) -> AddEntrySpelling:
+    return AddEntrySpelling(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_spelling(session: SessionDep) -> RemoveEntrySpelling:
+    return RemoveEntrySpelling(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_add_entry_reading(session: SessionDep) -> AddEntryReading:
+    return AddEntryReading(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_reading(session: SessionDep) -> RemoveEntryReading:
+    return RemoveEntryReading(SqlAlchemyPracticeEntryRepository(session))
 
 
 def get_add_entry_sense(session: SessionDep) -> AddEntrySense:

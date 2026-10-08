@@ -32,13 +32,14 @@ from .base_orm import (
 
 class PracticeEntryORM(Base):
     __tablename__ = "practice_entries"
+    # NULLs are distinct: a user can have any number of words of their own.
     __table_args__ = (UniqueConstraint("user_id", "source_entry_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    source_entry_id: Mapped[int]
+    source_entry_id: Mapped[int | None]
     jlpt: Mapped[int | None]
     is_common: Mapped[bool]
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
@@ -57,6 +58,7 @@ class PracticeEntryORM(Base):
 
 class PracticeEntryKanjiReadingORM(Base):
     __tablename__ = "practice_entry_kanji_readings"
+    __table_args__ = (CheckConstraint(in_check("origin", ORIGINS), name="origin"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(
@@ -66,10 +68,14 @@ class PracticeEntryKanjiReadingORM(Base):
     kanji: Mapped[str]
     info: Mapped[list[str]] = mapped_column(JSON)
     enabled: Mapped[bool] = mapped_column(default=True, server_default=true())
+    origin: Mapped[str] = mapped_column(
+        String(16), default="imported", server_default="imported"
+    )
 
 
 class PracticeEntryReadingORM(Base):
     __tablename__ = "practice_entry_readings"
+    __table_args__ = (CheckConstraint(in_check("origin", ORIGINS), name="origin"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(
@@ -81,6 +87,9 @@ class PracticeEntryReadingORM(Base):
     info: Mapped[list[str]] = mapped_column(JSON)
     restricted_to: Mapped[list[str]] = mapped_column(JSON)
     enabled: Mapped[bool] = mapped_column(default=True, server_default=true())
+    origin: Mapped[str] = mapped_column(
+        String(16), default="imported", server_default="imported"
+    )
 
 
 class PracticeSenseORM(Base):

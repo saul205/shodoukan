@@ -6,14 +6,21 @@ they don't want, and adds, edits and removes senses and meanings of their
 own.
 """
 
-from collections.abc import Iterable
-from typing import Literal
+from collections.abc import Iterable, Sequence
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from ..exceptions import EntityNotFoundError, OriginalDataError
-from .nested_item_lookup import Toggleable, clean_meaning, clean_sentence, find_item
+from ..exceptions import EntityNotFoundError, LastReadingError, OriginalDataError
+from .nested_item_lookup import (
+    Toggleable,
+    clean_kana,
+    clean_meaning,
+    clean_sentence,
+    clean_spelling,
+    find_item,
+)
 from .notes_value import Notes, parse_notes
 from .timestamped_entity import TimestampedEntity
 
@@ -70,6 +77,7 @@ class PracticeReading(BaseModel):
     info: list[str]
     restricted_to: list[str]
     enabled: bool = True
+    origin: Origin = "imported"
 
 
 class PracticeKanjiReading(BaseModel):
@@ -83,12 +91,15 @@ class PracticeKanjiReading(BaseModel):
     kanji: str
     info: list[str]
     enabled: bool = True
+    origin: Origin = "imported"
 
 
 class PracticeEntry(TimestampedEntity):
     id: int | None
     user_id: UUID
-    source_entry_id: int  # sole reference back to shodoukan's Entry.id
+    # The sole reference back to shodoukan's Entry.id; None for a word the
+    # user created themselves.
+    source_entry_id: int | None
     kanji_readings: list[PracticeKanjiReading]
     readings: list[PracticeReading]
     senses: list[PracticeSense]
@@ -96,6 +107,42 @@ class PracticeEntry(TimestampedEntity):
     is_common: bool
     is_active: bool = True
     notes: Notes = None
+
+    @classmethod
+    def create_own(
+        cls,
+        user_id: UUID,
+        spellings: Sequence[str],
+        readings: Sequence[str],
+        meaning: str,
+        lang: str,
+    ) -> Self:
+        """A word of the user's own, not in the dictionary.
+
+        It needs a reading (kana) and a first meaning in `lang` (ISO 639-2);
+        spellings are optional (a kana-only word has none). Everything in it
+        is the user's (`origin="added"`). Repeated texts are kept once.
+        """
+        cleaned_readings = list(dict.fromkeys(clean_kana(r) for r in readings))
+        if not cleaned_readings:
+            raise ValueError("a word needs a reading")
+        return cls(
+            id=None,
+            user_id=user_id,
+            source_entry_id=None,
+            kanji_readings=[
+                _own_spelling(s) for s in dict.fromkeys(map(clean_spelling, spellings))
+            ],
+            readings=[_own_reading(r) for r in cleaned_readings],
+            senses=[_own_sense(meaning, lang)],
+            jlpt=None,
+            is_common=False,
+        )
+
+    @property
+    def is_own(self) -> bool:
+        """Created by the user rather than imported from the dictionary."""
+        return self.source_entry_id is None
 
     def activate(self) -> None:
         if not self.is_active:
@@ -134,19 +181,7 @@ class PracticeEntry(TimestampedEntity):
         `lang` follows the stored glosses (ISO 639-2). The new sense and its
         gloss have no id until the entry is stored.
         """
-        gloss = PracticeGloss(
-            id=None, text=clean_meaning(text), lang=lang, type=None, origin="added"
-        )
-        sense = PracticeSense(
-            id=None,
-            pos=[],
-            misc=[],
-            dialects=[],
-            info=[],
-            glosses=[gloss],
-            examples=[],
-            origin="added",
-        )
+        sense = _own_sense(text, lang)
         self.senses.append(sense)
         self.touch()
         return sense
@@ -157,6 +192,38 @@ class PracticeEntry(TimestampedEntity):
         if sense.origin == "imported":
             raise OriginalDataError("dictionary senses can only be disabled")
         self.senses.remove(sense)
+        self.touch()
+
+    def add_spelling(self, kanji: str) -> PracticeKanjiReading:
+        """Add a written form of the user's own at the end (no id until stored)."""
+        spelling = _own_spelling(clean_spelling(kanji))
+        self.kanji_readings.append(spelling)
+        self.touch()
+        return spelling
+
+    def remove_spelling(self, spelling_id: int) -> None:
+        """Remove one of the user's own written forms."""
+        spelling = find_item(self.kanji_readings, spelling_id, "spelling")
+        if spelling.origin == "imported":
+            raise OriginalDataError("dictionary spellings can only be disabled")
+        self.kanji_readings.remove(spelling)
+        self.touch()
+
+    def add_reading(self, text: str) -> PracticeReading:
+        """Add a reading (kana) of the user's own at the end (no id until stored)."""
+        reading = _own_reading(clean_kana(text))
+        self.readings.append(reading)
+        self.touch()
+        return reading
+
+    def remove_reading(self, reading_id: int) -> None:
+        """Remove one of the user's own readings; a word keeps at least one."""
+        reading = find_item(self.readings, reading_id, "reading")
+        if reading.origin == "imported":
+            raise OriginalDataError("dictionary readings can only be disabled")
+        if len(self.readings) == 1:
+            raise LastReadingError("a word keeps at least one reading")
+        self.readings.remove(reading)
         self.touch()
 
     def add_gloss(self, sense_id: int, text: str, lang: str) -> PracticeGloss:
@@ -279,3 +346,30 @@ def _sentences(
     if translation:
         sentences.insert(1, PracticeExampleSentence(lang=lang, text=translation))
     return sentences
+
+
+def _own_spelling(kanji: str) -> PracticeKanjiReading:
+    return PracticeKanjiReading(id=None, kanji=kanji, info=[], origin="added")
+
+
+def _own_reading(text: str) -> PracticeReading:
+    return PracticeReading(
+        id=None, text=text, no_kanji=False, info=[], restricted_to=[], origin="added"
+    )
+
+
+def _own_sense(text: str, lang: str) -> PracticeSense:
+    """A sense of the user's own with its first meaning, in `lang` (ISO 639-2)."""
+    gloss = PracticeGloss(
+        id=None, text=clean_meaning(text), lang=lang, type=None, origin="added"
+    )
+    return PracticeSense(
+        id=None,
+        pos=[],
+        misc=[],
+        dialects=[],
+        info=[],
+        glosses=[gloss],
+        examples=[],
+        origin="added",
+    )

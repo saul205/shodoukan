@@ -4,6 +4,8 @@ import type { EntryPart, PracticeEntry } from '~/models/practice'
 import {
   addExample,
   addGloss,
+  addReading,
+  addSpelling,
   addSense,
   editExample,
   editGloss,
@@ -11,13 +13,16 @@ import {
   removeExample,
   removeGloss,
   removeLibraryEntry,
+  removeReading,
+  removeSpelling,
   removeSense,
   setEntryActive,
   setEntryNotes,
   setEntryPartEnabled,
   setSenseNotes,
 } from '~/services/library'
-import { getDictionaryEntryKanji } from '~/services/dictionary'
+import { getDictionaryEntryKanji, getDictionaryKanji } from '~/services/dictionary'
+import { kanjiIn } from '~/utils/own-entry'
 import { entryHeadword } from '~/utils/practice-text'
 import { entryWriting } from '~/utils/writing-practice'
 
@@ -38,22 +43,36 @@ const { item: entry, status, saving, save } = useEditableItem<PracticeEntry>(
   () => getLibraryEntry(api, id.value),
 )
 
-// The word's kanji come from the dictionary, with whether each one is imported.
+// The word's kanji come from the dictionary, with whether each one is imported:
+// the dictionary entry's, or for a word of the user's own, those of its first
+// spelling (the ones the dictionary has).
 // How it's written, for practising it: what's enabled, like everywhere else.
 const writing = computed(() => (entry.value ? entryWriting(entry.value) : null))
 
 const kanjiStatus = useImportStatus()
 const sourceId = computed(() => entry.value?.source_entry_id)
+const ownLiterals = computed(() =>
+  entry.value && entry.value.source_entry_id === null ? kanjiIn(entry.value.kanji_readings[0]?.kanji ?? '') : [],
+)
+// Watched as a string: every edit replaces `entry`, so `ownLiterals` is a new
+// array each time, and Vue compares arrays by reference; the string only
+// changes when the kanji do, so edits don't fetch the list again.
+const ownLiteralsKey = computed(() => ownLiterals.value.join(''))
 const { data: wordKanji } = useAsyncData(
-  () => `library-entry-kanji-${sourceId.value}`,
+  () => `library-entry-kanji-${sourceId.value}-${ownLiteralsKey.value}`,
   async () => {
     if (sourceId.value === undefined) return null
-    const kanji = await getDictionaryEntryKanji(api, sourceId.value)
+    const kanji = sourceId.value === null
+      ? (await Promise.allSettled(ownLiterals.value.map(literal => getDictionaryKanji(api, literal))))
+          .flatMap(result => (result.status === 'fulfilled' ? [result.value] : []))
+      : await getDictionaryEntryKanji(api, sourceId.value)
     await kanjiStatus.refresh([], kanji.map(k => k.literal))
     return kanji
   },
-  { watch: [sourceId] },
+  { watch: [sourceId, ownLiteralsKey] },
 )
+
+const spellings = computed(() => entry.value?.kanji_readings.map(k => ({ ...k, text: k.kanji })) ?? [])
 
 const toggle = (part: EntryPart, itemId: number, enabled: boolean) =>
   save(() => setEntryPartEnabled(api, id.value, part, itemId, enabled))
@@ -69,9 +88,13 @@ async function deleteSense(senseId: number) {
 }
 
 async function remove() {
+  // A word of the user's own isn't in the dictionary: removing it loses it.
+  const own = entry.value?.source_entry_id === null
   const confirmed = await overlay.create(ConfirmModal).open({
     title: '¿Quitar de tu librería?',
-    description: 'Se borran tus notas y significados propios, y sale de todas tus colecciones. Podrás volver a importarla desde el diccionario.',
+    description: own
+      ? 'Es una palabra tuya: se borra entera y sale de todas tus colecciones. No se puede recuperar.'
+      : 'Se borran tus notas y significados propios, y sale de todas tus colecciones. Podrás volver a importarla desde el diccionario.',
     confirmLabel: 'Quitar',
   }).result
   if (!confirmed) return
@@ -102,6 +125,7 @@ async function remove() {
         data-testid="practice-entry"
       />
       <UButton
+        v-if="entry.source_entry_id !== null"
         :to="`/dictionary/entries/${entry.source_entry_id}`"
         icon="i-lucide-book-open"
         label="Abrir en el diccionario"
@@ -166,29 +190,28 @@ async function remove() {
           />
         </section>
 
-        <section v-if="entry.kanji_readings.length" aria-labelledby="spellings" class="space-y-2">
+        <section aria-labelledby="spellings" class="space-y-2">
           <h2 id="spellings" class="text-sm font-semibold uppercase tracking-wide text-muted">Escrituras</h2>
-          <USwitch
-            v-for="spelling in entry.kanji_readings"
-            :key="spelling.id"
-            :model-value="spelling.enabled"
+          <FormList
+            :items="spellings"
+            add-label="Añadir una escritura…"
             :disabled="saving"
-            :label="spelling.kanji"
-            :ui="{ label: 'font-japanese' }"
-            @update:model-value="toggle('kanji-readings', spelling.id, $event)"
+            @toggle="(spellingId, enabled) => toggle('kanji-readings', spellingId, enabled)"
+            @add="kanji => save(() => addSpelling(api, id, kanji))"
+            @remove="spellingId => save(() => removeSpelling(api, id, spellingId))"
           />
         </section>
 
         <section aria-labelledby="readings" class="space-y-2">
           <h2 id="readings" class="text-sm font-semibold uppercase tracking-wide text-muted">Lecturas</h2>
-          <USwitch
-            v-for="reading in entry.readings"
-            :key="reading.id"
-            :model-value="reading.enabled"
+          <FormList
+            :items="entry.readings"
+            add-label="Añadir una lectura en kana…"
+            kana
             :disabled="saving"
-            :label="reading.text"
-            :ui="{ label: 'font-japanese' }"
-            @update:model-value="toggle('readings', reading.id, $event)"
+            @toggle="(readingId, enabled) => toggle('readings', readingId, enabled)"
+            @add="text => save(() => addReading(api, id, text))"
+            @remove="readingId => save(() => removeReading(api, id, readingId))"
           />
         </section>
 

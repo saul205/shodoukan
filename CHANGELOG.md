@@ -15,6 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan-practice-web:** "Añadir un ejemplo propio" in each meaning group of a
   library word: a Japanese sentence and an optional translation, marked "propio",
   editable and deletable.
+- **shodoukan-practice:** Words of the user's own, for what the dictionary doesn't have
+  (e.g. counters with their numbers): `POST /library/entries/own` with readings,
+  optional spellings, a first meaning and collections; they have no `source_entry_id`
+  and everything in them is the user's. Any word can take spellings and readings of
+  the user's own (`POST` / `DELETE .../kanji-readings`, `.../readings`); a word keeps at
+  least one reading.
+- **shodoukan-practice-web:** **Nueva palabra** (in the library, and "Nueva palabra
+  propia" in a word collection) creates a word of the user's own from its spellings,
+  kana readings and first meaning, warning when the dictionary already has it. Library
+  words get a box to add spellings and readings of the user's own, deletable.
 - **shodoukan-practice:** Senses of the user's own on a library word
   (`POST /library/entries/{id}/senses`, created with their first meaning; removed with
   `DELETE .../senses/{sense_id}`, with their meanings and examples), and enabling or

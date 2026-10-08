@@ -59,6 +59,7 @@ Once any environment is deployed, migrations are append-only.
 | `33f2afbdd7cf` | Questions by `type`: a choice card's `options` and `correct_option` move into `details` (JSON); downgrading moves them back and deletes the questions and exercises of other types (handwriting), which the older code can't read |
 | `0e2585638e77` | Word handwriting questions (`card.handwriting_word`) join the `type` check; downgrading deletes them and the word handwriting exercises |
 | `23728b417aff` | `enabled` and `origin` on `practice_senses`; downgrading deletes the user's own senses |
+| `d1d520270eb8` | `practice_entries.source_entry_id` nullable (words of the user's own); `origin` on spellings and readings; downgrading deletes own words, spellings and readings |
 
 ## Safety nets
 

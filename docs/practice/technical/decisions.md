@@ -797,3 +797,21 @@ writes the Japanese sentence and, optionally, its translation in the language th
 reading in; editing touches only that language and keeps translations written in
 others, so switching language never loses one. `text` (JMDict's form of the word in the
 sentence) stays empty: nothing shows it, and asking for it would only slow the user down.
+
+## Words of the user's own have no source; readings can be added
+
+Narrows "Dictionary data in the library is only ever disabled", which said readings
+can't be added.
+
+- A word the dictionary doesn't have (counters with their numbers, set phrases from
+  class) is a `PracticeEntry` with `source_entry_id = None`, not a separate aggregate:
+  the library, collections, search, exercises and handwriting all work on entries, and
+  none of them needs the dictionary id. Whether it's the user's own is derived from
+  that `None` (`is_own`), so no stored flag can disagree with it.
+- Everything in it is `origin="added"`, so the rule stays one: what's the user's can be
+  changed, what's the dictionary's only disabled. For that, spellings and readings got
+  `origin` too, which also lets any word take own spellings and readings.
+- The `(user_id, source_entry_id)` unique constraint stays: NULLs are distinct in
+  PostgreSQL and SQLite, so own words can repeat. Creating one isn't idempotent.
+- A word keeps one reading (`LastReadingError`, 409): every card, label and handwriting
+  question reads it.

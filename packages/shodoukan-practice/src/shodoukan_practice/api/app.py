@@ -11,6 +11,7 @@ from ..domain.exceptions import (
     EntityNotFoundError,
     ExercisePoolTooSmallError,
     InvalidAnswerError,
+    LastReadingError,
     OriginalDataError,
     QuestionNotActiveError,
     SessionAlreadyOpenError,
@@ -72,6 +73,8 @@ def create_app() -> FastAPI:
     app.add_exception_handler(CollectionNameTakenError, _conflict)
     # Dictionary data in the library can only be disabled, not changed.
     app.add_exception_handler(OriginalDataError, _conflict)
+    # A word always keeps one reading.
+    app.add_exception_handler(LastReadingError, _conflict)
     app.add_exception_handler(QuestionNotActiveError, _conflict)
     app.add_exception_handler(SessionFinishedError, _conflict)
     app.add_exception_handler(SessionAlreadyOpenError, _conflict)

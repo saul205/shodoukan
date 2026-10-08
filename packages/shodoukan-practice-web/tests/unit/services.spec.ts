@@ -7,6 +7,9 @@ import { createExercise, deleteExercise, getExercise, listExercises, updateExerc
 import {
   addExample,
   addGloss,
+  addReading,
+  addSpelling,
+  createOwnEntry,
   addSense,
   getImportStatus,
   importEntry,
@@ -14,7 +17,9 @@ import {
   editExample,
   listLibraryKanji,
   removeExample,
+  removeReading,
   removeSense,
+  removeSpelling,
   setEntryPartEnabled,
   setKanjiNotes,
 } from '../../app/services/library'
@@ -52,6 +57,11 @@ describe('practice API services', () => {
     await addExample(api, 3, 5, '水を飲む。', null, 'eng')
     await editExample(api, 3, 8, '水を飲んだ。', 'I drank water.', 'eng')
     await removeExample(api, 3, 8)
+    await createOwnEntry(api, { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng' })
+    await addSpelling(api, 3, '猫')
+    await removeSpelling(api, 3, 9)
+    await addReading(api, 3, 'ネコ')
+    await removeReading(api, 3, 10)
     await setKanjiNotes(api, 4, null)
 
     expect(calls).toEqual([
@@ -64,6 +74,11 @@ describe('practice API services', () => {
       ['/library/entries/3/senses/5/examples', { method: 'POST', body: { japanese: '水を飲む。', translation: null, lang: 'eng' } }],
       ['/library/entries/3/examples/8', { method: 'PUT', body: { japanese: '水を飲んだ。', translation: 'I drank water.', lang: 'eng' } }],
       ['/library/entries/3/examples/8', { method: 'DELETE' }],
+      ['/library/entries/own', { method: 'POST', body: { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng', collection_ids: [] } }],
+      ['/library/entries/3/kanji-readings', { method: 'POST', body: { kanji: '猫' } }],
+      ['/library/entries/3/kanji-readings/9', { method: 'DELETE' }],
+      ['/library/entries/3/readings', { method: 'POST', body: { text: 'ネコ' } }],
+      ['/library/entries/3/readings/10', { method: 'DELETE' }],
       ['/library/kanji/4/notes', { method: 'PUT', body: { notes: null } }],
     ])
   })

@@ -13,7 +13,7 @@ All entities are Pydantic models. Aggregate roots inherit
 | Aggregate | Module | Key fields |
 |---|---|---|
 | `User` | `user_entity.py` | `id: UUID`, the identity provider's user id (the token's `sub`), so practice users map 1:1 to provider users; `username` (display name from the provider, not unique) |
-| `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id`, `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
+| `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id` (`None` for a word of the user's own; `is_own`), `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active`, `notes` |
 | `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description` |
 | `ExerciseSession` | `exercise_session_entity.py` | `user_id`, `exercise_id` (`None` once the exercise is deleted), `exercise_name`, `item_kind`, `meaning_lang`, `current` (the active question), `history` (the answered ones), `finished_at`; `created_at` is the start, `updated_at` the last activity |
@@ -27,14 +27,21 @@ A `PracticeEntry` / `PracticeKanji` is a copy of the dictionary item taken at im
 time, so dictionary updates never overwrite the user's edits. The only link back is
 `source_entry_id` (shodoukan `Entry.id`) or `literal` (shodoukan `Kanji.literal`).
 
+A word can also be the user's own: `PracticeEntry.create_own(user_id, spellings,
+readings, meaning, lang)` builds one with no `source_entry_id` (`is_own`), at least one
+reading in kana, optional spellings and an own sense with its first meaning; everything
+in it is `origin="added"`, `jlpt=None`, `is_common=False`. It's what the dictionary
+doesn't have, such as counters with their numbers (三匹).
+
 On top of the snapshot:
 
 - `enabled: bool` on readings, kanji spellings, senses, glosses, examples, kanji
   reading items and kanji meanings: the user can hide individual parts. A disabled
   sense hides its glosses and examples without changing their own flags, so a gloss
   counts only when `sense.enabled and gloss.enabled`.
-- `origin: "imported" | "added"` on senses, glosses, examples and kanji meanings: the
-  user can add their own, and they stay distinguishable from imported ones.
+- `origin: "imported" | "added"` on spellings, readings, senses, glosses, examples and
+  kanji meanings: the user can add their own, and they stay distinguishable from
+  imported ones.
 - `notes` on the entry, on each of its senses, and on the kanji: the user's own
   free text (`Notes` in `notes_value.py`: stripped, blank becomes `None`, at most
   2000 characters).
@@ -176,7 +183,7 @@ Current methods:
 | `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
-| `PracticeEntry` | `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `add_example(sense_id, japanese, translation, lang)`, `edit_example(example_id, japanese, translation, lang)`, `remove_example(example_id)` |
+| `PracticeEntry` | `create_own(...)` (class method), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `add_example(sense_id, japanese, translation, lang)`, `edit_example(example_id, japanese, translation, lang)`, `remove_example(example_id)` |
 | `PracticeKanji` | `add_meaning(text, lang)`, `edit_meaning(meaning_id, text)`, `remove_meaning(meaning_id)` |
 
 `part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"senses"`, `"glosses"`,
@@ -193,7 +200,8 @@ top:
 
 - **Dictionary data is never edited or deleted, only disabled.** That covers every
   reading, spelling, example and imported (`origin="imported"`) sense and meaning.
-  Editing or removing an imported sense or meaning raises `OriginalDataError`.
+  Editing or removing an imported spelling, reading, sense or meaning raises
+  `OriginalDataError`.
 - **Senses of their own.** The user adds a sense (`origin="added"`, appended to the
   entry, `pos` / `misc` empty) with its first meaning, so it's never empty, and can
   remove it with its meanings and examples. Imported senses take own meanings too.
@@ -206,7 +214,9 @@ top:
   (`origin="added"`, appended to the sense or kanji) and can edit their text or remove
   them. Entry glosses use ISO 639-2 language codes (`eng`), kanji meanings ISO 639-1
   (`en`), as the dictionary stores them.
-- **Readings can't be added** for now, only disabled. They have no `origin` column.
+- **Spellings and readings of their own** can be added to any word and removed;
+  readings are kana only (`clean_kana`). A word keeps at least one reading: removing the
+  last raises `LastReadingError`.
 - **Notes**: one general note on the entry or kanji, plus one per sense.
 
 Why: [decisions](../decisions.md#dictionary-data-in-the-library-is-only-ever-disabled).
