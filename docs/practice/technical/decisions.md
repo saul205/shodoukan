@@ -842,12 +842,15 @@ read from the database, so its rules (always a new collection, the user's data w
 flags only on what the import creates) are fixed once, in the
 [proposal](../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
 
-- **Imported parts are located by place, checked by text.** Library senses keep no
-  dictionary sense id, so the Nth imported sense is matched by position and accepted
-  only if its first meaning is the same; a spelling, reading or meaning by its text.
-  When the dictionary changed in between, the part is left as the user has it, and the
-  added parts that hung from it are skipped. Storing the dictionary's sense ids was
-  ruled out for now: it'd need a backfill of every library.
+- **Imported parts are located by place, checked by text.** The dictionary's ids for
+  senses, glosses, readings and examples aren't stable: JMDict only identifies entries
+  (`ent_seq`), and shodoukan-db numbers the rest with `AUTOINCREMENT` on every monthly
+  build, so they shift whenever an earlier entry changes, and differ between databases
+  of different builds. So the Nth imported sense is matched by position (JMDict's sense
+  order: imported senses are copied in order and never removed) and accepted only if
+  its first meaning is the same; a spelling, reading or meaning by its text. When the
+  dictionary changed in between, the part is left as the user has it, and the added
+  parts that hung from it are skipped.
 - **Provenance instead of comparing text.** Added parts are copied with
   `copied_from_id`, and two parts are the same when their `{id, copied_from_id}`
   overlap. So re-importing a file, or importing back a copy of one's own collection,
