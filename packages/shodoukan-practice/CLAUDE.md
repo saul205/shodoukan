@@ -62,7 +62,7 @@ standalone: never call shodoukan-api from here.
     per aggregate.
   - `mappers/`, `migrations/`, `connection.py`.
 - `application/commands/library_commands.py`: `ImportEntry`, `ImportKanji`
-  (idempotent, return `ImportResult(item, created)`).
+  (idempotent, return `ImportResult(item, created)`), `CreateOwnEntry`.
 - `application/commands/user_commands.py`: `EnsureUser` (creates the user on first use).
 - `application/commands/practice_entry_commands.py` / `practice_kanji_commands.py`:
   customising one library item (`SetEntryNotes`, `SetEntryPartEnabled`,
@@ -124,7 +124,11 @@ standalone: never call shodoukan-api from here.
   `add_if_absent` uses a savepoint to handle concurrent duplicates.
 - Mutating methods: `Collection.rename` / `describe`; `PracticeEntry` /
   `PracticeKanji`: `activate` / `deactivate`, `set_notes`, `set_enabled(part, id, …)`,
-  own meanings (`add_gloss` / `edit_gloss` / `remove_gloss`, `add_meaning` / ...),
+  words of the user's own (`PracticeEntry.create_own`, no `source_entry_id`), own
+  spellings and readings (`add_spelling` / `remove_spelling`, `add_reading` /
+  `remove_reading`), own senses (`add_sense` / `remove_sense`), own meanings (`add_gloss` /
+  `edit_gloss` / `remove_gloss`, `add_meaning` / ...), own examples (`add_example` /
+  `edit_example` / `remove_example`),
   `PracticeEntry.set_sense_notes`; `Exercise.rename` / `describe` / `configure` /
   `use_collections`. Each calls `touch()` only on a real change.
 - Exercises are `EntryExercise` / `KanjiExercise` (one `exercises` table, `item_kind`);
@@ -153,8 +157,13 @@ standalone: never call shodoukan-api from here.
   exercises write a word (spelling or reading) a character per cell: only words whose
   every character has a stroke order, graded per cell (`grade_word`, worst cell wins).
 - Dictionary data in the library is never edited or deleted, only disabled
-  (`OriginalDataError` → 409); only the user's own meanings change. Readings can't be
-  added. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).
+  (`OriginalDataError` → 409); only the user's own spellings, readings, senses,
+  meanings and examples change. A disabled sense hides its glosses and examples (a
+  gloss counts when `sense.enabled and gloss.enabled`). A word keeps one reading
+  (`LastReadingError` → 409), and a sense one meaning (`LastMeaningError` → 409), all in
+  one language (`SenseLanguageError` → 422). A word of the user's own (`POST /library/entries/own`)
+  has `source_entry_id = None` and only `added` parts. Notes: entry, sense and kanji
+  (`Notes`, ≤ 2000 chars, blank → `None`).
 
 ## Database
 

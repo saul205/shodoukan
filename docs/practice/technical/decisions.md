@@ -774,3 +774,59 @@ Rejected:
 - **Funnel with closed registration.** No app to install, but the login page would be
   public.
 - **Cloudflare Tunnel with Access.** It needs a paid domain.
+
+## Own senses start with a meaning; a disabled sense keeps its parts' flags
+
+Narrows "Dictionary data in the library is only ever disabled": senses now have an
+`origin` and an `enabled` flag too.
+
+- A sense of the user's own is created with its first meaning (`POST .../senses` takes
+  the gloss), so a new sense never shows up empty and doesn't need its own fields:
+  `pos` / `misc` stay empty, and its content is its meanings, examples and note.
+- Only own senses are removed, with their meanings and examples. Imported senses are
+  only disabled, and still take the user's own meanings.
+- Disabling a sense doesn't touch the flags of its glosses and examples: whether a gloss
+  counts is `sense.enabled and gloss.enabled`. Re-enabling the sense brings it back
+  exactly as it was, and there's one write per toggle.
+
+## Own examples are a sentence and one translation at a time
+
+An own example has the shape of JMDict's (a sense's example, one sentence per
+language), so the views, the toggles and a future re-sync treat both alike. The user
+writes the Japanese sentence and, optionally, its translation in the language they're
+reading in; editing touches only that language and keeps translations written in
+others, so switching language never loses one. `text` (JMDict's form of the word in the
+sentence) stays empty: nothing shows it, and asking for it would only slow the user down.
+
+## Words of the user's own have no source; readings can be added
+
+Narrows "Dictionary data in the library is only ever disabled", which said readings
+can't be added.
+
+- A word the dictionary doesn't have (counters with their numbers, set phrases from
+  class) is a `PracticeEntry` with `source_entry_id = None`, not a separate aggregate:
+  the library, collections, search, exercises and handwriting all work on entries, and
+  none of them needs the dictionary id. Whether it's the user's own is derived from
+  that `None` (`is_own`), so no stored flag can disagree with it.
+- Everything in it is `origin="added"`, so the rule stays one: what's the user's can be
+  changed, what's the dictionary's only disabled. For that, spellings and readings got
+  `origin` too, which also lets any word take own spellings and readings.
+- The `(user_id, source_entry_id)` unique constraint stays: NULLs are distinct in
+  PostgreSQL and SQLite, so own words can repeat. Creating one isn't idempotent.
+- A word keeps one reading (`LastReadingError`, 409): every card, label and handwriting
+  question reads it.
+
+## A sense keeps one meaning, in one language
+
+A sense with no meanings shows in no language (the entry page lists a sense under the
+languages of its meanings), so its examples, its note and its remove button would be
+out of reach. Removing a sense's only meaning is refused (`LastMeaningError`, 409), and
+the UI disables that delete button with a tooltip; the user edits the meaning, or
+removes the whole own sense, which already asks for confirmation. Deleting the sense
+along with its last meaning was ruled out: one click on a meaning's trash icon would
+take the sense's examples and note with it.
+
+Senses are also kept to one language (`SenseLanguageError`, 422), as in JMDict, where
+no sense mixes languages. It makes "the sense's only meaning" the same as "its only
+meaning in the language on screen", so the check can't be bypassed through a meaning
+in another language.

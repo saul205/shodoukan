@@ -5,11 +5,21 @@ import { answerQuestion, finishSession, getSession, listSessions, startSession }
 import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
 import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
+  addExample,
   addGloss,
+  addReading,
+  addSpelling,
+  createOwnEntry,
+  addSense,
   getImportStatus,
   importEntry,
   listLibraryEntries,
+  editExample,
   listLibraryKanji,
+  removeExample,
+  removeReading,
+  removeSense,
+  removeSpelling,
   setEntryPartEnabled,
   setKanjiNotes,
 } from '../../app/services/library'
@@ -42,6 +52,16 @@ describe('practice API services', () => {
     await importEntry(api, 1000002, [4])
     await setEntryPartEnabled(api, 3, 'kanji-readings', 7, false)
     await addGloss(api, 3, 5, 'to scoff', 'eng')
+    await addSense(api, 3, 'to dine', 'eng')
+    await removeSense(api, 3, 6)
+    await addExample(api, 3, 5, '水を飲む。', null, 'eng')
+    await editExample(api, 3, 8, '水を飲んだ。', 'I drank water.', 'eng')
+    await removeExample(api, 3, 8)
+    await createOwnEntry(api, { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng' })
+    await addSpelling(api, 3, '猫')
+    await removeSpelling(api, 3, 9)
+    await addReading(api, 3, 'ネコ')
+    await removeReading(api, 3, 10)
     await setKanjiNotes(api, 4, null)
 
     expect(calls).toEqual([
@@ -49,6 +69,16 @@ describe('practice API services', () => {
       ['/library/entries', { method: 'POST', body: { entry_id: 1000002, collection_ids: [4] } }],
       ['/library/entries/3/kanji-readings/7/enabled', { method: 'PUT', body: { enabled: false } }],
       ['/library/entries/3/senses/5/glosses', { method: 'POST', body: { text: 'to scoff', lang: 'eng' } }],
+      ['/library/entries/3/senses', { method: 'POST', body: { text: 'to dine', lang: 'eng' } }],
+      ['/library/entries/3/senses/6', { method: 'DELETE' }],
+      ['/library/entries/3/senses/5/examples', { method: 'POST', body: { japanese: '水を飲む。', translation: null, lang: 'eng' } }],
+      ['/library/entries/3/examples/8', { method: 'PUT', body: { japanese: '水を飲んだ。', translation: 'I drank water.', lang: 'eng' } }],
+      ['/library/entries/3/examples/8', { method: 'DELETE' }],
+      ['/library/entries/own', { method: 'POST', body: { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng', collection_ids: [] } }],
+      ['/library/entries/3/kanji-readings', { method: 'POST', body: { kanji: '猫' } }],
+      ['/library/entries/3/kanji-readings/9', { method: 'DELETE' }],
+      ['/library/entries/3/readings', { method: 'POST', body: { text: 'ネコ' } }],
+      ['/library/entries/3/readings/10', { method: 'DELETE' }],
       ['/library/kanji/4/notes', { method: 'PUT', body: { notes: null } }],
     ])
   })

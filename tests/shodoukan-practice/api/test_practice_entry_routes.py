@@ -79,7 +79,7 @@ def test_unknown_part_or_item(
     url = f"/library/entries/{entry['id']}"
     body = {"enabled": False}
     assert (
-        client.put(f"{url}/senses/1/enabled", json=body, headers=headers).status_code
+        client.put(f"{url}/notes/1/enabled", json=body, headers=headers).status_code
         == 422
     )
     assert (
@@ -113,12 +113,160 @@ def test_own_meanings(
     assert len(removed.json()["senses"][0]["glosses"]) == 2
 
 
+def test_own_senses(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    imported_id = entry["senses"][0]["id"]
+    assert (entry["senses"][0]["enabled"], entry["senses"][0]["origin"]) == (
+        True,
+        "imported",
+    )
+
+    added = client.post(
+        f"{url}/senses", json={"text": " to dine ", "lang": "eng"}, headers=headers
+    )
+    assert added.status_code == 201
+    sense = added.json()["senses"][-1]
+    assert sense["origin"] == "added"
+    assert [g["text"] for g in sense["glosses"]] == ["to dine"]
+
+    hidden = client.put(
+        f"{url}/senses/{imported_id}/enabled", json={"enabled": False}, headers=headers
+    )
+    assert hidden.json()["senses"][0]["enabled"] is False
+
+    removed = client.delete(f"{url}/senses/{sense['id']}", headers=headers)
+    assert removed.status_code == 200
+    assert [s["id"] for s in removed.json()["senses"]] == [imported_id]
+    assert (
+        client.delete(f"{url}/senses/{imported_id}", headers=headers).status_code == 409
+    )
+    assert (
+        client.post(
+            f"{url}/senses", json={"text": " ", "lang": "eng"}, headers=headers
+        ).status_code
+        == 422
+    )
+
+
+def test_own_examples(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    sense_id = entry["senses"][0]["id"]
+    imported = len(entry["senses"][0]["examples"])
+
+    added = client.post(
+        f"{url}/senses/{sense_id}/examples",
+        json={"japanese": " 朝ご飯を食べる。 ", "translation": "I eat.", "lang": "eng"},
+        headers=headers,
+    )
+    assert added.status_code == 201
+    example = added.json()["senses"][0]["examples"][-1]
+    assert example["origin"] == "added"
+    assert example["sentences"] == [
+        {"lang": "jpn", "text": "朝ご飯を食べる。"},
+        {"lang": "eng", "text": "I eat."},
+    ]
+
+    edited = client.put(
+        f"{url}/examples/{example['id']}",
+        json={"japanese": "朝ご飯を食べた。", "translation": None, "lang": "eng"},
+        headers=headers,
+    )
+    assert edited.json()["senses"][0]["examples"][-1]["sentences"] == [
+        {"lang": "jpn", "text": "朝ご飯を食べた。"}
+    ]
+
+    removed = client.delete(f"{url}/examples/{example['id']}", headers=headers)
+    assert removed.status_code == 200
+    assert len(removed.json()["senses"][0]["examples"]) == imported
+    for body in (
+        {"japanese": " ", "lang": "eng"},
+        {"japanese": "x", "lang": "en"},
+        {"japanese": "x", "translation": "x", "lang": "jpn"},
+    ):
+        response = client.post(
+            f"{url}/senses/{sense_id}/examples", json=body, headers=headers
+        )
+        assert response.status_code == 422
+
+
+def test_own_spellings_and_readings(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    imported_reading = entry["readings"][0]["id"]
+
+    spelling = client.post(
+        f"{url}/kanji-readings", json={"kanji": "喰べる"}, headers=headers
+    )
+    reading = client.post(f"{url}/readings", json={"text": "クウ"}, headers=headers)
+    assert (spelling.status_code, reading.status_code) == (201, 201)
+    own_spelling = spelling.json()["kanji_readings"][-1]
+    own_reading = reading.json()["readings"][-1]
+    assert (own_spelling["origin"], own_reading["origin"]) == ("added", "added")
+
+    assert (
+        client.post(
+            f"{url}/readings", json={"text": "kuu"}, headers=headers
+        ).status_code
+        == 422
+    )
+    assert (
+        client.delete(f"{url}/readings/{imported_reading}", headers=headers).status_code
+        == 409
+    )
+    client.delete(f"{url}/kanji-readings/{own_spelling['id']}", headers=headers)
+    removed = client.delete(f"{url}/readings/{own_reading['id']}", headers=headers)
+    assert removed.status_code == 200
+    assert all(r["origin"] == "imported" for r in removed.json()["readings"])
+    assert all(k["origin"] == "imported" for k in removed.json()["kanji_readings"])
+
+
+def test_an_own_word_keeps_its_last_reading(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    own = client.post(
+        "/library/entries/own",
+        json={"readings": ["ねこ"], "meaning": "cat", "lang": "eng"},
+        headers=headers,
+    ).json()
+    reading_id = own["readings"][0]["id"]
+
+    response = client.delete(
+        f"/library/entries/{own['id']}/readings/{reading_id}", headers=headers
+    )
+
+    assert response.status_code == 409
+
+
 def test_meaning_validation(
     client: TestClient, headers: dict[str, str], entry: dict[str, Any]
 ) -> None:
     url = f"/library/entries/{entry['id']}/senses/{entry['senses'][0]['id']}/glosses"
     for body in ({"text": "  ", "lang": "eng"}, {"text": "x", "lang": "en"}):
         assert client.post(url, json=body, headers=headers).status_code == 422
+
+
+def test_a_sense_keeps_one_meaning_in_one_language(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    own = client.post(
+        f"{url}/senses", json={"text": "to dine", "lang": "eng"}, headers=headers
+    ).json()["senses"][-1]
+
+    spanish = client.post(
+        f"{url}/senses/{own['id']}/glosses",
+        json={"text": "cenar", "lang": "spa"},
+        headers=headers,
+    )
+    last = client.delete(f"{url}/glosses/{own['glosses'][0]['id']}", headers=headers)
+
+    assert spanish.status_code == 422
+    assert last.status_code == 409
 
 
 def test_dictionary_meanings_are_409(

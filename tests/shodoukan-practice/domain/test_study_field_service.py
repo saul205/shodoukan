@@ -61,6 +61,16 @@ def test_entry_meaning_is_the_first_sense_in_the_language() -> None:
     ]
 
 
+def test_entry_meaning_skips_disabled_senses() -> None:
+    entry = _stored(make_entry(USER_ID), 7)
+    entry.add_sense("to dine", "eng")
+    entry.senses[0].enabled = False
+
+    assert [v.text for v in entry_card(entry, ENTRY_FIELDS, "eng").get("meaning")] == [
+        "to dine"
+    ]
+
+
 def test_entry_meaning_joins_glosses_and_keys_each() -> None:
     entry = _stored(
         make_word(

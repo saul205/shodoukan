@@ -96,6 +96,51 @@ export function setEntryPartEnabled(
   })
 }
 
+export interface OwnEntryInput {
+  spellings: string[]
+  readings: string[] // kana
+  meaning: string
+  lang: string // ISO 639-2, the meaning's
+  collection_ids?: number[]
+}
+
+/** A word of the user's own, one the dictionary doesn't have. */
+export function createOwnEntry(api: ApiClient, input: OwnEntryInput): Promise<PracticeEntry> {
+  return api<PracticeEntry>('/library/entries/own', {
+    method: 'POST',
+    body: { ...input, collection_ids: input.collection_ids ?? [] },
+  })
+}
+
+/** A spelling of the user's own (any word can take them). */
+export function addSpelling(api: ApiClient, id: number, kanji: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/kanji-readings`, { method: 'POST', body: { kanji } })
+}
+
+export function removeSpelling(api: ApiClient, id: number, spellingId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/kanji-readings/${spellingId}`, { method: 'DELETE' })
+}
+
+/** A reading (kana) of the user's own. */
+export function addReading(api: ApiClient, id: number, text: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/readings`, { method: 'POST', body: { text } })
+}
+
+/** Remove an own reading; the API refuses (409) the word's last one. */
+export function removeReading(api: ApiClient, id: number, readingId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/readings/${readingId}`, { method: 'DELETE' })
+}
+
+/** A sense of the user's own, created with its first meaning; `lang` is ISO 639-2. */
+export function addSense(api: ApiClient, id: number, text: string, lang: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses`, { method: 'POST', body: { text, lang } })
+}
+
+/** Remove one of the user's own senses, with its meanings and examples. */
+export function removeSense(api: ApiClient, id: number, senseId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}`, { method: 'DELETE' })
+}
+
 /** `lang` is ISO 639-2 (e.g. "eng"), like the entry's glosses. */
 export function addGloss(
   api: ApiClient,
@@ -116,6 +161,40 @@ export function editGloss(api: ApiClient, id: number, glossId: number, text: str
 
 export function removeGloss(api: ApiClient, id: number, glossId: number): Promise<PracticeEntry> {
   return api<PracticeEntry>(`/library/entries/${id}/glosses/${glossId}`, { method: 'DELETE' })
+}
+
+/** An example of the user's own: a Japanese sentence and an optional translation in `lang` (ISO 639-2). */
+export function addExample(
+  api: ApiClient,
+  id: number,
+  senseId: number,
+  japanese: string,
+  translation: string | null,
+  lang: string,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}/examples`, {
+    method: 'POST',
+    body: { japanese, translation, lang },
+  })
+}
+
+/** Rewrite an own example: its sentence and the translation in `lang`; others are kept. */
+export function editExample(
+  api: ApiClient,
+  id: number,
+  exampleId: number,
+  japanese: string,
+  translation: string | null,
+  lang: string,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/examples/${exampleId}`, {
+    method: 'PUT',
+    body: { japanese, translation, lang },
+  })
+}
+
+export function removeExample(api: ApiClient, id: number, exampleId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/examples/${exampleId}`, { method: 'DELETE' })
 }
 
 // --- Kanji ---

@@ -416,3 +416,50 @@ def test_import_limits_the_collections(
         headers=bearer(make_token()),
     )
     assert response.status_code == 422
+
+
+def test_create_own_entry(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    headers = bearer(make_token())
+    response = client.post(
+        "/library/entries/own",
+        json={
+            "spellings": ["三匹"],
+            "readings": [" さんびき "],
+            "meaning": "three animals",
+            "lang": "eng",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["source_entry_id"] is None
+    assert body["kanji_readings"][0]["origin"] == "added"
+    assert body["readings"][0]["text"] == "さんびき"
+    assert body["senses"][0]["glosses"][0]["text"] == "three animals"
+    imported = client.get(
+        "/library/imported", params={"entry_ids": [1000001]}, headers=headers
+    )
+    assert imported.json()["entries"] == []
+
+
+def test_create_own_entry_validates_it(
+    client: TestClient, make_token: TokenFactory, user: UserORM
+) -> None:
+    good = {"spellings": [], "readings": ["ねこ"], "meaning": "cat", "lang": "eng"}
+    changes: list[dict[str, Any]] = [
+        {"readings": []},
+        {"readings": ["neko"]},
+        {"meaning": " "},
+        {"lang": "en"},
+        {"collection_ids": [999]},
+    ]
+    for change in changes:
+        response = client.post(
+            "/library/entries/own",
+            json={**good, **change},
+            headers=bearer(make_token()),
+        )
+        assert response.status_code == (404 if "collection_ids" in change else 422)

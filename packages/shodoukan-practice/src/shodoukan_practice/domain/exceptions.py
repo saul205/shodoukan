@@ -28,6 +28,22 @@ class OriginalDataError(ValueError):
     """
 
 
+class LastReadingError(ValueError):
+    """The only reading of an entry was removed: a word always keeps one."""
+
+
+class LastMeaningError(ValueError):
+    """The only meaning of a sense was removed: a sense always keeps one.
+
+    To get rid of an own sense, remove the sense itself.
+    """
+
+
+class SenseLanguageError(ValueError):
+    """A meaning in another language was added to a sense: like JMDict's, a
+    sense's meanings are all in one language."""
+
+
 class ExercisePoolTooSmallError(ValueError):
     """An exercise's collections don't have enough usable items to ask about."""
 

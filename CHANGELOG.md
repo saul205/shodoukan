@@ -8,6 +8,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Example sentences of the user's own in a word's senses
+  (`POST /library/entries/{id}/senses/{sense_id}/examples`, `PUT` / `DELETE
+  .../examples/{example_id}`): a Japanese sentence and an optional translation; editing
+  keeps the translations in other languages. Dictionary examples can only be disabled.
+- **shodoukan-practice-web:** "Añadir un ejemplo propio" in each meaning group of a
+  library word: a Japanese sentence and an optional translation, marked "propio",
+  editable and deletable.
+- **shodoukan-practice:** Words of the user's own, for what the dictionary doesn't have
+  (e.g. counters with their numbers): `POST /library/entries/own` with readings,
+  optional spellings, a first meaning and collections; they have no `source_entry_id`
+  and everything in them is the user's. Any word can take spellings and readings of
+  the user's own (`POST` / `DELETE .../kanji-readings`, `.../readings`); a word keeps at
+  least one reading.
+- **shodoukan-practice-web:** **Nueva palabra** (in the library, and "Nueva palabra
+  propia" in a word collection) creates a word of the user's own from its spellings,
+  kana readings and first meaning, warning when the dictionary already has it. Library
+  words get a box to add spellings and readings of the user's own, deletable.
+- **shodoukan-practice:** Senses of the user's own on a library word
+  (`POST /library/entries/{id}/senses`, created with their first meaning; removed with
+  `DELETE .../senses/{sense_id}`, with their meanings and examples), and enabling or
+  disabling a whole sense (`PUT .../senses/{sense_id}/enabled`). A disabled sense keeps
+  its meanings' own flags and is left out when practising. Dictionary senses can only
+  be disabled.
+- **shodoukan-practice-web:** On a library word, a switch per meaning group hides the
+  whole sense (faded, "oculto al practicar"), and **Nuevo significado** adds a group of
+  the user's own with its first meaning, marked "propio" and deletable after confirming.
 - **shodoukan-practice:** Fairer handwriting grading for kana and words: dakuten,
   handakuten and dots of simple characters pair by position (direction only
   checked loosely) (only adding or leaving out a whole set
@@ -165,6 +191,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-practice:** A sense keeps at least one meaning (removing the last is a
+  409; the own sense is removed instead), and its meanings are all in one language
+  (another language is a 422), as in JMDict. In the practice web, the only meaning's
+  delete button is disabled with a tooltip.
+- **shodoukan-practice-web:** The forms for a library item's own meanings, senses,
+  examples, spellings and readings wait for the save: they clear only once it's saved,
+  keep the text when it fails, and can't be sent twice meanwhile.
 - **shodoukan-practice:** Session questions are stored by `type`, with what only that
   type has in a `details` JSON column; a choice card's options and right option move
   there (migration `33f2afbdd7cf`). Session responses return each question by type.

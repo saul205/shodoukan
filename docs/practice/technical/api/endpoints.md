@@ -60,27 +60,51 @@ disabled.
 | `PUT` | `/library/entries/{id}/active` | `{"active": false}` | `200` |
 | `PUT` | `/library/entries/{id}/notes` | `{"notes": "..."}` (≤ 2000; blank or `null` removes it) | `200` |
 | `PUT` | `/library/entries/{id}/senses/{sense_id}/notes` | `{"notes": "..."}` | `200` |
-| `PUT` | `/library/entries/{id}/{part}/{item_id}/enabled` | `{"enabled": false}` | `200`; `part` is `kanji-readings`, `readings`, `glosses` or `examples` |
-| `POST` | `/library/entries/{id}/senses/{sense_id}/glosses` | `{"text": "...", "lang": "eng"}` (ISO 639-2) | `201` |
+| `PUT` | `/library/entries/{id}/{part}/{item_id}/enabled` | `{"enabled": false}` | `200`; `part` is `kanji-readings`, `readings`, `senses`, `glosses` or `examples` (a disabled sense hides its meanings and examples, keeping their flags) |
+| `POST` | `/library/entries/{id}/kanji-readings` | `{"kanji": "..."}` | `201`; a spelling of the user's own |
+| `DELETE` | `/library/entries/{id}/kanji-readings/{spelling_id}` | — | `200`; `409` for a dictionary spelling |
+| `POST` | `/library/entries/{id}/readings` | `{"text": "..."}` (kana) | `201`; a reading of the user's own |
+| `DELETE` | `/library/entries/{id}/readings/{reading_id}` | — | `200`; `409` for a dictionary reading or the word's last one |
+| `POST` | `/library/entries/{id}/senses` | `{"text": "...", "lang": "eng"}`: its first meaning | `201`; an own sense at the end |
+| `DELETE` | `/library/entries/{id}/senses/{sense_id}` | — | `200`; with its meanings and examples; `409` for a dictionary sense |
+| `POST` | `/library/entries/{id}/senses/{sense_id}/glosses` | `{"text": "...", "lang": "eng"}` (ISO 639-2) | `201`; `422` if `lang` isn't the sense's (a sense's meanings are in one language) |
 | `PUT` | `/library/entries/{id}/glosses/{gloss_id}` | `{"text": "..."}` | `200`; `409` for a dictionary meaning |
-| `DELETE` | `/library/entries/{id}/glosses/{gloss_id}` | — | `200`; `409` for a dictionary meaning |
+| `DELETE` | `/library/entries/{id}/glosses/{gloss_id}` | — | `200`; `409` for a dictionary meaning or the sense's only one |
+| `POST` | `/library/entries/{id}/senses/{sense_id}/examples` | `{"japanese": "...", "translation": "..." \| null, "lang": "eng"}` | `201`; an own example at the end of the sense |
+| `PUT` | `/library/entries/{id}/examples/{example_id}` | same body | `200`; replaces the Japanese sentence and the translation in `lang`, keeps the others; `409` for a dictionary example |
+| `DELETE` | `/library/entries/{id}/examples/{example_id}` | — | `200`; `409` for a dictionary example |
 
 Kanji, under `/library/kanji/{id}`: the same `GET`, `DELETE`, `/collections`,
 `/active` and `/notes`; `/{part}/{item_id}/enabled` with `part` `readings` (on, kun and
 nanori) or `meanings`; `POST /meanings` with `{"text", "lang"}` (ISO 639-1, e.g. `en`);
 `PUT` / `DELETE /meanings/{meaning_id}`.
 
-Meaning texts are stripped and must be 1–500 characters. The responses carry `notes` on
-the item and, for entries, on each sense.
+Meaning texts are stripped and must be 1–500 characters, as must an example's Japanese
+sentence; its translation is optional (≤ 500) and its `lang` can't be `jpn`. The responses carry `notes` on
+the item and, for entries, on each sense, which also has `enabled` and `origin`.
 
 | Status | When |
 |---|---|
 | `401` | Missing or invalid token |
 | `404` | Not in the user's library (or another user's), or no such sense or nested item |
-| `409` | Editing or removing a dictionary meaning |
+| `409` | Editing or removing a dictionary meaning or example, or removing a dictionary spelling, reading or sense, a word's last reading or a sense's last meaning |
 | `422` | Unknown `part`, invalid body (empty meaning, wrong `lang` format, note too long) |
 
 Why one endpoint per edit: [decisions](../decisions.md#one-endpoint-per-customisation).
+
+## `POST /library/entries/own`
+
+Creates a word of the user's own, one the dictionary doesn't have
+([`CreateOwnEntry`](../application/use-cases.md#createownentryentries-collectionsexecuteuser_id-spellings-readings-meaning-lang-collection_ids)):
+
+```json
+{ "spellings": ["三匹"], "readings": ["さんびき"], "meaning": "three animals", "lang": "eng", "collection_ids": [3] }
+```
+
+`readings` (1–10, kana only), `spellings` (0–10, optional), `meaning` (1–500) in `lang`
+(ISO 639-2), `collection_ids` (optional). `201` with the entry: `source_entry_id` is
+`null` and every part has `origin: "added"`. `404` for a collection that isn't the
+user's (nothing is created), `422` for an invalid body.
 
 ## `POST /library/entries`
 
@@ -106,7 +130,7 @@ is imported. They're added even when the entry was already in the library (`200`
 | `404` | Not in the dictionary, or a collection isn't the user's | `{"detail": ...}` |
 | `422` | Invalid body (e.g. more than 50 `collection_ids`) | validation errors |
 
-`PracticeEntryResponse`: `id`, `source_entry_id`, `kanji_readings`, `readings`,
+`PracticeEntryResponse`: `id`, `source_entry_id` (`null` for a word of the user's own), `kanji_readings`, `readings`,
 `senses` (with `glosses` and `examples`), `jlpt`, `is_common`, `is_active`,
 `created_at`, `updated_at`. Nested items carry their `id`, `enabled` and, where
 applicable, `origin`. `user_id` isn't exposed.

@@ -12,10 +12,10 @@ The models that define these tables are described in
 | Table | Parent | Constraints and notes |
 |---|---|---|
 | `users` | — | `id` **`uuid`**: the identity provider's user id (token `sub`), not generated here; `username` (display name, up to 255 characters, not unique) |
-| `practice_entries` | `users` | `UNIQUE(user_id, source_entry_id)`, `notes` text (nullable) |
-| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled` |
-| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled` |
-| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable) |
+| `practice_entries` | `users` | `source_entry_id` nullable (a word of the user's own has none), `UNIQUE(user_id, source_entry_id)` (NULLs are distinct, so own words can repeat), `notes` text (nullable) |
+| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled`, `origin` (CHECK) |
+| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled`, `origin` (CHECK) |
+| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable), `enabled`, `origin` (CHECK) |
 | `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')` |
 | `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK) |
 | `practice_example_sentences` | `practice_examples` | `position`, `lang`, `text` |

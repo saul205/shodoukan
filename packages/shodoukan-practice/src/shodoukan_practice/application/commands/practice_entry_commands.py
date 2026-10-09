@@ -3,7 +3,8 @@
 Each loads the user's entry (`EntityNotFoundError` if it isn't theirs),
 calls one domain method and stores the result, which it returns so the
 caller can show the entry as it is now. The domain enforces that dictionary
-data is only ever disabled (`OriginalDataError` otherwise). None of them
+data is only ever disabled (`OriginalDataError` otherwise), and a word keeps
+a reading (`LastReadingError`). None of them
 commit; the caller owns the transaction.
 """
 
@@ -58,7 +59,7 @@ class SetSenseNotes(_EntryCommand):
 
 
 class SetEntryPartEnabled(_EntryCommand):
-    """Show or hide one spelling, reading, meaning or example."""
+    """Show or hide one spelling, reading, sense, meaning or example."""
 
     def execute(
         self,
@@ -70,6 +71,62 @@ class SetEntryPartEnabled(_EntryCommand):
     ) -> PracticeEntry:
         entry = self._load(user_id, entry_id)
         entry.set_enabled(part, item_id, enabled)
+        return self._entries.update(entry)
+
+
+class AddEntrySense(_EntryCommand):
+    """Add a sense of the user's own to the entry, with its first meaning."""
+
+    def execute(
+        self, user_id: UUID, entry_id: int, text: str, lang: str
+    ) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_sense(text, lang)
+        return self._entries.update(entry)
+
+
+class RemoveEntrySense(_EntryCommand):
+    """Remove one of the user's own senses, with its meanings and examples."""
+
+    def execute(self, user_id: UUID, entry_id: int, sense_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_sense(sense_id)
+        return self._entries.update(entry)
+
+
+class AddEntrySpelling(_EntryCommand):
+    """Add a written form of the user's own to the entry."""
+
+    def execute(self, user_id: UUID, entry_id: int, kanji: str) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_spelling(kanji)
+        return self._entries.update(entry)
+
+
+class RemoveEntrySpelling(_EntryCommand):
+    """Remove one of the user's own written forms."""
+
+    def execute(self, user_id: UUID, entry_id: int, spelling_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_spelling(spelling_id)
+        return self._entries.update(entry)
+
+
+class AddEntryReading(_EntryCommand):
+    """Add a reading (kana) of the user's own to the entry."""
+
+    def execute(self, user_id: UUID, entry_id: int, text: str) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_reading(text)
+        return self._entries.update(entry)
+
+
+class RemoveEntryReading(_EntryCommand):
+    """Remove one of the user's own readings (`LastReadingError` for the last)."""
+
+    def execute(self, user_id: UUID, entry_id: int, reading_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_reading(reading_id)
         return self._entries.update(entry)
 
 
@@ -101,6 +158,49 @@ class RemoveEntryGloss(_EntryCommand):
     def execute(self, user_id: UUID, entry_id: int, gloss_id: int) -> PracticeEntry:
         entry = self._load(user_id, entry_id)
         entry.remove_gloss(gloss_id)
+        return self._entries.update(entry)
+
+
+class AddEntryExample(_EntryCommand):
+    """Add an example sentence of the user's own to one of the entry's senses."""
+
+    def execute(
+        self,
+        user_id: UUID,
+        entry_id: int,
+        sense_id: int,
+        japanese: str,
+        translation: str | None,
+        lang: str,
+    ) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_example(sense_id, japanese, translation, lang)
+        return self._entries.update(entry)
+
+
+class EditEntryExample(_EntryCommand):
+    """Rewrite one of the user's own examples (its sentence and a translation)."""
+
+    def execute(
+        self,
+        user_id: UUID,
+        entry_id: int,
+        example_id: int,
+        japanese: str,
+        translation: str | None,
+        lang: str,
+    ) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.edit_example(example_id, japanese, translation, lang)
+        return self._entries.update(entry)
+
+
+class RemoveEntryExample(_EntryCommand):
+    """Remove one of the user's own examples."""
+
+    def execute(self, user_id: UUID, entry_id: int, example_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_example(example_id)
         return self._entries.update(entry)
 
 

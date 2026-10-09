@@ -5,7 +5,11 @@ import pytest
 from factories import NOW, make_entry, make_entry_collection, make_word
 from sqlalchemy.orm import Session
 
-from shodoukan_practice.domain.entities import EntryCollection, PracticeGloss
+from shodoukan_practice.domain.entities import (
+    EntryCollection,
+    PracticeEntry,
+    PracticeGloss,
+)
 from shodoukan_practice.domain.exceptions import EntityNotFoundError
 from shodoukan_practice.domain.gateways import KanaForms
 from shodoukan_practice.domain.searches import (
@@ -68,10 +72,10 @@ def test_update_edits_adds_and_removes_nested_items(
     entry = repo.add(make_entry(user.id))
     glosses = entry.senses[0].glosses
     glosses[0].enabled = False
-    del glosses[1]
     glosses.append(
         PracticeGloss(id=None, text="to dine", lang="eng", type=None, origin="added")
     )
+    del entry.senses[1]  # the Spanish one
 
     updated = repo.update(entry)
     session.expunge_all()
@@ -82,6 +86,7 @@ def test_update_edits_adds_and_removes_nested_items(
     assert stored is not None
     texts = [(g.text, g.enabled, g.origin) for g in stored.senses[0].glosses]
     assert texts == [("to eat", False, "imported"), ("to dine", True, "added")]
+    assert len(stored.senses) == 1
 
 
 def test_update_cannot_move_an_entry_to_another_user(
@@ -242,7 +247,7 @@ def test_update_persists_added_edited_and_removed_meanings(
     session.expunge_all()
     reloaded = repo.get(entry.id or 0, user.id)
     assert reloaded is not None
-    assert [g.origin for g in reloaded.senses[0].glosses] == ["imported", "imported"]
+    assert [g.origin for g in reloaded.senses[0].glosses] == ["imported"]
 
 
 # --- Search (find / count) ----------------------------------------------------
@@ -430,3 +435,21 @@ def test_find_is_scoped_to_the_user(
 
     assert _found(repo, user, _search("eat")) == []
     assert _found(repo, user, LibrarySearch()) == []
+
+
+def test_own_words_have_no_source_and_can_repeat(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM, session: Session
+) -> None:
+    def own() -> PracticeEntry:
+        return PracticeEntry.create_own(user.id, ["三匹"], ["さんびき"], "x", "eng")
+
+    first, second = repo.add(own()), repo.add(own())
+    repo.add(make_entry(user.id))
+    session.expunge_all()
+
+    assert first.id != second.id
+    assert first.id is not None
+    assert repo.get(first.id, user.id) == first
+    assert list(repo.practice_ids_by_source_entry_id([1000001], user.id)) == [1000001]
+    with pytest.raises(ValueError):
+        repo.add_if_absent(own())

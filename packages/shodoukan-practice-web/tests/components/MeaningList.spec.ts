@@ -1,6 +1,9 @@
 // @vitest-environment nuxt
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
+import { defineComponent, h } from 'vue'
+import { UApp } from '#components'
 import MeaningList from '../../app/components/MeaningList.vue'
 import { signedInAuth } from '../fakes'
 
@@ -23,38 +26,63 @@ describe('MeaningList', () => {
     expect(rows[1]!.text()).toContain('propio')
   })
 
-  it('emits toggle, remove and add', async () => {
-    const wrapper = await mountSuspended(MeaningList, { props: { meanings } })
+  it('emits toggle and remove, and saves a new meaning', async () => {
+    const onAdd = vi.fn().mockResolvedValue(true)
+    const wrapper = await mountSuspended(MeaningList, { props: { meanings, onAdd } })
 
     await wrapper.findAll('[role="switch"]')[0]!.trigger('click')
     await wrapper.find('[data-testid="remove"]').trigger('click')
     await wrapper.find('form input').setValue('  to gobble  ')
     await wrapper.find('form').trigger('submit')
+    await flushPromises()
 
     expect(wrapper.emitted('toggle')).toEqual([[1, false]])
     expect(wrapper.emitted('remove')).toEqual([[2]])
-    expect(wrapper.emitted('add')).toEqual([['to gobble']])
+    expect(onAdd).toHaveBeenCalledWith('to gobble')
+    expect((wrapper.find('form input').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('keeps a new meaning\'s text when it isn\'t saved', async () => {
+    const onAdd = vi.fn().mockResolvedValue(false)
+    const wrapper = await mountSuspended(MeaningList, { props: { meanings, onAdd } })
+
+    await wrapper.find('form input').setValue('to gobble')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(onAdd).toHaveBeenCalledOnce()
+    expect((wrapper.find('form input').element as HTMLInputElement).value).toBe('to gobble')
   })
 
   it('does not add an empty meaning', async () => {
-    const wrapper = await mountSuspended(MeaningList, { props: { meanings: [] } })
+    const onAdd = vi.fn().mockResolvedValue(true)
+    const wrapper = await mountSuspended(MeaningList, { props: { meanings: [], onAdd } })
 
     await wrapper.find('form input').setValue('   ')
     await wrapper.find('form').trigger('submit')
 
-    expect(wrapper.emitted('add')).toBeUndefined()
+    expect(onAdd).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Sin significados')
   })
 
-  it('edits an own meaning on Enter', async () => {
-    const wrapper = await mountSuspended(MeaningList, { props: { meanings } })
+  it('edits an own meaning on Enter, and stays editing if it isn\'t saved', async () => {
+    const onEdit = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const wrapper = await mountSuspended(MeaningList, { props: { meanings, onEdit } })
 
     await wrapper.find('[data-testid="edit"]').trigger('click')
     const input = wrapper.findAll('[data-testid="meaning"]')[1]!.find('input')
     await input.setValue('to wolf down')
     await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
 
-    expect(wrapper.emitted('edit')).toEqual([[2, 'to wolf down']])
+    expect(onEdit).toHaveBeenCalledWith(2, 'to wolf down')
+    const stillEditing = wrapper.findAll('[data-testid="meaning"]')[1]!.find('input')
+    expect((stillEditing.element as HTMLInputElement).value).toBe('to wolf down')
+
+    await stillEditing.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(onEdit).toHaveBeenCalledTimes(2)
+    expect(wrapper.findAll('[data-testid="meaning"]')[1]!.find('input').exists()).toBe(false)
   })
 
   it('lists only the shown meanings, with no controls, in view-only mode', async () => {
@@ -64,5 +92,22 @@ describe('MeaningList', () => {
     expect(rows.map(row => row.text())).toEqual(['to eat'])
     expect(wrapper.find('[role="switch"]').exists()).toBe(false)
     expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('keeps the last meaning when asked to: only while it\'s the only one', async () => {
+    const own = { id: 2, text: 'to scoff', enabled: true, origin: 'added' as const }
+    // The locked button's tooltip needs the provider UApp gives.
+    const mountList = (items: typeof meanings) => mountSuspended(defineComponent({
+      render: () => h(UApp, null, { default: () => h(MeaningList, { meanings: items, keepLast: true }) }),
+    }))
+
+    const alone = await mountList([own])
+    expect(alone.find('[data-testid="remove-locked"]').exists()).toBe(true)
+    expect(alone.find('[data-testid="remove"]').exists()).toBe(false)
+    expect(alone.find('[data-testid="edit"]').exists()).toBe(true)
+
+    const withOthers = await mountList([meanings[0]!, own])
+    expect(withOthers.find('[data-testid="remove"]').exists()).toBe(true)
+    expect(withOthers.find('[data-testid="remove-locked"]').exists()).toBe(false)
   })
 })

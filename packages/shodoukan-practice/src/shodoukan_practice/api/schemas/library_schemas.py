@@ -8,7 +8,13 @@ serialize as ISO 8601 with offset (`...Z`).
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+)
 
 from ...domain.entities import NOTES_MAX_LENGTH
 
@@ -42,6 +48,46 @@ class ImportKanjiRequest(BaseModel):
 MeaningText = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
 ]
+# A word's written form, and a reading: hiragana or katakana (ー included).
+SpellingText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)
+]
+KanaText = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=50, pattern="^[\u3041-\u30ff]+$"
+    ),
+]
+# A handful of each in practice.
+MAX_FORMS = 10
+
+
+class OwnEntryRequest(BaseModel):
+    spellings: list[SpellingText] = Field(
+        default_factory=list,
+        max_length=MAX_FORMS,
+        description="Written forms (kanji), first the usual one; none for a kana word.",
+    )
+    readings: list[KanaText] = Field(
+        min_length=1, max_length=MAX_FORMS, description="Readings in kana."
+    )
+    meaning: MeaningText = Field(description="Its first meaning.")
+    lang: str = Field(
+        pattern="^[a-z]{3}$", description="The meaning's language, ISO 639-2."
+    )
+    collection_ids: list[int] = Field(
+        default_factory=list,
+        max_length=MAX_IMPORT_COLLECTIONS,
+        description="Entry collections to put it in too (optional).",
+    )
+
+
+class SpellingRequest(BaseModel):
+    kanji: SpellingText
+
+
+class ReadingRequest(BaseModel):
+    text: KanaText
 
 
 class ActiveRequest(BaseModel):
@@ -76,6 +122,30 @@ class NewKanjiMeaningRequest(BaseModel):
 
 class MeaningTextRequest(BaseModel):
     text: MeaningText
+
+
+SentenceText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
+]
+
+
+class ExampleRequest(BaseModel):
+    japanese: SentenceText
+    translation: str | None = Field(
+        default=None, max_length=500, description="Blank or null for none."
+    )
+    lang: str = Field(
+        pattern="^[a-z]{3}$",
+        description="The translation's language, ISO 639-2 (e.g. `eng`, `spa`); "
+        "not `jpn`, the sentence's own.",
+    )
+
+    @field_validator("lang")
+    @classmethod
+    def _not_japanese(cls, lang: str) -> str:
+        if lang == "jpn":
+            raise ValueError("the translation can't be in Japanese")
+        return lang
 
 
 class _Response(BaseModel):
@@ -113,6 +183,8 @@ class SenseResponse(_Response):
     glosses: list[GlossResponse]
     examples: list[ExampleResponse]
     notes: str | None
+    enabled: bool
+    origin: Origin
 
 
 class ReadingResponse(_Response):
@@ -122,6 +194,7 @@ class ReadingResponse(_Response):
     info: list[str]
     restricted_to: list[str]
     enabled: bool
+    origin: Origin
 
 
 class KanjiReadingResponse(_Response):
@@ -129,11 +202,12 @@ class KanjiReadingResponse(_Response):
     kanji: str
     info: list[str]
     enabled: bool
+    origin: Origin
 
 
 class PracticeEntryResponse(_Response):
     id: int
-    source_entry_id: int
+    source_entry_id: int | None  # None for a word of the user's own
     kanji_readings: list[KanjiReadingResponse]
     readings: list[ReadingResponse]
     senses: list[SenseResponse]

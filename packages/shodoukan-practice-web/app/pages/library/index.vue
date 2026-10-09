@@ -56,6 +56,14 @@ const { data, status, error } = useAsyncData(
 <template>
   <AppPanel title="Mi librería">
     <template #actions>
+      <UButton
+        label="Nueva palabra"
+        icon="i-lucide-plus"
+        to="/library/entries/new"
+        color="neutral"
+        variant="outline"
+        data-testid="new-entry"
+      />
       <UButton label="Importar del diccionario" icon="i-lucide-book-open" to="/dictionary" variant="soft" />
     </template>
 

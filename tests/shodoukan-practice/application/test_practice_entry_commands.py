@@ -3,10 +3,19 @@ from factories import make_entry, make_entry_collection
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.application.commands import (
+    AddEntryExample,
     AddEntryGloss,
+    AddEntryReading,
+    AddEntrySense,
+    AddEntrySpelling,
+    EditEntryExample,
     EditEntryGloss,
+    RemoveEntryExample,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntryReading,
+    RemoveEntrySense,
+    RemoveEntrySpelling,
     SetEntryActive,
     SetEntryNotes,
     SetEntryPartEnabled,
@@ -81,7 +90,75 @@ def test_own_meanings_lifecycle(
     assert edited.senses[0].glosses[-1].text == "gobble"
 
     removed = RemoveEntryGloss(entries).execute(user.id, entry_id, gloss.id)
-    assert [g.origin for g in removed.senses[0].glosses] == ["imported", "imported"]
+    assert [g.origin for g in removed.senses[0].glosses] == ["imported"]
+
+
+def test_own_senses_lifecycle(
+    entries: SqlAlchemyPracticeEntryRepository, entry: PracticeEntry, user: UserORM
+) -> None:
+    entry_id, sense_id, _ = _ids(entry)
+
+    added = AddEntrySense(entries).execute(user.id, entry_id, "to dine", "eng")
+    sense = added.senses[-1]
+    assert sense.id is not None and sense.origin == "added"
+    assert sense.glosses[0].id is not None
+    assert entries.get(entry_id, user.id) == added
+
+    hidden = SetEntryPartEnabled(entries).execute(
+        user.id, entry_id, "senses", sense_id, False
+    )
+    assert hidden.senses[0].enabled is False
+
+    removed = RemoveEntrySense(entries).execute(user.id, entry_id, sense.id)
+    assert sense.id not in [s.id for s in removed.senses]
+    assert removed.senses[0].id == sense_id
+    with pytest.raises(OriginalDataError):
+        RemoveEntrySense(entries).execute(user.id, entry_id, sense_id)
+
+
+def test_own_examples_lifecycle(
+    entries: SqlAlchemyPracticeEntryRepository, entry: PracticeEntry, user: UserORM
+) -> None:
+    entry_id, sense_id, _ = _ids(entry)
+
+    added = AddEntryExample(entries).execute(
+        user.id, entry_id, sense_id, "朝ご飯を食べる。", "I eat breakfast.", "eng"
+    )
+    example = added.senses[0].examples[-1]
+    assert example.id is not None and example.origin == "added"
+    assert entries.get(entry_id, user.id) == added
+
+    edited = EditEntryExample(entries).execute(
+        user.id, entry_id, example.id, "朝ご飯を食べた。", None, "eng"
+    )
+    assert [s.text for s in edited.senses[0].examples[-1].sentences] == [
+        "朝ご飯を食べた。"
+    ]
+
+    removed = RemoveEntryExample(entries).execute(user.id, entry_id, example.id)
+    assert all(e.origin == "imported" for e in removed.senses[0].examples)
+    imported = removed.senses[0].examples[0].id
+    assert imported is not None
+    with pytest.raises(OriginalDataError):
+        RemoveEntryExample(entries).execute(user.id, entry_id, imported)
+
+
+def test_own_spellings_and_readings_lifecycle(
+    entries: SqlAlchemyPracticeEntryRepository, entry: PracticeEntry, user: UserORM
+) -> None:
+    entry_id = _ids(entry)[0]
+
+    AddEntrySpelling(entries).execute(user.id, entry_id, "喰べる")
+    added = AddEntryReading(entries).execute(user.id, entry_id, "くう")
+    spelling, reading = added.kanji_readings[-1], added.readings[-1]
+    assert spelling.id is not None and reading.id is not None
+    assert (spelling.origin, reading.origin) == ("added", "added")
+    assert entries.get(entry_id, user.id) == added
+
+    RemoveEntrySpelling(entries).execute(user.id, entry_id, spelling.id)
+    removed = RemoveEntryReading(entries).execute(user.id, entry_id, reading.id)
+    assert all(k.origin == "imported" for k in removed.kanji_readings)
+    assert all(r.origin == "imported" for r in removed.readings)
 
 
 def test_dictionary_meanings_cant_be_edited_or_removed(

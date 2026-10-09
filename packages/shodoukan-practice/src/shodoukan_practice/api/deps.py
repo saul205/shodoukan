@@ -17,7 +17,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from shodoukan import Dictionary
 
 from ..application.commands import (
+    AddEntryExample,
     AddEntryGloss,
+    AddEntryReading,
+    AddEntrySense,
+    AddEntrySpelling,
     AddEntryToCollection,
     AddKanjiMeaning,
     AddKanjiToCollection,
@@ -25,18 +29,24 @@ from ..application.commands import (
     CreateEntryCollection,
     CreateExercise,
     CreateKanjiCollection,
+    CreateOwnEntry,
     DeleteEntryCollection,
     DeleteExercise,
     DeleteKanjiCollection,
+    EditEntryExample,
     EditEntryGloss,
     EditKanjiMeaning,
     EnsureUser,
     FinishExerciseSession,
     ImportEntry,
     ImportKanji,
+    RemoveEntryExample,
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
+    RemoveEntryReading,
+    RemoveEntrySense,
+    RemoveEntrySpelling,
     RemoveKanjiFromCollection,
     RemoveKanjiFromLibrary,
     RemoveKanjiMeaning,
@@ -174,6 +184,13 @@ def get_current_user(
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
+def get_create_own_entry(session: SessionDep) -> CreateOwnEntry:
+    return CreateOwnEntry(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
 def get_import_entry(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
@@ -260,8 +277,40 @@ def get_search_kanji(session: SessionDep, kana: KanaGatewayDep) -> SearchKanji:
 # --- Library items ---
 
 
+def get_add_entry_example(session: SessionDep) -> AddEntryExample:
+    return AddEntryExample(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_edit_entry_example(session: SessionDep) -> EditEntryExample:
+    return EditEntryExample(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_example(session: SessionDep) -> RemoveEntryExample:
+    return RemoveEntryExample(SqlAlchemyPracticeEntryRepository(session))
+
+
 def get_add_entry_gloss(session: SessionDep) -> AddEntryGloss:
     return AddEntryGloss(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_add_entry_spelling(session: SessionDep) -> AddEntrySpelling:
+    return AddEntrySpelling(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_spelling(session: SessionDep) -> RemoveEntrySpelling:
+    return RemoveEntrySpelling(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_add_entry_reading(session: SessionDep) -> AddEntryReading:
+    return AddEntryReading(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_reading(session: SessionDep) -> RemoveEntryReading:
+    return RemoveEntryReading(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_add_entry_sense(session: SessionDep) -> AddEntrySense:
+    return AddEntrySense(SqlAlchemyPracticeEntryRepository(session))
 
 
 def get_edit_entry_gloss(session: SessionDep) -> EditEntryGloss:
@@ -274,6 +323,10 @@ def get_remove_entry_from_library(session: SessionDep) -> RemoveEntryFromLibrary
 
 def get_remove_entry_gloss(session: SessionDep) -> RemoveEntryGloss:
     return RemoveEntryGloss(SqlAlchemyPracticeEntryRepository(session))
+
+
+def get_remove_entry_sense(session: SessionDep) -> RemoveEntrySense:
+    return RemoveEntrySense(SqlAlchemyPracticeEntryRepository(session))
 
 
 def get_set_entry_active(session: SessionDep) -> SetEntryActive:
