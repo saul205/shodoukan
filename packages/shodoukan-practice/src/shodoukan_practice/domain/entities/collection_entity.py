@@ -30,6 +30,9 @@ class Collection(TimestampedEntity):
     user_id: UUID
     name: str = Field(min_length=1, max_length=COLLECTION_NAME_MAX_LENGTH)
     description: str | None = None
+    # The collection this one was imported from, if any. No link: it may
+    # belong to another user, or another database, and be gone.
+    copied_from_collection_id: int | None = None
 
     def rename(self, name: str) -> None:
         if name != self.name:

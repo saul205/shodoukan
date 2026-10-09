@@ -60,6 +60,7 @@ Once any environment is deployed, migrations are append-only.
 | `0e2585638e77` | Word handwriting questions (`card.handwriting_word`) join the `type` check; downgrading deletes them and the word handwriting exercises |
 | `23728b417aff` | `enabled` and `origin` on `practice_senses`; downgrading deletes the user's own senses |
 | `d1d520270eb8` | `practice_entries.source_entry_id` nullable (words of the user's own); `origin` on spellings and readings; downgrading deletes own words, spellings and readings |
+| `b9ae9e057d9c` | `copied_from_id` on practice entries and the parts the user can add, `copied_from_collection_id` on collections (no foreign keys): where an imported copy came from |
 
 ## Safety nets
 

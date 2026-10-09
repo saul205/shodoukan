@@ -35,6 +35,7 @@ class KanjiCollectionORM(Base):
     )
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str | None]
+    copied_from_collection_id: Mapped[int | None]
     created_at: Mapped[datetime.datetime] = created_at_column()
     updated_at: Mapped[datetime.datetime] = updated_at_column()
 

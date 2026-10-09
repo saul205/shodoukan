@@ -24,3 +24,9 @@ def test_round_trip_keeps_notes() -> None:
     kanji = make_kanji(user_id=USER_ID)
     kanji.notes = "looks like 良"
     assert practice_kanji_to_domain(practice_kanji_to_db(kanji)) == kanji
+
+
+def test_round_trip_keeps_provenance() -> None:
+    kanji = make_kanji(user_id=USER_ID)
+    kanji.meanings[1].copied_from_id = 7
+    assert practice_kanji_to_domain(practice_kanji_to_db(kanji)) == kanji

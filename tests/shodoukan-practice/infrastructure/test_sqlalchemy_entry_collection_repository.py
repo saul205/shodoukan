@@ -187,3 +187,17 @@ def test_update_to_a_taken_name_fails(
 
     assert b.id is not None
     assert repo.get(b.id, user.id) == b
+
+
+def test_add_keeps_where_it_was_copied_from(
+    repo: SqlAlchemyEntryCollectionRepository, user: UserORM, session: Session
+) -> None:
+    collection = make_entry_collection(user.id, "N5").model_copy(
+        update={"copied_from_collection_id": 42}
+    )
+    added = repo.add(collection)
+    session.expunge_all()
+    assert added.id is not None
+    stored = repo.get(added.id, user.id)
+    assert stored is not None
+    assert stored.copied_from_collection_id == 42

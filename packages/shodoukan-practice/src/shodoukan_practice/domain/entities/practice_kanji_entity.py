@@ -12,8 +12,9 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from ..exceptions import OriginalDataError
-from .nested_item_lookup import Toggleable, clean_meaning, find_item
+from .nested_item_lookup import Toggleable, clean_meaning, find_item, merge_parts
 from .notes_value import Notes, parse_notes
+from .shared_collection_value import SharedKanji, SharedKanjiReading, SharedMeaning
 from .timestamped_entity import TimestampedEntity
 
 # The parts of a kanji the user can enable or disable, one item at a time.
@@ -39,6 +40,8 @@ class PracticeKanjiMeaning(BaseModel):
     lang: str
     enabled: bool = True
     origin: Literal["imported", "added"] = "imported"
+    # The id of the meaning this one was copied from (see `PracticeGloss`).
+    copied_from_id: int | None = None
 
 
 class PracticeKanji(TimestampedEntity):
@@ -105,6 +108,64 @@ class PracticeKanji(TimestampedEntity):
         self.meanings.remove(self._own_meaning(meaning_id))
         self.touch()
 
+    def to_shared(self) -> SharedKanji:
+        """What this kanji carries in an exported collection."""
+        return SharedKanji(
+            id=self.id,
+            literal=self.literal,
+            is_active=self.is_active,
+            notes=self.notes,
+            on_readings=_shared_readings(self.on_readings),
+            kun_readings=_shared_readings(self.kun_readings),
+            nanori=_shared_readings(self.nanori),
+            meanings=[
+                SharedMeaning(
+                    origin=m.origin,
+                    id=m.id,
+                    copied_from_id=m.copied_from_id,
+                    enabled=m.enabled,
+                    text=m.text,
+                    lang=m.lang,
+                )
+                for m in self.meanings
+            ],
+        )
+
+    def merge_shared(self, shared: SharedKanji, created: bool) -> bool:
+        """Take what a shared copy of this kanji adds.
+
+        Same rules as `PracticeEntry.merge_shared`: the meanings the user
+        added that this kanji doesn't have yet are appended, notes are copied
+        only when there are none, and the flags are taken only when the kanji
+        was `created` by this import. Returns whether anything changed.
+        """
+        if shared.literal != self.literal:
+            raise ValueError(f"{shared.literal!r} isn't {self.literal!r}")
+        changed = False
+        if created:
+            if self.is_active != shared.is_active:
+                self.is_active = shared.is_active
+                changed = True
+            for ours, theirs in (
+                (self.on_readings, shared.on_readings),
+                (self.kun_readings, shared.kun_readings),
+                (self.nanori, shared.nanori),
+            ):
+                changed |= _take_reading_flags(ours, theirs)
+        if self.notes is None and shared.notes is not None:
+            self.notes = shared.notes
+            changed = True
+        changed |= merge_parts(
+            self.meanings,
+            shared.meanings,
+            created=created,
+            same=lambda ours, theirs: ours.text == theirs.text,
+            copy=_copied_meaning,
+        )
+        if changed:
+            self.touch()
+        return changed
+
     def _own_meaning(self, meaning_id: int) -> PracticeKanjiMeaning:
         meaning = find_item(self.meanings, meaning_id, "meaning")
         if meaning.origin == "imported":
@@ -115,3 +176,30 @@ class PracticeKanji(TimestampedEntity):
         if part == "meanings":
             return self.meanings
         return [*self.on_readings, *self.kun_readings, *self.nanori]
+
+
+def _shared_readings(items: list[PracticeReadingItem]) -> list[SharedKanjiReading]:
+    return [SharedKanjiReading(text=r.text, enabled=r.enabled) for r in items]
+
+
+def _take_reading_flags(
+    ours: list[PracticeReadingItem], theirs: list[SharedKanjiReading]
+) -> bool:
+    """Take the flags of the readings that are in the same place, same text."""
+    changed = False
+    for item, shared in zip(ours, theirs, strict=False):
+        if item.text == shared.text and item.enabled != shared.enabled:
+            item.enabled = shared.enabled
+            changed = True
+    return changed
+
+
+def _copied_meaning(part: SharedMeaning) -> PracticeKanjiMeaning:
+    return PracticeKanjiMeaning(
+        id=None,
+        text=clean_meaning(part.text),
+        lang=part.lang,
+        enabled=part.enabled,
+        origin="added",
+        copied_from_id=part.id,
+    )

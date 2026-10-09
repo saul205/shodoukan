@@ -40,6 +40,7 @@ class PracticeEntryORM(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     source_entry_id: Mapped[int | None]
+    copied_from_id: Mapped[int | None]
     jlpt: Mapped[int | None]
     is_common: Mapped[bool]
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
@@ -71,6 +72,7 @@ class PracticeEntryKanjiReadingORM(Base):
     origin: Mapped[str] = mapped_column(
         String(16), default="imported", server_default="imported"
     )
+    copied_from_id: Mapped[int | None]
 
 
 class PracticeEntryReadingORM(Base):
@@ -90,6 +92,7 @@ class PracticeEntryReadingORM(Base):
     origin: Mapped[str] = mapped_column(
         String(16), default="imported", server_default="imported"
     )
+    copied_from_id: Mapped[int | None]
 
 
 class PracticeSenseORM(Base):
@@ -110,6 +113,7 @@ class PracticeSenseORM(Base):
     origin: Mapped[str] = mapped_column(
         String(16), default="imported", server_default="imported"
     )
+    copied_from_id: Mapped[int | None]
 
     glosses: Mapped[list[PracticeGlossORM]] = children("PracticeGlossORM.position")
     examples: Mapped[list[PracticeExampleORM]] = children("PracticeExampleORM.position")
@@ -131,6 +135,7 @@ class PracticeGlossORM(Base):
     origin: Mapped[str] = mapped_column(
         String(16), default="imported", server_default="imported"
     )
+    copied_from_id: Mapped[int | None]
 
 
 class PracticeExampleORM(Base):
@@ -147,6 +152,7 @@ class PracticeExampleORM(Base):
     origin: Mapped[str] = mapped_column(
         String(16), default="imported", server_default="imported"
     )
+    copied_from_id: Mapped[int | None]
 
     sentences: Mapped[list[PracticeExampleSentenceORM]] = children(
         "PracticeExampleSentenceORM.position"

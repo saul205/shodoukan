@@ -9,6 +9,7 @@ from sqlalchemy import (
     Subquery,
     exists,
     func,
+    or_,
     select,
 )
 from sqlalchemy.exc import IntegrityError
@@ -113,6 +114,26 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         rows = self._session.execute(query).tuples().all()
         # The IN leaves the user's own words (no source) out; this tells mypy.
         return {source: id_ for source, id_ in rows if source is not None}
+
+    def find_own_by_provenance(
+        self, ids: Iterable[int], user_id: UUID
+    ) -> list[PracticeEntry]:
+        ids = list(ids)
+        if not ids:
+            return []
+        query = (
+            self._select()
+            .where(
+                PracticeEntryORM.user_id == user_id,
+                PracticeEntryORM.source_entry_id.is_(None),
+                or_(
+                    PracticeEntryORM.id.in_(ids),
+                    PracticeEntryORM.copied_from_id.in_(ids),
+                ),
+            )
+            .order_by(PracticeEntryORM.id)
+        )
+        return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
 
     def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:
         if entry.source_entry_id is None:

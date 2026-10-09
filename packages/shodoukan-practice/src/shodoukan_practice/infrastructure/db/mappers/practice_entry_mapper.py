@@ -38,6 +38,7 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
         id=row.id,
         user_id=row.user_id,
         source_entry_id=row.source_entry_id,
+        copied_from_id=row.copied_from_id,
         kanji_readings=[
             PracticeKanjiReading(
                 id=kr.id,
@@ -45,6 +46,7 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
                 info=kr.info,
                 enabled=kr.enabled,
                 origin=_origin(kr.origin),
+                copied_from_id=kr.copied_from_id,
             )
             for kr in row.kanji_readings
         ],
@@ -57,6 +59,7 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
                 restricted_to=r.restricted_to,
                 enabled=r.enabled,
                 origin=_origin(r.origin),
+                copied_from_id=r.copied_from_id,
             )
             for r in row.readings
         ],
@@ -80,6 +83,7 @@ def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
         info=row.info,
         enabled=row.enabled,
         origin=_origin(row.origin),
+        copied_from_id=row.copied_from_id,
         glosses=[
             PracticeGloss(
                 id=g.id,
@@ -88,6 +92,7 @@ def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
                 type=g.type,
                 enabled=g.enabled,
                 origin=_origin(g.origin),
+                copied_from_id=g.copied_from_id,
             )
             for g in row.glosses
         ],
@@ -101,6 +106,7 @@ def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
                 ],
                 enabled=ex.enabled,
                 origin=_origin(ex.origin),
+                copied_from_id=ex.copied_from_id,
             )
             for ex in row.examples
         ],
@@ -112,6 +118,7 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
         id=entity.id,
         user_id=entity.user_id,
         source_entry_id=entity.source_entry_id,
+        copied_from_id=entity.copied_from_id,
         kanji_readings=[
             PracticeEntryKanjiReadingORM(
                 id=kr.id,
@@ -120,6 +127,7 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
                 info=kr.info,
                 enabled=kr.enabled,
                 origin=kr.origin,
+                copied_from_id=kr.copied_from_id,
             )
             for i, kr in enumerate(entity.kanji_readings)
         ],
@@ -133,6 +141,7 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
                 restricted_to=r.restricted_to,
                 enabled=r.enabled,
                 origin=r.origin,
+                copied_from_id=r.copied_from_id,
             )
             for i, r in enumerate(entity.readings)
         ],
@@ -157,6 +166,7 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
         info=entity.info,
         enabled=entity.enabled,
         origin=entity.origin,
+        copied_from_id=entity.copied_from_id,
         glosses=[
             PracticeGlossORM(
                 id=g.id,
@@ -166,6 +176,7 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
                 type=g.type,
                 enabled=g.enabled,
                 origin=g.origin,
+                copied_from_id=g.copied_from_id,
             )
             for i, g in enumerate(entity.glosses)
         ],
@@ -180,6 +191,7 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
                 ],
                 enabled=ex.enabled,
                 origin=ex.origin,
+                copied_from_id=ex.copied_from_id,
             )
             for i, ex in enumerate(entity.examples)
         ],

@@ -12,18 +12,18 @@ The models that define these tables are described in
 | Table | Parent | Constraints and notes |
 |---|---|---|
 | `users` | — | `id` **`uuid`**: the identity provider's user id (token `sub`), not generated here; `username` (display name, up to 255 characters, not unique) |
-| `practice_entries` | `users` | `source_entry_id` nullable (a word of the user's own has none), `UNIQUE(user_id, source_entry_id)` (NULLs are distinct, so own words can repeat), `notes` text (nullable) |
-| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled`, `origin` (CHECK) |
-| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled`, `origin` (CHECK) |
-| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable), `enabled`, `origin` (CHECK) |
-| `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')` |
-| `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK) |
+| `practice_entries` | `users` | `source_entry_id` nullable (a word of the user's own has none), `UNIQUE(user_id, source_entry_id)` (NULLs are distinct, so own words can repeat), `notes` text (nullable), `copied_from_id` |
+| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled`, `origin` (CHECK), `copied_from_id` |
+| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled`, `origin` (CHECK), `copied_from_id` |
+| `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable), `enabled`, `origin` (CHECK), `copied_from_id` |
+| `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')`, `copied_from_id` |
+| `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK), `copied_from_id` |
 | `practice_example_sentences` | `practice_examples` | `position`, `lang`, `text` |
 | `practice_kanji` | `users` | `UNIQUE(user_id, literal)`, `notes` text (nullable) |
 | `practice_kanji_reading_items` | `practice_kanji` | `kind` with `CHECK kind IN ('on','kun','nanori')`, `position`, `enabled` |
-| `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK) |
-| `entry_collections` | `users` | `UNIQUE(user_id, name)` |
-| `kanji_collections` | `users` | `UNIQUE(user_id, name)` |
+| `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK), `copied_from_id` |
+| `entry_collections` | `users` | `UNIQUE(user_id, name)`, `copied_from_collection_id` |
+| `kanji_collections` | `users` | `UNIQUE(user_id, name)`, `copied_from_collection_id` |
 | `entry_collection_items` | link table | PK `(collection_id, entry_id)`, index on `entry_id`, `added_at` |
 | `kanji_collection_items` | link table | PK `(collection_id, kanji_id)`, index on `kanji_id`, `added_at` |
 | `exercises` | `users` | `item_kind` with `CHECK item_kind IN ('entries','kanji')`, `settings` JSON, `name` (not unique), `description` |
@@ -31,6 +31,11 @@ The models that define these tables are described in
 | `exercise_sessions` | `users` | partial unique index `uq_exercise_sessions_user_id_open` on `user_id` `WHERE finished_at IS NULL` (one open session per user); `exercise_id` → `exercises` (`SET NULL`), `exercise_name`, `item_kind` (CHECK), `meaning_lang`, `finished_at` (nullable) |
 | `exercise_questions` | `exercise_sessions` | `position`, `UNIQUE(session_id, position)`; `entry_id` → `practice_entries` / `kanji_id` → `practice_kanji`, both `SET NULL`, `CHECK entry_id IS NULL OR kanji_id IS NULL`; `type` (`CHECK` `card.choice` / `card.handwriting` / `card.handwriting_word`); `prompt_fields`, `prompt`, `back`, `answer` JSON; `details` JSON, what only the type has (choice: `options`, `correct_option`; handwriting: `references`, `grade`; word handwriting: `words`, `grade`); `is_correct`, `answered_at`, `response_ms` |
 | `exercise_kanji_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `kanji_collections`, index on `collection_id`, `position` |
+
+`copied_from_id` / `copied_from_collection_id` (nullable integers, **no foreign key**)
+hold the id of the element a copy was imported from: the origin may be another user's,
+or another database's, and may be gone. See
+[importing a collection](../../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
 
 Every table except `users` and the link tables has an integer `id` primary key.
 `users.id` is a UUID, and so is every `user_id` foreign key (`practice_entries`,

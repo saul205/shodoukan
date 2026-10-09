@@ -80,6 +80,26 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
+### `ImportEntryCollection(dictionary, entries, collections).execute(user_id, shared)`
+
+Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)
+(an exported file) as a **new** collection named with `free_collection_name` and
+`copied_from_collection_id = shared.id`, and returns a `CollectionImport(collection,
+created, existing, missing)`. For each item, in order:
+
+- a dictionary word the user has is merged (`merge_shared(created=False)`) and stored
+  only if that changed it;
+- a missing one is taken from the dictionary, merged with `created=True` and added
+  (`add_if_absent`; if a concurrent import won, it's merged as existing);
+- one the dictionary no longer has goes to `missing` (its `source_entry_id`);
+- a word of someone's own is matched against the user's own words by provenance
+  (`find_own_by_provenance`, one query for the whole file): reused and merged, or
+  created with `PracticeEntry.from_shared`.
+
+Each is then added to the collection. Doesn't commit, so an error leaves nothing.
+`ImportKanjiCollection(dictionary, kanji, collections)` does the same by `literal`
+(`missing` holds literals).
+
 ## Commands (`commands/exercise_commands.py`)
 
 Collection ids are checked against the user's collections **of the exercise's kind**
@@ -269,6 +289,13 @@ The user's entry collections, ordered by name. `ListKanjiCollections` likewise.
 ### `GetEntryCollection(collections).execute(user_id, collection_id)`
 
 One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
+
+### `ExportEntryCollection(collections, entries).execute(user_id, collection_id)`
+
+The collection as a `SharedEntryCollection`: every item (active or not) in the order
+they were added, each `to_shared()`. `EntityNotFoundError` for a collection the user
+doesn't have; `ValidationError` (422) with more than `MAX_SHARED_ITEMS` items, which no
+import would take. `ExportKanjiCollection(collections, kanji)` likewise.
 
 A collection's items are listed (and searched) with
 [`SearchEntries` / `SearchKanji`](#queries-querieslibrary_search_queriespy) and

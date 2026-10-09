@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Export a collection as a file and import it back, in any
+  account (`GET /collections/{entries,kanji}/{id}/export`, `POST
+  /collections/{entries,kanji}/import`). The file carries each item's dictionary
+  reference plus the user's own data; importing always creates a new collection,
+  reuses what the user has without overriding their choices, and never duplicates
+  (`copied_from_id` / `copied_from_collection_id` record where copies came from).
 - **shodoukan-practice:** Example sentences of the user's own in a word's senses
   (`POST /library/entries/{id}/senses/{sense_id}/examples`, `PUT` / `DELETE
   .../examples/{example_id}`): a Japanese sentence and an optional translation; editing

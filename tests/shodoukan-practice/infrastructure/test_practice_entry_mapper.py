@@ -55,3 +55,14 @@ def test_round_trip_keeps_own_words() -> None:
     assert row.source_entry_id is None
     assert (row.kanji_readings[0].origin, row.readings[0].origin) == ("added", "added")
     assert practice_entry_to_domain(row) == entry
+
+
+def test_round_trip_keeps_provenance() -> None:
+    entry = make_entry(user_id=USER_ID).model_copy(update={"copied_from_id": 9})
+    entry.kanji_readings[0].copied_from_id = 1
+    entry.readings[0].copied_from_id = 2
+    sense = entry.senses[0]
+    sense.copied_from_id = 3
+    sense.glosses[0].copied_from_id = 4
+    sense.examples[0].copied_from_id = 5
+    assert practice_entry_to_domain(practice_entry_to_db(entry)) == entry

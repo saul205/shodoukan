@@ -830,3 +830,30 @@ Senses are also kept to one language (`SenseLanguageError`, 422), as in JMDict, 
 no sense mixes languages. It makes "the sense's only meaning" the same as "its only
 meaning in the language on screen", so the check can't be bypassed through a meaning
 in another language.
+
+## Exported collections are references plus the user's own data
+
+An exported collection carries each item's dictionary reference and everything the
+user layered on top (parts with their origin and flags, added parts, notes), not the
+dictionary data: the import takes a fresh snapshot, as importing from search does. A
+full snapshot was ruled out because the import would ignore most of it, and public
+collections (#82) would need a second format. The file is the same payload #82 will
+read from the database, so its rules (always a new collection, the user's data wins,
+flags only on what the import creates) are fixed once, in the
+[proposal](../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
+
+- **Imported parts are located by place, checked by text.** Library senses keep no
+  dictionary sense id, so the Nth imported sense is matched by position and accepted
+  only if its first meaning is the same; a spelling, reading or meaning by its text.
+  When the dictionary changed in between, the part is left as the user has it, and the
+  added parts that hung from it are skipped. Storing the dictionary's sense ids was
+  ruled out for now: it'd need a backfill of every library.
+- **Provenance instead of comparing text.** Added parts are copied with
+  `copied_from_id`, and two parts are the same when their `{id, copied_from_id}`
+  overlap. So re-importing a file, or importing back a copy of one's own collection,
+  adds nothing twice, even after the text was edited. Ids from another database can
+  coincide; the comparison is within one item (or among the user's own words), so the
+  worst case is a skipped part.
+- **No foreign keys** on `copied_from_*`: the origin may belong to another user or
+  database and be deleted.
+

@@ -236,3 +236,106 @@ def test_cors_allows_delete(client: TestClient) -> None:
         },
     )
     assert response.status_code == 200
+
+
+# --- Export and import ---
+
+
+def test_export_then_import_into_another_account(
+    client: TestClient,
+    headers: dict[str, str],
+    make_token: TokenFactory,
+    other_user: UserORM,
+) -> None:
+    collection = _create(client, headers, description="Godan")
+    entry_id = _import_entry(client, headers, 1000001)
+    client.put(
+        f"/collections/entries/{collection['id']}/items/{entry_id}", headers=headers
+    )
+
+    exported = client.get(
+        f"/collections/entries/{collection['id']}/export", headers=headers
+    )
+    assert exported.status_code == 200
+    file = exported.json()
+    assert (file["format"], file["version"], file["kind"]) == (
+        "shodoukan.collection",
+        1,
+        "entries",
+    )
+    assert file["collection"]["name"] == "verbs"
+    assert [i["source_entry_id"] for i in file["collection"]["items"]] == [1000001]
+
+    theirs = bearer(make_token(str(other_user.id)))
+    imported = client.post("/collections/entries/import", json=file, headers=theirs)
+    assert imported.status_code == 201
+    body = imported.json()
+    assert (body["created"], body["existing"], body["missing"]) == (1, 0, [])
+    assert body["collection"]["name"] == "verbs"
+    assert body["collection"]["description"] == "Godan"
+    items = client.get(
+        f"/collections/entries/{body['collection']['id']}/items", headers=theirs
+    )
+    assert items.json()["total"] == 1
+
+    again = client.post("/collections/entries/import", json=file, headers=headers)
+    assert again.json()["collection"]["name"] == "verbs (2)"
+    assert again.json()["existing"] == 1
+
+
+def test_import_rejects_a_file_of_the_other_kind(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    collection = _create(client, headers, kind="kanji")
+    file = client.get(
+        f"/collections/kanji/{collection['id']}/export", headers=headers
+    ).json()
+    assert file["collection"]["items"] == []
+
+    wrong = client.post("/collections/entries/import", json=file, headers=headers)
+    assert wrong.status_code == 422
+    unknown = client.post(
+        "/collections/kanji/import", json={**file, "version": 2}, headers=headers
+    )
+    assert unknown.status_code == 422
+    ok = client.post("/collections/kanji/import", json=file, headers=headers)
+    assert ok.status_code == 201
+    assert ok.json()["collection"]["name"] == "verbs (2)"
+
+
+def test_import_of_an_invalid_item_imports_nothing(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    file = {
+        "format": "shodoukan.collection",
+        "version": 1,
+        "kind": "entries",
+        "collection": {
+            "name": "bad",
+            "items": [
+                {"source_entry_id": 1000001},
+                {
+                    "source_entry_id": None,
+                    "readings": [{"origin": "added", "text": "not kana"}],
+                },
+            ],
+        },
+    }
+    response = client.post("/collections/entries/import", json=file, headers=headers)
+    assert response.status_code == 422
+    assert client.get("/collections/entries", headers=headers).json() == []
+    assert client.get("/library/entries", headers=headers).json()["total"] == 0
+
+
+def test_export_of_another_users_collection_is_404(
+    client: TestClient,
+    headers: dict[str, str],
+    make_token: TokenFactory,
+    other_user: UserORM,
+) -> None:
+    collection = _create(client, headers)
+    theirs = bearer(make_token(str(other_user.id)))
+    response = client.get(
+        f"/collections/entries/{collection['id']}/export", headers=theirs
+    )
+    assert response.status_code == 404

@@ -51,6 +51,13 @@ class PracticeEntryRepository(Protocol):
         """
         ...
 
+    def find_own_by_provenance(
+        self, ids: Iterable[int], user_id: UUID
+    ) -> list[PracticeEntry]:
+        """The user's own words (no source) whose id or `copied_from_id` is one
+        of `ids`: those a shared word may be a copy of, or the origin of."""
+        ...
+
     def add(self, entry: PracticeEntry) -> PracticeEntry: ...
 
     def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:

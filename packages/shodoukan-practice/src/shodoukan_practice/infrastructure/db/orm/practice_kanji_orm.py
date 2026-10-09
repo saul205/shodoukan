@@ -78,3 +78,4 @@ class PracticeKanjiMeaningORM(Base):
     origin: Mapped[str] = mapped_column(
         String(16), default="imported", server_default="imported"
     )
+    copied_from_id: Mapped[int | None]

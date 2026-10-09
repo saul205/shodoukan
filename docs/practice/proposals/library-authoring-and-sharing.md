@@ -27,6 +27,13 @@ and [creating words of your own](../functional/library/create.md).
 
 ## Importing a collection (#86 from a file, #82 from another user)
 
+**#86 built:** export and import as files, see
+[managing collections](../functional/collections/manage.md#exporting-and-importing),
+[entities](../technical/domain/entities.md#sharing-shared_collection_valuepy),
+[endpoints](../technical/api/endpoints.md#export-and-import) and
+[decisions](../technical/decisions.md#exported-collections-are-references-plus-the-users-own-data).
+The contract stays here for #82.
+
 Importing a collection exported to a file (#86, built first) and importing a public
 collection (#82) are **one use case with two sources**. The file is the payload a public
 collection will be read as, so what follows is the contract for both. Agreed

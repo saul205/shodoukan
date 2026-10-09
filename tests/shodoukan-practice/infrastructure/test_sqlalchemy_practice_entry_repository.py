@@ -453,3 +453,27 @@ def test_own_words_have_no_source_and_can_repeat(
     assert list(repo.practice_ids_by_source_entry_id([1000001], user.id)) == [1000001]
     with pytest.raises(ValueError):
         repo.add_if_absent(own())
+
+
+def test_find_own_by_provenance_matches_ids_and_origins(
+    repo: SqlAlchemyPracticeEntryRepository,
+    user: UserORM,
+    other_user: UserORM,
+    session: Session,
+) -> None:
+    def own(user_id: Any, copied_from_id: int | None = None) -> PracticeEntry:
+        entry = PracticeEntry.create_own(user_id, [], ["さんびき"], "x", "eng")
+        return entry.model_copy(update={"copied_from_id": copied_from_id})
+
+    mine = repo.add(own(user.id))
+    copy = repo.add(own(user.id, copied_from_id=900))
+    repo.add(own(other_user.id, copied_from_id=900))
+    dictionary = repo.add(make_entry(user.id))
+    session.expunge_all()
+    assert mine.id is not None
+    assert dictionary.id is not None
+
+    found = repo.find_own_by_provenance([mine.id, 900, dictionary.id], user.id)
+    assert [e.id for e in found] == [mine.id, copy.id]
+    assert found[1].copied_from_id == 900
+    assert repo.find_own_by_provenance([], user.id) == []
