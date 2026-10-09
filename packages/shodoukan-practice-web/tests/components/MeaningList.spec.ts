@@ -2,6 +2,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
+import { defineComponent, h } from 'vue'
+import { UApp } from '#components'
 import MeaningList from '../../app/components/MeaningList.vue'
 import { signedInAuth } from '../fakes'
 
@@ -90,5 +92,22 @@ describe('MeaningList', () => {
     expect(rows.map(row => row.text())).toEqual(['to eat'])
     expect(wrapper.find('[role="switch"]').exists()).toBe(false)
     expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('keeps the last meaning when asked to: only while it\'s the only one', async () => {
+    const own = { id: 2, text: 'to scoff', enabled: true, origin: 'added' as const }
+    // The locked button's tooltip needs the provider UApp gives.
+    const mountList = (items: typeof meanings) => mountSuspended(defineComponent({
+      render: () => h(UApp, null, { default: () => h(MeaningList, { meanings: items, keepLast: true }) }),
+    }))
+
+    const alone = await mountList([own])
+    expect(alone.find('[data-testid="remove-locked"]').exists()).toBe(true)
+    expect(alone.find('[data-testid="remove"]').exists()).toBe(false)
+    expect(alone.find('[data-testid="edit"]').exists()).toBe(true)
+
+    const withOthers = await mountList([meanings[0]!, own])
+    expect(withOthers.find('[data-testid="remove"]').exists()).toBe(true)
+    expect(withOthers.find('[data-testid="remove-locked"]').exists()).toBe(false)
   })
 })

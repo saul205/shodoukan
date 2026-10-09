@@ -72,6 +72,7 @@ lost, and re-enabling it is always possible.
 | Editing or deleting one of the dictionary's meanings | Rejected; it can only be disabled |
 | An empty meaning, or a note over 2000 characters | Rejected as invalid |
 | A meaning, example, sense, spelling or reading that can't be saved (e.g. no connection) | An error message; what the user typed stays in the form to try again |
+| Deleting the only meaning of a meaning group | Not possible: its delete button is disabled, and its tooltip says to edit it or delete the whole group |
 
 Technical details: [use cases](../../technical/application/use-cases.md) and
 [endpoints](../../technical/api/endpoints.md#library-items-detail-and-customisation).

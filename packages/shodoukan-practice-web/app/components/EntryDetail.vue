@@ -136,6 +136,7 @@ async function addSense() {
         <div :class="{ 'opacity-60': !viewOnly && !sense.enabled }" class="space-y-4">
           <MeaningList
             :meanings="meaningsOf(sense)"
+            keep-last
             :view-only="viewOnly"
             :disabled="saving"
             @toggle="(glossId, enabled) => emit('toggle', 'glosses', glossId, enabled)"

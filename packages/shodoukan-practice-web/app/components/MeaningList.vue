@@ -21,11 +21,16 @@ const props = withDefaults(defineProps<{
   meanings: MeaningItem[]
   disabled?: boolean
   viewOnly?: boolean
+  /**
+   * The list can't be left empty (a word's sense keeps one meaning): the only
+   * meaning can be edited but not deleted; the sense itself is deleted instead.
+   */
+  keepLast?: boolean
   /** Saves a new meaning; resolves to whether it was saved. */
   onAdd?: (text: string) => Promise<boolean>
   /** Saves an own meaning's new text; resolves to whether it was saved. */
   onEdit?: (id: number, text: string) => Promise<boolean>
-}>(), { disabled: false, viewOnly: false })
+}>(), { disabled: false, viewOnly: false, keepLast: false })
 
 const emit = defineEmits<{
   toggle: [id: number, enabled: boolean]
@@ -41,6 +46,7 @@ const editText = ref('')
 const pending = ref(false)
 
 const shown = computed(() => props.meanings.filter(meaning => meaning.enabled))
+const isLast = computed(() => props.keepLast && props.meanings.length === 1)
 
 const canAdd = computed(() => {
   const text = newText.value.trim()
@@ -139,7 +145,24 @@ async function confirmEdit(meaning: MeaningItem) {
             data-testid="edit"
             @click="startEdit(meaning)"
           />
+          <!-- A disabled button gets no pointer events: the span shows the tooltip. -->
+          <UTooltip
+            v-if="isLast"
+            text="Es el único: edítalo, o elimina el significado entero con su papelera de arriba"
+          >
+            <span tabindex="0" data-testid="remove-locked">
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                aria-label="No se puede eliminar: es el único"
+                disabled
+              />
+            </span>
+          </UTooltip>
           <UButton
+            v-else
             icon="i-lucide-trash-2"
             color="error"
             variant="ghost"
