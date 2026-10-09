@@ -183,7 +183,7 @@ Current methods:
 | `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
-| `PracticeEntry` | `create_own(...)` (class method), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)` |
+| `PracticeEntry` | `create_own(...)` (class method), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `add_example(sense_id, japanese, translation, lang)`, `edit_example(example_id, japanese, translation, lang)`, `remove_example(example_id)` |
 | `PracticeKanji` | `add_meaning(text, lang)`, `edit_meaning(meaning_id, text)`, `remove_meaning(meaning_id)` |
 
 `part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"senses"`, `"glosses"`,
@@ -191,7 +191,7 @@ Current methods:
 or a `KanjiPart` (`"readings"`, covering on, kun and nanori, or `"meanings"`). A nested
 id that isn't there raises `EntityNotFoundError`. Nested models don't validate on
 assignment, so notes go through `parse_notes` and meaning texts through
-`clean_meaning` (`nested_item_lookup.py`).
+`clean_meaning`, example sentences through `clean_sentence` (`nested_item_lookup.py`).
 
 ## Customisation rules
 
@@ -205,6 +205,11 @@ top:
 - **Senses of their own.** The user adds a sense (`origin="added"`, appended to the
   entry, `pos` / `misc` empty) with its first meaning, so it's never empty, and can
   remove it with its meanings and examples. Imported senses take own meanings too.
+- **Examples of their own.** Like the dictionary's, they belong to a sense: a Japanese
+  sentence (`lang="jpn"`) and optionally a translation in the user's language (ISO
+  639-2). `text`, JMDict's form of the word in the sentence, is empty. Editing replaces
+  the Japanese sentence and the translation in that language (a blank one removes it)
+  and keeps the other translations. Only own examples are edited or removed.
 - **Meanings are an editable list.** The user adds meanings of their own
   (`origin="added"`, appended to the sense or kanji) and can edit their text or remove
   them. Entry glosses use ISO 639-2 language codes (`eng`), kanji meanings ISO 639-1

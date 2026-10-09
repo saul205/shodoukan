@@ -150,6 +150,49 @@ def test_own_senses(
     )
 
 
+def test_own_examples(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    sense_id = entry["senses"][0]["id"]
+    imported = len(entry["senses"][0]["examples"])
+
+    added = client.post(
+        f"{url}/senses/{sense_id}/examples",
+        json={"japanese": " 朝ご飯を食べる。 ", "translation": "I eat.", "lang": "eng"},
+        headers=headers,
+    )
+    assert added.status_code == 201
+    example = added.json()["senses"][0]["examples"][-1]
+    assert example["origin"] == "added"
+    assert example["sentences"] == [
+        {"lang": "jpn", "text": "朝ご飯を食べる。"},
+        {"lang": "eng", "text": "I eat."},
+    ]
+
+    edited = client.put(
+        f"{url}/examples/{example['id']}",
+        json={"japanese": "朝ご飯を食べた。", "translation": None, "lang": "eng"},
+        headers=headers,
+    )
+    assert edited.json()["senses"][0]["examples"][-1]["sentences"] == [
+        {"lang": "jpn", "text": "朝ご飯を食べた。"}
+    ]
+
+    removed = client.delete(f"{url}/examples/{example['id']}", headers=headers)
+    assert removed.status_code == 200
+    assert len(removed.json()["senses"][0]["examples"]) == imported
+    for body in (
+        {"japanese": " ", "lang": "eng"},
+        {"japanese": "x", "lang": "en"},
+        {"japanese": "x", "translation": "x", "lang": "jpn"},
+    ):
+        response = client.post(
+            f"{url}/senses/{sense_id}/examples", json=body, headers=headers
+        )
+        assert response.status_code == 422
+
+
 def test_own_spellings_and_readings(
     client: TestClient, headers: dict[str, str], entry: dict[str, Any]
 ) -> None:

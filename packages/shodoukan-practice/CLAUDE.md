@@ -127,7 +127,8 @@ standalone: never call shodoukan-api from here.
   words of the user's own (`PracticeEntry.create_own`, no `source_entry_id`), own
   spellings and readings (`add_spelling` / `remove_spelling`, `add_reading` /
   `remove_reading`), own senses (`add_sense` / `remove_sense`), own meanings (`add_gloss` /
-  `edit_gloss` / `remove_gloss`, `add_meaning` / ...),
+  `edit_gloss` / `remove_gloss`, `add_meaning` / ...), own examples (`add_example` /
+  `edit_example` / `remove_example`),
   `PracticeEntry.set_sense_notes`; `Exercise.rename` / `describe` / `configure` /
   `use_collections`. Each calls `touch()` only on a real change.
 - Exercises are `EntryExercise` / `KanjiExercise` (one `exercises` table, `item_kind`);
@@ -156,11 +157,12 @@ standalone: never call shodoukan-api from here.
   exercises write a word (spelling or reading) a character per cell: only words whose
   every character has a stroke order, graded per cell (`grade_word`, worst cell wins).
 - Dictionary data in the library is never edited or deleted, only disabled
-  (`OriginalDataError` → 409); only the user's own senses and meanings change. A
-  disabled sense hides its glosses and examples (a gloss counts when
-  `sense.enabled and gloss.enabled`). Own spellings and readings can be added; a word
-  keeps one reading (`LastReadingError` → 409). A word of the user's own
-  (`POST /library/entries/own`) has `source_entry_id = None` and only `added` parts. Notes: entry, sense and kanji (`Notes`, ≤ 2000 chars, blank → `None`).
+  (`OriginalDataError` → 409); only the user's own spellings, readings, senses,
+  meanings and examples change. A disabled sense hides its glosses and examples (a
+  gloss counts when `sense.enabled and gloss.enabled`). A word keeps one reading
+  (`LastReadingError` → 409). A word of the user's own (`POST /library/entries/own`)
+  has `source_entry_id = None` and only `added` parts. Notes: entry, sense and kanji
+  (`Notes`, ≤ 2000 chars, blank → `None`).
 
 ## Database
 

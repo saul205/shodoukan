@@ -34,6 +34,12 @@ start with it, as on Jisho.
   the meanings and examples the user had hidden inside it still hidden.
 - **Add their own meanings.** Words get them per meaning group (sense), kanji on the
   kanji. The user's meanings are marked as their own, and they can edit or delete them.
+- **Add their own examples.** Each meaning group has **Añadir un ejemplo propio**: a
+  sentence in Japanese and, optionally, its translation in the language chosen in the
+  side menu. To add one to a sense the dictionary doesn't have, the user first creates
+  that meaning group. Their examples are marked as their own and can be rewritten (the
+  translation in the current language; translations written in other languages stay)
+  or deleted.
 - **Add their own spellings and readings.** Beside a word's spellings and readings, a
   box adds one of the user's own (readings in kana), marked as their own and deletable.
   A word always keeps at least one reading. Words of the user's own are made of these

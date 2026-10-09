@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Example sentences of the user's own in a word's senses
+  (`POST /library/entries/{id}/senses/{sense_id}/examples`, `PUT` / `DELETE
+  .../examples/{example_id}`): a Japanese sentence and an optional translation; editing
+  keeps the translations in other languages. Dictionary examples can only be disabled.
+- **shodoukan-practice-web:** "Añadir un ejemplo propio" in each meaning group of a
+  library word: a Japanese sentence and an optional translation, marked "propio",
+  editable and deletable.
 - **shodoukan-practice:** Words of the user's own, for what the dictionary doesn't have
   (e.g. counters with their numbers): `POST /library/entries/own` with readings,
   optional spellings, a first meaning and collections; they have no `source_entry_id`

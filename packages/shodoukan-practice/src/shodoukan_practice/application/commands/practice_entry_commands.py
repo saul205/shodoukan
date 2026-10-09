@@ -161,6 +161,49 @@ class RemoveEntryGloss(_EntryCommand):
         return self._entries.update(entry)
 
 
+class AddEntryExample(_EntryCommand):
+    """Add an example sentence of the user's own to one of the entry's senses."""
+
+    def execute(
+        self,
+        user_id: UUID,
+        entry_id: int,
+        sense_id: int,
+        japanese: str,
+        translation: str | None,
+        lang: str,
+    ) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.add_example(sense_id, japanese, translation, lang)
+        return self._entries.update(entry)
+
+
+class EditEntryExample(_EntryCommand):
+    """Rewrite one of the user's own examples (its sentence and a translation)."""
+
+    def execute(
+        self,
+        user_id: UUID,
+        entry_id: int,
+        example_id: int,
+        japanese: str,
+        translation: str | None,
+        lang: str,
+    ) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.edit_example(example_id, japanese, translation, lang)
+        return self._entries.update(entry)
+
+
+class RemoveEntryExample(_EntryCommand):
+    """Remove one of the user's own examples."""
+
+    def execute(self, user_id: UUID, entry_id: int, example_id: int) -> PracticeEntry:
+        entry = self._load(user_id, entry_id)
+        entry.remove_example(example_id)
+        return self._entries.update(entry)
+
+
 class RemoveEntryFromLibrary(_EntryCommand):
     """Delete the user's copy of an entry, and take it out of their collections.
 

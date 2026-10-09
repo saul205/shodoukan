@@ -16,10 +16,8 @@ Built: see [entities](../technical/domain/entities.md#customisation-rules) and
 
 ## Own example sentences (#80)
 
-- Same shape as the imported ones: linked to a sense, which the user picks or creates.
-  Japanese text plus one or more translations (`PracticeExampleSentence`).
-- `PracticeExample.origin` already exists. Add `add_example` / `edit_example` /
-  `remove_example` following the own-gloss pattern (`_own_gloss`), one endpoint each.
+Built: see [entities](../technical/domain/entities.md#customisation-rules) and
+[decisions](../technical/decisions.md#own-examples-are-a-sentence-and-one-translation-at-a-time).
 
 ## Entries from scratch (#81)
 

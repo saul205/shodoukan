@@ -37,6 +37,14 @@ def clean_meaning(text: str) -> str:
     return text
 
 
+def clean_sentence(text: str) -> str:
+    """An example sentence without surrounding whitespace; it can't be empty."""
+    text = text.strip()
+    if not text:
+        raise ValueError("a sentence can't be empty")
+    return text
+
+
 def clean_kana(text: str) -> str:
     """A reading without surrounding whitespace: hiragana or katakana only."""
     text = text.strip()

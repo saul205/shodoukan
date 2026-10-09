@@ -8,7 +8,13 @@ serialize as ISO 8601 with offset (`...Z`).
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+)
 
 from ...domain.entities import NOTES_MAX_LENGTH
 
@@ -116,6 +122,30 @@ class NewKanjiMeaningRequest(BaseModel):
 
 class MeaningTextRequest(BaseModel):
     text: MeaningText
+
+
+SentenceText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
+]
+
+
+class ExampleRequest(BaseModel):
+    japanese: SentenceText
+    translation: str | None = Field(
+        default=None, max_length=500, description="Blank or null for none."
+    )
+    lang: str = Field(
+        pattern="^[a-z]{3}$",
+        description="The translation's language, ISO 639-2 (e.g. `eng`, `spa`); "
+        "not `jpn`, the sentence's own.",
+    )
+
+    @field_validator("lang")
+    @classmethod
+    def _not_japanese(cls, lang: str) -> str:
+        if lang == "jpn":
+            raise ValueError("the translation can't be in Japanese")
+        return lang
 
 
 class _Response(BaseModel):
