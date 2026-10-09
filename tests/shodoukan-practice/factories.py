@@ -79,7 +79,6 @@ def make_entry(
                 info=[],
                 glosses=[
                     PracticeGloss(id=None, text="to eat", lang="eng", type=None),
-                    PracticeGloss(id=None, text="comer", lang="spa", type=None),
                 ],
                 examples=[
                     PracticeExample(
@@ -91,6 +90,18 @@ def make_entry(
                         ],
                     ),
                 ],
+            ),
+            # Like JMDict, each language's meanings are in senses of their own.
+            PracticeSense(
+                id=None,
+                pos=["v1"],
+                misc=[],
+                dialects=[],
+                info=[],
+                glosses=[
+                    PracticeGloss(id=None, text="comer", lang="spa", type=None),
+                ],
+                examples=[],
             ),
         ],
         jlpt=5,

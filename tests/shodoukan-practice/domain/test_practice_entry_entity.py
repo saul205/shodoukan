@@ -17,8 +17,10 @@ from shodoukan_practice.domain.entities import (
 )
 from shodoukan_practice.domain.exceptions import (
     EntityNotFoundError,
+    LastMeaningError,
     LastReadingError,
     OriginalDataError,
+    SenseLanguageError,
 )
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -53,8 +55,8 @@ def make_entry() -> PracticeEntry:
                     PracticeGloss(id=1, text="to eat", lang="eng", type=None),
                     PracticeGloss(
                         id=None,
-                        text="jamar (coloquial)",
-                        lang="spa",
+                        text="to scoff (colloquial)",
+                        lang="eng",
                         type=None,
                         origin="added",
                     ),
@@ -203,8 +205,8 @@ def test_add_edit_and_remove_own_meanings() -> None:
     assert (added.text, added.origin, added.id) == ("to scoff", "added", None)
     assert entry.senses[0].glosses[-1] is added
 
-    entry.edit_gloss(2, "jamar")
-    assert entry.senses[0].glosses[1].text == "jamar"
+    entry.edit_gloss(2, "to wolf down")
+    assert entry.senses[0].glosses[1].text == "to wolf down"
     entry.remove_gloss(2)
     assert [g.text for g in entry.senses[0].glosses] == ["to eat", "to scoff"]
     assert entry.updated_at > NOW
@@ -389,3 +391,24 @@ def test_a_word_keeps_its_last_reading() -> None:
     with pytest.raises(LastReadingError):
         entry.remove_reading(1)
     assert len(entry.readings) == 1
+
+
+def test_a_sense_keeps_its_last_meaning() -> None:
+    entry = stored_entry()
+    sense = entry.add_sense("to dine", "eng")
+    sense.id, sense.glosses[0].id = 2, 3  # as stored
+    entry.add_gloss(2, "to sup", "eng").id = 4
+
+    entry.remove_gloss(4)
+    with pytest.raises(LastMeaningError):
+        entry.remove_gloss(3)
+    assert [g.text for g in entry.senses[-1].glosses] == ["to dine"]
+    entry.remove_sense(2)  # the way to get rid of it
+    assert [s.id for s in entry.senses] == [1]
+
+
+def test_a_senses_meanings_are_in_one_language() -> None:
+    entry = stored_entry()
+    with pytest.raises(SenseLanguageError):
+        entry.add_gloss(1, "comer", "spa")
+    assert [g.lang for g in entry.senses[0].glosses] == ["eng", "eng"]

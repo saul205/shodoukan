@@ -72,10 +72,10 @@ def test_update_edits_adds_and_removes_nested_items(
     entry = repo.add(make_entry(user.id))
     glosses = entry.senses[0].glosses
     glosses[0].enabled = False
-    del glosses[1]
     glosses.append(
         PracticeGloss(id=None, text="to dine", lang="eng", type=None, origin="added")
     )
+    del entry.senses[1]  # the Spanish one
 
     updated = repo.update(entry)
     session.expunge_all()
@@ -86,6 +86,7 @@ def test_update_edits_adds_and_removes_nested_items(
     assert stored is not None
     texts = [(g.text, g.enabled, g.origin) for g in stored.senses[0].glosses]
     assert texts == [("to eat", False, "imported"), ("to dine", True, "added")]
+    assert len(stored.senses) == 1
 
 
 def test_update_cannot_move_an_entry_to_another_user(
@@ -246,7 +247,7 @@ def test_update_persists_added_edited_and_removed_meanings(
     session.expunge_all()
     reloaded = repo.get(entry.id or 0, user.id)
     assert reloaded is not None
-    assert [g.origin for g in reloaded.senses[0].glosses] == ["imported", "imported"]
+    assert [g.origin for g in reloaded.senses[0].glosses] == ["imported"]
 
 
 # --- Search (find / count) ----------------------------------------------------

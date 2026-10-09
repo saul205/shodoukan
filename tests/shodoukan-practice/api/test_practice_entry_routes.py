@@ -250,6 +250,25 @@ def test_meaning_validation(
         assert client.post(url, json=body, headers=headers).status_code == 422
 
 
+def test_a_sense_keeps_one_meaning_in_one_language(
+    client: TestClient, headers: dict[str, str], entry: dict[str, Any]
+) -> None:
+    url = f"/library/entries/{entry['id']}"
+    own = client.post(
+        f"{url}/senses", json={"text": "to dine", "lang": "eng"}, headers=headers
+    ).json()["senses"][-1]
+
+    spanish = client.post(
+        f"{url}/senses/{own['id']}/glosses",
+        json={"text": "cenar", "lang": "spa"},
+        headers=headers,
+    )
+    last = client.delete(f"{url}/glosses/{own['glosses'][0]['id']}", headers=headers)
+
+    assert spanish.status_code == 422
+    assert last.status_code == 409
+
+
 def test_dictionary_meanings_are_409(
     client: TestClient, headers: dict[str, str], entry: dict[str, Any]
 ) -> None:

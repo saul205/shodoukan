@@ -12,7 +12,13 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from ..exceptions import EntityNotFoundError, LastReadingError, OriginalDataError
+from ..exceptions import (
+    EntityNotFoundError,
+    LastMeaningError,
+    LastReadingError,
+    OriginalDataError,
+    SenseLanguageError,
+)
 from .nested_item_lookup import (
     Toggleable,
     clean_kana,
@@ -229,13 +235,18 @@ class PracticeEntry(TimestampedEntity):
     def add_gloss(self, sense_id: int, text: str, lang: str) -> PracticeGloss:
         """Add a meaning of the user's own at the end of the sense.
 
-        `lang` follows the stored glosses (ISO 639-2, e.g. "eng"). The new
-        gloss has no id until the entry is stored.
+        `lang` follows the stored glosses (ISO 639-2, e.g. "eng"), and must be
+        the sense's: a sense's meanings are all in one language
+        (`SenseLanguageError`). The new gloss has no id until the entry is
+        stored.
         """
+        sense = self._sense(sense_id)
+        if any(g.lang != lang for g in sense.glosses):
+            raise SenseLanguageError(f"this sense's meanings aren't in {lang!r}")
         gloss = PracticeGloss(
             id=None, text=clean_meaning(text), lang=lang, type=None, origin="added"
         )
-        self._sense(sense_id).glosses.append(gloss)
+        sense.glosses.append(gloss)
         self.touch()
         return gloss
 
@@ -248,8 +259,15 @@ class PracticeEntry(TimestampedEntity):
             self.touch()
 
     def remove_gloss(self, gloss_id: int) -> None:
-        """Remove one of the user's own meanings."""
+        """Remove one of the user's own meanings.
+
+        A sense keeps at least one (`LastMeaningError`): without one it would
+        show in no language, nor could its examples and note be reached. To
+        get rid of an own sense, remove the sense.
+        """
         sense, gloss = self._own_gloss(gloss_id)
+        if len(sense.glosses) == 1:
+            raise LastMeaningError("a sense keeps at least one meaning")
         sense.glosses.remove(gloss)
         self.touch()
 

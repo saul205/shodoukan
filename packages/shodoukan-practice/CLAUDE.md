@@ -160,7 +160,8 @@ standalone: never call shodoukan-api from here.
   (`OriginalDataError` → 409); only the user's own spellings, readings, senses,
   meanings and examples change. A disabled sense hides its glosses and examples (a
   gloss counts when `sense.enabled and gloss.enabled`). A word keeps one reading
-  (`LastReadingError` → 409). A word of the user's own (`POST /library/entries/own`)
+  (`LastReadingError` → 409), and a sense one meaning (`LastMeaningError` → 409), all in
+  one language (`SenseLanguageError` → 422). A word of the user's own (`POST /library/entries/own`)
   has `source_entry_id = None` and only `added` parts. Notes: entry, sense and kanji
   (`Notes`, ≤ 2000 chars, blank → `None`).
 

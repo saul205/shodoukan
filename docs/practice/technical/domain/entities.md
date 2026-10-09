@@ -210,6 +210,11 @@ top:
   639-2). `text`, JMDict's form of the word in the sentence, is empty. Editing replaces
   the Japanese sentence and the translation in that language (a blank one removes it)
   and keeps the other translations. Only own examples are edited or removed.
+- **A sense keeps one meaning, in one language.** Removing a sense's only meaning
+  raises `LastMeaningError`: an empty sense shows in no language, and its examples
+  and note couldn't be reached. The user edits it, or removes the whole own sense.
+  Like JMDict's (no sense in the dictionary mixes languages), a sense's meanings are
+  all in one language: adding one in another raises `SenseLanguageError`.
 - **Meanings are an editable list.** The user adds meanings of their own
   (`origin="added"`, appended to the sense or kanji) and can edit their text or remove
   them. Entry glosses use ISO 639-2 language codes (`eng`), kanji meanings ISO 639-1

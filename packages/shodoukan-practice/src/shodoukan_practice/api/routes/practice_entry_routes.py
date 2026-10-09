@@ -76,7 +76,8 @@ _RESPONSES: dict[int | str, dict[str, Any]] = {
 _ORIGINAL: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {
         "description": "Dictionary data (a spelling, reading, sense, meaning or "
-        "example): it can only be disabled. Or the word's last reading."
+        "example): it can only be disabled. Or the word's last reading, or the "
+        "sense's last meaning."
     }
 }
 
@@ -245,6 +246,11 @@ def remove_sense(
     "/{entry_id}/senses/{sense_id}/glosses",
     response_model=PracticeEntryResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Invalid, or not in the language of the sense's meanings."
+        }
+    },
 )
 def add_gloss(
     entry_id: int,
@@ -254,7 +260,10 @@ def add_gloss(
     session: SessionDep,
     use_case: Annotated[AddEntryGloss, Depends(get_add_entry_gloss)],
 ) -> PracticeEntryResponse:
-    """Add a meaning of the user's own at the end of the sense."""
+    """Add a meaning of the user's own at the end of the sense.
+
+    In the sense's language: a sense's meanings are all in one language.
+    """
     entry = use_case.execute(user.id, entry_id, sense_id, body.text, body.lang)
     session.commit()
     return PracticeEntryResponse.model_validate(entry)

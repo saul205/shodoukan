@@ -90,7 +90,7 @@ def test_own_meanings_lifecycle(
     assert edited.senses[0].glosses[-1].text == "gobble"
 
     removed = RemoveEntryGloss(entries).execute(user.id, entry_id, gloss.id)
-    assert [g.origin for g in removed.senses[0].glosses] == ["imported", "imported"]
+    assert [g.origin for g in removed.senses[0].glosses] == ["imported"]
 
 
 def test_own_senses_lifecycle(
@@ -110,7 +110,8 @@ def test_own_senses_lifecycle(
     assert hidden.senses[0].enabled is False
 
     removed = RemoveEntrySense(entries).execute(user.id, entry_id, sense.id)
-    assert [s.id for s in removed.senses] == [sense_id]
+    assert sense.id not in [s.id for s in removed.senses]
+    assert removed.senses[0].id == sense_id
     with pytest.raises(OriginalDataError):
         RemoveEntrySense(entries).execute(user.id, entry_id, sense_id)
 

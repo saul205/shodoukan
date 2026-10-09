@@ -191,6 +191,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-practice:** A sense keeps at least one meaning (removing the last is a
+  409; the own sense is removed instead), and its meanings are all in one language
+  (another language is a 422), as in JMDict. In the practice web, the only meaning's
+  delete button is disabled with a tooltip.
 - **shodoukan-practice-web:** The forms for a library item's own meanings, senses,
   examples, spellings and readings wait for the save: they clear only once it's saved,
   keep the text when it fails, and can't be sent twice meanwhile.

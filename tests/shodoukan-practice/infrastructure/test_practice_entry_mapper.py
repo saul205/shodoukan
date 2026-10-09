@@ -41,6 +41,7 @@ def test_round_trip_keeps_own_and_disabled_senses() -> None:
 
     assert [(s.enabled, s.origin) for s in row.senses] == [
         (False, "imported"),
+        (True, "imported"),
         (True, "added"),
     ]
     assert practice_entry_to_domain(row) == entry

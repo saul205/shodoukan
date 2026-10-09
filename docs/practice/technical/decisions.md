@@ -815,3 +815,18 @@ can't be added.
   PostgreSQL and SQLite, so own words can repeat. Creating one isn't idempotent.
 - A word keeps one reading (`LastReadingError`, 409): every card, label and handwriting
   question reads it.
+
+## A sense keeps one meaning, in one language
+
+A sense with no meanings shows in no language (the entry page lists a sense under the
+languages of its meanings), so its examples, its note and its remove button would be
+out of reach. Removing a sense's only meaning is refused (`LastMeaningError`, 409), and
+the UI disables that delete button with a tooltip; the user edits the meaning, or
+removes the whole own sense, which already asks for confirmation. Deleting the sense
+along with its last meaning was ruled out: one click on a meaning's trash icon would
+take the sense's examples and note with it.
+
+Senses are also kept to one language (`SenseLanguageError`, 422), as in JMDict, where
+no sense mixes languages. It makes "the sense's only meaning" the same as "its only
+meaning in the language on screen", so the check can't be bypassed through a meaning
+in another language.

@@ -11,9 +11,11 @@ from ..domain.exceptions import (
     EntityNotFoundError,
     ExercisePoolTooSmallError,
     InvalidAnswerError,
+    LastMeaningError,
     LastReadingError,
     OriginalDataError,
     QuestionNotActiveError,
+    SenseLanguageError,
     SessionAlreadyOpenError,
     SessionFinishedError,
 )
@@ -73,8 +75,9 @@ def create_app() -> FastAPI:
     app.add_exception_handler(CollectionNameTakenError, _conflict)
     # Dictionary data in the library can only be disabled, not changed.
     app.add_exception_handler(OriginalDataError, _conflict)
-    # A word always keeps one reading.
+    # A word always keeps one reading, and a sense one meaning.
     app.add_exception_handler(LastReadingError, _conflict)
+    app.add_exception_handler(LastMeaningError, _conflict)
     app.add_exception_handler(QuestionNotActiveError, _conflict)
     app.add_exception_handler(SessionFinishedError, _conflict)
     app.add_exception_handler(SessionAlreadyOpenError, _conflict)
@@ -82,6 +85,8 @@ def create_app() -> FastAPI:
     # an exercise session, an option the question doesn't have.
     app.add_exception_handler(ExercisePoolTooSmallError, _unprocessable_detail)
     app.add_exception_handler(InvalidAnswerError, _unprocessable_detail)
+    # A meaning in another language than its sense's.
+    app.add_exception_handler(SenseLanguageError, _unprocessable_detail)
     # Rules entities check when built or changed in a use case (e.g. exercise
     # settings that use fields of the other item kind), shaped like FastAPI's
     # own request validation errors.
