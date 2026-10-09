@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   reference plus the user's own data; importing always creates a new collection,
   reuses what the user has without overriding their choices, and never duplicates
   (`copied_from_id` / `copied_from_collection_id` record where copies came from).
+- **shodoukan-practice-web:** **Exportar** in a collection's menu downloads it as a
+  `.shodoukan.json` file, and **Importar** in "Mis colecciones" creates a new
+  collection from one, saying how many items were new, already in the library, or no
+  longer in the dictionary.
 - **shodoukan-practice:** Example sentences of the user's own in a word's senses
   (`POST /library/entries/{id}/senses/{sense_id}/examples`, `PUT` / `DELETE
   .../examples/{example_id}`): a Japanese sentence and an optional translation; editing
