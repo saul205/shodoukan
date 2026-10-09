@@ -3,19 +3,22 @@ import type { KanjiPart, PracticeKanji, PracticeReadingItem } from '~/models/pra
 
 // A library kanji: the character with its data, readings, stroke order and
 // meanings in the meaning language. Editable (reading chips, meaning
-// switches, own meanings: it emits, the page saves) or `view-only`, showing
-// only what the user keeps enabled, as in the item detail opened from a
-// session.
+// switches, own meanings: the page saves) or `view-only`, showing only what
+// the user keeps enabled, as in the item detail opened from a session.
+//
+// Own meanings are saved through handlers that resolve to whether they were
+// saved (`@add-meaning` arrives as the `onAddMeaning` prop), so the form
+// keeps its text if it fails; switches and removals are plain events.
 const props = withDefaults(defineProps<{
   kanji: PracticeKanji
   viewOnly?: boolean
   saving?: boolean
+  onAddMeaning?: (text: string) => Promise<boolean>
+  onEditMeaning?: (meaningId: number, text: string) => Promise<boolean>
 }>(), { viewOnly: false, saving: false })
 
 const emit = defineEmits<{
   'toggle': [part: KanjiPart, id: number, enabled: boolean]
-  'add-meaning': [text: string]
-  'edit-meaning': [meaningId: number, text: string]
   'remove-meaning': [meaningId: number]
 }>()
 
@@ -84,8 +87,8 @@ const readingGroups = computed<{ label: string; items: PracticeReadingItem[] }[]
           :view-only="viewOnly"
           :disabled="saving"
           @toggle="(meaningId, enabled) => emit('toggle', 'meanings', meaningId, enabled)"
-          @add="text => emit('add-meaning', text)"
-          @edit="(meaningId, text) => emit('edit-meaning', meaningId, text)"
+          :on-add="onAddMeaning"
+          :on-edit="onEditMeaning"
           @remove="meaningId => emit('remove-meaning', meaningId)"
         />
       </UCard>

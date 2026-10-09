@@ -1,5 +1,6 @@
 // @vitest-environment nuxt
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import ExampleList from '../../app/components/ExampleList.vue'
 import type { PracticeExample } from '../../app/models/practice'
@@ -35,19 +36,38 @@ describe('ExampleList', () => {
   })
 
   it('adds an example with an optional translation', async () => {
-    const wrapper = await mountSuspended(ExampleList, { props: { examples: [], glossLang: 'eng' } })
+    const onAdd = vi.fn().mockResolvedValue(true)
+    const wrapper = await mountSuspended(ExampleList, { props: { examples: [], glossLang: 'eng', onAdd } })
 
     await wrapper.find('[data-testid="add-example"]').trigger('click')
     const inputs = wrapper.findAll('[data-testid="example-form"] input')
     await inputs[0]!.setValue('  水を飲む。 ')
     await wrapper.find('[data-testid="example-form"]').trigger('submit')
+    await flushPromises()
 
-    expect(wrapper.emitted('add')).toEqual([['水を飲む。', null]])
+    expect(onAdd).toHaveBeenCalledWith('水を飲む。', null)
     expect(wrapper.find('[data-testid="example-form"]').exists()).toBe(false)
   })
 
+  it('keeps the form and its text when an example isn\'t saved', async () => {
+    const onAdd = vi.fn().mockResolvedValue(false)
+    const wrapper = await mountSuspended(ExampleList, { props: { examples: [], glossLang: 'eng', onAdd } })
+
+    await wrapper.find('[data-testid="add-example"]').trigger('click')
+    const inputs = wrapper.findAll('[data-testid="example-form"] input')
+    await inputs[0]!.setValue('水を飲む。')
+    await inputs[1]!.setValue('I drink water.')
+    await wrapper.find('[data-testid="example-form"]').trigger('submit')
+    await flushPromises()
+
+    const kept = wrapper.findAll('[data-testid="example-form"] input')
+    expect((kept[0]!.element as HTMLInputElement).value).toBe('水を飲む。')
+    expect((kept[1]!.element as HTMLInputElement).value).toBe('I drink water.')
+  })
+
   it('rewrites an own example, starting from its sentence and translation', async () => {
-    const wrapper = await mountSuspended(ExampleList, { props: { examples, glossLang: 'spa' } })
+    const onEdit = vi.fn().mockResolvedValue(true)
+    const wrapper = await mountSuspended(ExampleList, { props: { examples, glossLang: 'spa', onEdit } })
 
     await wrapper.find('[data-testid="edit-example"]').trigger('click')
     const inputs = wrapper.findAll('[data-testid="example-form"] input')
@@ -56,7 +76,10 @@ describe('ExampleList', () => {
     await inputs[1]!.setValue('Desayuné pronto.')
     await wrapper.find('[data-testid="example-form"]').trigger('submit')
 
-    expect(wrapper.emitted('edit')).toEqual([[2, '朝ご飯を食べた。', 'Desayuné pronto.']])
+    await flushPromises()
+
+    expect(onEdit).toHaveBeenCalledWith(2, '朝ご飯を食べた。', 'Desayuné pronto.')
+    expect(wrapper.find('[data-testid="example-form"]').exists()).toBe(false)
   })
 
   it('lists only the shown examples, with no controls, in view-only mode', async () => {

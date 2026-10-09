@@ -6,18 +6,23 @@ import { japaneseSentence, translatedSentence } from '~/utils/sentences'
 // off; the user's own can also be rewritten and deleted, and new ones added
 // at the end: a Japanese sentence and, optionally, its translation in the
 // meaning language. `view-only` lists only the shown ones, as text.
+//
+// The parent saves: `@add` / `@edit` arrive as the `onAdd` / `onEdit` props,
+// so the form waits for the save and stays open with its text if it fails.
 
 const props = withDefaults(defineProps<{
   examples: PracticeExample[]
   glossLang: string // ISO 639-2, e.g. "eng"
   disabled?: boolean
   viewOnly?: boolean
+  /** Saves a new example; resolves to whether it was saved. */
+  onAdd?: (japanese: string, translation: string | null) => Promise<boolean>
+  /** Saves an own example's new text; resolves to whether it was saved. */
+  onEdit?: (id: number, japanese: string, translation: string | null) => Promise<boolean>
 }>(), { disabled: false, viewOnly: false })
 
 const emit = defineEmits<{
   toggle: [id: number, enabled: boolean]
-  add: [japanese: string, translation: string | null]
-  edit: [id: number, japanese: string, translation: string | null]
   remove: [id: number]
 }>()
 
@@ -30,10 +35,11 @@ const adding = ref(false)
 const editingId = ref<number | null>(null)
 const japanese = ref('')
 const translation = ref('')
+const pending = ref(false)
 
 const canSave = computed(() => {
   const text = japanese.value.trim()
-  return !props.disabled && text.length > 0 && text.length <= MAX_LENGTH && translation.value.length <= MAX_LENGTH
+  return !props.disabled && !pending.value && text.length > 0 && text.length <= MAX_LENGTH && translation.value.length <= MAX_LENGTH
 })
 
 function open(example?: PracticeExample) {
@@ -48,13 +54,21 @@ function close() {
   editingId.value = null
 }
 
-function save() {
+async function save() {
   if (!canSave.value) return
   const text = japanese.value.trim()
   const translated = translation.value.trim() || null
-  if (editingId.value === null) emit('add', text, translated)
-  else emit('edit', editingId.value, text, translated)
-  close()
+  const id = editingId.value
+  pending.value = true
+  try {
+    const saved = id === null
+      ? await props.onAdd?.(text, translated)
+      : await props.onEdit?.(id, text, translated)
+    if (saved) close()
+  }
+  finally {
+    pending.value = false
+  }
 }
 </script>
 
@@ -79,10 +93,10 @@ function save() {
         @submit.prevent="save"
         @keydown.esc="close"
       >
-        <UInput v-model="japanese" placeholder="Frase en japonés" class="w-full font-japanese" :maxlength="MAX_LENGTH" autofocus />
-        <UInput v-model="translation" placeholder="Traducción (opcional)" class="w-full" :maxlength="MAX_LENGTH" />
+        <UInput v-model="japanese" placeholder="Frase en japonés" class="w-full font-japanese" :maxlength="MAX_LENGTH" :disabled="pending" autofocus />
+        <UInput v-model="translation" placeholder="Traducción (opcional)" class="w-full" :maxlength="MAX_LENGTH" :disabled="pending" />
         <div class="flex gap-2">
-          <UButton type="submit" label="Guardar" size="sm" :disabled="!canSave" />
+          <UButton type="submit" label="Guardar" size="sm" :loading="pending" :disabled="!canSave" />
           <UButton label="Cancelar" size="sm" color="neutral" variant="ghost" @click="close" />
         </div>
       </form>
@@ -121,10 +135,10 @@ function save() {
 
     <template v-if="!viewOnly">
       <form v-if="adding" class="space-y-2" data-testid="example-form" @submit.prevent="save" @keydown.esc="close">
-        <UInput v-model="japanese" placeholder="Frase en japonés" class="w-full font-japanese" :maxlength="MAX_LENGTH" autofocus />
-        <UInput v-model="translation" placeholder="Traducción (opcional)" class="w-full" :maxlength="MAX_LENGTH" />
+        <UInput v-model="japanese" placeholder="Frase en japonés" class="w-full font-japanese" :maxlength="MAX_LENGTH" :disabled="pending" autofocus />
+        <UInput v-model="translation" placeholder="Traducción (opcional)" class="w-full" :maxlength="MAX_LENGTH" :disabled="pending" />
         <div class="flex gap-2">
-          <UButton type="submit" label="Añadir" size="sm" :disabled="!canSave" />
+          <UButton type="submit" label="Añadir" size="sm" :loading="pending" :disabled="!canSave" />
           <UButton label="Cancelar" size="sm" color="neutral" variant="ghost" @click="close" />
         </div>
       </form>

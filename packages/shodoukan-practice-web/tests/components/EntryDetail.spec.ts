@@ -1,5 +1,6 @@
 // @vitest-environment nuxt
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import EntryDetail from '../../app/components/EntryDetail.vue'
 import type { PracticeEntry, PracticeSense } from '../../app/models/practice'
@@ -39,16 +40,43 @@ describe('EntryDetail', () => {
     expect(wrapper.emitted('remove-sense')).toEqual([[3]])
   })
 
-  it('adds a sense of the user\'s own with its first meaning', async () => {
-    const wrapper = await mountSuspended(EntryDetail, { props: { entry } })
+  it('adds a sense of the user\'s own with its first meaning, keeping it if it isn\'t saved', async () => {
+    const onAddSense = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const wrapper = await mountSuspended(EntryDetail, { props: { entry, onAddSense } })
 
     const form = wrapper.find('[data-testid="add-sense"]')
     await form.find('input').setValue('   ')
     await form.trigger('submit')
+    expect(onAddSense).not.toHaveBeenCalled()
+
     await form.find('input').setValue('  to feed on  ')
     await form.trigger('submit')
+    await flushPromises()
+    expect(onAddSense).toHaveBeenCalledWith('to feed on')
+    expect((form.find('input').element as HTMLInputElement).value).toBe('  to feed on  ')
 
-    expect(wrapper.emitted('add-sense')).toEqual([['to feed on']])
+    await form.trigger('submit')
+    await flushPromises()
+    expect(onAddSense).toHaveBeenCalledTimes(2)
+    expect((form.find('input').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('passes a sense\'s new meanings and examples to the page with the sense', async () => {
+    const onAddGloss = vi.fn().mockResolvedValue(true)
+    const onAddExample = vi.fn().mockResolvedValue(true)
+    const wrapper = await mountSuspended(EntryDetail, { props: { entry, onAddGloss, onAddExample } })
+
+    const own = wrapper.findAll('[data-testid="sense"]')[2]!
+    const meaningForm = own.findAll('form').find(f => f.find('input[placeholder^="Añadir un significado propio"]').exists())!
+    await meaningForm.find('input').setValue('to have dinner')
+    await meaningForm.trigger('submit')
+    await own.find('[data-testid="add-example"]').trigger('click')
+    await own.find('[data-testid="example-form"] input').setValue('夕食を食べる。')
+    await own.find('[data-testid="example-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(onAddGloss).toHaveBeenCalledWith(3, 'to have dinner')
+    expect(onAddExample).toHaveBeenCalledWith(3, '夕食を食べる。', null)
   })
 
   it('leaves disabled senses out in view-only mode', async () => {

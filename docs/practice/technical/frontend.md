@@ -85,7 +85,19 @@ Every screen requires sign-in; only `/auth/callback` is public.
   taking the client as first argument. Practice models are in `models/practice.ts`;
   dictionary results reuse `shodoukan-ui`'s models.
 - Library edits replace the item with the API's response
-  (`composables/useEditableItem.ts`), so there's no client-side merging.
+  (`composables/useEditableItem.ts`), so there's no client-side merging. `save()`
+  resolves to whether the edit was saved.
+- **Forms wait for their save.** A form that takes typed text (own meaning, sense,
+  example, spelling or reading: `MeaningList`, `ExampleList`, `FormList`, the
+  "Nuevo significado" form in `EntryDetail`) doesn't emit and forget: it receives the
+  save as a handler prop returning `Promise<boolean>` and clears or closes only when
+  it resolves to `true`. A failed save (toast) keeps the text, and the form is disabled
+  while it's saving, so a double submit sends nothing twice. Pages still write
+  `@add="..."`: Vue passes a listener as the declared prop of the same name
+  (`onAdd`), so the page's `text => save(...)` is what the form awaits. `EntryDetail`
+  and `KanjiDetail` pass these handlers on (`onAddGloss`, `onAddExample`,
+  `onAddMeaning`, ...). Switches, removals and notes stay plain events: they keep no
+  typed text to lose.
 - Errors become toasts (`useNotify()`); a `409` on a collection name is shown on the
   form field.
 

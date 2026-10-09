@@ -191,6 +191,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **shodoukan-practice-web:** The forms for a library item's own meanings, senses,
+  examples, spellings and readings wait for the save: they clear only once it's saved,
+  keep the text when it fails, and can't be sent twice meanwhile.
 - **shodoukan-practice:** Session questions are stored by `type`, with what only that
   type has in a `details` JSON column; a choice card's options and right option move
   there (migration `33f2afbdd7cf`). Session responses return each question by type.

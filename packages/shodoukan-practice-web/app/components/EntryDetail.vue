@@ -5,26 +5,42 @@ import { entryHeadword, entryReading, sensesIn } from '~/utils/practice-text'
 
 // A library word: its headword and its senses in the meaning language, with
 // their examples and notes. Editable (switches, own senses, meanings and
-// examples, sense notes: it emits, the page saves) or `view-only`, showing only what the user
-// keeps enabled, as in the item detail opened from a session.
+// examples, sense notes: the page saves) or `view-only`, showing only what
+// the user keeps enabled, as in the item detail opened from a session.
+//
+// What's typed into a form (a sense, a meaning, an example) is saved through
+// handlers that resolve to whether it was saved (`@add-sense` arrives as the
+// `onAddSense` prop, and so on), so the form keeps its text if it fails.
+// Switches, removals and notes are plain events.
+
+type Saved = Promise<boolean>
+
 const props = withDefaults(defineProps<{
   entry: PracticeEntry
   viewOnly?: boolean
   saving?: boolean
+  onAddSense?: (text: string) => Saved
+  onAddGloss?: (senseId: number, text: string) => Saved
+  onEditGloss?: (glossId: number, text: string) => Saved
+  onAddExample?: (senseId: number, japanese: string, translation: string | null) => Saved
+  onEditExample?: (exampleId: number, japanese: string, translation: string | null) => Saved
 }>(), { viewOnly: false, saving: false })
 
 const emit = defineEmits<{
   'toggle': [part: EntryPart, id: number, enabled: boolean]
-  'add-sense': [text: string]
   'remove-sense': [senseId: number]
-  'add-gloss': [senseId: number, text: string]
-  'edit-gloss': [glossId: number, text: string]
   'remove-gloss': [glossId: number]
-  'add-example': [senseId: number, japanese: string, translation: string | null]
-  'edit-example': [exampleId: number, japanese: string, translation: string | null]
   'remove-example': [exampleId: number]
   'sense-notes': [senseId: number, notes: string | null]
 }>()
+
+const NOT_SAVED: Saved = Promise.resolve(false)
+const addGloss = (senseId: number) => (text: string) => props.onAddGloss?.(senseId, text) ?? NOT_SAVED
+const editGloss = (glossId: number, text: string) => props.onEditGloss?.(glossId, text) ?? NOT_SAVED
+const addExample = (senseId: number) => (japanese: string, translation: string | null) =>
+  props.onAddExample?.(senseId, japanese, translation) ?? NOT_SAVED
+const editExample = (exampleId: number, japanese: string, translation: string | null) =>
+  props.onEditExample?.(exampleId, japanese, translation) ?? NOT_SAVED
 
 const { glossCode, lang, options: languages } = useMeaningLang()
 const languageLabel = computed(() => languages.find(l => l.value === lang.value)?.label ?? lang.value)
@@ -44,15 +60,21 @@ const senses = computed(() => {
 
 const MAX_LENGTH = 500
 const newSense = ref('')
+const addingSense = ref(false)
 const canAddSense = computed(() => {
   const text = newSense.value.trim()
-  return !props.saving && text.length > 0 && text.length <= MAX_LENGTH
+  return !props.saving && !addingSense.value && text.length > 0 && text.length <= MAX_LENGTH
 })
 
-function addSense() {
-  if (!canAddSense.value) return
-  emit('add-sense', newSense.value.trim())
-  newSense.value = ''
+async function addSense() {
+  if (!canAddSense.value || !props.onAddSense) return
+  addingSense.value = true
+  try {
+    if (await props.onAddSense(newSense.value.trim())) newSense.value = ''
+  }
+  finally {
+    addingSense.value = false
+  }
 }
 
 </script>
@@ -117,8 +139,8 @@ function addSense() {
             :view-only="viewOnly"
             :disabled="saving"
             @toggle="(glossId, enabled) => emit('toggle', 'glosses', glossId, enabled)"
-            @add="text => emit('add-gloss', sense.id, text)"
-            @edit="(glossId, text) => emit('edit-gloss', glossId, text)"
+            :on-add="addGloss(sense.id)"
+            :on-edit="editGloss"
             @remove="glossId => emit('remove-gloss', glossId)"
           />
 
@@ -128,8 +150,8 @@ function addSense() {
             :view-only="viewOnly"
             :disabled="saving"
             @toggle="(exampleId, enabled) => emit('toggle', 'examples', exampleId, enabled)"
-            @add="(japanese, translation) => emit('add-example', sense.id, japanese, translation)"
-            @edit="(exampleId, japanese, translation) => emit('edit-example', exampleId, japanese, translation)"
+            :on-add="addExample(sense.id)"
+            :on-edit="editExample"
             @remove="exampleId => emit('remove-example', exampleId)"
           />
 
@@ -152,9 +174,9 @@ function addSense() {
           placeholder="Añadir un significado nuevo, aparte de los anteriores…"
           class="flex-1"
           :maxlength="MAX_LENGTH"
-          :disabled="saving"
+          :disabled="saving || addingSense"
         />
-        <UButton type="submit" icon="i-lucide-plus" label="Nuevo significado" variant="soft" :disabled="!canAddSense" />
+        <UButton type="submit" icon="i-lucide-plus" label="Nuevo significado" variant="soft" :loading="addingSense" :disabled="!canAddSense" />
       </form>
     </section>
   </div>

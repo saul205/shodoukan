@@ -4,7 +4,8 @@ import { isKana } from '~/utils/own-entry'
 
 // A word's spellings or readings: each one switched on or off; the user's own
 // ("propio") can also be deleted, and new ones added at the end. Readings
-// only take kana (`kana`).
+// only take kana (`kana`). The parent saves: `@add` arrives as the `onAdd`
+// prop, so the box waits for the save and keeps its text if it fails.
 
 export interface FormItem {
   id: number
@@ -18,25 +19,32 @@ const props = withDefaults(defineProps<{
   addLabel: string
   kana?: boolean
   disabled?: boolean
+  /** Saves a new form; resolves to whether it was saved. */
+  onAdd?: (text: string) => Promise<boolean>
 }>(), { kana: false, disabled: false })
 
 const emit = defineEmits<{
   toggle: [id: number, enabled: boolean]
-  add: [text: string]
   remove: [id: number]
 }>()
 
 const MAX_LENGTH = 50
 
 const newText = ref('')
+const pending = ref(false)
 const text = computed(() => newText.value.trim())
 const invalid = computed(() => props.kana && text.value.length > 0 && !isKana(text.value))
-const canAdd = computed(() => !props.disabled && text.value.length > 0 && text.value.length <= MAX_LENGTH && !invalid.value)
+const canAdd = computed(() => !props.disabled && !pending.value && text.value.length > 0 && text.value.length <= MAX_LENGTH && !invalid.value)
 
-function add() {
-  if (!canAdd.value) return
-  emit('add', text.value)
-  newText.value = ''
+async function add() {
+  if (!canAdd.value || !props.onAdd) return
+  pending.value = true
+  try {
+    if (await props.onAdd(text.value)) newText.value = ''
+  }
+  finally {
+    pending.value = false
+  }
 }
 </script>
 
@@ -73,11 +81,11 @@ function add() {
         size="sm"
         class="flex-1 font-japanese"
         :maxlength="MAX_LENGTH"
-        :disabled="disabled"
+        :disabled="disabled || pending"
         :color="invalid ? 'error' : undefined"
         :highlight="invalid"
       />
-      <UButton type="submit" icon="i-lucide-plus" size="sm" variant="soft" aria-label="Añadir" :disabled="!canAdd" />
+      <UButton type="submit" icon="i-lucide-plus" size="sm" variant="soft" aria-label="Añadir" :loading="pending" :disabled="!canAdd" />
     </form>
     <p v-if="invalid" class="text-xs text-error">Escríbela en kana (hiragana o katakana).</p>
   </div>

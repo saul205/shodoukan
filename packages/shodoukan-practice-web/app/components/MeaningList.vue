@@ -4,6 +4,11 @@ import type { Origin } from '~/models/practice'
 // An editable list of meanings. The dictionary's own meanings can only be
 // switched on or off; the user's own can also be edited and deleted, and new
 // ones added at the end. `view-only` lists only the shown ones, as text.
+//
+// Adding and editing are saved by the parent: `@add` / `@edit` arrive as the
+// `onAdd` / `onEdit` props (Vue passes a listener as the prop of the same
+// name when one is declared), so this list can wait for the save and keep
+// the text if it fails.
 
 export interface MeaningItem {
   id: number
@@ -16,12 +21,14 @@ const props = withDefaults(defineProps<{
   meanings: MeaningItem[]
   disabled?: boolean
   viewOnly?: boolean
+  /** Saves a new meaning; resolves to whether it was saved. */
+  onAdd?: (text: string) => Promise<boolean>
+  /** Saves an own meaning's new text; resolves to whether it was saved. */
+  onEdit?: (id: number, text: string) => Promise<boolean>
 }>(), { disabled: false, viewOnly: false })
 
 const emit = defineEmits<{
   toggle: [id: number, enabled: boolean]
-  add: [text: string]
-  edit: [id: number, text: string]
   remove: [id: number]
 }>()
 
@@ -30,18 +37,25 @@ const MAX_LENGTH = 500
 const newText = ref('')
 const editingId = ref<number | null>(null)
 const editText = ref('')
+// A save of this list is under way: its inputs wait, and keep their text.
+const pending = ref(false)
 
 const shown = computed(() => props.meanings.filter(meaning => meaning.enabled))
 
 const canAdd = computed(() => {
   const text = newText.value.trim()
-  return !props.disabled && text.length > 0 && text.length <= MAX_LENGTH
+  return !props.disabled && !pending.value && text.length > 0 && text.length <= MAX_LENGTH
 })
 
-function add() {
-  if (!canAdd.value) return
-  emit('add', newText.value.trim())
-  newText.value = ''
+async function add() {
+  if (!canAdd.value || !props.onAdd) return
+  pending.value = true
+  try {
+    if (await props.onAdd(newText.value.trim())) newText.value = ''
+  }
+  finally {
+    pending.value = false
+  }
 }
 
 function startEdit(meaning: MeaningItem) {
@@ -49,10 +63,22 @@ function startEdit(meaning: MeaningItem) {
   editText.value = meaning.text
 }
 
-function confirmEdit(meaning: MeaningItem) {
+// On Enter or blur. Unchanged or invalid text just closes the edit; a failed
+// save leaves it open with the text.
+async function confirmEdit(meaning: MeaningItem) {
+  if (editingId.value !== meaning.id || pending.value) return
   const text = editText.value.trim()
-  editingId.value = null
-  if (text && text.length <= MAX_LENGTH && text !== meaning.text) emit('edit', meaning.id, text)
+  if (!text || text.length > MAX_LENGTH || text === meaning.text || !props.onEdit) {
+    editingId.value = null
+    return
+  }
+  pending.value = true
+  try {
+    if (await props.onEdit(meaning.id, text)) editingId.value = null
+  }
+  finally {
+    pending.value = false
+  }
 }
 </script>
 
@@ -90,6 +116,7 @@ function confirmEdit(meaning: MeaningItem) {
           class="flex-1"
           autofocus
           :maxlength="MAX_LENGTH"
+          :disabled="pending"
           @keydown.enter.prevent="confirmEdit(meaning)"
           @keydown.esc="editingId = null"
           @blur="confirmEdit(meaning)"
@@ -134,9 +161,9 @@ function confirmEdit(meaning: MeaningItem) {
         size="sm"
         class="flex-1"
         :maxlength="MAX_LENGTH"
-        :disabled="disabled"
+        :disabled="disabled || pending"
       />
-      <UButton type="submit" icon="i-lucide-plus" label="Añadir" size="sm" variant="soft" :disabled="!canAdd" />
+      <UButton type="submit" icon="i-lucide-plus" label="Añadir" size="sm" variant="soft" :loading="pending && editingId === null" :disabled="!canAdd" />
     </form>
   </div>
 </template>
