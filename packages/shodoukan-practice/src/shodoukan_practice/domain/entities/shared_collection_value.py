@@ -207,6 +207,26 @@ class SharedCollection(SharedValue):
 class SharedEntryCollection(SharedCollection):
     items: list[SharedEntry] = Field(default=[], max_length=MAX_SHARED_ITEMS)
 
+    @model_validator(mode="after")
+    def _check_unique(self) -> Self:
+        """A collection holds each word once, like its link table."""
+        sources = [i.source_entry_id for i in self.items if i.source_entry_id]
+        own = [i.identity for i in self.items if i.source_entry_id is None]
+        if _repeats(sources) or _repeats([i for i in own if i is not None]):
+            raise ValueError("a collection can't list a word twice")
+        return self
+
 
 class SharedKanjiCollection(SharedCollection):
     items: list[SharedKanji] = Field(default=[], max_length=MAX_SHARED_ITEMS)
+
+    @model_validator(mode="after")
+    def _check_unique(self) -> Self:
+        """A collection holds each kanji once, like its link table."""
+        if _repeats([i.literal for i in self.items]):
+            raise ValueError("a collection can't list a kanji twice")
+        return self
+
+
+def _repeats(keys: list[int] | list[str]) -> bool:
+    return len(set(keys)) != len(keys)

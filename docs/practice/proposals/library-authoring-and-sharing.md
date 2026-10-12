@@ -86,7 +86,8 @@ Exercises, sessions and statistics are never part of it.
   the user pick between versions of the same part.
 - What is copied is decided by aggregate methods (`PracticeEntry` / `PracticeKanji`),
   not route logic. The whole import is one transaction: an invalid file imports
-  nothing.
+  nothing. A file lists each item once, like a collection; one that repeats an item is
+  invalid.
 
 ### Provenance: original, source and version
 

@@ -353,7 +353,7 @@ dictionary no longer has, left out).
 | `401` | Missing or invalid token |
 | `404` | No such collection, or no such item in the user's library |
 | `409` | The user already has a collection of that kind with that name (`POST`, `PUT`) |
-| `422` | Invalid body, name, `limit` or `offset`; an invalid or wrong-kind file; exporting more than 5000 items |
+| `422` | Invalid body, name, `limit` or `offset`; an invalid or wrong-kind file, or one that lists an item twice; exporting more than 5000 items |
 
 ## Exercises
 

@@ -6,6 +6,8 @@ from shodoukan_practice.domain.entities import (
     SharedEntry,
     SharedEntryCollection,
     SharedExample,
+    SharedKanji,
+    SharedKanjiCollection,
     SharedMeaning,
     SharedReading,
     SharedSense,
@@ -79,3 +81,27 @@ def test_a_collection_is_bounded() -> None:
         SharedEntryCollection(name="N5", items=[item] * (MAX_SHARED_ITEMS + 1))
     with pytest.raises(ValidationError):
         SharedEntryCollection(name="")
+
+
+def test_a_collection_lists_each_item_once() -> None:
+    reading = [SharedReading(origin="added", text="さんびき")]
+
+    def own(original_id: int) -> SharedEntry:
+        return SharedEntry(
+            source_entry_id=None,
+            id=original_id + 100,
+            original_id=original_id,
+            readings=reading,
+        )
+
+    SharedEntryCollection(
+        name="ok", items=[SharedEntry(source_entry_id=1), own(1), own(2)]
+    )
+    with pytest.raises(ValidationError, match="word twice"):
+        SharedEntryCollection(name="n", items=[SharedEntry(source_entry_id=1)] * 2)
+    with pytest.raises(ValidationError, match="word twice"):
+        SharedEntryCollection(name="n", items=[own(1), own(1)])
+    with pytest.raises(ValidationError, match="kanji twice"):
+        SharedKanjiCollection(
+            name="n", items=[SharedKanji(literal="日"), SharedKanji(literal="日")]
+        )

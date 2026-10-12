@@ -64,7 +64,8 @@ account or another one (to move it, keep a copy, or give it to someone).
 - A word the dictionary no longer has is left out, and the user is told which ones.
   A meaning or example the user added to a sense the dictionary has since changed is
   left out too.
-- A damaged or edited file that isn't valid imports nothing at all. A file of kanji
+- A damaged or edited file that isn't valid (for example, one that lists the same word
+  or kanji twice) imports nothing at all. A file of kanji
   can't be imported as words, and the other way round.
 - A collection of more than 5000 items can't be exported.
 

@@ -173,7 +173,9 @@ file format. The contract is in the
 [proposal](../../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
 
 - `SharedEntryCollection` / `SharedKanjiCollection` (`SharedCollection`): `id`, `name`,
-  `description`, `items` (at most `MAX_SHARED_ITEMS`, 5000).
+  `description`, `items` (at most `MAX_SHARED_ITEMS`, 5000, each once: a repeated
+  `source_entry_id`, own word identity or kanji literal is invalid, as in the link
+  table).
 - `SharedEntry`: `id`, `original_id`, `source_entry_id` (`None` for a word of the
   owner's own, which then has only `added` parts and at least one reading),
   `is_active`, `notes`, `spellings`, `readings`, `senses` → `glosses`, `examples` →
