@@ -4,6 +4,7 @@ import CollectionFormModal from '~/components/CollectionFormModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
 import type { Collection, ItemKind } from '~/models/practice'
 import { deleteCollection, exportCollection, importCollection, listCollections } from '~/services/collections'
+import { apiStatus } from '~/utils/api-error'
 import { downloadCollectionFile, importSummary, parseCollectionFile } from '~/utils/collection-file'
 
 // "Mis colecciones": word and kanji collections in tabs; create, edit and
@@ -70,7 +71,9 @@ async function exportToFile(collection: Collection) {
     downloadCollectionFile(await exportCollection(api, kind.value, collection.id))
   }
   catch (failure) {
-    notify.failure(failure, 'No se ha podido exportar', 'La colección tiene demasiados elementos para exportarla.')
+    // The API refuses (422) only a collection too big to import back.
+    const tooBig = apiStatus(failure) === 422
+    notify.failure(failure, 'No se ha podido exportar', tooBig ? 'La colección tiene demasiados elementos para exportarla.' : undefined)
   }
 }
 
@@ -99,7 +102,9 @@ async function importFromFile(event: Event) {
     else await refresh()
   }
   catch (failure) {
-    notify.failure(failure, 'No se ha podido importar', 'El archivo no es válido o está dañado; no se ha importado nada.')
+    // 422: the API rejected the file's content; anything else isn't the file's fault.
+    const invalid = apiStatus(failure) === 422
+    notify.failure(failure, 'No se ha podido importar', invalid ? 'El archivo no es válido o está dañado; no se ha importado nada.' : undefined)
   }
   finally {
     importing.value = false

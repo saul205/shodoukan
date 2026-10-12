@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { clearNuxtData } from '#app'
+import { FetchError } from 'ofetch'
 import CollectionsPage from '../../app/pages/collections/index.vue'
 import { signedInAuth } from '../fakes'
 
@@ -44,7 +45,55 @@ async function choose(wrapper: Awaited<ReturnType<typeof mountSuspended>>, text:
   await flushPromises()
 }
 
+/** A failed API call answered with `status`. */
+function apiFailure(status: number) {
+  const error = new FetchError('failed')
+  error.statusCode = status
+  return error
+}
+
+async function exportFirst(wrapper: Awaited<ReturnType<typeof mountSuspended>>) {
+  await wrapper.get('button[aria-label="Acciones"]').trigger('click')
+  await flushPromises()
+  const item = [...document.querySelectorAll('[role="menuitem"]')].find(el => el.textContent?.includes('Exportar'))
+  ;(item as HTMLElement).click()
+  await flushPromises()
+}
+
 describe('collections page', () => {
+  it.each([
+    [422, 'La colección tiene demasiados elementos para exportarla.'],
+    [500, 'Algo ha fallado. Inténtalo de nuevo.'],
+  ])('explains a failed export by its status (%i)', async (status, description) => {
+    api.mockImplementation(async (url: string) => {
+      if (url === '/collections/entries') return [verbs]
+      throw apiFailure(status)
+    })
+    const wrapper = await mountSuspended(CollectionsPage, { route: '/collections' })
+    await flushPromises()
+
+    await exportFirst(wrapper)
+
+    expect(api).toHaveBeenCalledWith('/collections/entries/4/export')
+    expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ title: 'No se ha podido exportar', description }))
+  })
+
+  it.each([
+    [422, 'El archivo no es válido o está dañado; no se ha importado nada.'],
+    [500, 'Algo ha fallado. Inténtalo de nuevo.'],
+  ])('explains a failed import by its status (%i)', async (status, description) => {
+    api.mockImplementation(async (url: string) => {
+      if (url === '/collections/entries') return [verbs]
+      throw apiFailure(status)
+    })
+    const wrapper = await mountSuspended(CollectionsPage, { route: '/collections' })
+    await flushPromises()
+
+    await choose(wrapper, JSON.stringify(kanjiFile))
+
+    expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ title: 'No se ha podido importar', description }))
+  })
+
   it('imports a file into its own kind and says what it did', async () => {
     const wrapper = await mountSuspended(CollectionsPage, { route: '/collections' })
     await flushPromises()
