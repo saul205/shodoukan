@@ -12,8 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   account (`GET /collections/{entries,kanji}/{id}/export`, `POST
   /collections/{entries,kanji}/import`). The file carries each item's dictionary
   reference plus the user's own data; importing always creates a new collection,
-  reuses what the user has without overriding their choices, and never duplicates
-  (`copied_from_id` / `copied_from_collection_id` record where copies came from).
+  reuses what the user has without overriding their choices, and never adds the same
+  version of a part twice (copies record their original, source and version; another
+  version of a part is added next to the user's).
 - **shodoukan-practice-web:** **Exportar** in a collection's menu downloads it as a
   `.shodoukan.json` file, and **Importar** in "Mis colecciones" creates a new
   collection from one, saying how many items were new, already in the library, or no

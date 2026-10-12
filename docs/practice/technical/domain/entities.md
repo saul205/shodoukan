@@ -48,10 +48,13 @@ On top of the snapshot:
 - `is_active` on the aggregate: an inactive item stays in the library and in its
   collections, but is skipped when listing a collection's cards and when building
   exercise pools.
-- `copied_from_id` on the parts the user can add (and on a word of the user's own),
-  `copied_from_collection_id` on collections: the id of the element it was imported
-  from, if any (see [sharing](#sharing-shared_collection_valuepy)). `PracticeEntry.provenance`
-  is `{id, copied_from_id}`.
+- Where a copy came from (see [sharing](#sharing-shared_collection_valuepy)):
+  `original_id` (identity) and `source_id` (the row it was copied from) on the parts
+  the user can add, senses and words of the user's own, plus `edited_id` (the version)
+  on parts with content (spellings, readings, glosses, examples, kanji meanings);
+  `source_collection_id` on collections. `None` is the row itself. Editing a meaning or
+  an example sets `edited_id = None`: that version is now the user's.
+  `PracticeEntry.identity` is `original_id`, or `id` for an original.
 
 `PracticeKanjiReading` (a word's kanji spelling, e.g. 食べる) isn't the same as
 `PracticeReadingItem` (one on/kun reading or nanori of a character).
@@ -171,13 +174,14 @@ file format. The contract is in the
 
 - `SharedEntryCollection` / `SharedKanjiCollection` (`SharedCollection`): `id`, `name`,
   `description`, `items` (at most `MAX_SHARED_ITEMS`, 5000).
-- `SharedEntry`: `id`, `copied_from_id`, `source_entry_id` (`None` for a word of the
+- `SharedEntry`: `id`, `original_id`, `source_entry_id` (`None` for a word of the
   owner's own, which then has only `added` parts and at least one reading),
   `is_active`, `notes`, `spellings`, `readings`, `senses` → `glosses`, `examples` →
   `sentences`. `SharedKanji`: `literal`, `is_active`, `notes`, `on_readings` /
   `kun_readings` / `nanori` (`SharedKanjiReading(text, enabled)`), `meanings`.
-- Every part is a `SharedPart`: `origin`, `id`, `copied_from_id` (its `provenance`),
-  `enabled`, plus its text. Added parts are validated like the user's own (kana
+- Every part is a `SharedPart`: `origin`, `id`, `original_id` (its `identity`),
+  `enabled`; parts with content are `SharedContent`, with `edited_id` (its `version`).
+  The exporter fills them resolved (an original's `original_id` is its `id`). Added parts are validated like the user's own (kana
   readings, non-empty meanings, an example's Japanese sentence, a sense with meanings
   in one language); imported ones aren't, they're only located. Lists are bounded by
   `MAX_SHARED_PARTS` (500).
@@ -189,8 +193,9 @@ Aggregate methods:
   parts are located by their place among the imported parts of the same list, checked
   by text (a sense by its first imported meaning); flags (`enabled`, `is_active`) are
   taken only when `created` is true (the item was created by this import). Added parts
-  are appended as copies (`copied_from_id` = the shared part's id) unless a part shares
-  their provenance. Notes are copied only where there are none. An added meaning in
+  are appended as copies (`original_id` / `edited_id` as shared, `source_id` = the shared
+  part's id) unless the item has that version already; another version of the same
+  part is appended next to it. Senses and words are matched by identity. Notes are copied only where there are none. An added meaning in
   another language than its sense's, and the added parts of an imported sense that
   can't be located, are skipped. Returns whether anything changed (touches then). The
   shared helper is `merge_parts` in `nested_item_lookup.py`.

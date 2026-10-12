@@ -57,6 +57,10 @@ account or another one (to move it, keep a copy, or give it to someone).
   (hidden parts, notes, active or not).
 - **Importing the same file again duplicates nothing**: it creates another collection
   with the same items, and adds no meaning or word twice.
+- **If someone changed something along the way, both versions are kept.** For example,
+  if a meaning the user wrote was edited by whoever passed the collection on, the
+  edited one is added next to the user's own: nothing is lost, and the user can delete
+  the one they don't want.
 - A word the dictionary no longer has is left out, and the user is told which ones.
   A meaning or example the user added to a sense the dictionary has since changed is
   left out too.

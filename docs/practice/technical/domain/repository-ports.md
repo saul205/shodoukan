@@ -42,7 +42,7 @@ span several of their rows (starting an exercise session).
 | `count(user_id, search, scope)` | how many items `find` pages through |
 | `get_by_source_entry_id(source_entry_id, user_id)` / `get_by_literal(literal, user_id)` | the user's copy of that dictionary item, or `None` |
 | `practice_ids_by_source_entry_id(source_entry_ids, user_id)` / `practice_ids_by_literal(literals, user_id)` | `{source_entry_id or literal: practice id}` for the ones the user has imported; reads two columns, no snapshot |
-| `find_own_by_provenance(ids, user_id)` (entries) | the user's own words (no source) whose `id` or `copied_from_id` is in `ids`, ordered by id: what a shared word of someone's own may already be in the library |
+| `find_own_by_identity(identities, user_id)` (entries) | the user's own words (no source) whose identity (`original_id`, or `id` for an original) is in `identities`, ordered by id: what a shared word of someone's own may already be in the library |
 | `add(item)` | the stored item, with ids for it and every nested part |
 | `add_if_absent(item)` | `(stored item, created)`: stores it unless the user already has it, and is safe against a concurrent import of the same item |
 | `update(item)` | the stored item. Replaces the whole snapshot: nested parts with an id are updated, those without one are inserted, missing ones are deleted |

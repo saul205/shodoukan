@@ -455,25 +455,28 @@ def test_own_words_have_no_source_and_can_repeat(
         repo.add_if_absent(own())
 
 
-def test_find_own_by_provenance_matches_ids_and_origins(
+def test_find_own_by_identity_matches_originals_and_copies(
     repo: SqlAlchemyPracticeEntryRepository,
     user: UserORM,
     other_user: UserORM,
     session: Session,
 ) -> None:
-    def own(user_id: Any, copied_from_id: int | None = None) -> PracticeEntry:
+    def own(user_id: Any, original_id: int | None = None) -> PracticeEntry:
         entry = PracticeEntry.create_own(user_id, [], ["さんびき"], "x", "eng")
-        return entry.model_copy(update={"copied_from_id": copied_from_id})
+        return entry.model_copy(update={"original_id": original_id})
 
     mine = repo.add(own(user.id))
-    copy = repo.add(own(user.id, copied_from_id=900))
-    repo.add(own(other_user.id, copied_from_id=900))
+    copy = repo.add(own(user.id, original_id=900))
+    repo.add(own(other_user.id, original_id=900))
     dictionary = repo.add(make_entry(user.id))
     session.expunge_all()
     assert mine.id is not None
     assert dictionary.id is not None
 
-    found = repo.find_own_by_provenance([mine.id, 900, dictionary.id], user.id)
+    found = repo.find_own_by_identity([mine.id, 900, dictionary.id], user.id)
     assert [e.id for e in found] == [mine.id, copy.id]
-    assert found[1].copied_from_id == 900
-    assert repo.find_own_by_provenance([], user.id) == []
+    assert found[1].original_id == 900
+    # A copy is found by its original's id, not by its own.
+    assert copy.id is not None
+    assert repo.find_own_by_identity([copy.id], user.id) == []
+    assert repo.find_own_by_identity([], user.id) == []

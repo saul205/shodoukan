@@ -163,8 +163,10 @@ standalone: never call shodoukan-api from here.
 - Importing a collection (file today, public collections later) always creates a new
   one (`free_collection_name`), reuses the user's items without overriding their
   choices (flags only on items the import creates, notes only where none), and never
-  duplicates: parts match by provenance (`{id, copied_from_id}`); imported parts are
-  located by place and checked by text. Contract:
+  adds a version twice: copies record `original_id` (identity), `source_id` and, on
+  parts with content, `edited_id` (version); a part is skipped only when the item has
+  that version, and another version is added next to it; senses and own words match
+  by identity. Imported parts are located by place and checked by text. Contract:
   `docs/practice/proposals/library-authoring-and-sharing.md`.
 - Dictionary data in the library is never edited or deleted, only disabled
   (`OriginalDataError` → 409); only the user's own spellings, readings, senses,

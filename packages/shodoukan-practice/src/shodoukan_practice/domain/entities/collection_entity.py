@@ -32,7 +32,7 @@ class Collection(TimestampedEntity):
     description: str | None = None
     # The collection this one was imported from, if any. No link: it may
     # belong to another user, or another database, and be gone.
-    copied_from_collection_id: int | None = None
+    source_collection_id: int | None = None
 
     def rename(self, name: str) -> None:
         if name != self.name:

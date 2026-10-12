@@ -319,14 +319,14 @@ def test_import_copies_a_collection_into_another_library(
 
     assert (result.created, result.existing, result.missing) == (2, 0, [])
     assert result.collection.name == "verbs"
-    assert result.collection.copied_from_collection_id == exported_verbs.id
+    assert result.collection.source_collection_id == exported_verbs.id
     eat = entries.get_by_source_entry_id(1000001, other_user.id)
     assert eat is not None
     assert eat.notes == "my note"
     assert eat.kanji_readings[0].enabled is False
     assert [g.text for g in eat.senses[0].glosses][-1] == "to scoff"
-    own = entries.find_own_by_provenance(
-        exported_verbs.items[1].provenance, other_user.id
+    own = entries.find_own_by_identity(
+        [exported_verbs.items[1].identity or 0], other_user.id
     )
     assert [r.text for r in own[0].readings] == ["さんびき"]
 
@@ -344,7 +344,7 @@ def test_importing_again_duplicates_nothing(
     assert (result.created, result.existing) == (0, 2)
     assert result.collection.name == "verbs (2)"
     assert entries.get_by_source_entry_id(1000001, user.id) == eat_before
-    own = entries.find_own_by_provenance(exported_verbs.items[1].provenance, user.id)
+    own = entries.find_own_by_identity([exported_verbs.items[1].identity or 0], user.id)
     assert len(own) == 1
 
 

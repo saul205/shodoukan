@@ -155,7 +155,7 @@ def test_kanji_merge_into_a_created_copy_takes_everything() -> None:
     assert kanji.is_active is False
     assert kanji.notes == "the owner's note"
     assert kanji.kun_readings[0].enabled is False
-    assert [(m.text, m.copied_from_id) for m in kanji.meanings] == [
+    assert [(m.text, m.source_id) for m in kanji.meanings] == [
         ("eat", None),
         ("food (extra)", 2),
     ]

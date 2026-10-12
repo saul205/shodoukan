@@ -322,13 +322,13 @@ file back (in any account) and creates a new collection from it. The file:
     "id": 12, "name": "verbs", "description": null,
     "items": [
       {
-        "id": 345, "copied_from_id": null, "source_entry_id": 1358280,
+        "id": 345, "original_id": 345, "source_entry_id": 1358280,
         "is_active": true, "notes": "my note",
-        "spellings": [{ "origin": "imported", "id": 1, "copied_from_id": null, "enabled": false, "text": "食べる" }],
-        "readings": [{ "origin": "imported", "id": 2, "copied_from_id": null, "enabled": true, "text": "たべる" }],
+        "spellings": [{ "origin": "imported", "id": 1, "original_id": 1, "edited_id": 1, "enabled": false, "text": "食べる" }],
+        "readings": [{ "origin": "imported", "id": 2, "original_id": 2, "edited_id": 2, "enabled": true, "text": "たべる" }],
         "senses": [{
-          "origin": "imported", "id": 3, "copied_from_id": null, "enabled": true, "notes": null,
-          "glosses": [{ "origin": "added", "id": 9, "copied_from_id": null, "enabled": true, "text": "to scoff", "lang": "eng" }],
+          "origin": "imported", "id": 3, "original_id": 3, "enabled": true, "notes": null,
+          "glosses": [{ "origin": "added", "id": 9, "original_id": 7, "edited_id": 9, "enabled": true, "text": "to scoff", "lang": "eng" }],
           "examples": []
         }]
       }

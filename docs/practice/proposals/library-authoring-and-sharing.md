@@ -52,7 +52,7 @@ itself:
     of the same list (imported senses keep no dictionary sense id), checked against
     their text where they have one (spellings, readings, meanings);
   - **added parts** (spellings, readings, senses, meanings, examples) to be copied,
-    with their id (and `copied_from_id`, if they were copies) as provenance.
+    with their ids (below).
 - Notes (entry, sense, kanji) and `is_active`.
 - Words of the user's own have no reference: everything in them is `added`, so they
   travel whole.
@@ -62,15 +62,16 @@ Exercises, sessions and statistics are never part of it.
 ### How it's imported
 
 - **Always into a new collection.** It keeps the name, with a suffix when the user
-  already has one by that name ("N5 (2)"), and records
-  `copied_from_collection_id`. It never merges into an existing collection.
+  already has one by that name ("N5 (2)"), and records `source_collection_id`. It
+  never merges into an existing collection.
 - **Reuse what the user has.** A dictionary item already in the library is reused; a
   missing one is imported from the dictionary; one the dictionary no longer has is
   skipped and reported. A word of the user's own is reused when the user already has
-  it (by provenance, below), and created otherwise.
+  a copy of it (same original, below), and created otherwise.
 - **What the import creates takes the origin's state; what the user had keeps
   theirs.**
-  - Added parts the item doesn't have yet are appended, with their enabled flag.
+  - Added parts the item doesn't have in that version are appended, with their
+    enabled flag (below).
   - Imported parts' enabled flags and `is_active` apply only to items this import
     created.
   - Notes are copied only where the user has none (entry, sense, kanji); otherwise the
@@ -78,24 +79,49 @@ Exercises, sessions and statistics are never part of it.
   - An added meaning in another language than its sense's is skipped (a sense's
     meanings are in one language). So are the added meanings and examples of an
     imported sense that can't be located (the dictionary changed).
-- **Nothing is duplicated.** Two parts are the same when their ids or `copied_from_id`
-  overlap: re-importing a file, or importing back a copy of one's own collection, adds
-  nothing twice. Ids are compared within the same item (parts) or among the user's own
-  words (whole words), so a coincidence with ids from another database only skips a
-  part, never mixes users' data.
+- **The same version is never added twice; another version is.** Re-importing a file,
+  or importing back an unchanged copy of one's own collection, adds nothing. A part
+  someone edited along the way is added next to the user's own version: better to
+  duplicate, which can be deleted, than to lose it. A conflicts panel will later let
+  the user pick between versions of the same part.
 - What is copied is decided by aggregate methods (`PracticeEntry` / `PracticeKanji`),
   not route logic. The whole import is one transaction: an invalid file imports
   nothing.
 
-### Provenance
+### Provenance: original, source and version
 
-- `copied_from_collection_id` on the collection, to download it again or update it.
-- `copied_from_id` on every copied element (spelling, reading, sense, meaning, example,
-  word of the user's own): the origin element's id, while the copy gets its own. It's
-  what keeps re-imports from duplicating, lets a later "update" be offered when the
-  origin changed, and lets what came from it be filtered or disabled.
-- No foreign key: the origin may belong to another user, or another database, and may
-  disappear. It points to the immediate origin, not the whole chain.
+An imported part is a **copy of the user's own**, not a reference: they can edit it,
+and then it's no longer the origin's. A copy records three ids (`None` means "this row
+itself"; a part the user created has all three `None`):
+
+- **`original_id`, identity:** the part every copy of it shares, through any chain of
+  imports. Versions of one part are grouped by it (the future conflicts panel).
+- **`edited_id`, version:** the row where its content was last written. A copy keeps
+  the version it received; editing it makes the version the user's (`None`). Only
+  parts with content have it: spellings, readings, meanings, examples.
+- **`source_id`, provenance:** the row it was copied from, the immediate origin; and
+  `source_collection_id` on the collection, to download it again or update it.
+
+| Version | Means |
+|---|---|
+| `edited == original` | the original content, unchanged along the chain |
+| `edited == source`'s version, ≠ original | someone along the chain edited it, not the user |
+| `None` (the row's own id) | the user wrote this version |
+
+On import, an added part is skipped when the item has that version already, and
+appended otherwise. Senses and words of the user's own are containers: they're matched
+by identity, and their parts merged, so a word someone added a meaning to isn't
+imported twice. Example: A's meaning 20 → B (unchanged) → C → A: same version 20,
+nothing added. If B edits it (B's version 100) → C → A: A gets version 100 next to its
+own 20, both with original 20.
+
+- Things that share no ancestry (two users who each created 三匹) are never matched:
+  only the text relates them, and comparing it would merge homographs and miss
+  variants. At most, a later "possible duplicate" hint.
+- An identity means "derived from", not "same content": an edit by the origin after
+  the copy was made isn't synced (no sync, as above).
+- No foreign keys: the origin may belong to another user and disappear. Ids are only
+  meaningful within one database, which is the case today (one shared database).
 
 ### Rejected
 

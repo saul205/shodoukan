@@ -12,7 +12,14 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from ..exceptions import OriginalDataError
-from .nested_item_lookup import Toggleable, clean_meaning, find_item, merge_parts
+from .nested_item_lookup import (
+    Toggleable,
+    clean_meaning,
+    find_item,
+    identity,
+    merge_parts,
+    version,
+)
 from .notes_value import Notes, parse_notes
 from .shared_collection_value import SharedKanji, SharedKanjiReading, SharedMeaning
 from .timestamped_entity import TimestampedEntity
@@ -40,8 +47,10 @@ class PracticeKanjiMeaning(BaseModel):
     lang: str
     enabled: bool = True
     origin: Literal["imported", "added"] = "imported"
-    # The id of the meaning this one was copied from (see `PracticeGloss`).
-    copied_from_id: int | None = None
+    # Where a copy came from (see `PracticeGloss`).
+    original_id: int | None = None
+    source_id: int | None = None
+    edited_id: int | None = None
 
 
 class PracticeKanji(TimestampedEntity):
@@ -101,6 +110,7 @@ class PracticeKanji(TimestampedEntity):
         text = clean_meaning(text)
         if text != meaning.text:
             meaning.text = text
+            meaning.edited_id = None  # this version is now the user's
             self.touch()
 
     def remove_meaning(self, meaning_id: int) -> None:
@@ -122,7 +132,8 @@ class PracticeKanji(TimestampedEntity):
                 SharedMeaning(
                     origin=m.origin,
                     id=m.id,
-                    copied_from_id=m.copied_from_id,
+                    original_id=identity(m),
+                    edited_id=version(m),
                     enabled=m.enabled,
                     text=m.text,
                     lang=m.lang,
@@ -201,5 +212,7 @@ def _copied_meaning(part: SharedMeaning) -> PracticeKanjiMeaning:
         lang=part.lang,
         enabled=part.enabled,
         origin="added",
-        copied_from_id=part.id,
+        original_id=part.identity,
+        source_id=part.id,
+        edited_id=part.version,
     )

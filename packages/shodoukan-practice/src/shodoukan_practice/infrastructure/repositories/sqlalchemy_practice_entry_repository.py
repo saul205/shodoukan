@@ -9,7 +9,6 @@ from sqlalchemy import (
     Subquery,
     exists,
     func,
-    or_,
     select,
 )
 from sqlalchemy.exc import IntegrityError
@@ -115,21 +114,19 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         # The IN leaves the user's own words (no source) out; this tells mypy.
         return {source: id_ for source, id_ in rows if source is not None}
 
-    def find_own_by_provenance(
-        self, ids: Iterable[int], user_id: UUID
+    def find_own_by_identity(
+        self, identities: Iterable[int], user_id: UUID
     ) -> list[PracticeEntry]:
-        ids = list(ids)
-        if not ids:
+        identities = list(identities)
+        if not identities:
             return []
+        identity = func.coalesce(PracticeEntryORM.original_id, PracticeEntryORM.id)
         query = (
             self._select()
             .where(
                 PracticeEntryORM.user_id == user_id,
                 PracticeEntryORM.source_entry_id.is_(None),
-                or_(
-                    PracticeEntryORM.id.in_(ids),
-                    PracticeEntryORM.copied_from_id.in_(ids),
-                ),
+                identity.in_(identities),
             )
             .order_by(PracticeEntryORM.id)
         )

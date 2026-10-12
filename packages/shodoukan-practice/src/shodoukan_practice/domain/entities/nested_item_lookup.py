@@ -18,17 +18,28 @@ class Toggleable(Identified, Protocol):
     enabled: bool
 
 
-class Copyable(Toggleable, Protocol):
-    """A part that can be the user's own, and a copy of someone else's."""
+class Copyable(Identified, Protocol):
+    """A part (or word) that can be a copy of someone else's.
 
-    copied_from_id: int | None
+    `None` in an id means "this row itself": a part the user created is its
+    own original and version, and was copied from nowhere.
+    """
+
+    original_id: int | None
+    source_id: int | None
+
+
+class Versioned(Copyable, Toggleable, Protocol):
+    """A part with content, whose `edited_id` is the version of it."""
+
+    edited_id: int | None
 
     @property
     def origin(self) -> str: ...
 
 
 class CopySource(Protocol):
-    """A part of a shared item (`SharedPart`)."""
+    """A part with content of a shared item (`SharedContent`)."""
 
     @property
     def origin(self) -> str: ...
@@ -37,11 +48,11 @@ class CopySource(Protocol):
     def enabled(self) -> bool: ...
 
     @property
-    def provenance(self) -> set[int]: ...
+    def version(self) -> int | None: ...
 
 
 T = TypeVar("T", bound=Identified)
-C = TypeVar("C", bound=Copyable)
+C = TypeVar("C", bound=Versioned)
 S = TypeVar("S", bound=CopySource)
 
 
@@ -85,9 +96,14 @@ def clean_spelling(text: str) -> str:
     return text
 
 
-def provenance(part: Copyable) -> set[int]:
-    """The ids that identify a part across copies: its own and its origin's."""
-    return {i for i in (part.id, part.copied_from_id) if i is not None}
+def identity(part: Copyable) -> int | None:
+    """The part all copies of this one share."""
+    return part.original_id if part.original_id is not None else part.id
+
+
+def version(part: Versioned) -> int | None:
+    """The version of the part's content: the row where it was last written."""
+    return part.edited_id if part.edited_id is not None else part.id
 
 
 def merge_parts(
@@ -103,7 +119,8 @@ def merge_parts(
     An imported part is located by its place among the imported targets and
     checked with `same`; its flag is taken only when the item was `created`
     by this import. An added part is appended as a `copy` unless a target
-    shares its provenance. Returns whether anything changed.
+    has its version already (another version of the same part is added too:
+    better to duplicate than to lose it). Returns whether anything changed.
     """
     imported = [t for t in targets if t.origin == "imported"]
     position = 0
@@ -120,7 +137,7 @@ def merge_parts(
             ):
                 target.enabled = part.enabled
                 changed = True
-        elif not any(provenance(t) & part.provenance for t in targets):
+        elif part.version is None or all(version(t) != part.version for t in targets):
             targets.append(copy(part))
             changed = True
     return changed

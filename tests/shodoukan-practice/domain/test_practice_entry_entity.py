@@ -501,19 +501,24 @@ def test_merge_into_a_created_copy_takes_everything() -> None:
         ("食べる", False, "imported"),
         ("喰べる", True, "added"),
     ]
-    assert entry.kanji_readings[1].copied_from_id == 2
-    assert entry.kanji_readings[1].id is None
+    copied = entry.kanji_readings[1]
+    assert (copied.id, copied.original_id, copied.source_id, copied.edited_id) == (
+        None,
+        2,
+        2,
+        2,
+    )
     assert [r.text for r in entry.readings] == ["たべる", "たべるる"]
     sense = entry.senses[0]
     assert sense.notes == "a sense note"
-    assert [(g.text, g.copied_from_id) for g in sense.glosses] == [
+    assert [(g.text, g.source_id) for g in sense.glosses] == [
         ("to eat", None),
         ("to scoff (colloquial)", 2),
     ]
-    assert [e.copied_from_id for e in sense.examples] == [None, 2]
+    assert [e.source_id for e in sense.examples] == [None, 2]
     own = entry.senses[1]
-    assert (own.origin, own.enabled, own.copied_from_id) == ("added", False, 2)
-    assert [(g.text, g.copied_from_id) for g in own.glosses] == [("to live on", 3)]
+    assert (own.origin, own.enabled, own.original_id) == ("added", False, 2)
+    assert [(g.text, g.source_id) for g in own.glosses] == [("to live on", 3)]
     assert entry.updated_at > NOW
 
 
@@ -588,15 +593,98 @@ def own_word() -> PracticeEntry:
 def test_from_shared_copies_a_word_of_ones_own_whole() -> None:
     copy = PracticeEntry.from_shared(USER_ID, own_word().to_shared())
     assert copy.is_own
-    assert copy.copied_from_id == 7
+    assert (copy.original_id, copy.source_id) == (7, 7)
     assert [s.kanji for s in copy.kanji_readings] == ["三匹"]
     assert [r.text for r in copy.readings] == ["さんびき"]
-    assert [(g.text, g.copied_from_id) for g in copy.senses[0].glosses] == [
-        ("three", 1)
-    ]
+    assert [(g.text, g.source_id) for g in copy.senses[0].glosses] == [("three", 1)]
     assert copy.jlpt is None
 
 
 def test_from_shared_refuses_a_dictionary_word() -> None:
     with pytest.raises(ValueError, match="own"):
         PracticeEntry.from_shared(USER_ID, make_entry().to_shared())
+
+
+def stored(entry: PracticeEntry, first_id: int) -> PracticeEntry:
+    """`entry` as the repository returns it: every part has an id."""
+    ids = iter(range(first_id, first_id + 1000))
+    entry.id = entry.id or next(ids)
+    for spelling in entry.kanji_readings:
+        spelling.id = spelling.id or next(ids)
+    for reading in entry.readings:
+        reading.id = reading.id or next(ids)
+    for sense in entry.senses:
+        sense.id = sense.id or next(ids)
+        for gloss in sense.glosses:
+            gloss.id = gloss.id or next(ids)
+        for example in sense.examples:
+            example.id = example.id or next(ids)
+    return entry
+
+
+def copied(shared_from: PracticeEntry, first_id: int) -> PracticeEntry:
+    """Another user's stored copy of `shared_from`, imported from scratch."""
+    entry = fresh_snapshot()
+    entry.merge_shared(shared_from.to_shared(), created=True)
+    return stored(entry, first_id)
+
+
+def added_meanings(entry: PracticeEntry) -> list[str]:
+    return [g.text for s in entry.senses for g in s.glosses if g.origin == "added"]
+
+
+def test_an_unchanged_copy_of_a_copy_is_still_the_original() -> None:
+    a = origin_entry()
+    b = copied(a, 100)
+    c = copied(b, 200)
+
+    gloss = c.senses[0].glosses[1]
+    from_b = b.senses[0].glosses[1].id
+    assert (gloss.original_id, gloss.source_id, gloss.edited_id) == (2, from_b, 2)
+    before = a.model_copy(deep=True)
+    assert a.merge_shared(c.to_shared(), created=False) is False
+    assert a == before
+
+
+def test_editing_a_copy_makes_its_version_the_users() -> None:
+    b = copied(origin_entry(), 100)
+    gloss = b.senses[0].glosses[1]
+    b.edit_gloss(gloss.id or 0, "to wolf down")
+
+    assert (gloss.original_id, gloss.edited_id) == (2, None)
+    shared = b.to_shared().senses[0].glosses[1]
+    assert (shared.original_id, shared.edited_id) == (2, gloss.id)
+
+
+def test_another_version_of_a_part_is_added_next_to_it() -> None:
+    a = origin_entry()
+    b = copied(a, 100)
+    b_gloss = b.senses[0].glosses[1]
+    b.edit_gloss(b_gloss.id or 0, "to wolf down")
+    c = copied(b, 200)
+
+    a.merge_shared(c.to_shared(), created=False)
+
+    assert added_meanings(a) == ["to scoff (colloquial)", "to wolf down", "to live on"]
+    # Both versions are the same part: a later conflicts panel can group them.
+    assert {g.original_id or g.id for g in a.senses[0].glosses[1:]} == {2}
+    # Importing it again adds nothing more.
+    before = a.model_copy(deep=True)
+    a.merge_shared(c.to_shared(), created=False)
+    assert a == before
+
+
+def test_reimporting_the_origin_after_editing_adds_its_version_once() -> None:
+    a = origin_entry()
+    b = copied(a, 100)
+    b.edit_gloss(b.senses[0].glosses[1].id or 0, "to wolf down")
+
+    b.merge_shared(a.to_shared(), created=False)
+    assert [g.text for g in b.senses[0].glosses] == [
+        "to eat",
+        "to wolf down",
+        "to scoff (colloquial)",
+    ]
+    before = stored(b, 300).model_copy(deep=True)
+    b.merge_shared(a.to_shared(), created=False)
+    assert b == before

@@ -247,8 +247,8 @@ class ImportEntryCollection:
 
     The rules are the aggregate's (`PracticeEntry.merge_shared`): items the
     user has are reused and the missing ones imported from the dictionary,
-    words of someone's own are copied unless the user has them already (by
-    provenance), and only what the import creates takes the origin's flags.
+    words of someone's own are copied unless the user has a copy of them
+    already (same identity), and only what the import creates takes the origin's flags.
     The collection gets a free name. Doesn't commit: the caller owns the
     transaction, so an invalid item imports nothing.
     """
@@ -273,12 +273,12 @@ class ImportEntryCollection:
                 user_id=user_id,
                 name=free_collection_name(shared.name, taken),
                 description=shared.description,
-                copied_from_collection_id=shared.id,
+                source_collection_id=shared.id,
             )
         )
         result: CollectionImport[EntryCollection, int] = CollectionImport(collection)
-        own = self._entries.find_own_by_provenance(
-            {i for item in shared.items for i in item.provenance}, user_id
+        own = self._entries.find_own_by_identity(
+            {i.identity for i in shared.items if i.identity is not None}, user_id
         )
         for item in shared.items:
             entry = (
@@ -297,7 +297,14 @@ class ImportEntryCollection:
         own: list[PracticeEntry],
         result: CollectionImport[EntryCollection, int],
     ) -> PracticeEntry:
-        match = next((e for e in own if e.provenance & item.provenance), None)
+        match = next(
+            (
+                e
+                for e in own
+                if item.identity is not None and e.identity == item.identity
+            ),
+            None,
+        )
         if match is None:
             entry = self._entries.add(PracticeEntry.from_shared(user_id, item))
             own.append(entry)  # the file may list it twice
@@ -357,7 +364,7 @@ class ImportKanjiCollection:
                 user_id=user_id,
                 name=free_collection_name(shared.name, taken),
                 description=shared.description,
-                copied_from_collection_id=shared.id,
+                source_collection_id=shared.id,
             )
         )
         result: CollectionImport[KanjiCollection, str] = CollectionImport(collection)

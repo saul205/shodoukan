@@ -61,6 +61,7 @@ Once any environment is deployed, migrations are append-only.
 | `23728b417aff` | `enabled` and `origin` on `practice_senses`; downgrading deletes the user's own senses |
 | `d1d520270eb8` | `practice_entries.source_entry_id` nullable (words of the user's own); `origin` on spellings and readings; downgrading deletes own words, spellings and readings |
 | `b9ae9e057d9c` | `copied_from_id` on practice entries and the parts the user can add, `copied_from_collection_id` on collections (no foreign keys): where an imported copy came from |
+| `5c2f8a1d9e47` | Copies record `original_id` and `source_id` (the old `copied_from_id`), and `edited_id` on parts with content; `source_collection_id` (the old `copied_from_collection_id`) |
 
 ## Safety nets
 

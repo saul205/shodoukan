@@ -851,12 +851,31 @@ flags only on what the import creates) are fixed once, in the
   its first meaning is the same; a spelling, reading or meaning by its text. When the
   dictionary changed in between, the part is left as the user has it, and the added
   parts that hung from it are skipped.
-- **Provenance instead of comparing text.** Added parts are copied with
-  `copied_from_id`, and two parts are the same when their `{id, copied_from_id}`
-  overlap. So re-importing a file, or importing back a copy of one's own collection,
-  adds nothing twice, even after the text was edited. Ids from another database can
-  coincide; the comparison is within one item (or among the user's own words), so the
-  worst case is a skipped part.
-- **No foreign keys** on `copied_from_*`: the origin may belong to another user or
-  database and be deleted.
+- **Ids instead of comparing text**, to tell copies apart: see
+  [copies record their original, source and version](#copies-record-their-original-source-and-version).
+
+## Copies record their original, source and version
+
+Replaces the first version of #86, where a copy only kept `copied_from_id`, the row it
+came from. That lost the origin after two imports (A → B → C → A duplicated A's own
+part), and storing the original alone would treat copies as references.
+
+An imported part is a copy of the user's own: they can edit it, and then it's theirs,
+not the origin's. So a copy records its identity (`original_id`, shared by every copy),
+its provenance (`source_id`, the immediate origin) and, for parts with content, its
+version (`edited_id`, kept until the user edits it). `None` means the row itself, so
+nothing has to be written after an insert.
+
+- **Same version: skip; another version: add.** When importing a part the user has in
+  another version, both are kept, grouped by `original_id` for a future conflicts
+  panel. Duplicating, which the user can undo by deleting, beats losing what someone
+  else wrote and having to find it by hand.
+- **Containers by identity.** Senses and words of the user's own have no version: they
+  are matched by `original_id` and their parts merged, like dictionary words by
+  `ent_seq`, so an edit inside a word doesn't make a second word.
+- **No matching without shared ancestry.** Parts created independently are never
+  matched by text: homographs would be merged and variants missed.
+- **No foreign keys:** the origin may belong to another user and be deleted. Ids are
+  compared within one database (the shared one); a file moved between separate
+  databases could match unrelated rows, accepted while there's only one.
 

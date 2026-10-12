@@ -5,12 +5,21 @@ An item travels as its dictionary reference plus the user's own data: every
 part, in order, with its origin, enabled flag and text. On import the
 dictionary snapshot is taken again; its imported parts are only located (by
 place among the imported parts of the same list, checked by text), while
-added parts are copied, with their ids as provenance so a re-import doesn't
-duplicate them. `PracticeEntry` / `PracticeKanji` build these (`to_shared`)
-and apply them (`merge_shared`).
+added parts are copied. `PracticeEntry` / `PracticeKanji` build these
+(`to_shared`) and apply them (`merge_shared`).
 
-Ids are the origin's, never the importer's: they're only compared, never
-stored as ids.
+Each part carries three ids from the exporter's database:
+
+- `id`: the exporter's row; the copy records it as `source_id`.
+- `original_id`: the part every copy of it shares, its identity.
+- `edited_id` (parts with content: spellings, readings, meanings, examples):
+  the version of that content, the row where it was last written. A copy
+  keeps it until its owner edits it.
+
+An added part is skipped when the item already has that version; another
+version of the same part is added next to it (better to duplicate than to
+lose it). Senses and words are containers: they're matched by identity, and
+their parts merged. None of these ids is stored as an id by the importer.
 """
 
 from typing import Literal, Self
@@ -40,18 +49,27 @@ class SharedPart(SharedValue):
     """A part of an item: what it is, where it came from, whether it's shown."""
 
     origin: SharedOrigin
-    # The origin's id for the part, and the id it was copied from in turn.
     id: int | None = None
-    copied_from_id: int | None = None
+    original_id: int | None = None
     enabled: bool = True
 
     @property
-    def provenance(self) -> set[int]:
-        """The ids that identify this part across copies."""
-        return {i for i in (self.id, self.copied_from_id) if i is not None}
+    def identity(self) -> int | None:
+        """The part all its copies share (a hand-written file may omit it)."""
+        return self.original_id if self.original_id is not None else self.id
 
 
-class SharedSpelling(SharedPart):
+class SharedContent(SharedPart):
+    """A part with content of its own, which has versions."""
+
+    edited_id: int | None = None
+
+    @property
+    def version(self) -> int | None:
+        return self.edited_id if self.edited_id is not None else self.id
+
+
+class SharedSpelling(SharedContent):
     text: str
 
     @model_validator(mode="after")
@@ -61,7 +79,7 @@ class SharedSpelling(SharedPart):
         return self
 
 
-class SharedReading(SharedPart):
+class SharedReading(SharedContent):
     text: str
 
     @model_validator(mode="after")
@@ -71,7 +89,7 @@ class SharedReading(SharedPart):
         return self
 
 
-class SharedMeaning(SharedPart):
+class SharedMeaning(SharedContent):
     """An entry gloss (ISO 639-2 `lang`) or a kanji meaning (ISO 639-1)."""
 
     text: str
@@ -89,7 +107,7 @@ class SharedSentence(SharedValue):
     text: str
 
 
-class SharedExample(SharedPart):
+class SharedExample(SharedContent):
     """An example sentence: the Japanese one (`jpn`) and its translations."""
 
     sentences: list[SharedSentence] = Field(default=[], max_length=MAX_SHARED_PARTS)
@@ -128,7 +146,7 @@ class SharedEntry(SharedValue):
     owner's own (`None`), which travels whole."""
 
     id: int | None = None
-    copied_from_id: int | None = None
+    original_id: int | None = None
     source_entry_id: int | None
     is_active: bool = True
     notes: Notes = None
@@ -137,8 +155,9 @@ class SharedEntry(SharedValue):
     senses: list[SharedSense] = Field(default=[], max_length=MAX_SHARED_PARTS)
 
     @property
-    def provenance(self) -> set[int]:
-        return {i for i in (self.id, self.copied_from_id) if i is not None}
+    def identity(self) -> int | None:
+        """For a word of the owner's own: the word all its copies share."""
+        return self.original_id if self.original_id is not None else self.id
 
     @model_validator(mode="after")
     def _check_own(self) -> Self:

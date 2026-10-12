@@ -26,8 +26,9 @@ from .nested_item_lookup import (
     clean_sentence,
     clean_spelling,
     find_item,
+    identity,
     merge_parts,
-    provenance,
+    version,
 )
 from .notes_value import Notes, parse_notes
 from .shared_collection_value import (
@@ -56,10 +57,12 @@ class PracticeGloss(BaseModel):
     type: str | None
     enabled: bool = True
     origin: Origin = "imported"
-    # The id of the part this one was copied from (another collection or
-    # user), so importing it again doesn't duplicate it. No link: the origin
-    # may be gone.
-    copied_from_id: int | None = None
+    # Where a copy came from (see `shared_collection_value`): the part all
+    # its copies share, the row it was copied from, and the version of its
+    # content. `None` is this row itself. No links: the origin may be gone.
+    original_id: int | None = None
+    source_id: int | None = None
+    edited_id: int | None = None
 
 
 class PracticeExampleSentence(BaseModel):
@@ -74,7 +77,9 @@ class PracticeExample(BaseModel):
     sentences: list[PracticeExampleSentence]
     enabled: bool = True
     origin: Origin = "imported"
-    copied_from_id: int | None = None
+    original_id: int | None = None
+    source_id: int | None = None
+    edited_id: int | None = None
 
 
 class PracticeSense(BaseModel):
@@ -90,7 +95,9 @@ class PracticeSense(BaseModel):
     # own flags, so enabling it again brings it back as it was.
     enabled: bool = True
     origin: Origin = "imported"
-    copied_from_id: int | None = None
+    # A container: its identity only; its parts carry their versions.
+    original_id: int | None = None
+    source_id: int | None = None
 
 
 class PracticeReading(BaseModel):
@@ -101,7 +108,9 @@ class PracticeReading(BaseModel):
     restricted_to: list[str]
     enabled: bool = True
     origin: Origin = "imported"
-    copied_from_id: int | None = None
+    original_id: int | None = None
+    source_id: int | None = None
+    edited_id: int | None = None
 
 
 class PracticeKanjiReading(BaseModel):
@@ -116,7 +125,9 @@ class PracticeKanjiReading(BaseModel):
     info: list[str]
     enabled: bool = True
     origin: Origin = "imported"
-    copied_from_id: int | None = None
+    original_id: int | None = None
+    source_id: int | None = None
+    edited_id: int | None = None
 
 
 class PracticeEntry(TimestampedEntity):
@@ -126,8 +137,9 @@ class PracticeEntry(TimestampedEntity):
     # user created themselves.
     source_entry_id: int | None
     # For a word of the user's own copied from someone's collection: the
-    # origin word's id.
-    copied_from_id: int | None = None
+    # word all its copies share, and the row it was copied from.
+    original_id: int | None = None
+    source_id: int | None = None
     kanji_readings: list[PracticeKanjiReading]
     readings: list[PracticeReading]
     senses: list[PracticeSense]
@@ -180,7 +192,8 @@ class PracticeEntry(TimestampedEntity):
             id=None,
             user_id=user_id,
             source_entry_id=None,
-            copied_from_id=shared.id,
+            original_id=shared.identity,
+            source_id=shared.id,
             kanji_readings=[],
             readings=[],
             senses=[],
@@ -196,16 +209,15 @@ class PracticeEntry(TimestampedEntity):
         return self.source_entry_id is None
 
     @property
-    def provenance(self) -> set[int]:
-        """The ids that identify this word across copies: its own and its
-        origin's (see `SharedEntry.provenance`)."""
-        return {i for i in (self.id, self.copied_from_id) if i is not None}
+    def identity(self) -> int | None:
+        """For a word of the user's own: the word all its copies share."""
+        return identity(self)
 
     def to_shared(self) -> SharedEntry:
         """What this word carries in an exported collection."""
         return SharedEntry(
             id=self.id,
-            copied_from_id=self.copied_from_id,
+            original_id=self.identity,
             source_entry_id=self.source_entry_id,
             is_active=self.is_active,
             notes=self.notes,
@@ -213,7 +225,8 @@ class PracticeEntry(TimestampedEntity):
                 SharedSpelling(
                     origin=s.origin,
                     id=s.id,
-                    copied_from_id=s.copied_from_id,
+                    original_id=identity(s),
+                    edited_id=version(s),
                     enabled=s.enabled,
                     text=s.kanji,
                 )
@@ -223,7 +236,8 @@ class PracticeEntry(TimestampedEntity):
                 SharedReading(
                     origin=r.origin,
                     id=r.id,
-                    copied_from_id=r.copied_from_id,
+                    original_id=identity(r),
+                    edited_id=version(r),
                     enabled=r.enabled,
                     text=r.text,
                 )
@@ -236,7 +250,8 @@ class PracticeEntry(TimestampedEntity):
         """Take what a shared copy of this word adds.
 
         The user's data wins: the parts they added that this word doesn't
-        have yet are appended, notes are copied only where there are none,
+        have in that version are appended (another version of one it has is
+        added next to it), notes are copied only where there are none,
         and the flags (`enabled`, `is_active`) are taken only when the word
         was `created` by this import. Imported parts are located by place and
         checked by text; one that doesn't match (the dictionary changed) is
@@ -376,6 +391,7 @@ class PracticeEntry(TimestampedEntity):
         text = clean_meaning(text)
         if text != gloss.text:
             gloss.text = text
+            gloss.edited_id = None  # this version is now the user's
             self.touch()
 
     def remove_gloss(self, gloss_id: int) -> None:
@@ -421,6 +437,7 @@ class PracticeEntry(TimestampedEntity):
         sentences = _sentences(example.sentences, japanese, translation, lang)
         if sentences != example.sentences:
             example.sentences = sentences
+            example.edited_id = None  # this version is now the user's
             self.touch()
 
     def remove_example(self, example_id: int) -> None:
@@ -445,7 +462,12 @@ class PracticeEntry(TimestampedEntity):
                     changed = True
             else:
                 target = next(
-                    (s for s in self.senses if provenance(s) & part.provenance), None
+                    (
+                        s
+                        for s in self.senses
+                        if part.identity is not None and identity(s) == part.identity
+                    ),
+                    None,
                 )
                 if target is None:
                     target = _copied_sense(part)
@@ -542,7 +564,8 @@ def _shared_meaning(gloss: PracticeGloss) -> SharedMeaning:
     return SharedMeaning(
         origin=gloss.origin,
         id=gloss.id,
-        copied_from_id=gloss.copied_from_id,
+        original_id=identity(gloss),
+        edited_id=version(gloss),
         enabled=gloss.enabled,
         text=gloss.text,
         lang=gloss.lang,
@@ -553,7 +576,7 @@ def _shared_sense(sense: PracticeSense) -> SharedSense:
     return SharedSense(
         origin=sense.origin,
         id=sense.id,
-        copied_from_id=sense.copied_from_id,
+        original_id=identity(sense),
         enabled=sense.enabled,
         notes=sense.notes,
         glosses=[_shared_meaning(g) for g in sense.glosses],
@@ -561,7 +584,8 @@ def _shared_sense(sense: PracticeSense) -> SharedSense:
             SharedExample(
                 origin=e.origin,
                 id=e.id,
-                copied_from_id=e.copied_from_id,
+                original_id=identity(e),
+                edited_id=version(e),
                 enabled=e.enabled,
                 sentences=[
                     SharedSentence(lang=s.lang, text=s.text) for s in e.sentences
@@ -617,7 +641,9 @@ def _copied_spelling(part: SharedSpelling) -> PracticeKanjiReading:
         info=[],
         enabled=part.enabled,
         origin="added",
-        copied_from_id=part.id,
+        original_id=part.identity,
+        source_id=part.id,
+        edited_id=part.version,
     )
 
 
@@ -630,7 +656,9 @@ def _copied_reading(part: SharedReading) -> PracticeReading:
         restricted_to=[],
         enabled=part.enabled,
         origin="added",
-        copied_from_id=part.id,
+        original_id=part.identity,
+        source_id=part.id,
+        edited_id=part.version,
     )
 
 
@@ -642,7 +670,9 @@ def _copied_gloss(part: SharedMeaning) -> PracticeGloss:
         type=None,
         enabled=part.enabled,
         origin="added",
-        copied_from_id=part.id,
+        original_id=part.identity,
+        source_id=part.id,
+        edited_id=part.version,
     )
 
 
@@ -656,7 +686,9 @@ def _copied_example(part: SharedExample) -> PracticeExample:
         ],
         enabled=part.enabled,
         origin="added",
-        copied_from_id=part.id,
+        original_id=part.identity,
+        source_id=part.id,
+        edited_id=part.version,
     )
 
 
@@ -672,5 +704,6 @@ def _copied_sense(part: SharedSense) -> PracticeSense:
         examples=[],
         enabled=part.enabled,
         origin="added",
-        copied_from_id=part.id,
+        original_id=part.identity,
+        source_id=part.id,
     )

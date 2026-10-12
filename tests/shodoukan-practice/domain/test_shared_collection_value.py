@@ -20,14 +20,12 @@ def own_sense() -> SharedSense:
     )
 
 
-def test_provenance_is_the_ids_it_has() -> None:
-    assert SharedReading(
-        origin="added", id=3, copied_from_id=9, text="あ"
-    ).provenance == {
-        3,
-        9,
-    }
-    assert SharedReading(origin="added", text="あ").provenance == set()
+def test_identity_and_version_fall_back_to_the_id() -> None:
+    copy = SharedReading(origin="added", id=3, original_id=1, edited_id=2, text="あ")
+    assert (copy.identity, copy.version) == (1, 2)
+    hand_written = SharedReading(origin="added", id=3, text="あ")
+    assert (hand_written.identity, hand_written.version) == (3, 3)
+    assert SharedReading(origin="added", text="あ").version is None
 
 
 def test_a_word_of_ones_own_needs_a_reading_and_no_dictionary_parts() -> None:

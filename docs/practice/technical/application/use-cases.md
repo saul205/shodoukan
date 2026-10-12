@@ -84,7 +84,7 @@ exist (else `EntityNotFoundError`).
 
 Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)
 (an exported file) as a **new** collection named with `free_collection_name` and
-`copied_from_collection_id = shared.id`, and returns a `CollectionImport(collection,
+`source_collection_id = shared.id`, and returns a `CollectionImport(collection,
 created, existing, missing)`. For each item, in order:
 
 - a dictionary word the user has is merged (`merge_shared(created=False)`) and stored
@@ -92,8 +92,8 @@ created, existing, missing)`. For each item, in order:
 - a missing one is taken from the dictionary, merged with `created=True` and added
   (`add_if_absent`; if a concurrent import won, it's merged as existing);
 - one the dictionary no longer has goes to `missing` (its `source_entry_id`);
-- a word of someone's own is matched against the user's own words by provenance
-  (`find_own_by_provenance`, one query for the whole file): reused and merged, or
+- a word of someone's own is matched against the user's own words by identity
+  (`find_own_by_identity`, one query for the whole file): reused and merged, or
   created with `PracticeEntry.from_shared`.
 
 Each is then added to the collection. Doesn't commit, so an error leaves nothing.

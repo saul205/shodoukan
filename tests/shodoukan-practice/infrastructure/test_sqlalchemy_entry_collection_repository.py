@@ -193,11 +193,11 @@ def test_add_keeps_where_it_was_copied_from(
     repo: SqlAlchemyEntryCollectionRepository, user: UserORM, session: Session
 ) -> None:
     collection = make_entry_collection(user.id, "N5").model_copy(
-        update={"copied_from_collection_id": 42}
+        update={"source_collection_id": 42}
     )
     added = repo.add(collection)
     session.expunge_all()
     assert added.id is not None
     stored = repo.get(added.id, user.id)
     assert stored is not None
-    assert stored.copied_from_collection_id == 42
+    assert stored.source_collection_id == 42
