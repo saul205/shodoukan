@@ -15,12 +15,16 @@ from ...application.commands import (
     CreateKanjiCollection,
     DeleteEntryCollection,
     DeleteKanjiCollection,
+    ImportEntryCollection,
+    ImportKanjiCollection,
     RemoveEntryFromCollection,
     RemoveKanjiFromCollection,
     UpdateEntryCollection,
     UpdateKanjiCollection,
 )
 from ...application.queries import (
+    ExportEntryCollection,
+    ExportKanjiCollection,
     GetEntryCollection,
     GetKanjiCollection,
     ListEntryCollections,
@@ -28,6 +32,7 @@ from ...application.queries import (
     SearchEntries,
     SearchKanji,
 )
+from ...domain.clock import utc_now
 from ..deps import (
     CurrentUserDep,
     SessionDep,
@@ -37,8 +42,12 @@ from ..deps import (
     get_create_kanji_collection,
     get_delete_entry_collection,
     get_delete_kanji_collection,
+    get_export_entry_collection,
+    get_export_kanji_collection,
     get_get_entry_collection,
     get_get_kanji_collection,
+    get_import_entry_collection,
+    get_import_kanji_collection,
     get_list_entry_collections,
     get_list_kanji_collections,
     get_remove_entry_from_collection,
@@ -51,6 +60,10 @@ from ..deps import (
 from ..schemas import (
     CollectionRequest,
     CollectionResponse,
+    EntryCollectionFile,
+    EntryCollectionImportResponse,
+    KanjiCollectionFile,
+    KanjiCollectionImportResponse,
     MeaningLang,
     PracticeEntryPageResponse,
     PracticeKanjiPageResponse,
@@ -63,6 +76,11 @@ _UNAUTHORIZED: dict[int | str, dict[str, Any]] = {
 _NOT_FOUND: dict[int | str, dict[str, Any]] = {
     status.HTTP_404_NOT_FOUND: {
         "description": "No such collection or item for this user."
+    }
+}
+_TOO_BIG: dict[int | str, dict[str, Any]] = {
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "description": "More items than an import takes (`MAX_SHARED_ITEMS`)."
     }
 }
 _NAME_TAKEN: dict[int | str, dict[str, Any]] = {
@@ -241,6 +259,60 @@ def remove_entry_from_collection(
     session.commit()
 
 
+@entry_router.get(
+    "/{collection_id}/export",
+    response_model=EntryCollectionFile,
+    responses={**_NOT_FOUND, **_TOO_BIG},
+)
+def export_entry_collection(
+    collection_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[ExportEntryCollection, Depends(get_export_entry_collection)],
+) -> EntryCollectionFile:
+    """The collection as a file to download and import back: every entries,
+    active or not, with the user's own data (see `POST /import`)."""
+    shared = use_case.execute(user.id, collection_id)
+    session.commit()
+    return EntryCollectionFile(
+        format="shodoukan.collection",
+        version=1,
+        kind="entries",
+        exported_at=utc_now(),
+        collection=shared,
+    )
+
+
+@entry_router.post(
+    "/import",
+    response_model=EntryCollectionImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def import_entry_collection(
+    body: EntryCollectionFile,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[ImportEntryCollection, Depends(get_import_entry_collection)],
+) -> EntryCollectionImportResponse:
+    """Import an exported collection as a new collection (renamed "name (2)"
+    if the name is taken).
+
+    Entries already in the library are reused, keeping the user's
+    data, and get the parts of their own the file adds; missing ones are
+    imported from the dictionary with the file's flags and notes. What the
+    dictionary no longer has is left out and listed in `missing`. All or
+    nothing: an invalid file (422) imports nothing.
+    """
+    result = use_case.execute(user.id, body.collection)
+    session.commit()
+    return EntryCollectionImportResponse(
+        collection=CollectionResponse.model_validate(result.collection),
+        created=result.created,
+        existing=result.existing,
+        missing=result.missing,
+    )
+
+
 # --- Kanji collections ---
 
 
@@ -390,3 +462,57 @@ def remove_kanji_from_collection(
     """Take the kanji out of the collection; it stays in the library. Idempotent."""
     use_case.execute(user.id, collection_id, kanji_id)
     session.commit()
+
+
+@kanji_router.get(
+    "/{collection_id}/export",
+    response_model=KanjiCollectionFile,
+    responses={**_NOT_FOUND, **_TOO_BIG},
+)
+def export_kanji_collection(
+    collection_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[ExportKanjiCollection, Depends(get_export_kanji_collection)],
+) -> KanjiCollectionFile:
+    """The collection as a file to download and import back: every kanji,
+    active or not, with the user's own data (see `POST /import`)."""
+    shared = use_case.execute(user.id, collection_id)
+    session.commit()
+    return KanjiCollectionFile(
+        format="shodoukan.collection",
+        version=1,
+        kind="kanji",
+        exported_at=utc_now(),
+        collection=shared,
+    )
+
+
+@kanji_router.post(
+    "/import",
+    response_model=KanjiCollectionImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def import_kanji_collection(
+    body: KanjiCollectionFile,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[ImportKanjiCollection, Depends(get_import_kanji_collection)],
+) -> KanjiCollectionImportResponse:
+    """Import an exported collection as a new collection (renamed "name (2)"
+    if the name is taken).
+
+    Kanji already in the library are reused, keeping the user's
+    data, and get the parts of their own the file adds; missing ones are
+    imported from the dictionary with the file's flags and notes. What the
+    dictionary no longer has is left out and listed in `missing`. All or
+    nothing: an invalid file (422) imports nothing.
+    """
+    result = use_case.execute(user.id, body.collection)
+    session.commit()
+    return KanjiCollectionImportResponse(
+        collection=CollectionResponse.model_validate(result.collection),
+        created=result.created,
+        existing=result.existing,
+        missing=result.missing,
+    )

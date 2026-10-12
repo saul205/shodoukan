@@ -119,6 +119,29 @@ export interface CollectionInput {
 /** Entries and kanji live in separate lists and collections, never mixed. */
 export type ItemKind = 'entries' | 'kanji'
 
+/**
+ * An exported collection, as downloaded and imported back. The frontend only
+ * reads its header; the API validates the rest.
+ */
+export interface CollectionFile {
+  format: 'shodoukan.collection'
+  version: number
+  kind: ItemKind
+  exported_at: string | null
+  collection: { name: string, items: unknown[] }
+}
+
+/** What importing a collection file did. */
+export interface CollectionImport {
+  collection: Collection
+  /** Items added to the library. */
+  created: number
+  /** Items already in the library; they kept the user's data. */
+  existing: number
+  /** Words (dictionary ids) or kanji the dictionary no longer has, left out. */
+  missing: (number | string)[]
+}
+
 /** Parts of an entry that can be enabled or disabled, as in the API's URLs. */
 export type EntryPart = 'kanji-readings' | 'readings' | 'senses' | 'glosses' | 'examples'
 /** Parts of a kanji that can be enabled or disabled (readings = on, kun and nanori). */

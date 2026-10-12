@@ -39,7 +39,9 @@ from ..application.commands import (
     EnsureUser,
     FinishExerciseSession,
     ImportEntry,
+    ImportEntryCollection,
     ImportKanji,
+    ImportKanjiCollection,
     RemoveEntryExample,
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
@@ -63,6 +65,8 @@ from ..application.commands import (
     UpdateKanjiCollection,
 )
 from ..application.queries import (
+    ExportEntryCollection,
+    ExportKanjiCollection,
     GetDictionaryEntry,
     GetDictionaryKanji,
     GetDictionaryKanjiStrokes,
@@ -432,6 +436,24 @@ def get_remove_entry_from_collection(session: SessionDep) -> RemoveEntryFromColl
     )
 
 
+def get_export_entry_collection(session: SessionDep) -> ExportEntryCollection:
+    return ExportEntryCollection(
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+    )
+
+
+def get_import_entry_collection(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> ImportEntryCollection:
+    return ImportEntryCollection(
+        dictionary,
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
 def get_list_kanji_collections(session: SessionDep) -> ListKanjiCollections:
     return ListKanjiCollections(SqlAlchemyKanjiCollectionRepository(session))
 
@@ -463,6 +485,24 @@ def get_remove_kanji_from_collection(session: SessionDep) -> RemoveKanjiFromColl
     return RemoveKanjiFromCollection(
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+    )
+
+
+def get_export_kanji_collection(session: SessionDep) -> ExportKanjiCollection:
+    return ExportKanjiCollection(
+        SqlAlchemyKanjiCollectionRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+    )
+
+
+def get_import_kanji_collection(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> ImportKanjiCollection:
+    return ImportKanjiCollection(
+        dictionary,
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
     )
 
 

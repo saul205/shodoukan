@@ -48,6 +48,13 @@ On top of the snapshot:
 - `is_active` on the aggregate: an inactive item stays in the library and in its
   collections, but is skipped when listing a collection's cards and when building
   exercise pools.
+- Where a copy came from (see [sharing](#sharing-shared_collection_valuepy)):
+  `original_id` (identity) and `source_id` (the row it was copied from) on the parts
+  the user can add, senses and words of the user's own, plus `edited_id` (the version)
+  on parts with content (spellings, readings, glosses, examples, kanji meanings);
+  `source_collection_id` on collections. `None` is the row itself. Editing a meaning or
+  an example sets `edited_id = None`: that version is now the user's.
+  `PracticeEntry.identity` is `original_id`, or `id` for an original.
 
 `PracticeKanjiReading` (a word's kanji spelling, e.g. 食べる) isn't the same as
 `PracticeReadingItem` (one on/kun reading or nanori of a character).
@@ -158,6 +165,44 @@ and change nothing then. Methods:
 (idle ones are `"finished"`). `IDLE_TIMEOUT`, `SessionStatus` and `session_end` are
 exported from `domain.entities`.
 
+## Sharing (`shared_collection_value.py`)
+
+The portable form of a collection: what an exported file (later, a public collection)
+carries, and what importing it copies. Frozen Pydantic values, used as is in the API's
+file format. The contract is in the
+[proposal](../../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
+
+- `SharedEntryCollection` / `SharedKanjiCollection` (`SharedCollection`): `id`, `name`,
+  `description`, `items` (at most `MAX_SHARED_ITEMS`, 5000, each once: a repeated
+  `source_entry_id`, own word identity or kanji literal is invalid, as in the link
+  table).
+- `SharedEntry`: `id`, `original_id`, `source_entry_id` (`None` for a word of the
+  owner's own, which then has only `added` parts and at least one reading),
+  `is_active`, `notes`, `spellings`, `readings`, `senses` → `glosses`, `examples` →
+  `sentences`. `SharedKanji`: `literal`, `is_active`, `notes`, `on_readings` /
+  `kun_readings` / `nanori` (`SharedKanjiReading(text, enabled)`), `meanings`.
+- Every part is a `SharedPart`: `origin`, `id`, `original_id` (its `identity`),
+  `enabled`; parts with content are `SharedContent`, with `edited_id` (its `version`).
+  The exporter fills them resolved (an original's `original_id` is its `id`). Added parts are validated like the user's own (kana
+  readings, non-empty meanings, an example's Japanese sentence, a sense with meanings
+  in one language); imported ones aren't, they're only located. Lists are bounded by
+  `MAX_SHARED_PARTS` (500).
+
+Aggregate methods:
+
+- `to_shared()` on `PracticeEntry` / `PracticeKanji`: everything, in order.
+- `merge_shared(shared, created) -> bool`: takes what the shared copy adds. Imported
+  parts are located by their place among the imported parts of the same list, checked
+  by text (a sense by its first imported meaning); flags (`enabled`, `is_active`) are
+  taken only when `created` is true (the item was created by this import). Added parts
+  are appended as copies (`original_id` / `edited_id` as shared, `source_id` = the shared
+  part's id) unless the item has that version already; another version of the same
+  part is appended next to it. Senses and words are matched by identity. Notes are copied only where there are none. An added meaning in
+  another language than its sense's, and the added parts of an imported sense that
+  can't be located, are skipped. Returns whether anything changed (touches then). The
+  shared helper is `merge_parts` in `nested_item_lookup.py`.
+- `PracticeEntry.from_shared(user_id, shared)`: a copy of someone's word of their own.
+
 ## Timestamps and `touch()`
 
 `TimestampedEntity` (`timestamped_entity.py`):
@@ -182,8 +227,8 @@ Current methods:
 | `Collection` | `rename(name)`, `describe(description)` |
 | `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
-| `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)` |
-| `PracticeEntry` | `create_own(...)` (class method), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `add_example(sense_id, japanese, translation, lang)`, `edit_example(example_id, japanese, translation, lang)`, `remove_example(example_id)` |
+| `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)`, `merge_shared(shared, created)` |
+| `PracticeEntry` | `create_own(...)` and `from_shared(...)` (class methods), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `add_example(sense_id, japanese, translation, lang)`, `edit_example(example_id, japanese, translation, lang)`, `remove_example(example_id)` |
 | `PracticeKanji` | `add_meaning(text, lang)`, `edit_meaning(meaning_id, text)`, `remove_meaning(meaning_id)` |
 
 `part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"senses"`, `"glosses"`,

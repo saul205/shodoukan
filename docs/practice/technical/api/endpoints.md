@@ -284,6 +284,8 @@ same as a missing one.
 | `GET` | `/collections/entries/{collection_id}/items` | `SearchEntries` (`in_collection`) | `200` `PracticeEntryPageResponse` (`items`, `total`, `limit`, `offset`) |
 | `PUT` | `/collections/entries/{collection_id}/items/{entry_id}` | `AddEntryToCollection` | `204`, idempotent |
 | `DELETE` | `/collections/entries/{collection_id}/items/{entry_id}` | `RemoveEntryFromCollection` | `204`, idempotent |
+| `GET` | `/collections/entries/{collection_id}/export` | `ExportEntryCollection` | `200` `EntryCollectionFile` |
+| `POST` | `/collections/entries/import` | `ImportEntryCollection` | `201` `EntryCollectionImportResponse` |
 
 The kanji routes are the same under `/collections/kanji`, with `{kanji_id}` and
 `PracticeKanjiPageResponse`. Item ids are **practice** ids (the `id` returned by the
@@ -305,12 +307,53 @@ in the library) and returns a page of the items in the order they were added, wi
 their `total`, the same shape as `GET /library/entries`. `q` and `meaning_lang` search
 within the collection exactly as in [the library](#get-libraryentries-and-get-librarykanji).
 
+### Export and import
+
+`GET .../export` returns the collection as a file, and `POST .../import` takes that
+file back (in any account) and creates a new collection from it. The file:
+
+```json
+{
+  "format": "shodoukan.collection",
+  "version": 1,
+  "kind": "entries",
+  "exported_at": "2026-10-09T10:00:00Z",
+  "collection": {
+    "id": 12, "name": "verbs", "description": null,
+    "items": [
+      {
+        "id": 345, "original_id": 345, "source_entry_id": 1358280,
+        "is_active": true, "notes": "my note",
+        "spellings": [{ "origin": "imported", "id": 1, "original_id": 1, "edited_id": 1, "enabled": false, "text": "食べる" }],
+        "readings": [{ "origin": "imported", "id": 2, "original_id": 2, "edited_id": 2, "enabled": true, "text": "たべる" }],
+        "senses": [{
+          "origin": "imported", "id": 3, "original_id": 3, "enabled": true, "notes": null,
+          "glosses": [{ "origin": "added", "id": 9, "original_id": 7, "edited_id": 9, "enabled": true, "text": "to scoff", "lang": "eng" }],
+          "examples": []
+        }]
+      }
+    ]
+  }
+}
+```
+
+`collection` is the domain's
+[`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy) as is
+(`SharedKanjiCollection` for `"kind": "kanji"`), so the file format is the import
+contract. `format`, `version` and `kind` are required and checked: a kanji file sent to
+the entries route, or an unknown version, is a `422`. An import is all or nothing.
+
+`EntryCollectionImportResponse`: `collection` (`CollectionResponse`; its name gets a
+`" (2)"` suffix when taken), `created` (items added to the library), `existing` (items
+the user had, merged) and `missing` (the `source_entry_id`s, or kanji literals, the
+dictionary no longer has, left out).
+
 | Status | When |
 |---|---|
 | `401` | Missing or invalid token |
 | `404` | No such collection, or no such item in the user's library |
 | `409` | The user already has a collection of that kind with that name (`POST`, `PUT`) |
-| `422` | Invalid body, name, `limit` or `offset` |
+| `422` | Invalid body, name, `limit` or `offset`; an invalid or wrong-kind file, or one that lists an item twice; exporting more than 5000 items |
 
 ## Exercises
 

@@ -119,3 +119,64 @@ def test_add_edit_and_remove_own_kanji_meanings() -> None:
     assert added.origin == "added"
     assert [m.text for m in kanji.meanings] == ["eat", "meal"]
     assert kanji.updated_at > NOW
+
+
+# --- Sharing ---
+
+
+def origin_kanji() -> PracticeKanji:
+    kanji = make_kanji()
+    kanji.meanings[1].id = 2
+    kanji.kun_readings[0].enabled = False
+    kanji.notes = "the owner's note"
+    kanji.is_active = False
+    return kanji
+
+
+def fresh_snapshot() -> PracticeKanji:
+    kanji = make_kanji()
+    kanji.meanings.pop()
+    return kanji.model_copy(update={"id": None})
+
+
+def test_kanji_to_shared() -> None:
+    shared = origin_kanji().to_shared()
+    assert shared.literal == "食"
+    assert [(r.text, r.enabled) for r in shared.kun_readings] == [("た.べる", False)]
+    assert [(m.origin, m.id) for m in shared.meanings] == [
+        ("imported", 1),
+        ("added", 2),
+    ]
+
+
+def test_kanji_merge_into_a_created_copy_takes_everything() -> None:
+    kanji = fresh_snapshot()
+    kanji.merge_shared(origin_kanji().to_shared(), created=True)
+    assert kanji.is_active is False
+    assert kanji.notes == "the owner's note"
+    assert kanji.kun_readings[0].enabled is False
+    assert [(m.text, m.source_id) for m in kanji.meanings] == [
+        ("eat", None),
+        ("food (extra)", 2),
+    ]
+    assert kanji.updated_at > NOW
+
+
+def test_kanji_merge_into_an_existing_one_keeps_the_users_choices() -> None:
+    kanji = fresh_snapshot()
+    kanji.notes = "mine"
+    kanji.merge_shared(origin_kanji().to_shared(), created=False)
+    assert kanji.is_active is True
+    assert kanji.notes == "mine"
+    assert kanji.kun_readings[0].enabled is True
+    assert [m.text for m in kanji.meanings] == ["eat", "food (extra)"]
+
+    before = kanji.model_copy(deep=True)
+    kanji.merge_shared(origin_kanji().to_shared(), created=False)
+    assert kanji == before
+
+
+def test_kanji_merge_refuses_another_character() -> None:
+    other = origin_kanji().to_shared().model_copy(update={"literal": "飲"})
+    with pytest.raises(ValueError, match="飲"):
+        make_kanji().merge_shared(other, created=False)

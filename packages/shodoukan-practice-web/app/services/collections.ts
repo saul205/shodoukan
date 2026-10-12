@@ -1,6 +1,8 @@
 import type { Page } from 'shodoukan-ui'
 import type {
   Collection,
+  CollectionFile,
+  CollectionImport,
   CollectionInput,
   ItemKind,
   SearchQuery,
@@ -35,6 +37,16 @@ export function updateCollection(
 
 export function deleteCollection(api: ApiClient, kind: ItemKind, id: number): Promise<void> {
   return api(`/collections/${kind}/${id}`, { method: 'DELETE' })
+}
+
+/** The collection as a file to download (every item, with the user's own data). */
+export function exportCollection(api: ApiClient, kind: ItemKind, id: number): Promise<CollectionFile> {
+  return api<CollectionFile>(`/collections/${kind}/${id}/export`)
+}
+
+/** Creates a new collection from an exported file; the API answers 422 for an invalid one. */
+export function importCollection(api: ApiClient, file: CollectionFile): Promise<CollectionImport> {
+  return api<CollectionImport>(`/collections/${file.kind}/import`, { method: 'POST', body: file })
 }
 
 export function listCollectionEntries(

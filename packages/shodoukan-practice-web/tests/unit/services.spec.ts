@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addToCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
+import { addToCollection, exportCollection, importCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
 import { searchDictionary } from '../../app/services/dictionary'
 import { answerQuestion, finishSession, getSession, listSessions, startSession } from '../../app/services/exercise-sessions'
 import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
@@ -95,6 +95,18 @@ describe('practice API services', () => {
       ['/collections/entries/1/items/9', { method: 'PUT' }],
       ['/collections/entries/1/items', { query: { limit: 10, offset: 10 } }],
       ['/collections/entries/1/items', { query: { active: false } }],
+    ])
+  })
+
+  it('collections are exported and imported by kind', async () => {
+    const { api, calls } = fakeApi()
+    const file = { format: 'shodoukan.collection' as const, version: 1, kind: 'kanji' as const, exported_at: null, collection: { name: 'N5', items: [] } }
+    await exportCollection(api, 'entries', 7)
+    await importCollection(api, file)
+
+    expect(calls).toEqual([
+      ['/collections/entries/7/export'],
+      ['/collections/kanji/import', { method: 'POST', body: file }],
     ])
   })
 

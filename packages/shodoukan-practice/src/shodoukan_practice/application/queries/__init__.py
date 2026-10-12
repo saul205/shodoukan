@@ -1,6 +1,8 @@
 """Read use cases, one module per subject."""
 
 from .collection_queries import (
+    ExportEntryCollection,
+    ExportKanjiCollection,
     GetEntryCollection,
     GetKanjiCollection,
     ListEntryCollections,
@@ -51,6 +53,8 @@ __all__ = [
     "MOST_MISSED_LIMIT",
     "DayActivity",
     "ExerciseStatistics",
+    "ExportEntryCollection",
+    "ExportKanjiCollection",
     "GetDictionaryEntry",
     "GetDictionaryKanji",
     "GetDictionaryKanjiStrokes",

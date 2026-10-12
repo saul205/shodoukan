@@ -1,6 +1,13 @@
 """Request/response models, one module per subject."""
 
-from .collection_schemas import CollectionRequest, CollectionResponse
+from .collection_schemas import (
+    CollectionRequest,
+    CollectionResponse,
+    EntryCollectionFile,
+    EntryCollectionImportResponse,
+    KanjiCollectionFile,
+    KanjiCollectionImportResponse,
+)
 from .dictionary_schemas import (
     DictionaryEntryPageResponse,
     DictionaryEntryResponse,
@@ -74,6 +81,8 @@ __all__ = [
     "DictionarySearchResponse",
     "DirectionStatisticsResponse",
     "EnabledRequest",
+    "EntryCollectionFile",
+    "EntryCollectionImportResponse",
     "ExampleRequest",
     "ExerciseRequest",
     "ExerciseResponse",
@@ -85,6 +94,8 @@ __all__ = [
     "ImportStatusResponse",
     "ImportedEntryResponse",
     "ImportedKanjiResponse",
+    "KanjiCollectionFile",
+    "KanjiCollectionImportResponse",
     "MeaningLang",
     "MeaningTextRequest",
     "MissedItemResponse",

@@ -2,29 +2,42 @@ import pytest
 from factories import NOW, make_entry, make_kanji
 from sqlalchemy.orm import Session
 
+from shodoukan import Dictionary
 from shodoukan_practice.application.commands import (
     AddEntryToCollection,
     AddKanjiToCollection,
     CreateEntryCollection,
     CreateKanjiCollection,
+    CreateOwnEntry,
     DeleteEntryCollection,
     DeleteKanjiCollection,
+    ImportEntry,
+    ImportEntryCollection,
+    ImportKanji,
+    ImportKanjiCollection,
     RemoveEntryFromCollection,
     RemoveKanjiFromCollection,
     UpdateEntryCollection,
     UpdateKanjiCollection,
+)
+from shodoukan_practice.application.queries import (
+    ExportEntryCollection,
+    ExportKanjiCollection,
 )
 from shodoukan_practice.domain.entities import (
     EntryCollection,
     KanjiCollection,
     PracticeEntry,
     PracticeKanji,
+    SharedEntry,
+    SharedEntryCollection,
 )
 from shodoukan_practice.domain.exceptions import (
     CollectionNameTakenError,
     EntityNotFoundError,
 )
 from shodoukan_practice.infrastructure.db.orm import UserORM
+from shodoukan_practice.infrastructure.dictionary import ShodoukanDictionaryGateway
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyKanjiCollectionRepository,
@@ -245,3 +258,141 @@ def test_kanji_collection_lifecycle(
         AddKanjiToCollection(kanji_collections, kanji).execute(
             user.id, _id(n5), _id(item)
         )
+
+
+# --- Export and import ---
+
+
+@pytest.fixture
+def import_entries(session: Session, dictionary: Dictionary) -> ImportEntryCollection:
+    return ImportEntryCollection(
+        ShodoukanDictionaryGateway(dictionary),
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
+@pytest.fixture
+def import_kanji_collection(
+    session: Session, dictionary: Dictionary
+) -> ImportKanjiCollection:
+    return ImportKanjiCollection(
+        ShodoukanDictionaryGateway(dictionary),
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+@pytest.fixture
+def exported_verbs(
+    session: Session,
+    dictionary: Dictionary,
+    collections: SqlAlchemyEntryCollectionRepository,
+    entries: SqlAlchemyPracticeEntryRepository,
+    verbs: EntryCollection,
+    user: UserORM,
+) -> SharedEntryCollection:
+    """The user's "verbs": 食べる with their own meaning, note and a hidden
+    spelling, and a word of their own."""
+    gateway = ShodoukanDictionaryGateway(dictionary)
+    eat = ImportEntry(gateway, entries, collections).execute(user.id, 1000001).item
+    assert eat.id is not None
+    eat.add_gloss(eat.senses[0].id or 0, "to scoff", "eng")
+    eat.set_notes("my note")
+    eat.set_enabled("kanji_readings", eat.kanji_readings[0].id or 0, False)
+    entries.update(eat)
+    collections.add_item(verbs, eat)
+    CreateOwnEntry(entries, collections).execute(
+        user.id, ["三匹"], ["さんびき"], "three animals", "eng", [verbs.id or 0]
+    )
+    session.expunge_all()
+    return ExportEntryCollection(collections, entries).execute(user.id, verbs.id or 0)
+
+
+def test_import_copies_a_collection_into_another_library(
+    import_entries: ImportEntryCollection,
+    exported_verbs: SharedEntryCollection,
+    entries: SqlAlchemyPracticeEntryRepository,
+    other_user: UserORM,
+) -> None:
+    result = import_entries.execute(other_user.id, exported_verbs)
+
+    assert (result.created, result.existing, result.missing) == (2, 0, [])
+    assert result.collection.name == "verbs"
+    assert result.collection.source_collection_id == exported_verbs.id
+    eat = entries.get_by_source_entry_id(1000001, other_user.id)
+    assert eat is not None
+    assert eat.notes == "my note"
+    assert eat.kanji_readings[0].enabled is False
+    assert [g.text for g in eat.senses[0].glosses][-1] == "to scoff"
+    own = entries.find_own_by_identity(
+        [exported_verbs.items[1].identity or 0], other_user.id
+    )
+    assert [r.text for r in own[0].readings] == ["さんびき"]
+
+
+def test_importing_again_duplicates_nothing(
+    import_entries: ImportEntryCollection,
+    exported_verbs: SharedEntryCollection,
+    entries: SqlAlchemyPracticeEntryRepository,
+    user: UserORM,
+) -> None:
+    eat_before = entries.get_by_source_entry_id(1000001, user.id)
+
+    result = import_entries.execute(user.id, exported_verbs)
+
+    assert (result.created, result.existing) == (0, 2)
+    assert result.collection.name == "verbs (2)"
+    assert entries.get_by_source_entry_id(1000001, user.id) == eat_before
+    own = entries.find_own_by_identity([exported_verbs.items[1].identity or 0], user.id)
+    assert len(own) == 1
+
+
+def test_import_leaves_out_what_the_dictionary_no_longer_has(
+    import_entries: ImportEntryCollection,
+    collections: SqlAlchemyEntryCollectionRepository,
+    entries: SqlAlchemyPracticeEntryRepository,
+    user: UserORM,
+) -> None:
+    shared = SharedEntryCollection(
+        name="old",
+        items=[SharedEntry(source_entry_id=999), SharedEntry(source_entry_id=1000002)],
+    )
+    result = import_entries.execute(user.id, shared)
+
+    assert (result.created, result.missing) == (1, [999])
+    assert collections.item_ids([result.collection]) == {
+        entries.practice_ids_by_source_entry_id([1000002], user.id)[1000002]
+    }
+
+
+def test_import_kanji_collection_round_trip(
+    session: Session,
+    dictionary: Dictionary,
+    import_kanji_collection: ImportKanjiCollection,
+    kanji_collections: SqlAlchemyKanjiCollectionRepository,
+    kanji: SqlAlchemyPracticeKanjiRepository,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    gateway = ShodoukanDictionaryGateway(dictionary)
+    mine = CreateKanjiCollection(kanji_collections).execute(user.id, "N4")
+    eat = (
+        ImportKanji(gateway, kanji, kanji_collections)
+        .execute(user.id, "食", [mine.id or 0])
+        .item
+    )
+    eat.add_meaning("meal", "en")
+    kanji.update(eat)
+    session.expunge_all()
+    shared = ExportKanjiCollection(kanji_collections, kanji).execute(
+        user.id, mine.id or 0
+    )
+
+    result = import_kanji_collection.execute(other_user.id, shared)
+    again = import_kanji_collection.execute(other_user.id, shared)
+
+    assert (result.created, again.existing) == (1, 1)
+    copy = kanji.get_by_literal("食", other_user.id)
+    assert copy is not None
+    assert [m.text for m in copy.meanings].count("meal") == 1

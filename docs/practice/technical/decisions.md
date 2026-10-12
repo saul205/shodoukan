@@ -830,3 +830,52 @@ Senses are also kept to one language (`SenseLanguageError`, 422), as in JMDict, 
 no sense mixes languages. It makes "the sense's only meaning" the same as "its only
 meaning in the language on screen", so the check can't be bypassed through a meaning
 in another language.
+
+## Exported collections are references plus the user's own data
+
+An exported collection carries each item's dictionary reference and everything the
+user layered on top (parts with their origin and flags, added parts, notes), not the
+dictionary data: the import takes a fresh snapshot, as importing from search does. A
+full snapshot was ruled out because the import would ignore most of it, and public
+collections (#82) would need a second format. The file is the same payload #82 will
+read from the database, so its rules (always a new collection, the user's data wins,
+flags only on what the import creates) are fixed once, in the
+[proposal](../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
+
+- **Imported parts are located by place, checked by text.** The dictionary's ids for
+  senses, glosses, readings and examples aren't stable: JMDict only identifies entries
+  (`ent_seq`), and shodoukan-db numbers the rest with `AUTOINCREMENT` on every monthly
+  build, so they shift whenever an earlier entry changes, and differ between databases
+  of different builds. So the Nth imported sense is matched by position (JMDict's sense
+  order: imported senses are copied in order and never removed) and accepted only if
+  its first meaning is the same; a spelling, reading or meaning by its text. When the
+  dictionary changed in between, the part is left as the user has it, and the added
+  parts that hung from it are skipped.
+- **Ids instead of comparing text**, to tell copies apart: see
+  [copies record their original, source and version](#copies-record-their-original-source-and-version).
+
+## Copies record their original, source and version
+
+Replaces the first version of #86, where a copy only kept `copied_from_id`, the row it
+came from. That lost the origin after two imports (A → B → C → A duplicated A's own
+part), and storing the original alone would treat copies as references.
+
+An imported part is a copy of the user's own: they can edit it, and then it's theirs,
+not the origin's. So a copy records its identity (`original_id`, shared by every copy),
+its provenance (`source_id`, the immediate origin) and, for parts with content, its
+version (`edited_id`, kept until the user edits it). `None` means the row itself, so
+nothing has to be written after an insert.
+
+- **Same version: skip; another version: add.** When importing a part the user has in
+  another version, both are kept, grouped by `original_id` for a future conflicts
+  panel. Duplicating, which the user can undo by deleting, beats losing what someone
+  else wrote and having to find it by hand.
+- **Containers by identity.** Senses and words of the user's own have no version: they
+  are matched by `original_id` and their parts merged, like dictionary words by
+  `ent_seq`, so an edit inside a word doesn't make a second word.
+- **No matching without shared ancestry.** Parts created independently are never
+  matched by text: homographs would be merged and variants missed.
+- **No foreign keys:** the origin may belong to another user and be deleted. Ids are
+  compared within one database (the shared one); a file moved between separate
+  databases could match unrelated rows, accepted while there's only one.
+

@@ -3,16 +3,20 @@ import type { DropdownMenuItem, TabsItem } from '@nuxt/ui'
 import CollectionFormModal from '~/components/CollectionFormModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
 import type { Collection, ItemKind } from '~/models/practice'
-import { deleteCollection, listCollections } from '~/services/collections'
+import { deleteCollection, exportCollection, importCollection, listCollections } from '~/services/collections'
+import { apiStatus } from '~/utils/api-error'
+import { downloadCollectionFile, importSummary, parseCollectionFile } from '~/utils/collection-file'
 
 // "Mis colecciones": word and kanji collections in tabs; create, edit and
-// delete them, and open one to see its items.
+// delete them, open one to see its items, and export one to a file or import
+// one from a file (into a new collection).
 
 const route = useRoute()
 const router = useRouter()
 const api = useApi()
 const notify = useNotify()
 const overlay = useOverlay()
+const toast = useToast()
 
 const kind = computed<ItemKind>({
   get: () => (route.query.tab === 'kanji' ? 'kanji' : 'entries'),
@@ -62,9 +66,57 @@ async function remove(collection: Collection) {
   }
 }
 
+async function exportToFile(collection: Collection) {
+  try {
+    downloadCollectionFile(await exportCollection(api, kind.value, collection.id))
+  }
+  catch (failure) {
+    // The API refuses (422) only a collection too big to import back.
+    const tooBig = apiStatus(failure) === 422
+    notify.failure(failure, 'No se ha podido exportar', tooBig ? 'La colección tiene demasiados elementos para exportarla.' : undefined)
+  }
+}
+
+const fileInput = ref<HTMLInputElement>()
+const importing = ref(false)
+
+async function importFromFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const chosen = input.files?.[0]
+  input.value = '' // so choosing the same file again imports it again
+  if (!chosen) return
+  let file
+  try {
+    file = parseCollectionFile(await chosen.text())
+  }
+  catch (failure) {
+    const description = failure instanceof Error ? failure.message : undefined
+    toast.add({ title: 'No se puede importar', description, color: 'error', icon: 'i-lucide-circle-alert' })
+    return
+  }
+  importing.value = true
+  try {
+    const result = await importCollection(api, file)
+    notify.success(`Colección «${result.collection.name}» importada`, importSummary(result))
+    if (file.kind !== kind.value) kind.value = file.kind // the watch reloads
+    else await refresh()
+  }
+  catch (failure) {
+    // 422: the API rejected the file's content; anything else isn't the file's fault.
+    const invalid = apiStatus(failure) === 422
+    notify.failure(failure, 'No se ha podido importar', invalid ? 'El archivo no es válido o está dañado; no se ha importado nada.' : undefined)
+  }
+  finally {
+    importing.value = false
+  }
+}
+
 function actions(collection: Collection): DropdownMenuItem[][] {
   return [
-    [{ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => edit(collection) }],
+    [
+      { label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => edit(collection) },
+      { label: 'Exportar', icon: 'i-lucide-download', onSelect: () => exportToFile(collection) },
+    ],
     [{ label: 'Eliminar', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => remove(collection) }],
   ]
 }
@@ -73,6 +125,22 @@ function actions(collection: Collection): DropdownMenuItem[][] {
 <template>
   <AppPanel title="Mis colecciones">
     <template #actions>
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".json,application/json"
+        class="hidden"
+        data-testid="import-file"
+        @change="importFromFile"
+      >
+      <UButton
+        label="Importar"
+        icon="i-lucide-upload"
+        color="neutral"
+        variant="outline"
+        :loading="importing"
+        @click="fileInput?.click()"
+      />
       <UButton label="Nueva colección" icon="i-lucide-plus" @click="create" />
     </template>
 

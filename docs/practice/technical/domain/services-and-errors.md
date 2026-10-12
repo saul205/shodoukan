@@ -18,6 +18,12 @@ Checks that collections can be merged into one pool (e.g. for an exercise):
 An empty list is combinable. The union of their members is computed by the
 repository (`item_ids`), not here.
 
+### `collection_service.free_collection_name(name, taken)`
+
+The name an imported collection gets: `name` (stripped, cut to 100 characters), or
+with the first free suffix (`"N5 (2)"`, `"N5 (3)"`, ...) when it's in `taken`, cutting
+the name so the suffix fits.
+
 ### `study_field_service`: reading what an exercise studies
 
 `entry_card(entry, fields, meaning_lang)` / `kanji_card(kanji, fields, meaning_lang)`

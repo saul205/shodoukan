@@ -114,6 +114,24 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         # The IN leaves the user's own words (no source) out; this tells mypy.
         return {source: id_ for source, id_ in rows if source is not None}
 
+    def find_own_by_identity(
+        self, identities: Iterable[int], user_id: UUID
+    ) -> list[PracticeEntry]:
+        identities = list(identities)
+        if not identities:
+            return []
+        identity = func.coalesce(PracticeEntryORM.original_id, PracticeEntryORM.id)
+        query = (
+            self._select()
+            .where(
+                PracticeEntryORM.user_id == user_id,
+                PracticeEntryORM.source_entry_id.is_(None),
+                identity.in_(identities),
+            )
+            .order_by(PracticeEntryORM.id)
+        )
+        return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
+
     def add_if_absent(self, entry: PracticeEntry) -> tuple[PracticeEntry, bool]:
         if entry.source_entry_id is None:
             raise ValueError("only dictionary entries are added if absent")

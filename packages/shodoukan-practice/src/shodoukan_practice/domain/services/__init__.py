@@ -1,7 +1,7 @@
 """Pure business logic, one module per subject."""
 
 from .choice_question_service import build_next_question
-from .collection_service import ensure_combinable
+from .collection_service import ensure_combinable, free_collection_name
 from .handwriting_grading_service import grade_drawing, grade_kana
 from .handwriting_question_service import (
     HandwritingDraft,
@@ -65,6 +65,7 @@ __all__ = [
     "entry_card",
     "entry_label",
     "fits_prompt",
+    "free_collection_name",
     "gloss_key",
     "grade_drawing",
     "grade_kana",

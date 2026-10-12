@@ -20,7 +20,8 @@ the library (`GET /library/entries`, `GET /library/kanji`, paged with a total; `
 items), dictionary entry and kanji details (`/dictionary/entries/{id}`,
 `/dictionary/kanji/{literal}`, ...), and customising library items (notes, enabling
 parts, own meanings, active, removal: `/library/entries/{id}/...`,
-`/library/kanji/{id}/...`), saved exercise definitions (`/exercises`: CRUD) and
+`/library/kanji/{id}/...`), exporting and importing collections as files
+(`/collections/{kind}/{id}/export`, `/collections/{kind}/import`), saved exercise definitions (`/exercises`: CRUD) and
 exercise sessions (`POST /exercises/{id}/sessions`, `/exercise-sessions/{id}` with
 `/answer` and `/finish`: open-ended, one active question at a time, built and graded
 on the server; choice cards, kanji handwriting and words written a character per
@@ -38,7 +39,8 @@ standalone: never call shodoukan-api from here.
   - `entities/`: `practice_entry_entity.py`, `practice_kanji_entity.py`,
     `user_entity.py`, `collection_entity.py`, `exercise_entity.py`,
     `exercise_session_entity.py`, and `timestamped_entity.py` (`TimestampedEntity`
-    with `touch()`).
+    with `touch()`); `shared_collection_value.py`: the portable form of a collection
+    (`SharedEntryCollection`, `SharedEntry`, ...), what export/import carry.
   - `repositories/`: Protocol ports. Read models live with their port:
     `SessionSummary` in `exercise_session_repository.py`; `AnswerTotals`,
     `DirectionTotals`, `ItemTotals`, `ExerciseTotals`, `AnswerMoment` with the
@@ -70,7 +72,8 @@ standalone: never call shodoukan-api from here.
   `api/routes/practice_entry_routes.py` / `practice_kanji_routes.py`.
 - `application/commands/collection_commands.py` / `queries/collection_queries.py`:
   collection use cases, one class per use case and kind (`CreateEntryCollection`,
-  `AddKanjiToCollection`, ...).
+  `AddKanjiToCollection`, ...), and `ExportEntryCollection` / `ImportEntryCollection`
+  (and kanji; returns `CollectionImport`).
 - `application/commands/exercise_commands.py` / `queries/exercise_queries.py`:
   `CreateExercise`, `UpdateExercise`, `DeleteExercise`, `ListExercises`, `GetExercise`.
   Routes in `api/routes/exercise_routes.py`.
@@ -129,7 +132,8 @@ standalone: never call shodoukan-api from here.
   `remove_reading`), own senses (`add_sense` / `remove_sense`), own meanings (`add_gloss` /
   `edit_gloss` / `remove_gloss`, `add_meaning` / ...), own examples (`add_example` /
   `edit_example` / `remove_example`),
-  `PracticeEntry.set_sense_notes`; `Exercise.rename` / `describe` / `configure` /
+  `PracticeEntry.set_sense_notes`, sharing (`to_shared`, `merge_shared(shared, created)`,
+  `PracticeEntry.from_shared`); `Exercise.rename` / `describe` / `configure` /
   `use_collections`. Each calls `touch()` only on a real change.
 - Exercises are `EntryExercise` / `KanjiExercise` (one `exercises` table, `item_kind`);
   the subclass decides which fields its settings may use. `settings` is JSON validated
@@ -156,6 +160,14 @@ standalone: never call shodoukan-api from here.
   question. A "close" drawing counts as right but comes back as a review. Entry
   exercises write a word (spelling or reading) a character per cell: only words whose
   every character has a stroke order, graded per cell (`grade_word`, worst cell wins).
+- Importing a collection (file today, public collections later) always creates a new
+  one (`free_collection_name`), reuses the user's items without overriding their
+  choices (flags only on items the import creates, notes only where none), and never
+  adds a version twice: copies record `original_id` (identity), `source_id` and, on
+  parts with content, `edited_id` (version); a part is skipped only when the item has
+  that version, and another version is added next to it; senses and own words match
+  by identity. Imported parts are located by place and checked by text. Contract:
+  `docs/practice/proposals/library-authoring-and-sharing.md`.
 - Dictionary data in the library is never edited or deleted, only disabled
   (`OriginalDataError` → 409); only the user's own spellings, readings, senses,
   meanings and examples change. A disabled sense hides its glosses and examples (a

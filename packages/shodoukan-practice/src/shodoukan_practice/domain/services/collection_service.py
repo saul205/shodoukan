@@ -1,8 +1,11 @@
-"""Rules for using collections together (e.g. combining them into an exercise)."""
+"""Rules for using collections together (e.g. combining them into an
+exercise), and for naming an imported one."""
 
+from collections.abc import Collection as Names
 from collections.abc import Sequence
+from itertools import count
 
-from ..entities import Collection
+from ..entities import COLLECTION_NAME_MAX_LENGTH, Collection
 from ..exceptions import CollectionKindMismatchError, CollectionOwnershipError
 
 
@@ -20,3 +23,17 @@ def ensure_combinable(collections: Sequence[Collection]) -> None:
         raise CollectionKindMismatchError(
             "cannot combine entry collections with kanji collections"
         )
+
+
+def free_collection_name(name: str, taken: Names[str]) -> str:
+    """`name`, or with a suffix ("N5 (2)") if it's `taken`, within the length
+    a name can have."""
+    name = name.strip()[:COLLECTION_NAME_MAX_LENGTH].strip()
+    if name not in taken:
+        return name
+    for n in count(2):
+        suffix = f" ({n})"
+        candidate = name[: COLLECTION_NAME_MAX_LENGTH - len(suffix)].rstrip() + suffix
+        if candidate not in taken:
+            return candidate
+    raise AssertionError("unreachable")
