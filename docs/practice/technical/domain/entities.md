@@ -224,6 +224,7 @@ Current methods:
 
 | Aggregate | Methods |
 |---|---|
+| `User` | `rename(username)` (the provider's display name changed) |
 | `Collection` | `rename(name)`, `describe(description)` |
 | `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |

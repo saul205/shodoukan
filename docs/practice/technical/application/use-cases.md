@@ -195,8 +195,10 @@ and returns the stored item, with ids for anything new.
 
 Returns the practice user whose `id` is `user_id`, the identity provider's user id
 (the token's `sub`, a UUID), **creating it** with that same id if this is the
-identity's first request. `username`
-(the token's `preferred_username`) is only used on creation. Creation goes through
+identity's first request. `username` (the token's `preferred_username`, `None` if
+it has none) names a new user (its id when `None`), and renames an existing one when it
+changed (`User.rename`, `users.update`): public collections show it, so a rename in
+Keycloak shows up on the user's next request. Creation goes through
 `users.add_if_absent`, so two concurrent first requests create a single user. See
 [decisions](../decisions.md#users-are-created-on-their-first-request).
 

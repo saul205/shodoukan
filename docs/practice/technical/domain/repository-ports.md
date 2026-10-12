@@ -31,6 +31,7 @@ span several of their rows (starting an exercise session).
 | `get(user_id)` | `User \| None` (`user_id` is the identity provider's user id, a UUID) |
 | `add(user)` | the stored `User` (with id) |
 | `add_if_absent(user)` | `(stored user, created)`: stores it unless a user with the same id exists; safe against concurrent first requests |
+| `update(user)` | the stored `User`; `EntityNotFoundError` if it isn't stored |
 
 ## `PracticeEntryRepository` / `PracticeKanjiRepository`
 

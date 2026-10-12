@@ -14,3 +14,11 @@ def test_user_shape() -> None:
         updated_at=NOW,
     )
     assert User.model_validate(user.model_dump()) == user
+
+
+def test_rename_touches_only_on_a_change() -> None:
+    user = User(id=UUID(int=1), username="saul", created_at=NOW, updated_at=NOW)
+    user.rename("saul")
+    assert user.updated_at == NOW
+    user.rename("saul205")
+    assert (user.username, user.updated_at > NOW) == ("saul205", True)

@@ -17,3 +17,9 @@ from .timestamped_entity import TimestampedEntity
 class User(TimestampedEntity):
     id: UUID
     username: str
+
+    def rename(self, username: str) -> None:
+        """Take the provider's current display name."""
+        if username != self.username:
+            self.username = username
+            self.touch()

@@ -21,11 +21,11 @@ def test_valid_token_gives_its_identity(
     assert identity.username == "k"
 
 
-def test_username_falls_back_to_the_subject(
+def test_username_is_none_without_the_claim(
     verifier: TokenVerifier, make_token: TokenFactory
 ) -> None:
     identity = verifier.identity(make_token(str(PROVIDER_ID)))
-    assert identity.username == str(PROVIDER_ID)
+    assert identity.username is None
 
 
 def test_subject_must_be_a_uuid(
