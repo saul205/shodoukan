@@ -7,7 +7,8 @@
 
 Issues: #79 own senses (parent), #80 own example sentences and #81 entries from scratch
 (both branch from #79, independent of each other), #86 export and import collections
-as files, then #82 import public collections (future, branches from #86).
+as files, then #82 share public collections (parent) with #88 likes, #89 comments and
+#90 updating from the source (children, independent of each other).
 
 ## Own senses (#79)
 
@@ -132,16 +133,91 @@ own 20, both with original 20.
 - A full snapshot in the file: the import would ignore most of it (the dictionary is
   the source of its data), and #82 would need a second format.
 
-### Public collections (#82, future)
+## Sharing public collections (#82, #88, #89, #90)
 
-- The owner marks a collection public; that is the permission. Importing downloads a
-  copy once and never syncs with the origin. The payload is read from the database
-  instead of a file; the rest is the above.
-- **Later:** pick what to import in a preview with toggles before applying, like
-  enabling and disabling parts for the exercises.
+Agreed 2026-10-13. Builds on the import above: a public collection is read as the same
+payload as a file.
+
+### Publishing versions (#82)
+
+- The owner **publishes** a collection: a snapshot of it is stored as its current
+  version (v1, v2, …), the payload `ExportEntryCollection` / `ExportKanjiCollection`
+  build. Only the latest version is kept. Later edits to the collection or its items
+  aren't seen until the owner publishes a new version: they decide when it's ready,
+  importers get exactly what the preview showed, and comments refer to a version.
+- Only **active** items are published. **Notes** (entry, sense, kanji) go in only if
+  the owner ticks "Incluir mis notas" (off by default): they're often personal.
+- Being public is the permission: any signed-in user (accounts are invite-only) can
+  see, preview and import it. A private collection is a 404 to anyone else, as today.
+- Unpublishing hides it and stops new imports and updates; likes, comments and
+  downloads are kept for when it's published again. Deleting it removes everything.
+
+Live sharing (others always see the current library) was ruled out: every half-made
+edit would be public at once, an import could differ from the preview, and there would
+be nothing to compare a copy against to offer an update.
+
+### Browsing, preview and import (#82)
+
+- "Colecciones públicas": tabs Palabras / Kanji, Mías / De otros, a search over the
+  name, the description and the owner's username, and sorting (most downloaded, most
+  recent, most liked). Each card: owner, version, items, downloads, likes, comments.
+- The owner is shown by `users.username`, Keycloak's `preferred_username` (not the
+  email). It's refreshed from the token on every request where it changed. It isn't
+  unique: it's searched, never used to identify anyone.
+- The detail page previews the latest version page by page, built exactly as an
+  importer would get it (a fresh dictionary snapshot plus `merge_shared`, in memory),
+  and imports it with the import above.
+- **Downloads** count distinct users (one row per collection and user, with the last
+  version imported); the owner's own imports don't count. Rows, not a counter: the
+  composite key makes concurrent first downloads safe, and counts are taken at read
+  time. Likes work the same way.
+
+### Likes and comments (#88, #89)
+
+- A like per user and collection, toggled idempotently.
+- Comments are a free thread (author, text, when, the version it was written on).
+  Their author edits them; their author or the collection's owner deletes them.
+
+### Updating a copy from its source (#90)
+
+An imported collection remembers its source collection and the version it was imported
+from (`source_version`). When the source publishes a newer one, the copy shows
+"Versión nueva vN" and a button: updates never run on their own, so nobody's exercises
+change mid-study.
+
+There are no "reference" and "own copy" modes. One rule decides, element by element:
+**what came from the source and is untouched follows the source; what the user touched
+or added is theirs.** A copy nobody touched ends up replaced by the new version; a
+modified one keeps every change. For that, an import records (already in #82):
+
+- on each copied part with content, the source collection it came with
+  (`source_collection_id`); untouched means its `edited_id` is still the source's;
+- on each membership row, whether the source put it there (`from_source`).
+
+Applying an update:
+
+- New items and parts are imported with the usual rules (the same version is skipped,
+  another version is added next to it).
+- `from_source` items the new version dropped leave the **collection**, never the
+  library: they may be in other collections, have notes or exercise history.
+- Untouched parts attributed to that collection that the new version doesn't have are
+  removed from the word, except a sense's last meaning or a word's last reading. An own
+  sense goes only when nothing of the user's is left in it and it has no notes.
+- What the user removed isn't brought back: an item taken out of the copy is recorded
+  as dismissed for that collection, and deleting an untouched source part records its
+  version on the word (`dismissed_versions`), which imports skip.
+- Name and description are never overwritten; the page shows the source's.
+- Editing a word (notes, hiding parts, own meanings) is the library's business: it
+  never counts as modifying the collection, and updates keep it.
+
+### Later
+
+- A conflicts panel that groups the versions of one part (`original_id`) to pick one.
+- Pick what to import in a preview with toggles before applying.
 
 ## Order
 
 Own senses first, then own examples and own entries (independent of each other), then
 exporting and importing files (#86), and shared collections last: they need `origin`
-on every part and reuse #86's import.
+on every part and reuse #86's import. Within sharing, #82 first; then #88, #89 and #90
+in any order.

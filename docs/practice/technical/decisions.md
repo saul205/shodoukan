@@ -879,3 +879,28 @@ nothing has to be written after an insert.
   compared within one database (the shared one); a file moved between separate
   databases could match unrelated rows, accepted while there's only one.
 
+## Public collections are published versions
+
+A public collection is a snapshot the owner publishes (v1, v2, …), the same payload as
+an exported file, not a live view of their library. Live was simpler, but every
+half-made edit or private note would be public at once, an import could differ from
+the preview a moment earlier, and a copy would have nothing to compare against to be
+offered an update. Only the latest version is kept: updates don't need the base
+version (see the next entry). Details in the
+[proposal](../proposals/library-authoring-and-sharing.md#sharing-public-collections-82-88-89-90).
+
+## Untouched source content follows the source
+
+An imported collection has no "reference" or "own copy" mode. Each element decides:
+what came from the source and is untouched (membership with `from_source`, parts
+attributed to that collection whose `edited_id` is still the source's) follows the
+source on update, including removals; what the user touched or added is theirs and
+stays. A copy nobody touched is thus replaced by the new version, and a modified one
+keeps every change, without a button to turn one into the other.
+
+Without a base version, a two-way merge can't tell "the user removed it" from "the
+source added it", so the user's removals are recorded (dismissed items per collection,
+`dismissed_versions` per word). Items the source drops leave the collection but never
+the library. Counts (downloads, likes) are rows with a composite key, counted at read
+time: no counter to keep consistent.
+
