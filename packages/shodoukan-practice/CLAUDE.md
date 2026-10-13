@@ -182,7 +182,9 @@ standalone: never call shodoukan-api from here.
   per collection). A public collection is readable by anyone signed in; private is a
   404, to its owner too on `/public-collections`. Downloads are rows (one per user,
   the owner's not counted), counted at read time. Imports record `source_version`,
-  `from_source` on membership and `source_collection_id` on copied parts.
+  `from_source` on membership and `source_collection_ids` on copied parts (every
+  followed collection that brings the part; an update lets go of its own and the part
+  goes only when none is left).
   Updating a copy (`UpdateEntryCollectionFromSource`, `POST .../update`): untouched
   source content follows the source (`prune_source`), the user's stays; removals are
   remembered (`dismiss_item`, `dismissed_parts` as `"<kind>:<identity>"`); a version

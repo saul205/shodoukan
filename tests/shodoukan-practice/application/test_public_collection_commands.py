@@ -118,7 +118,9 @@ def test_import_public_records_the_download_and_the_source(
     eat = entries.get_by_source_entry_id(1000001, other_user.id)
     assert eat is not None
     own = [g for g in eat.senses[0].glosses if g.origin == "added"]
-    assert [(g.text, g.source_collection_id) for g in own] == [("to scoff", verbs.id)]
+    assert [(g.text, g.source_collection_ids) for g in own] == [
+        ("to scoff", [verbs.id])
+    ]
     summary = collections.public_summary(verbs, other_user.id)
     assert (summary.downloads, summary.viewer_version) == (1, 1)
     # The owner's own import isn't a download.

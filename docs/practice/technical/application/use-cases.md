@@ -98,8 +98,8 @@ created, existing, missing)`. For each item, in order:
   created with `PracticeEntry.from_shared`.
 
 Each is then added to the collection with `from_source=True`, and the parts merged
-into it record `source_collection_id = shared.id`: what an update from that source
-will be allowed to change. Doesn't commit, so an error leaves nothing.
+into it record `shared.id` among the collections that bring them
+(`source_collection_ids`): what an update from that source will be allowed to change. Doesn't commit, so an error leaves nothing.
 `ImportKanjiCollection(dictionary, kanji, collections)` does the same by `literal`
 (`missing` holds literals).
 

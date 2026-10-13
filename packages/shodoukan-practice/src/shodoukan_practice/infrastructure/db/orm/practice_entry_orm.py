@@ -81,7 +81,10 @@ class PracticeEntryKanjiReadingORM(Base):
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
     revision: Mapped[int] = mapped_column(default=0, server_default="0")
-    source_collection_id: Mapped[int | None]
+    # The collections that bring the part (a copy): ids, as JSON.
+    source_collection_ids: Mapped[list[int]] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
 
 
 class PracticeEntryReadingORM(Base):
@@ -105,7 +108,10 @@ class PracticeEntryReadingORM(Base):
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
     revision: Mapped[int] = mapped_column(default=0, server_default="0")
-    source_collection_id: Mapped[int | None]
+    # The collections that bring the part (a copy): ids, as JSON.
+    source_collection_ids: Mapped[list[int]] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
 
 
 class PracticeSenseORM(Base):
@@ -153,7 +159,10 @@ class PracticeGlossORM(Base):
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
     revision: Mapped[int] = mapped_column(default=0, server_default="0")
-    source_collection_id: Mapped[int | None]
+    # The collections that bring the part (a copy): ids, as JSON.
+    source_collection_ids: Mapped[list[int]] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
 
 
 class PracticeExampleORM(Base):
@@ -174,7 +183,10 @@ class PracticeExampleORM(Base):
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
     revision: Mapped[int] = mapped_column(default=0, server_default="0")
-    source_collection_id: Mapped[int | None]
+    # The collections that bring the part (a copy): ids, as JSON.
+    source_collection_ids: Mapped[list[int]] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
 
     sentences: Mapped[list[PracticeExampleSentenceORM]] = children(
         "PracticeExampleSentenceORM.position"

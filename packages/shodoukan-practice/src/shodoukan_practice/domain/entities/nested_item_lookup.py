@@ -37,11 +37,12 @@ Version = tuple[int, int]
 class Versioned(Copyable, Toggleable, Protocol):
     """A part with content: `edited_id` is the row that wrote this version
     (`None`: this row), `revision` how many edits that row made, and
-    `source_collection_id` the collection it was copied with."""
+    `source_collection_ids` the collections that bring it (a part can come
+    with several the user follows)."""
 
     edited_id: int | None
     revision: int
-    source_collection_id: int | None
+    source_collection_ids: list[int]
 
     @property
     def origin(self) -> str: ...
@@ -133,6 +134,7 @@ def merge_parts(
     same: Callable[[C, S], bool],
     copy: Callable[[S], C],
     dismissed: Set[int] = frozenset(),
+    source: int | None = None,
 ) -> bool:
     """Merge a shared list of parts into the item's own list.
 
@@ -141,7 +143,9 @@ def merge_parts(
     by this import. An added part is appended as a `copy` unless a target
     has its version already (another version of the same part is added too:
     better to duplicate than to lose it), or the user deleted that part
-    before (its identity is `dismissed`). Returns whether anything changed.
+    before (its identity is `dismissed`). A copy already there in that
+    version gains `source` as one more collection that brings it. Returns
+    whether anything changed.
     """
     imported = [t for t in targets if t.origin == "imported"]
     position = 0
@@ -160,19 +164,45 @@ def merge_parts(
                 changed = True
         elif part.identity in dismissed:
             continue
-        elif part.version is None or all(version(t) != part.version for t in targets):
-            targets.append(copy(part))
-            changed = True
+        else:
+            match = next(
+                (
+                    t
+                    for t in targets
+                    if part.version is not None and version(t) == part.version
+                ),
+                None,
+            )
+            if match is None:
+                targets.append(copy(part))
+                changed = True
+            elif (
+                source is not None
+                and match.edited_id is not None  # a copy, not the user's own
+                and source not in match.source_collection_ids
+            ):
+                match.source_collection_ids.append(source)
+                changed = True
     return changed
 
 
 def untouched_from(part: Versioned, source_collection_id: int) -> bool:
-    """Whether `part` came with that collection and the user hasn't edited it."""
+    """Whether that collection brings `part` and the user hasn't edited it."""
     return (
         part.origin == "added"
-        and part.source_collection_id == source_collection_id
+        and source_collection_id in part.source_collection_ids
         and part.edited_id is not None
     )
+
+
+def brought_by(source_collection_id: int | None) -> list[int]:
+    """The collections a new copy is brought by: the one it came with, if any."""
+    return [] if source_collection_id is None else [source_collection_id]
+
+
+def unclaimed(part: Versioned) -> bool:
+    """Whether `part` is an unedited copy no followed collection brings."""
+    return part.edited_id is not None and not part.source_collection_ids
 
 
 def prune_parts(
@@ -181,20 +211,21 @@ def prune_parts(
     source_collection_id: int,
     keep: int = 0,
 ) -> bool:
-    """Remove the parts the collection brought, untouched, that its new shared
-    list no longer has (in that version); at least `keep` targets stay.
-    Returns whether anything was removed."""
+    """Let go of the parts the collection brought, untouched, that its new
+    shared list no longer has (in that version): the collection stops
+    bringing them, and a part no collection brings any more is removed, as
+    long as `keep` targets stay. Returns whether anything changed."""
     current = {p.version for p in parts if p.origin == "added"}
     changed = False
     for target in list(targets):
-        if len(targets) <= keep:
-            break
-        if (
-            untouched_from(target, source_collection_id)
-            and version(target) not in current
+        if not untouched_from(target, source_collection_id) or (
+            version(target) in current
         ):
+            continue
+        target.source_collection_ids.remove(source_collection_id)
+        changed = True
+        if not target.source_collection_ids and len(targets) > keep:
             targets.remove(target)
-            changed = True
     return changed
 
 

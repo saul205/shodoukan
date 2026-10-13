@@ -13,15 +13,15 @@ The models that define these tables are described in
 |---|---|---|
 | `users` | — | `id` **`uuid`**: the identity provider's user id (token `sub`), not generated here; `username` (display name, up to 255 characters, not unique) |
 | `practice_entries` | `users` | `source_entry_id` nullable (a word of the user's own has none), `UNIQUE(user_id, source_entry_id)` (NULLs are distinct, so own words can repeat), `notes` text (nullable), `original_id`, `source_id`, `dismissed_parts` JSON (default `[]`) |
-| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_id` |
-| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_id` |
+| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
+| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
 | `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable), `enabled`, `origin` (CHECK), `original_id`, `source_id` |
-| `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')`, `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_id` |
-| `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_id` |
+| `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')`, `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
+| `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
 | `practice_example_sentences` | `practice_examples` | `position`, `lang`, `text` |
 | `practice_kanji` | `users` | `UNIQUE(user_id, literal)`, `notes` text (nullable), `dismissed_parts` JSON (default `[]`) |
 | `practice_kanji_reading_items` | `practice_kanji` | `kind` with `CHECK kind IN ('on','kun','nanori')`, `position`, `enabled` |
-| `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_id` |
+| `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
 | `entry_collections` | `users` | `UNIQUE(user_id, name)`; `is_public` (default false), `published_version` (default 0), `published_at`; `source_collection_id`, `source_version` |
 | `kanji_collections` | `users` | `UNIQUE(user_id, name)`; `is_public` (default false), `published_version` (default 0), `published_at`; `source_collection_id`, `source_version` |
 | `entry_collection_items` | link table | PK `(collection_id, entry_id)`, index on `entry_id`, `added_at`, `from_source` (default false) |
@@ -38,10 +38,12 @@ The models that define these tables are described in
 | `exercise_questions` | `exercise_sessions` | `position`, `UNIQUE(session_id, position)`; `entry_id` → `practice_entries` / `kanji_id` → `practice_kanji`, both `SET NULL`, `CHECK entry_id IS NULL OR kanji_id IS NULL`; `type` (`CHECK` `card.choice` / `card.handwriting` / `card.handwriting_word`); `prompt_fields`, `prompt`, `back`, `answer` JSON; `details` JSON, what only the type has (choice: `options`, `correct_option`; handwriting: `references`, `grade`; word handwriting: `words`, `grade`); `is_correct`, `answered_at`, `response_ms` |
 | `exercise_kanji_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `kanji_collections`, index on `collection_id`, `position` |
 
-`original_id`, `source_id`, `edited_id` and `source_collection_id` (nullable integers,
-**no foreign key**) record where an imported copy came from: the part all its copies
-share, the row it was copied from, and the version of its content (`NULL` is the row
-itself). The origin may be another user's and be gone. See
+`original_id`, `source_id`, `edited_id`, `source_collection_ids` and the collections'
+`source_collection_id` (nullable integers or, for `source_collection_ids`, a JSON list;
+**no foreign keys**) record where an imported copy came from: the part all its copies
+share, the row it was copied from, the version of its content (`NULL` is the row
+itself), and the collections that bring it. The origin may be another user's and be
+gone. See
 [importing a collection](../../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
 
 Every table except `users` and the link tables has an integer `id` primary key.

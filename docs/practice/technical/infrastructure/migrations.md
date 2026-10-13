@@ -65,6 +65,7 @@ Once any environment is deployed, migrations are append-only.
 | `34cc2ff80759` | Sharing: `is_public` / `published_version` / `published_at` / `source_version` on collections, `*_collection_publications` (the snapshot), `*_collection_downloads`, `from_source` on membership, `source_collection_id` on parts with content |
 | `eb193a97a273` | Following a source: `*_collection_dismissed_items`, `dismissed_parts` on practice entries and kanji |
 | `7d4e1c2b9a60` | `revision` on parts with content: a part's version is its row and revision, so the owner's edits reach their copies |
+| `c3a9f5e0d2b1` | `source_collection_id` on parts with content becomes `source_collection_ids` (JSON list; existing values become one-element lists): several followed collections can bring one part |
 
 ## Safety nets
 

@@ -186,7 +186,7 @@ def test_kanji_sharing_notes_and_attribution() -> None:
     assert origin_kanji().to_shared(include_notes=False).notes is None
     kanji = fresh_snapshot()
     kanji.merge_shared(origin_kanji().to_shared(), created=True, source_collection_id=4)
-    assert [m.source_collection_id for m in kanji.meanings] == [None, 4]
+    assert [m.source_collection_ids for m in kanji.meanings] == [[], [4]]
 
 
 def test_kanji_prune_and_dismissed_meanings() -> None:

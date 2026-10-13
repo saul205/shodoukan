@@ -199,7 +199,8 @@ or added is theirs.** A copy nobody touched ends up replaced by the new version;
 modified one keeps every change. For that, an import records (already in #82):
 
 - on each copied part with content, the source collection it came with
-  (`source_collection_id`); untouched means its `edited_id` is still the source's;
+  (`source_collection_ids`: every collection the user follows that brings it);
+  untouched means its `edited_id` is still the source's;
 - on each membership row, whether the source put it there (`from_source`).
 
 Applying an update:

@@ -922,3 +922,14 @@ per table, so a gloss and a sense can share a number. Identity rather than versi
 part the user edited and then deleted would otherwise come back in the source's
 version.
 
+## A part remembers every collection that brings it
+
+A copied part first recorded the one collection it came with. When two collections
+the user follows bring the same part, importing the second found it already there in
+that version and didn't record it, so updating the first could remove a part the
+second still brings, with no update left to bring it back. A part now records every
+followed collection that brings it (`source_collection_ids`): importing or updating
+from another one adds it, and an update lets go of its own collection, removing the
+part only when none is left. Ruled out: never removing anything on update, which is
+simpler but piles up every old version in copies nobody touched.
+

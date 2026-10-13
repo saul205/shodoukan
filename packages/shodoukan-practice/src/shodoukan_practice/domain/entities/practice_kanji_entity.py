@@ -55,7 +55,7 @@ class PracticeKanjiMeaning(BaseModel):
     source_id: int | None = None
     edited_id: int | None = None
     revision: int = 0
-    source_collection_id: int | None = None
+    source_collection_ids: list[int] = Field(default_factory=list)
 
 
 class PracticeKanji(TimestampedEntity):
@@ -205,6 +205,7 @@ class PracticeKanji(TimestampedEntity):
             created=created,
             same=lambda ours, theirs: ours.text == theirs.text,
             copy=lambda part: _copied_meaning(part, source_collection_id),
+            source=source_collection_id,
             dismissed=dismissed_of(self.dismissed_parts, "meaning"),
         )
         if changed:
@@ -252,5 +253,7 @@ def _copied_meaning(
         source_id=part.id,
         edited_id=part.edited_id if part.edited_id is not None else part.id,
         revision=part.revision,
-        source_collection_id=source_collection_id,
+        source_collection_ids=[]
+        if source_collection_id is None
+        else [source_collection_id],
     )
