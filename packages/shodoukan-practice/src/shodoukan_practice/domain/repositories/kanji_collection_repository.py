@@ -110,6 +110,10 @@ class KanjiCollectionRepository(Protocol):
         copy, so updates from its source don't bring it back. Idempotent."""
         ...
 
+    def undismiss_item(self, collection: KanjiCollection, key: str) -> bool:
+        """Forget a dismissal; whether there was one."""
+        ...
+
     def dismissed_items(self, collection: KanjiCollection) -> set[str]:
         """The shared keys `dismiss_item` remembered for the collection."""
         ...

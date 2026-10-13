@@ -312,3 +312,33 @@ def test_a_word_deleted_from_the_library_doesnt_come_back(
 
     assert result.created == 0
     assert entries.get_by_source_entry_id(1000001, other_user.id) is None
+
+
+def test_putting_a_dismissed_word_back_lets_the_source_follow_it(
+    collections: SqlAlchemyEntryCollectionRepository,
+    entries: SqlAlchemyPracticeEntryRepository,
+    gateway: ShodoukanDictionaryGateway,
+    verbs: EntryCollection,
+    copy: EntryCollection,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    eat = entries.get_by_source_entry_id(1000001, other_user.id)
+    assert eat is not None
+    RemoveEntryFromLibrary(entries, collections).execute(other_user.id, eat.id or 0)
+    assert collections.dismissed_items(copy) == {"entry:1000001"}
+
+    # Imported again from the dictionary, straight into the copy.
+    again = ImportEntry(gateway, entries, collections).execute(
+        other_user.id, 1000001, [copy.id or 0]
+    )
+    assert collections.dismissed_items(copy) == set()
+    assert collections.is_from_source(copy, again.item)
+    edit_scoff(entries, user, "to wolf down")
+    publish(collections, entries, user, verbs)
+
+    update(collections, entries, gateway, other_user, copy)
+
+    assert own_glosses(entries.get_by_source_entry_id(1000001, other_user.id)) == [
+        "to wolf down"
+    ]

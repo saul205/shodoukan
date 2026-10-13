@@ -332,6 +332,16 @@ class SqlAlchemyEntryCollectionRepository(EntryCollectionRepository):
             self._session.execute(insert(dismissed).values(**row))
             self._session.flush()
 
+    def undismiss_item(self, collection: EntryCollection, key: str) -> bool:
+        dismissed = entry_collection_dismissed_items
+        row = {"collection_id": collection.id, "item_key": key}
+        known = self._session.scalar(select(dismissed.c.item_key).filter_by(**row))
+        if known is None:
+            return False
+        self._session.execute(delete(dismissed).filter_by(**row))
+        self._session.flush()
+        return True
+
     def dismissed_items(self, collection: EntryCollection) -> set[str]:
         dismissed = entry_collection_dismissed_items
         query = select(dismissed.c.item_key).where(

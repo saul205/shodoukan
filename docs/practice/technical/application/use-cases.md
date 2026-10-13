@@ -128,7 +128,11 @@ snapshot's items that the user didn't take out (`dismissed_items`) go through
 does, then `prune_source`; they're linked `from_source`. `from_source` items the
 snapshot dropped are unlinked (they stay in the library), and `follow_source` records
 the version; the user's download row takes it too (`record_download`, still one
-download), so the public listing shows it as imported. `RemoveEntryFromCollection` and `RemoveEntryFromLibrary` dismiss a `from_source` item it takes out
+download), so the public listing shows it as imported. Every use case that puts an item in a collection (`AddEntryToCollection`,
+`ImportEntry` / `ImportKanji` with collections) goes through `put_entry` / `put_kanji`
+(`commands/collection_membership.py`): putting it back in a copy it was dismissed from
+lifts the dismissal and links it `from_source` again.
+`RemoveEntryFromCollection` and `RemoveEntryFromLibrary` dismiss a `from_source` item it takes out
 of a copy. The kanji use cases are the same.
 
 ### `UnpublishEntryCollection(collections).execute(user_id, collection_id)`

@@ -33,6 +33,7 @@ from ...domain.repositories import (
 )
 from ...domain.services import free_collection_name
 from .collection_lookups import entry_collection, kanji_collection
+from .collection_membership import put_entry, put_kanji
 
 C = TypeVar("C", EntryCollection, KanjiCollection)
 R = TypeVar("R", int, str)
@@ -178,7 +179,9 @@ class AddEntryToCollection:
 
     def execute(self, user_id: UUID, collection_id: int, entry_id: int) -> None:
         collection = entry_collection(self._collections, collection_id, user_id)
-        self._collections.add_item(collection, _entry(self._entries, entry_id, user_id))
+        put_entry(
+            self._collections, collection, _entry(self._entries, entry_id, user_id)
+        )
 
 
 class AddKanjiToCollection:
@@ -192,7 +195,8 @@ class AddKanjiToCollection:
 
     def execute(self, user_id: UUID, collection_id: int, kanji_id: int) -> None:
         collection = kanji_collection(self._collections, collection_id, user_id)
-        self._collections.add_item(collection, _kanji(self._kanji, kanji_id, user_id))
+        kanji = _kanji(self._kanji, kanji_id, user_id)
+        put_kanji(self._collections, collection, kanji)
 
 
 class RemoveEntryFromCollection:

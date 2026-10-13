@@ -16,6 +16,7 @@ from ...domain.repositories import (
     PracticeKanjiRepository,
 )
 from .collection_lookups import entry_collection, kanji_collection
+from .collection_membership import put_entry, put_kanji
 
 T = TypeVar("T")
 
@@ -59,7 +60,7 @@ class ImportEntry:
         ]
         result = self._import(user_id, source_entry_id)
         for collection in targets:
-            self._collections.add_item(collection, result.item)
+            put_entry(self._collections, collection, result.item)
         return result
 
     def _import(
@@ -110,7 +111,7 @@ class CreateOwnEntry:
             PracticeEntry.create_own(user_id, spellings, readings, meaning, lang)
         )
         for collection in targets:
-            self._collections.add_item(collection, entry)
+            put_entry(self._collections, collection, entry)
         return entry
 
 
@@ -139,7 +140,7 @@ class ImportKanji:
         ]
         result = self._import(user_id, literal)
         for collection in targets:
-            self._collections.add_item(collection, result.item)
+            put_kanji(self._collections, collection, result.item)
         return result
 
     def _import(self, user_id: UUID, literal: str) -> ImportResult[PracticeKanji]:
