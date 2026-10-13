@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addToCollection, exportCollection, importCollection, listCollectionEntries, listCollectionKanji, publishCollection, unpublishCollection, updateCollection } from '../../app/services/collections'
+import { addToCollection, exportCollection, importCollection, listCollectionEntries, listCollectionKanji, publishCollection, unpublishCollection, updateCollection, updateFromSource } from '../../app/services/collections'
 import { getPublicCollection, importPublicCollection, previewPublicEntries, previewPublicKanji, searchPublicCollections } from '../../app/services/public-collections'
 import { searchDictionary } from '../../app/services/dictionary'
 import { answerQuestion, finishSession, getSession, listSessions, startSession } from '../../app/services/exercise-sessions'
@@ -115,10 +115,12 @@ describe('practice API services', () => {
     const { api, calls } = fakeApi()
     await publishCollection(api, 'kanji', 3, true)
     await unpublishCollection(api, 'entries', 4)
+    await updateFromSource(api, 'kanji', 5)
 
     expect(calls).toEqual([
       ['/collections/kanji/3/publication', { method: 'PUT', body: { include_notes: true } }],
       ['/collections/entries/4/publication', { method: 'DELETE' }],
+      ['/collections/kanji/5/update', { method: 'POST' }],
     ])
   })
 

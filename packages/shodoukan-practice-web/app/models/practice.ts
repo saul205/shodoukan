@@ -115,6 +115,8 @@ export interface Collection {
   /** For a copy of someone's collection: where it came from, and which version. */
   source_collection_id: number | null
   source_version: number | null
+  /** Its source's current version while public (lists and gets); newer than `source_version` = update available. */
+  latest_source_version?: number | null
   created_at: string
   updated_at: string
 }
@@ -167,6 +169,11 @@ export interface CollectionFile {
   kind: ItemKind
   exported_at: string | null
   collection: { name: string, items: unknown[] }
+}
+
+/** What updating a copy from its source did: an import's counts plus the items it took out. */
+export interface CollectionUpdate extends CollectionImport {
+  removed: number
 }
 
 /** What importing a collection file did. */

@@ -23,6 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   own) public collections, preview them as they'd be imported, and import them.
   "Mis colecciones" can publish a collection (with or without your notes), publish a
   new version, or stop sharing it.
+- **shodoukan-practice-web:** A copy of a public collection shows when its source has
+  a new version ("Actualización disponible") and updates it with **Actualizar**.
 - **shodoukan-practice:** Export a collection as a file and import it back, in any
   account (`GET /collections/{entries,kanji}/{id}/export`, `POST
   /collections/{entries,kanji}/import`). The file carries each item's dictionary

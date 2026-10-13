@@ -12,7 +12,7 @@ import {
   unpublishCollection,
 } from '~/services/collections'
 import { apiStatus } from '~/utils/api-error'
-import { downloadCollectionFile, importSummary, parseCollectionFile } from '~/utils/collection-file'
+import { downloadCollectionFile, hasSourceUpdate, importSummary, parseCollectionFile } from '~/utils/collection-file'
 
 // "Mis colecciones": word and kanji collections in tabs; create, edit and
 // delete them, open one to see its items, export one to a file or import
@@ -219,6 +219,15 @@ function actions(collection: Collection): DropdownMenuItem[][] {
           <NuxtLink :to="`/collections/${kind}/${collection.id}`" class="min-w-0 flex-1">
             <p class="flex items-center gap-2">
               <span class="truncate font-medium text-highlighted">{{ collection.name }}</span>
+              <UBadge
+                v-if="hasSourceUpdate(collection)"
+                label="Actualización disponible"
+                icon="i-lucide-sparkles"
+                color="primary"
+                variant="soft"
+                size="sm"
+                class="shrink-0"
+              />
               <UBadge
                 v-if="collection.is_public"
                 :label="`Pública · v${collection.published_version}`"
