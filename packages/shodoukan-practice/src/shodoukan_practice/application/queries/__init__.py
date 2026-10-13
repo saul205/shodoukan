@@ -50,6 +50,8 @@ from .library_search_queries import (
 from .public_collection_queries import (
     GetPublicEntryCollection,
     GetPublicKanjiCollection,
+    LatestEntrySourceVersions,
+    LatestKanjiSourceVersions,
     PreviewPublicEntryCollection,
     PreviewPublicKanjiCollection,
     PublicCollectionPage,
@@ -80,6 +82,8 @@ __all__ = [
     "GetPublicEntryCollection",
     "GetPublicKanjiCollection",
     "ImportStatus",
+    "LatestEntrySourceVersions",
+    "LatestKanjiSourceVersions",
     "LibraryPage",
     "ListCollectionsOfEntry",
     "ListCollectionsOfKanji",

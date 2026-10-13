@@ -904,3 +904,32 @@ source added it", so the user's removals are recorded (dismissed items per colle
 the library. Counts (downloads, likes) are rows with a composite key, counted at read
 time: no counter to keep consistent.
 
+## A version counts its owner's edits
+
+#86 took a part's version to be `edited_id` (the row that last wrote it), or the
+part's own id for an original. But an owner editing their own original part left
+both unchanged, so the edit looked like the same version: imports skipped it and
+updates (#90) couldn't replace the old copy. Parts with content now also have a
+`revision`, raised by every edit, and the version is `(edited_id or id, revision)`.
+Copies take both from their source, and an edit by the copy's owner makes the version
+theirs (`edited_id = None`, a new revision).
+
+## Dismissed parts are keyed by kind and identity
+
+Deleting a copied part records it on the word or kanji (`dismissed_parts`) so its
+source doesn't bring it back. Keys are `"<kind>:<identity>"` (`"gloss:12"`): ids are
+per table, so a gloss and a sense can share a number. Identity rather than version: a
+part the user edited and then deleted would otherwise come back in the source's
+version.
+
+## A part remembers every collection that brings it
+
+A copied part first recorded the one collection it came with. When two collections
+the user follows bring the same part, importing the second found it already there in
+that version and didn't record it, so updating the first could remove a part the
+second still brings, with no update left to bring it back. A part now records every
+followed collection that brings it (`source_collection_ids`): importing or updating
+from another one adds it, and an update lets go of its own collection, removing the
+part only when none is left. Ruled out: never removing anything on update, which is
+simpler but piles up every old version in copies nobody touched.
+

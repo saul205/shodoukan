@@ -93,6 +93,21 @@ class KanjiCollectionPublicationORM(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
 
 
+kanji_collection_dismissed_items = Table(
+    "kanji_collection_dismissed_items",
+    Base.metadata,
+    Column(
+        "collection_id",
+        Integer,
+        ForeignKey("kanji_collections.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    # The item's shared key (`shared_key`): what the user took out of a copy,
+    # which updates from its source don't bring back.
+    Column("item_key", String(64), primary_key=True),
+)
+
+
 kanji_collection_downloads = Table(
     "kanji_collection_downloads",
     Base.metadata,

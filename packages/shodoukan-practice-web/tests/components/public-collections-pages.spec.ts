@@ -62,6 +62,7 @@ describe('public collections', () => {
     expect(card.attributes('href')).toBe('/public-collections/entries/7')
     expect(card.text()).toContain('de tanaka')
     expect(card.text()).toContain('3 descargas')
+    expect(card.text()).not.toContain('Importada')
   })
 
   it('previews one and imports it', async () => {
@@ -102,5 +103,20 @@ describe('a public collection item', () => {
     expect(modal).not.toContain('tanaka')
     expect(modal).toContain('Mi truco')
     expect(modal).not.toContain('propio')
+  })
+})
+
+describe('a public collection already imported', () => {
+  it('says when there is a newer version than the imported one', async () => {
+    api.mockImplementation(async (url: string) => {
+      if (url === '/public-collections/entries') {
+        return { items: [{ ...n5, imported_version: 1 }], total: 1, limit: 24, offset: 0 }
+      }
+      throw new Error(`unexpected ${url}`)
+    })
+    const wrapper = await mountSuspended(ListPage, { route: '/public-collections' })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="public-collection"]').text()).toContain('Importada (v1) · v2 disponible')
   })
 })

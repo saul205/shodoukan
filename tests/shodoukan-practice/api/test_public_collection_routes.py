@@ -117,3 +117,31 @@ def test_kanji_collections_are_shared_too(
     assert [k["literal"] for k in preview["items"]] == ["食"]
     imported = client.post(f"{base}/import", headers=theirs).json()
     assert (imported["created"], imported["missing"]) == (1, [])
+
+
+def test_a_copy_shows_and_applies_its_sources_new_version(
+    client: TestClient, headers: dict[str, str], theirs: dict[str, str]
+) -> None:
+    source = published_words(client, headers)
+    copy = client.post(
+        f"/public-collections/entries/{source['id']}/import", headers=theirs
+    ).json()["collection"]
+    assert copy["latest_source_version"] is None  # only lists and gets fill it
+
+    client.put(
+        f"/collections/entries/{source['id']}/publication", json={}, headers=headers
+    )
+    fetched = client.get(f"/collections/entries/{copy['id']}", headers=theirs).json()
+    assert (fetched["source_version"], fetched["latest_source_version"]) == (1, 2)
+    listed = client.get("/collections/entries", headers=theirs).json()
+    assert [c["latest_source_version"] for c in listed] == [2]
+
+    updated = client.post(f"/collections/entries/{copy['id']}/update", headers=theirs)
+    assert updated.status_code == 200
+    body = updated.json()
+    assert (body["existing"], body["removed"]) == (1, 0)
+    assert body["collection"]["source_version"] == 2
+
+    client.delete(f"/collections/entries/{source['id']}/publication", headers=headers)
+    gone = client.post(f"/collections/entries/{copy['id']}/update", headers=theirs)
+    assert gone.status_code == 404

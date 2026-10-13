@@ -53,7 +53,8 @@ On top of the snapshot:
   the user can add, senses and words of the user's own, plus `edited_id` (the version)
   on parts with content (spellings, readings, glosses, examples, kanji meanings);
   `source_collection_id` on collections; parts with content also record the
-  `source_collection_id` they came with. `None` is the row itself. Editing a meaning or
+  collections that bring them (`source_collection_ids`: the one they were copied
+  with, and any other followed collection found to bring the same version). `None` is the row itself. Editing a meaning or
   an example sets `edited_id = None`: that version is now the user's.
   `PracticeEntry.identity` is `original_id`, or `id` for an original.
 
@@ -194,8 +195,20 @@ Aggregate methods:
 - `to_shared(include_notes=True)` on `PracticeEntry` / `PracticeKanji`: everything, in
   order; without notes when publishing without them.
 - `merge_shared(shared, created, source_collection_id=None) -> bool`: takes what the
-  shared copy adds; the parts it copies record `source_collection_id`, the collection
-  they came with, which an update from it may change. Imported
+  shared copy adds; the parts it copies record the collection they came with in
+  `source_collection_ids`, and a copy already there in that version gains it too. Parts in `dismissed_parts` are
+  skipped.
+- `prune_source(shared, source_collection_id) -> bool` (#90): the collection lets go
+  of the parts it brought, untouched (`edited_id` still set), that the shared item no
+  longer has (by version): it leaves their `source_collection_ids`, and a part no
+  collection brings any more is removed, never a sense's last meaning or a word's last
+  reading. An own sense the collection dropped goes whole only when nothing in it is
+  the user's or still brought by a collection, and it has no notes. The helpers are `prune_parts` / `untouched_from`.
+- A version is `(edited_id or id, revision)`: `revision` counts the edits of the row
+  that wrote the part, so an owner editing their own part makes a new version.
+- `dismissed_parts`: copied parts the user deleted, as `"<kind>:<identity>"`
+  (`dismissal_key`, `dismissed_of`). `shared_key` (`entry:<id>`, `own:<identity>`,
+  `kanji:<literal>`) is what an item is across libraries, as `SharedEntry.key`. Imported
   parts are located by their place among the imported parts of the same list, checked
   by text (a sense by its first imported meaning); flags (`enabled`, `is_active`) are
   taken only when `created` is true (the item was created by this import). Added parts
@@ -229,7 +242,7 @@ Current methods:
 | Aggregate | Methods |
 |---|---|
 | `User` | `rename(username)` (the provider's display name changed) |
-| `Collection` | `rename(name)`, `describe(description)`, `publish()` (a new public version; returns it), `unpublish()` |
+| `Collection` | `rename(name)`, `describe(description)`, `publish()` (a new public version; returns it), `unpublish()`, `follow_source(version)` (a copy now follows that version of its source) |
 | `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)`, `merge_shared(shared, created)` |

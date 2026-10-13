@@ -61,6 +61,12 @@ class Collection(TimestampedEntity):
         self.touch()
         return self.published_version
 
+    def follow_source(self, version: int) -> None:
+        """Record that this copy now follows `version` of its source."""
+        if version != self.source_version:
+            self.source_version = version
+            self.touch()
+
     def unpublish(self) -> None:
         """Hide it from others; its last version is kept for publishing again."""
         if self.is_public:

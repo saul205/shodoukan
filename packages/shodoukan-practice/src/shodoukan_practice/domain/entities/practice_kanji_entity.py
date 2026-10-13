@@ -9,16 +9,19 @@ from collections.abc import Iterable
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..exceptions import OriginalDataError
 from .nested_item_lookup import (
     Toggleable,
     clean_meaning,
+    dismissal_key,
+    dismissed_of,
     find_item,
     identity,
     merge_parts,
-    version,
+    prune_parts,
+    version_row,
 )
 from .notes_value import Notes, parse_notes
 from .shared_collection_value import SharedKanji, SharedKanjiReading, SharedMeaning
@@ -51,7 +54,8 @@ class PracticeKanjiMeaning(BaseModel):
     original_id: int | None = None
     source_id: int | None = None
     edited_id: int | None = None
-    source_collection_id: int | None = None
+    revision: int = 0
+    source_collection_ids: list[int] = Field(default_factory=list)
 
 
 class PracticeKanji(TimestampedEntity):
@@ -68,6 +72,13 @@ class PracticeKanji(TimestampedEntity):
     meanings: list[PracticeKanjiMeaning]
     is_active: bool = True
     notes: Notes = None
+    # Copied meanings the user deleted (`"meaning:12"`, see `PracticeEntry`).
+    dismissed_parts: list[str] = Field(default_factory=list)
+
+    @property
+    def shared_key(self) -> str:
+        """What the kanji is across libraries (`SharedKanji.key`)."""
+        return f"kanji:{self.literal}"
 
     def activate(self) -> None:
         if not self.is_active:
@@ -112,12 +123,26 @@ class PracticeKanji(TimestampedEntity):
         if text != meaning.text:
             meaning.text = text
             meaning.edited_id = None  # this version is now the user's
+            meaning.revision += 1
             self.touch()
 
     def remove_meaning(self, meaning_id: int) -> None:
-        """Remove one of the user's own meanings."""
-        self.meanings.remove(self._own_meaning(meaning_id))
+        """Remove one of the user's own meanings; a copy's source won't bring
+        it back."""
+        meaning = self._own_meaning(meaning_id)
+        self.meanings.remove(meaning)
+        key = dismissal_key("meaning", meaning)
+        if key is not None and key not in self.dismissed_parts:
+            self.dismissed_parts.append(key)
         self.touch()
+
+    def prune_source(self, shared: SharedKanji, source_collection_id: int) -> bool:
+        """Remove the meanings that collection brought, untouched, and no
+        longer has (see `PracticeEntry.prune_source`)."""
+        changed = prune_parts(self.meanings, shared.meanings, source_collection_id)
+        if changed:
+            self.touch()
+        return changed
 
     def to_shared(self, include_notes: bool = True) -> SharedKanji:
         """What this kanji carries in an exported collection; its notes only
@@ -135,7 +160,8 @@ class PracticeKanji(TimestampedEntity):
                     origin=m.origin,
                     id=m.id,
                     original_id=identity(m),
-                    edited_id=version(m),
+                    edited_id=version_row(m),
+                    revision=m.revision,
                     enabled=m.enabled,
                     text=m.text,
                     lang=m.lang,
@@ -179,6 +205,8 @@ class PracticeKanji(TimestampedEntity):
             created=created,
             same=lambda ours, theirs: ours.text == theirs.text,
             copy=lambda part: _copied_meaning(part, source_collection_id),
+            source=source_collection_id,
+            dismissed=dismissed_of(self.dismissed_parts, "meaning"),
         )
         if changed:
             self.touch()
@@ -223,6 +251,9 @@ def _copied_meaning(
         origin="added",
         original_id=part.identity,
         source_id=part.id,
-        edited_id=part.version,
-        source_collection_id=source_collection_id,
+        edited_id=part.edited_id if part.edited_id is not None else part.id,
+        revision=part.revision,
+        source_collection_ids=[]
+        if source_collection_id is None
+        else [source_collection_id],
     )

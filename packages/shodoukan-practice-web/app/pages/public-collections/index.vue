@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SelectItem, TabsItem } from '@nuxt/ui'
-import type { ItemKind, PublicOwner, PublicSort } from '~/models/practice'
+import type { ItemKind, PublicCollection, PublicOwner, PublicSort } from '~/models/practice'
 import { searchPublicCollections } from '~/services/public-collections'
 
 // "Colecciones públicas": what users share, words and kanji in tabs. Search by
@@ -64,6 +64,12 @@ const { data: collections, status, error } = useAsyncData(
   { watch: [kind, search, owner, sort, page] },
 )
 
+// "Importada (v1)", and the newer version when there is one.
+function importedLabel(collection: PublicCollection) {
+  const label = `Importada (v${collection.imported_version})`
+  return collection.imported_version! < collection.version ? `${label} · v${collection.version} disponible` : label
+}
+
 function downloadsLabel(n: number) {
   return n === 1 ? '1 descarga' : `${n} descargas`
 }
@@ -125,9 +131,9 @@ function downloadsLabel(n: number) {
               </p>
               <UBadge
                 v-if="collection.imported_version"
-                :label="`Importada (v${collection.imported_version})`"
-                icon="i-lucide-check"
-                color="success"
+                :label="importedLabel(collection)"
+                :icon="collection.imported_version < collection.version ? 'i-lucide-sparkles' : 'i-lucide-check'"
+                :color="collection.imported_version < collection.version ? 'primary' : 'success'"
                 variant="soft"
                 size="sm"
                 class="self-start"

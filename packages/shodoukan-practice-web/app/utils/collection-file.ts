@@ -1,4 +1,4 @@
-import type { CollectionFile, CollectionImport } from '../models/practice'
+import type { Collection, CollectionFile, CollectionImport, CollectionUpdate } from '../models/practice'
 
 // Collection files: downloading an export and reading one back before import.
 
@@ -39,6 +39,22 @@ export function parseCollectionFile(text: string): CollectionFile {
     throw new Error('No se sabe si la colección es de palabras o de kanji.')
   }
   return file as CollectionFile
+}
+
+/** Whether a copy's source has a newer version than the one it follows. */
+export function hasSourceUpdate(collection: Collection): boolean {
+  return (collection.latest_source_version ?? 0) > (collection.source_version ?? 0)
+}
+
+/** What an update did: "2 nuevos, 3 actualizados, 1 quitado de la colección". */
+export function updateSummary(result: CollectionUpdate): string {
+  const parts = [
+    `${result.created} ${result.created === 1 ? 'nuevo' : 'nuevos'}`,
+    `${result.existing} ${result.existing === 1 ? 'revisado' : 'revisados'}`,
+  ]
+  if (result.removed) parts.push(`${result.removed} ${result.removed === 1 ? 'quitado' : 'quitados'} de la colección`)
+  if (result.missing.length) parts.push(`${result.missing.length} ya no en el diccionario`)
+  return parts.join(', ')
 }
 
 /** "3 nuevos, 2 ya estaban en tu librería" and what was left out. */

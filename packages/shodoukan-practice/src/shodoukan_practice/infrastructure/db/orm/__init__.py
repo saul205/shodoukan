@@ -8,6 +8,7 @@ from .base_orm import Base
 from .entry_collection_orm import (
     EntryCollectionORM,
     EntryCollectionPublicationORM,
+    entry_collection_dismissed_items,
     entry_collection_downloads,
     entry_collection_items,
 )
@@ -20,6 +21,7 @@ from .exercise_session_orm import ExerciseQuestionORM, ExerciseSessionORM
 from .kanji_collection_orm import (
     KanjiCollectionORM,
     KanjiCollectionPublicationORM,
+    kanji_collection_dismissed_items,
     kanji_collection_downloads,
     kanji_collection_items,
 )
@@ -61,8 +63,10 @@ __all__ = [
     "PracticeKanjiReadingItemORM",
     "PracticeSenseORM",
     "UserORM",
+    "entry_collection_dismissed_items",
     "entry_collection_downloads",
     "entry_collection_items",
+    "kanji_collection_dismissed_items",
     "kanji_collection_downloads",
     "kanji_collection_items",
 ]

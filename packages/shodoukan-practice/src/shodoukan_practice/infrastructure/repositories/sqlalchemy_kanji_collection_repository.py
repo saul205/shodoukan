@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import Select, delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from ...domain.clock import utc_now
 from ...domain.entities import KanjiCollection, PracticeKanji, SharedKanjiCollection
@@ -22,6 +22,7 @@ from ..db.orm import (
     KanjiCollectionPublicationORM,
     PracticeKanjiORM,
     UserORM,
+    kanji_collection_dismissed_items,
     kanji_collection_downloads,
     kanji_collection_items,
 )
@@ -306,6 +307,46 @@ class SqlAlchemyKanjiCollectionRepository(KanjiCollectionRepository):
             downloads=downloads,
             viewer_version=viewer_version,
         )
+
+    # --- Following a source ---
+
+    def is_from_source(self, collection: KanjiCollection, kanji: PracticeKanji) -> bool:
+        query = select(kanji_collection_items.c.from_source).where(
+            kanji_collection_items.c.collection_id == collection.id,
+            kanji_collection_items.c.kanji_id == kanji.id,
+        )
+        return bool(self._session.scalar(query))
+
+    def source_item_ids(self, collection: KanjiCollection) -> set[int]:
+        query = select(kanji_collection_items.c.kanji_id).where(
+            kanji_collection_items.c.collection_id == collection.id,
+            kanji_collection_items.c.from_source.is_(True),
+        )
+        return set(self._session.scalars(query))
+
+    def dismiss_item(self, collection: KanjiCollection, key: str) -> None:
+        dismissed = kanji_collection_dismissed_items
+        row = {"collection_id": collection.id, "item_key": key}
+        known = self._session.scalar(select(dismissed.c.item_key).filter_by(**row))
+        if known is None:
+            self._session.execute(insert(dismissed).values(**row))
+            self._session.flush()
+
+    def dismissed_items(self, collection: KanjiCollection) -> set[str]:
+        dismissed = kanji_collection_dismissed_items
+        query = select(dismissed.c.item_key).where(
+            dismissed.c.collection_id == collection.id
+        )
+        return set(self._session.scalars(query))
+
+    def latest_source_versions(self, user_id: UUID) -> dict[int, int]:
+        source = aliased(KanjiCollectionORM)
+        query = (
+            select(KanjiCollectionORM.id, source.published_version)
+            .join(source, source.id == KanjiCollectionORM.source_collection_id)
+            .where(KanjiCollectionORM.user_id == user_id, source.is_public.is_(True))
+        )
+        return dict(self._session.execute(query).all())
 
     @contextmanager
     def _name_guard(self, collection: KanjiCollection) -> Iterator[None]:

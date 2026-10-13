@@ -97,3 +97,11 @@ def test_unpublish_keeps_the_version_and_touches_once() -> None:
     collection.unpublish()
     assert (collection.is_public, collection.published_version) == (False, 1)
     assert collection.publish() == 2
+
+
+def test_follow_source_touches_only_on_a_new_version() -> None:
+    collection = make_collection().model_copy(update={"source_version": 1})
+    collection.follow_source(1)
+    assert collection.updated_at == NOW
+    collection.follow_source(2)
+    assert (collection.source_version, collection.updated_at > NOW) == (2, True)

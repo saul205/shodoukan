@@ -63,6 +63,9 @@ Once any environment is deployed, migrations are append-only.
 | `b9ae9e057d9c` | `copied_from_id` on practice entries and the parts the user can add, `copied_from_collection_id` on collections (no foreign keys): where an imported copy came from |
 | `5c2f8a1d9e47` | Copies record `original_id` and `source_id` (the old `copied_from_id`), and `edited_id` on parts with content; `source_collection_id` (the old `copied_from_collection_id`) |
 | `34cc2ff80759` | Sharing: `is_public` / `published_version` / `published_at` / `source_version` on collections, `*_collection_publications` (the snapshot), `*_collection_downloads`, `from_source` on membership, `source_collection_id` on parts with content |
+| `eb193a97a273` | Following a source: `*_collection_dismissed_items`, `dismissed_parts` on practice entries and kanji |
+| `7d4e1c2b9a60` | `revision` on parts with content: a part's version is its row and revision, so the owner's edits reach their copies |
+| `c3a9f5e0d2b1` | `source_collection_id` on parts with content becomes `source_collection_ids` (JSON list; existing values become one-element lists): several followed collections can bring one part |
 
 ## Safety nets
 

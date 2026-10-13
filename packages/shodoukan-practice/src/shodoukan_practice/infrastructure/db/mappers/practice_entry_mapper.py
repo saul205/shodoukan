@@ -50,7 +50,8 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
                 original_id=kr.original_id,
                 source_id=kr.source_id,
                 edited_id=kr.edited_id,
-                source_collection_id=kr.source_collection_id,
+                revision=kr.revision,
+                source_collection_ids=list(kr.source_collection_ids),
             )
             for kr in row.kanji_readings
         ],
@@ -66,7 +67,8 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
                 original_id=r.original_id,
                 source_id=r.source_id,
                 edited_id=r.edited_id,
-                source_collection_id=r.source_collection_id,
+                revision=r.revision,
+                source_collection_ids=list(r.source_collection_ids),
             )
             for r in row.readings
         ],
@@ -75,6 +77,7 @@ def practice_entry_to_domain(row: PracticeEntryORM) -> PracticeEntry:
         is_common=row.is_common,
         is_active=row.is_active,
         notes=row.notes,
+        dismissed_parts=list(row.dismissed_parts),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -103,7 +106,8 @@ def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
                 original_id=g.original_id,
                 source_id=g.source_id,
                 edited_id=g.edited_id,
-                source_collection_id=g.source_collection_id,
+                revision=g.revision,
+                source_collection_ids=list(g.source_collection_ids),
             )
             for g in row.glosses
         ],
@@ -120,7 +124,8 @@ def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
                 original_id=ex.original_id,
                 source_id=ex.source_id,
                 edited_id=ex.edited_id,
-                source_collection_id=ex.source_collection_id,
+                revision=ex.revision,
+                source_collection_ids=list(ex.source_collection_ids),
             )
             for ex in row.examples
         ],
@@ -145,7 +150,8 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
                 original_id=kr.original_id,
                 source_id=kr.source_id,
                 edited_id=kr.edited_id,
-                source_collection_id=kr.source_collection_id,
+                revision=kr.revision,
+                source_collection_ids=list(kr.source_collection_ids),
             )
             for i, kr in enumerate(entity.kanji_readings)
         ],
@@ -162,7 +168,8 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
                 original_id=r.original_id,
                 source_id=r.source_id,
                 edited_id=r.edited_id,
-                source_collection_id=r.source_collection_id,
+                revision=r.revision,
+                source_collection_ids=list(r.source_collection_ids),
             )
             for i, r in enumerate(entity.readings)
         ],
@@ -171,6 +178,7 @@ def practice_entry_to_db(entity: PracticeEntry) -> PracticeEntryORM:
         is_common=entity.is_common,
         is_active=entity.is_active,
         notes=entity.notes,
+        dismissed_parts=list(entity.dismissed_parts),
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     )
@@ -201,7 +209,8 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
                 original_id=g.original_id,
                 source_id=g.source_id,
                 edited_id=g.edited_id,
-                source_collection_id=g.source_collection_id,
+                revision=g.revision,
+                source_collection_ids=list(g.source_collection_ids),
             )
             for i, g in enumerate(entity.glosses)
         ],
@@ -219,7 +228,8 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
                 original_id=ex.original_id,
                 source_id=ex.source_id,
                 edited_id=ex.edited_id,
-                source_collection_id=ex.source_collection_id,
+                revision=ex.revision,
+                source_collection_ids=list(ex.source_collection_ids),
             )
             for i, ex in enumerate(entity.examples)
         ],

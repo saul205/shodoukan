@@ -67,8 +67,10 @@ from ..application.commands import (
     UnpublishEntryCollection,
     UnpublishKanjiCollection,
     UpdateEntryCollection,
+    UpdateEntryCollectionFromSource,
     UpdateExercise,
     UpdateKanjiCollection,
+    UpdateKanjiCollectionFromSource,
 )
 from ..application.queries import (
     ExportEntryCollection,
@@ -87,6 +89,8 @@ from ..application.queries import (
     GetPracticeStatistics,
     GetPublicEntryCollection,
     GetPublicKanjiCollection,
+    LatestEntrySourceVersions,
+    LatestKanjiSourceVersions,
     ListCollectionsOfEntry,
     ListCollectionsOfKanji,
     ListEntriesForKanji,
@@ -597,6 +601,36 @@ def get_import_public_kanji_collection(
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> ImportPublicKanjiCollection:
     return ImportPublicKanjiCollection(
+        dictionary,
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+def get_latest_entry_source_versions(session: SessionDep) -> LatestEntrySourceVersions:
+    return LatestEntrySourceVersions(SqlAlchemyEntryCollectionRepository(session))
+
+
+def get_latest_kanji_source_versions(session: SessionDep) -> LatestKanjiSourceVersions:
+    return LatestKanjiSourceVersions(SqlAlchemyKanjiCollectionRepository(session))
+
+
+def get_update_entry_collection_from_source(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> UpdateEntryCollectionFromSource:
+    return UpdateEntryCollectionFromSource(
+        dictionary,
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
+def get_update_kanji_collection_from_source(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> UpdateKanjiCollectionFromSource:
+    return UpdateKanjiCollectionFromSource(
         dictionary,
         SqlAlchemyPracticeKanjiRepository(session),
         SqlAlchemyKanjiCollectionRepository(session),

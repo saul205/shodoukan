@@ -188,3 +188,24 @@ class PreviewPublicKanjiCollection:
                 snapshot.merge_shared(item, created=True)
                 kanji.append(snapshot)
         return LibraryPage(kanji, len(shared.items), limit, offset)
+
+
+class LatestEntrySourceVersions:
+    """`{collection id: its source's published version}` for the user's entry
+    copies whose source is still public: a copy behind it can be updated."""
+
+    def __init__(self, collections: EntryCollectionRepository) -> None:
+        self._collections = collections
+
+    def execute(self, user_id: UUID) -> dict[int, int]:
+        return self._collections.latest_source_versions(user_id)
+
+
+class LatestKanjiSourceVersions:
+    """The same for the user's kanji copies."""
+
+    def __init__(self, collections: KanjiCollectionRepository) -> None:
+        self._collections = collections
+
+    def execute(self, user_id: UUID) -> dict[int, int]:
+        return self._collections.latest_source_versions(user_id)

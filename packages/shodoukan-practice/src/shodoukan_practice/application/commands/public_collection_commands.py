@@ -1,5 +1,5 @@
-"""Use cases that share collections: publishing them, and importing a public
-one into the user's library.
+"""Use cases that share collections: publishing them, importing a public one
+into the user's library, and updating such a copy from its source.
 
 Entry and kanji collections get their own use cases, like the rest of the
 collection use cases. None of them commit; the caller owns the transaction.
@@ -19,6 +19,7 @@ from ...domain.repositories import (
 from ..queries.collection_queries import ExportEntryCollection, ExportKanjiCollection
 from .collection_commands import (
     CollectionImport,
+    CollectionUpdate,
     ImportEntryCollection,
     ImportKanjiCollection,
 )
@@ -169,6 +170,125 @@ class ImportPublicKanjiCollection:
         result = ImportKanjiCollection(
             self._dictionary, self._kanji, self._collections
         ).execute(user_id, shared, source_version=version)
+        if user_id != source.user_id:
+            self._collections.record_download(source, user_id, version)
+        return result
+
+
+# --- Update from the source ---
+
+
+class UpdateEntryCollectionFromSource:
+    """Bring one of the user's copies up to its source's latest version.
+
+    One rule, item by item: what came from the source and is untouched
+    follows it, what the user touched or added is theirs. New items and parts
+    are imported as an import does; the source's dropped items leave the
+    collection (never the library) and its dropped parts, if untouched, leave
+    the word (`PracticeEntry.prune_source`). What the user took out of the
+    copy (`dismiss_item`) or deleted from a word (`dismissed_parts`) isn't
+    brought back. The user's download row takes the new version (it isn't
+    another download). Nothing changes if the copy is up to date. A source that's
+    gone or private is `EntityNotFoundError`. Doesn't commit.
+    """
+
+    def __init__(
+        self,
+        dictionary: DictionaryGateway,
+        entries: PracticeEntryRepository,
+        collections: EntryCollectionRepository,
+    ) -> None:
+        self._dictionary = dictionary
+        self._entries = entries
+        self._collections = collections
+
+    def execute(
+        self, user_id: UUID, collection_id: int
+    ) -> CollectionUpdate[EntryCollection, int]:
+        copy = entry_collection(self._collections, collection_id, user_id)
+        source_id = copy.source_collection_id
+        source = self._collections.get_public(source_id) if source_id else None
+        shared = self._collections.get_publication(source) if source else None
+        if source is None or shared is None:
+            raise EntityNotFoundError(
+                f"the source of collection {collection_id} is gone"
+            )
+        result: CollectionUpdate[EntryCollection, int] = CollectionUpdate(copy)
+        version = source.published_version
+        if copy.source_version is not None and version <= copy.source_version:
+            return result
+
+        dismissed = self._collections.dismissed_items(copy)
+        items = [item for item in shared.items if item.key not in dismissed]
+        importer = ImportEntryCollection(
+            self._dictionary, self._entries, self._collections
+        )
+        for _, entry in importer.copy_items(
+            user_id, items, shared.id, result, prune=True
+        ):
+            self._collections.add_item(copy, entry, from_source=True)
+        keys = {item.key for item in shared.items}
+        followed = self._collections.source_item_ids(copy)
+        for entry in self._entries.get_many(followed, user_id):
+            if entry.shared_key not in keys:
+                self._collections.remove_item(copy, entry)
+                result.removed += 1
+        copy.follow_source(version)
+        result.collection = self._collections.update(copy)
+        # The user now has this version: what the public listing shows them.
+        if user_id != source.user_id:
+            self._collections.record_download(source, user_id, version)
+        return result
+
+
+class UpdateKanjiCollectionFromSource:
+    """Bring one of the user's kanji copies up to its source's latest
+    version. Same rules as `UpdateEntryCollectionFromSource`."""
+
+    def __init__(
+        self,
+        dictionary: DictionaryGateway,
+        kanji: PracticeKanjiRepository,
+        collections: KanjiCollectionRepository,
+    ) -> None:
+        self._dictionary = dictionary
+        self._kanji = kanji
+        self._collections = collections
+
+    def execute(
+        self, user_id: UUID, collection_id: int
+    ) -> CollectionUpdate[KanjiCollection, str]:
+        copy = kanji_collection(self._collections, collection_id, user_id)
+        source_id = copy.source_collection_id
+        source = self._collections.get_public(source_id) if source_id else None
+        shared = self._collections.get_publication(source) if source else None
+        if source is None or shared is None:
+            raise EntityNotFoundError(
+                f"the source of collection {collection_id} is gone"
+            )
+        result: CollectionUpdate[KanjiCollection, str] = CollectionUpdate(copy)
+        version = source.published_version
+        if copy.source_version is not None and version <= copy.source_version:
+            return result
+
+        dismissed = self._collections.dismissed_items(copy)
+        items = [item for item in shared.items if item.key not in dismissed]
+        importer = ImportKanjiCollection(
+            self._dictionary, self._kanji, self._collections
+        )
+        for _, kanji in importer.copy_items(
+            user_id, items, shared.id, result, prune=True
+        ):
+            self._collections.add_item(copy, kanji, from_source=True)
+        keys = {item.key for item in shared.items}
+        followed = self._collections.source_item_ids(copy)
+        for kanji in self._kanji.get_many(followed, user_id):
+            if kanji.shared_key not in keys:
+                self._collections.remove_item(copy, kanji)
+                result.removed += 1
+        copy.follow_source(version)
+        result.collection = self._collections.update(copy)
+        # The user now has this version: what the public listing shows them.
         if user_id != source.user_id:
             self._collections.record_download(source, user_id, version)
         return result

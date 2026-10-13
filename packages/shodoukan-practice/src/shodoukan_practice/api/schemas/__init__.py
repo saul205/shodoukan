@@ -5,8 +5,10 @@ from .collection_schemas import (
     CollectionResponse,
     EntryCollectionFile,
     EntryCollectionImportResponse,
+    EntryCollectionUpdateResponse,
     KanjiCollectionFile,
     KanjiCollectionImportResponse,
+    KanjiCollectionUpdateResponse,
 )
 from .dictionary_schemas import (
     DictionaryEntryPageResponse,
@@ -91,6 +93,7 @@ __all__ = [
     "EnabledRequest",
     "EntryCollectionFile",
     "EntryCollectionImportResponse",
+    "EntryCollectionUpdateResponse",
     "ExampleRequest",
     "ExerciseRequest",
     "ExerciseResponse",
@@ -104,6 +107,7 @@ __all__ = [
     "ImportedKanjiResponse",
     "KanjiCollectionFile",
     "KanjiCollectionImportResponse",
+    "KanjiCollectionUpdateResponse",
     "MeaningLang",
     "MeaningTextRequest",
     "MissedItemResponse",

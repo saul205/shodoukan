@@ -4,6 +4,7 @@ from .collection_commands import (
     AddEntryToCollection,
     AddKanjiToCollection,
     CollectionImport,
+    CollectionUpdate,
     CreateEntryCollection,
     CreateKanjiCollection,
     DeleteEntryCollection,
@@ -57,6 +58,8 @@ from .public_collection_commands import (
     PublishKanjiCollection,
     UnpublishEntryCollection,
     UnpublishKanjiCollection,
+    UpdateEntryCollectionFromSource,
+    UpdateKanjiCollectionFromSource,
 )
 from .user_commands import EnsureUser
 
@@ -71,6 +74,7 @@ __all__ = [
     "AddKanjiToCollection",
     "AnswerExerciseQuestion",
     "CollectionImport",
+    "CollectionUpdate",
     "CreateEntryCollection",
     "CreateExercise",
     "CreateKanjiCollection",
@@ -113,6 +117,8 @@ __all__ = [
     "UnpublishEntryCollection",
     "UnpublishKanjiCollection",
     "UpdateEntryCollection",
+    "UpdateEntryCollectionFromSource",
     "UpdateExercise",
     "UpdateKanjiCollection",
+    "UpdateKanjiCollectionFromSource",
 ]
