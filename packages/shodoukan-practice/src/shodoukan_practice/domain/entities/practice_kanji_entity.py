@@ -13,7 +13,9 @@ from pydantic import BaseModel, Field
 
 from ..exceptions import OriginalDataError
 from .nested_item_lookup import (
+    SourceRef,
     Toggleable,
+    brought_by,
     clean_meaning,
     dismissal_key,
     dismissed_of,
@@ -55,7 +57,7 @@ class PracticeKanjiMeaning(BaseModel):
     source_id: int | None = None
     edited_id: int | None = None
     revision: int = 0
-    source_collection_ids: list[int] = Field(default_factory=list)
+    source_collection_ids: list[SourceRef] = Field(default_factory=list)
 
 
 class PracticeKanji(TimestampedEntity):
@@ -174,7 +176,7 @@ class PracticeKanji(TimestampedEntity):
         self,
         shared: SharedKanji,
         created: bool,
-        source_collection_id: int | None = None,
+        source_collection_id: SourceRef | None = None,
     ) -> bool:
         """Take what a shared copy of this kanji adds.
 
@@ -241,7 +243,7 @@ def _take_reading_flags(
 
 
 def _copied_meaning(
-    part: SharedMeaning, source_collection_id: int | None
+    part: SharedMeaning, source_collection_id: SourceRef | None
 ) -> PracticeKanjiMeaning:
     return PracticeKanjiMeaning(
         id=None,
@@ -253,7 +255,5 @@ def _copied_meaning(
         source_id=part.id,
         edited_id=part.edited_id if part.edited_id is not None else part.id,
         revision=part.revision,
-        source_collection_ids=[]
-        if source_collection_id is None
-        else [source_collection_id],
+        source_collection_ids=brought_by(source_collection_id),
     )

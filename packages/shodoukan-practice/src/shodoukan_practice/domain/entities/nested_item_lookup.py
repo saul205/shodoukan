@@ -5,7 +5,7 @@ id, toggle it, and validate the text of the meanings users add.
 """
 
 from collections.abc import Callable, Iterable, Set
-from typing import Literal, Protocol, TypeVar
+from typing import Final, Literal, Protocol, TypeVar
 
 from ..exceptions import EntityNotFoundError
 
@@ -34,15 +34,21 @@ class Copyable(Identified, Protocol):
 Version = tuple[int, int]
 
 
+# What brings a copied part: a collection the user follows (its id), or a
+# file it was imported from (`FILE`), which never updates, so it pins the part.
+FILE: Final = "file"
+SourceRef = int | Literal["file"]
+
+
 class Versioned(Copyable, Toggleable, Protocol):
     """A part with content: `edited_id` is the row that wrote this version
     (`None`: this row), `revision` how many edits that row made, and
-    `source_collection_ids` the collections that bring it (a part can come
-    with several the user follows)."""
+    `source_collection_ids` what brings it: the collections the user follows
+    (a part can come with several), or `FILE`."""
 
     edited_id: int | None
     revision: int
-    source_collection_ids: list[int]
+    source_collection_ids: list[SourceRef]
 
     @property
     def origin(self) -> str: ...
@@ -134,7 +140,7 @@ def merge_parts(
     same: Callable[[C, S], bool],
     copy: Callable[[S], C],
     dismissed: Set[int] = frozenset(),
-    source: int | None = None,
+    source: SourceRef | None = None,
 ) -> bool:
     """Merge a shared list of parts into the item's own list.
 
@@ -195,9 +201,9 @@ def untouched_from(part: Versioned, source_collection_id: int) -> bool:
     )
 
 
-def brought_by(source_collection_id: int | None) -> list[int]:
-    """The collections a new copy is brought by: the one it came with, if any."""
-    return [] if source_collection_id is None else [source_collection_id]
+def brought_by(source: SourceRef | None) -> list[SourceRef]:
+    """What a new copy is brought by: what it came with, if anything."""
+    return [] if source is None else [source]
 
 
 def unclaimed(part: Versioned) -> bool:

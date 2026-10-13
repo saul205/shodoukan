@@ -22,7 +22,9 @@ from ..exceptions import (
 from .nested_item_lookup import (
     Copyable,
     PartKind,
+    SourceRef,
     Toggleable,
+    brought_by,
     clean_kana,
     clean_meaning,
     clean_sentence,
@@ -34,6 +36,7 @@ from .nested_item_lookup import (
     merge_parts,
     prune_parts,
     unclaimed,
+    untouched_from,
     version_row,
 )
 from .notes_value import Notes, parse_notes
@@ -72,7 +75,7 @@ class PracticeGloss(BaseModel):
     source_id: int | None = None
     edited_id: int | None = None
     revision: int = 0
-    source_collection_ids: list[int] = Field(default_factory=list)
+    source_collection_ids: list[SourceRef] = Field(default_factory=list)
 
 
 class PracticeExampleSentence(BaseModel):
@@ -91,7 +94,7 @@ class PracticeExample(BaseModel):
     source_id: int | None = None
     edited_id: int | None = None
     revision: int = 0
-    source_collection_ids: list[int] = Field(default_factory=list)
+    source_collection_ids: list[SourceRef] = Field(default_factory=list)
 
 
 class PracticeSense(BaseModel):
@@ -124,7 +127,7 @@ class PracticeReading(BaseModel):
     source_id: int | None = None
     edited_id: int | None = None
     revision: int = 0
-    source_collection_ids: list[int] = Field(default_factory=list)
+    source_collection_ids: list[SourceRef] = Field(default_factory=list)
 
 
 class PracticeKanjiReading(BaseModel):
@@ -143,7 +146,7 @@ class PracticeKanjiReading(BaseModel):
     source_id: int | None = None
     edited_id: int | None = None
     revision: int = 0
-    source_collection_ids: list[int] = Field(default_factory=list)
+    source_collection_ids: list[SourceRef] = Field(default_factory=list)
 
 
 class PracticeEntry(TimestampedEntity):
@@ -200,7 +203,10 @@ class PracticeEntry(TimestampedEntity):
 
     @classmethod
     def from_shared(
-        cls, user_id: UUID, shared: SharedEntry, source_collection_id: int | None = None
+        cls,
+        user_id: UUID,
+        shared: SharedEntry,
+        source_collection_id: SourceRef | None = None,
     ) -> Self:
         """A copy of someone's word of their own (`shared` has no source).
 
@@ -284,7 +290,7 @@ class PracticeEntry(TimestampedEntity):
         self,
         shared: SharedEntry,
         created: bool,
-        source_collection_id: int | None = None,
+        source_collection_id: SourceRef | None = None,
     ) -> bool:
         """Take what a shared copy of this word adds.
 
@@ -521,7 +527,7 @@ class PracticeEntry(TimestampedEntity):
             shared_sense = added.get(identity(sense))
             if shared_sense is not None:
                 changed |= _prune_sense_parts(sense, shared_sense, source)
-            elif sense.source_id is not None:
+            elif sense.source_id is not None and _brings(sense, source):
                 changed |= _prune_sense_parts(sense, None, source)
                 if _left_over(sense):
                     self.senses.remove(sense)
@@ -537,7 +543,7 @@ class PracticeEntry(TimestampedEntity):
             self.dismissed_parts.append(key)
 
     def _merge_senses(
-        self, shared: list[SharedSense], created: bool, source: int | None
+        self, shared: list[SharedSense], created: bool, source: SourceRef | None
     ) -> bool:
         imported = [s for s in self.senses if s.origin == "imported"]
         position = 0
@@ -709,7 +715,7 @@ def _merge_sense_parts(
     target: PracticeSense,
     part: SharedSense,
     created: bool,
-    source: int | None,
+    source: SourceRef | None,
     dismissed: list[str],
 ) -> bool:
     """Notes, meanings and examples of a shared sense into the user's one."""
@@ -743,7 +749,7 @@ def _merge_sense_parts(
 
 
 def _copied_spelling(
-    part: SharedSpelling, source_collection_id: int | None
+    part: SharedSpelling, source_collection_id: SourceRef | None
 ) -> PracticeKanjiReading:
     return PracticeKanjiReading(
         id=None,
@@ -755,14 +761,12 @@ def _copied_spelling(
         source_id=part.id,
         edited_id=part.edited_id if part.edited_id is not None else part.id,
         revision=part.revision,
-        source_collection_ids=[]
-        if source_collection_id is None
-        else [source_collection_id],
+        source_collection_ids=brought_by(source_collection_id),
     )
 
 
 def _copied_reading(
-    part: SharedReading, source_collection_id: int | None
+    part: SharedReading, source_collection_id: SourceRef | None
 ) -> PracticeReading:
     return PracticeReading(
         id=None,
@@ -776,14 +780,12 @@ def _copied_reading(
         source_id=part.id,
         edited_id=part.edited_id if part.edited_id is not None else part.id,
         revision=part.revision,
-        source_collection_ids=[]
-        if source_collection_id is None
-        else [source_collection_id],
+        source_collection_ids=brought_by(source_collection_id),
     )
 
 
 def _copied_gloss(
-    part: SharedMeaning, source_collection_id: int | None
+    part: SharedMeaning, source_collection_id: SourceRef | None
 ) -> PracticeGloss:
     return PracticeGloss(
         id=None,
@@ -796,14 +798,12 @@ def _copied_gloss(
         source_id=part.id,
         edited_id=part.edited_id if part.edited_id is not None else part.id,
         revision=part.revision,
-        source_collection_ids=[]
-        if source_collection_id is None
-        else [source_collection_id],
+        source_collection_ids=brought_by(source_collection_id),
     )
 
 
 def _copied_example(
-    part: SharedExample, source_collection_id: int | None
+    part: SharedExample, source_collection_id: SourceRef | None
 ) -> PracticeExample:
     return PracticeExample(
         id=None,
@@ -818,9 +818,7 @@ def _copied_example(
         source_id=part.id,
         edited_id=part.edited_id if part.edited_id is not None else part.id,
         revision=part.revision,
-        source_collection_ids=[]
-        if source_collection_id is None
-        else [source_collection_id],
+        source_collection_ids=brought_by(source_collection_id),
     )
 
 
@@ -851,6 +849,14 @@ def _prune_sense_parts(
     changed = prune_parts(target.glosses, glosses, source, keep=1)
     changed |= prune_parts(target.examples, examples, source)
     return changed
+
+
+def _brings(sense: PracticeSense, source: int) -> bool:
+    """Whether the collection brings something in the sense: only then can
+    it drop the sense (one it never brought isn't its to remove)."""
+    return any(untouched_from(g, source) for g in sense.glosses) or any(
+        untouched_from(e, source) for e in sense.examples
+    )
 
 
 def _left_over(sense: PracticeSense) -> bool:

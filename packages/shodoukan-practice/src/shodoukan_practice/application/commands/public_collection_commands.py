@@ -139,7 +139,7 @@ class ImportPublicEntryCollection:
         version = source.published_version
         result = ImportEntryCollection(
             self._dictionary, self._entries, self._collections
-        ).execute(user_id, shared, source_version=version)
+        ).execute(user_id, shared, source=source)
         if user_id != source.user_id:
             self._collections.record_download(source, user_id, version)
         return result
@@ -169,7 +169,7 @@ class ImportPublicKanjiCollection:
         version = source.published_version
         result = ImportKanjiCollection(
             self._dictionary, self._kanji, self._collections
-        ).execute(user_id, shared, source_version=version)
+        ).execute(user_id, shared, source=source)
         if user_id != source.user_id:
             self._collections.record_download(source, user_id, version)
         return result
@@ -224,7 +224,7 @@ class UpdateEntryCollectionFromSource:
             self._dictionary, self._entries, self._collections
         )
         for _, entry in importer.copy_items(
-            user_id, items, shared.id, result, prune=True
+            user_id, items, source.id, result, prune=True
         ):
             self._collections.add_item(copy, entry, from_source=True)
         keys = {item.key for item in shared.items}
@@ -277,7 +277,7 @@ class UpdateKanjiCollectionFromSource:
             self._dictionary, self._kanji, self._collections
         )
         for _, kanji in importer.copy_items(
-            user_id, items, shared.id, result, prune=True
+            user_id, items, source.id, result, prune=True
         ):
             self._collections.add_item(copy, kanji, from_source=True)
         keys = {item.key for item in shared.items}

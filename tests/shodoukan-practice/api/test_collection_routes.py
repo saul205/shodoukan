@@ -273,6 +273,7 @@ def test_export_then_import_into_another_account(
     assert (body["created"], body["existing"], body["missing"]) == (1, 0, [])
     assert body["collection"]["name"] == "verbs"
     assert body["collection"]["description"] == "Godan"
+    assert body["collection"]["source_collection_id"] is None  # a file: no source
     items = client.get(
         f"/collections/entries/{body['collection']['id']}/items", headers=theirs
     )

@@ -9,6 +9,7 @@ from shodoukan_practice.application.commands import (
     ImportPublicEntryCollection,
     PublishEntryCollection,
     RemoveEntryFromCollection,
+    RemoveEntryFromLibrary,
     UnpublishEntryCollection,
     UpdateEntryCollectionFromSource,
 )
@@ -290,3 +291,24 @@ def test_updating_needs_a_public_source(
         update(collections, entries, gateway, other_user, copy)
     with pytest.raises(EntityNotFoundError):  # a collection that isn't a copy
         update(collections, entries, gateway, user, verbs)
+
+
+def test_a_word_deleted_from_the_library_doesnt_come_back(
+    collections: SqlAlchemyEntryCollectionRepository,
+    entries: SqlAlchemyPracticeEntryRepository,
+    gateway: ShodoukanDictionaryGateway,
+    verbs: EntryCollection,
+    copy: EntryCollection,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    eat = entries.get_by_source_entry_id(1000001, other_user.id)
+    assert eat is not None
+    RemoveEntryFromLibrary(entries, collections).execute(other_user.id, eat.id or 0)
+    edit_scoff(entries, user, "to wolf down")
+    publish(collections, entries, user, verbs)
+
+    result = update(collections, entries, gateway, other_user, copy)
+
+    assert result.created == 0
+    assert entries.get_by_source_entry_id(1000001, other_user.id) is None

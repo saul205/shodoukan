@@ -18,6 +18,7 @@ from shodoukan_practice.domain.exceptions import (
 )
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
+    SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeKanjiRepository,
 )
 
@@ -79,11 +80,13 @@ def test_remove_from_library(
     kanji: PracticeKanji,
     user: UserORM,
     other_user: UserORM,
+    session: Session,
 ) -> None:
     assert kanji.id is not None
+    remove = RemoveKanjiFromLibrary(repo, SqlAlchemyKanjiCollectionRepository(session))
     with pytest.raises(EntityNotFoundError):
-        RemoveKanjiFromLibrary(repo).execute(other_user.id, kanji.id)
+        remove.execute(other_user.id, kanji.id)
 
-    RemoveKanjiFromLibrary(repo).execute(user.id, kanji.id)
+    remove.execute(user.id, kanji.id)
 
     assert repo.get(kanji.id, user.id) is None

@@ -175,6 +175,7 @@ def test_another_users_entry_is_not_found(
     entries: SqlAlchemyPracticeEntryRepository,
     entry: PracticeEntry,
     other_user: UserORM,
+    session: Session,
 ) -> None:
     entry_id, sense_id, _ = _ids(entry)
     with pytest.raises(EntityNotFoundError):
@@ -182,7 +183,9 @@ def test_another_users_entry_is_not_found(
     with pytest.raises(EntityNotFoundError):
         AddEntryGloss(entries).execute(other_user.id, entry_id, sense_id, "x", "eng")
     with pytest.raises(EntityNotFoundError):
-        RemoveEntryFromLibrary(entries).execute(other_user.id, entry_id)
+        RemoveEntryFromLibrary(
+            entries, SqlAlchemyEntryCollectionRepository(session)
+        ).execute(other_user.id, entry_id)
 
 
 def test_remove_from_library_leaves_collections(
@@ -196,7 +199,7 @@ def test_remove_from_library_leaves_collections(
     collections.add_item(verbs, entry)
     entry_id, _, _ = _ids(entry)
 
-    RemoveEntryFromLibrary(entries).execute(user.id, entry_id)
+    RemoveEntryFromLibrary(entries, collections).execute(user.id, entry_id)
 
     assert entries.get(entry_id, user.id) is None
     assert collections.item_ids([verbs]) == set()

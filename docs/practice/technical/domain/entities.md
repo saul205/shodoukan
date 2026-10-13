@@ -202,8 +202,10 @@ Aggregate methods:
   of the parts it brought, untouched (`edited_id` still set), that the shared item no
   longer has (by version): it leaves their `source_collection_ids`, and a part no
   collection brings any more is removed, never a sense's last meaning or a word's last
-  reading. An own sense the collection dropped goes whole only when nothing in it is
-  the user's or still brought by a collection, and it has no notes. The helpers are `prune_parts` / `untouched_from`.
+  reading. An own sense the collection dropped is only considered if the collection
+  brings something in it, and goes whole only when nothing in it is the user's or
+  still brought by anything, and it has no notes. `FILE` in `source_collection_ids`
+  pins a part imported from a file: no update removes it. The helpers are `prune_parts` / `untouched_from`.
 - A version is `(edited_id or id, revision)`: `revision` counts the edits of the row
   that wrote the part, so an owner editing their own part makes a new version.
 - `dismissed_parts`: copied parts the user deleted, as `"<kind>:<identity>"`

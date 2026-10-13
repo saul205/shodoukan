@@ -933,3 +933,14 @@ from another one adds it, and an update lets go of its own collection, removing 
 part only when none is left. Ruled out: never removing anything on update, which is
 simpler but piles up every old version in copies nobody touched.
 
+## File imports have no source; their parts are pinned
+
+A collection imported from a file records no source: a file is never published, so it
+never updates, and the id it carries may belong to another database or have been
+edited by hand (it could match an unrelated public collection here). Its parts list
+`FILE` among what brings them, a reference no update removes, so a public collection
+that also brings them can't delete them when it drops them. Re-importing a file creates
+another collection. And an update only drops an own sense if its collection brings
+something in it: a sense from a file, another collection or an older copy isn't its
+to remove.
+

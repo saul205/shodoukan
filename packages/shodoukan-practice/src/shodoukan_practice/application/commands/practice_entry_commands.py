@@ -12,7 +12,7 @@ from uuid import UUID
 
 from ...domain.entities import EntryPart, PracticeEntry
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.repositories import PracticeEntryRepository
+from ...domain.repositories import EntryCollectionRepository, PracticeEntryRepository
 
 
 class _EntryCommand:
@@ -204,11 +204,27 @@ class RemoveEntryExample(_EntryCommand):
         return self._entries.update(entry)
 
 
-class RemoveEntryFromLibrary(_EntryCommand):
+class RemoveEntryFromLibrary:
     """Delete the user's copy of an entry, and take it out of their collections.
 
-    The dictionary entry itself is untouched and can be imported again.
+    The dictionary item itself is untouched and can be imported again. Taken
+    out of a copy that its source put it in, it's remembered there as
+    dismissed, so updating that copy doesn't bring it back.
     """
 
+    def __init__(
+        self, entries: PracticeEntryRepository, collections: EntryCollectionRepository
+    ) -> None:
+        self._entries = entries
+        self._collections = collections
+
     def execute(self, user_id: UUID, entry_id: int) -> None:
-        self._entries.delete(self._load(user_id, entry_id))
+        item = self._entries.get(entry_id, user_id)
+        if item is None:
+            raise EntityNotFoundError(f"entry {entry_id} not found")
+        for collection in self._collections.list_for_item(item):
+            if collection.source_collection_id is not None and (
+                self._collections.is_from_source(collection, item)
+            ):
+                self._collections.dismiss_item(collection, item.shared_key)
+        self._entries.delete(item)

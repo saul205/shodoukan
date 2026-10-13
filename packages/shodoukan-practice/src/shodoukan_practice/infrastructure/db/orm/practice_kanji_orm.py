@@ -94,7 +94,7 @@ class PracticeKanjiMeaningORM(Base):
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
     revision: Mapped[int] = mapped_column(default=0, server_default="0")
-    # The collections that bring the part (a copy): ids, as JSON.
-    source_collection_ids: Mapped[list[int]] = mapped_column(
+    # What brings the part (a copy): collection ids, or "file", as JSON.
+    source_collection_ids: Mapped[list[int | str]] = mapped_column(
         JSON, default=list, server_default="[]"
     )

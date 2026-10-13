@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from shodoukan_practice.domain.entities import (
+    FILE,
     EntryPart,
     PracticeEntry,
     PracticeExample,
@@ -835,3 +836,31 @@ def test_a_part_another_followed_collection_brings_stays() -> None:
     copy.prune_source(origin.to_shared(), other)
     assert gloss not in copy.senses[0].glosses
     assert len(copy.senses) == 1
+
+
+def test_what_a_file_brought_or_the_source_never_did_stays() -> None:
+    origin = origin_entry()
+    copy = fresh_snapshot()
+    copy.merge_shared(origin.to_shared(), created=True, source_collection_id=FILE)
+    stored(copy, 100)
+    # A public collection with the same word brings the same parts, then drops them.
+    copy.merge_shared(origin.to_shared(), created=False, source_collection_id=SOURCE)
+    gloss = copy.senses[0].glosses[1]
+    assert gloss.source_collection_ids == [FILE, SOURCE]
+    origin.senses[0].glosses.pop()
+    origin.senses.pop()
+
+    copy.prune_source(origin.to_shared(), SOURCE)
+
+    assert gloss in copy.senses[0].glosses  # still pinned by the file
+    assert len(copy.senses) == 2
+
+    # A sense no collection brings (an older copy) isn't another source's to drop.
+    old = copied_from_source(origin_entry(), 300)
+    for sense in old.senses:
+        for gloss in sense.glosses:
+            gloss.source_collection_ids = []
+        for example in sense.examples:
+            example.source_collection_ids = []
+    old.prune_source(make_entry().to_shared(), 5)
+    assert len(old.senses) == 2

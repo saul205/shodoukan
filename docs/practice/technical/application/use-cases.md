@@ -80,12 +80,11 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
-### `ImportEntryCollection(dictionary, entries, collections).execute(user_id, shared, source_version=None)`
+### `ImportEntryCollection(dictionary, entries, collections).execute(user_id, shared, source=None)`
 
 Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)
 (an exported file, or a public collection's snapshot) as a **new** collection named
-with `free_collection_name`, `source_collection_id = shared.id` and `source_version`
-(the public version, if any), and returns a `CollectionImport(collection,
+with `free_collection_name`, and returns a `CollectionImport(collection,
 created, existing, missing)`. For each item, in order:
 
 - a dictionary word the user has is merged (`merge_shared(created=False)`) and stored
@@ -97,9 +96,12 @@ created, existing, missing)`. For each item, in order:
   (`find_own_by_identity`, one query for the whole file): reused and merged, or
   created with `PracticeEntry.from_shared`.
 
-Each is then added to the collection with `from_source=True`, and the parts merged
-into it record `shared.id` among the collections that bring them
-(`source_collection_ids`): what an update from that source will be allowed to change. Doesn't commit, so an error leaves nothing.
+Each is then added to the collection. From a public collection (`source`), the copy
+records `source_collection_id` and `source_version`, its items are linked
+`from_source`, and the parts merged into them list the source among what brings them
+(`source_collection_ids`): what an update from it will be allowed to change. From a
+file there's no source: the copy is never updated, and its parts are **pinned** with
+`FILE` in `source_collection_ids`, which no update removes. Doesn't commit, so an error leaves nothing.
 `ImportKanjiCollection(dictionary, kanji, collections)` does the same by `literal`
 (`missing` holds literals).
 
@@ -126,7 +128,7 @@ snapshot's items that the user didn't take out (`dismissed_items`) go through
 does, then `prune_source`; they're linked `from_source`. `from_source` items the
 snapshot dropped are unlinked (they stay in the library), and `follow_source` records
 the version; the user's download row takes it too (`record_download`, still one
-download), so the public listing shows it as imported. `RemoveEntryFromCollection` dismisses a `from_source` item it takes out
+download), so the public listing shows it as imported. `RemoveEntryFromCollection` and `RemoveEntryFromLibrary` dismiss a `from_source` item it takes out
 of a copy. The kanji use cases are the same.
 
 ### `UnpublishEntryCollection(collections).execute(user_id, collection_id)`

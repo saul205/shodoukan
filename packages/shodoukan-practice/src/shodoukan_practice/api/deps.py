@@ -338,7 +338,10 @@ def get_edit_entry_gloss(session: SessionDep) -> EditEntryGloss:
 
 
 def get_remove_entry_from_library(session: SessionDep) -> RemoveEntryFromLibrary:
-    return RemoveEntryFromLibrary(SqlAlchemyPracticeEntryRepository(session))
+    return RemoveEntryFromLibrary(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
 
 
 def get_remove_entry_gloss(session: SessionDep) -> RemoveEntryGloss:
@@ -374,7 +377,10 @@ def get_edit_kanji_meaning(session: SessionDep) -> EditKanjiMeaning:
 
 
 def get_remove_kanji_from_library(session: SessionDep) -> RemoveKanjiFromLibrary:
-    return RemoveKanjiFromLibrary(SqlAlchemyPracticeKanjiRepository(session))
+    return RemoveKanjiFromLibrary(
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
 
 
 def get_remove_kanji_meaning(session: SessionDep) -> RemoveKanjiMeaning:

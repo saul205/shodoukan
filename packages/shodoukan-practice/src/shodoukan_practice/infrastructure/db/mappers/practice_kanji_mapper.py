@@ -12,6 +12,7 @@ from ....domain.entities import (
     PracticeReadingItem,
 )
 from ..orm import PracticeKanjiMeaningORM, PracticeKanjiORM, PracticeKanjiReadingItemORM
+from .practice_entry_mapper import source_refs
 
 
 def _origin(value: str) -> Literal["imported", "added"]:
@@ -53,7 +54,7 @@ def practice_kanji_to_domain(row: PracticeKanjiORM) -> PracticeKanji:
                 source_id=m.source_id,
                 edited_id=m.edited_id,
                 revision=m.revision,
-                source_collection_ids=list(m.source_collection_ids),
+                source_collection_ids=source_refs(m.source_collection_ids),
             )
             for m in row.meanings
         ],
@@ -98,7 +99,7 @@ def practice_kanji_to_db(entity: PracticeKanji) -> PracticeKanjiORM:
                 source_id=m.source_id,
                 edited_id=m.edited_id,
                 revision=m.revision,
-                source_collection_ids=list(m.source_collection_ids),
+                source_collection_ids=source_refs(m.source_collection_ids),
             )
             for i, m in enumerate(entity.meanings)
         ],

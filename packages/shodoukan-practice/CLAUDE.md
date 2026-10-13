@@ -184,7 +184,9 @@ standalone: never call shodoukan-api from here.
   the owner's not counted), counted at read time. Imports record `source_version`,
   `from_source` on membership and `source_collection_ids` on copied parts (every
   followed collection that brings the part; an update lets go of its own and the part
-  goes only when none is left).
+  goes only when none is left). A file import has no source (never updated) and pins
+  its parts with `FILE`. Deleting an item from the library also dismisses it from the
+  copies its source put it in.
   Updating a copy (`UpdateEntryCollectionFromSource`, `POST .../update`): untouched
   source content follows the source (`prune_source`), the user's stays; removals are
   remembered (`dismiss_item`, `dismissed_parts` as `"<kind>:<identity>"`); a version

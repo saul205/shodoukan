@@ -52,6 +52,7 @@ from .exercise_session_entity import (
     WordHandwritingQuestion,
     session_end,
 )
+from .nested_item_lookup import FILE, SourceRef
 from .notes_value import NOTES_MAX_LENGTH, Notes
 from .practice_entry_entity import (
     EntryPart,
@@ -95,6 +96,7 @@ __all__ = [
     "COLLECTION_NAME_MAX_LENGTH",
     "ENTRY_FIELDS",
     "EXERCISE_NAME_MAX_LENGTH",
+    "FILE",
     "HANDWRITING_ANSWERS",
     "IDLE_TIMEOUT",
     "KANJI_FIELDS",
@@ -159,6 +161,7 @@ __all__ = [
     "SharedSpelling",
     "ShownField",
     "SkipAnswer",
+    "SourceRef",
     "StrokeFeedback",
     "StrokeStatus",
     "StrokesAnswer",

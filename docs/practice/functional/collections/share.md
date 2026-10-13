@@ -64,8 +64,8 @@ touched follows it; what the user touched or added stays theirs.**
   both are kept.
 - What the owner removed leaves the copy, unless the user touched it. A word the owner
   took out of the collection leaves the copy, but stays in the user's library.
-- What the user removed from the copy (a word taken out of it, a meaning deleted)
-  doesn't come back.
+- What the user removed from the copy (a word taken out of it or deleted from the
+  library, a meaning deleted) doesn't come back.
 - The user's notes, what they hid and what they deactivated never change.
 - If the owner stops sharing the collection, the copy can't be updated any more (it
   stays as it is).
