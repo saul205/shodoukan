@@ -39,6 +39,24 @@ export function deleteCollection(api: ApiClient, kind: ItemKind, id: number): Pr
   return api(`/collections/${kind}/${id}`, { method: 'DELETE' })
 }
 
+/** Publish a new version: its active items, the user's notes only if `includeNotes`. */
+export function publishCollection(
+  api: ApiClient,
+  kind: ItemKind,
+  id: number,
+  includeNotes: boolean,
+): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}/publication`, {
+    method: 'PUT',
+    body: { include_notes: includeNotes },
+  })
+}
+
+/** Make it private again; its last version is kept. */
+export function unpublishCollection(api: ApiClient, kind: ItemKind, id: number): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}/publication`, { method: 'DELETE' })
+}
+
 /** The collection as a file to download (every item, with the user's own data). */
 export function exportCollection(api: ApiClient, kind: ItemKind, id: number): Promise<CollectionFile> {
   return api<CollectionFile>(`/collections/${kind}/${id}/export`)

@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   collections by name, description or owner, preview them as they'd be imported, and
   import them (`/public-collections/{kind}`), counted as one download per user.
   Usernames now follow the identity provider's.
+- **shodoukan-practice-web:** **Colecciones públicas**: search other users' (and your
+  own) public collections, preview them as they'd be imported, and import them.
+  "Mis colecciones" can publish a collection (with or without your notes), publish a
+  new version, or stop sharing it.
 - **shodoukan-practice:** Export a collection as a file and import it back, in any
   account (`GET /collections/{entries,kanji}/{id}/export`, `POST
   /collections/{entries,kanji}/import`). The file carries each item's dictionary

@@ -4,7 +4,9 @@ import type { PracticeKanji } from '~/models/practice'
 import { kanjiMeanings } from '~/utils/practice-text'
 
 // A kanji of the user's library, as a card that opens its detail page.
-const props = defineProps<{ kanji: PracticeKanji; to: RouteLocationRaw }>()
+// Without `to` (a preview) it's not a link.
+const props = defineProps<{ kanji: PracticeKanji; to?: RouteLocationRaw }>()
+const link = resolveComponent('NuxtLink')
 
 const { lang } = useMeaningLang()
 
@@ -24,13 +26,13 @@ const readings = computed(() =>
     class="h-full transition hover:ring-accented"
     :class="{ 'opacity-60': !kanji.is_active }"
   >
-    <NuxtLink :to="to" class="flex flex-1 items-start gap-3">
+    <component :is="to ? link : 'div'" :to="to" class="flex flex-1 items-start gap-3">
       <span class="font-japanese text-4xl font-bold text-highlighted">{{ kanji.literal }}</span>
       <span class="flex min-w-0 flex-col gap-1">
         <span class="line-clamp-2 text-sm text-toned">{{ meanings || '—' }}</span>
         <span class="truncate font-japanese text-xs text-muted">{{ readings }}</span>
       </span>
-    </NuxtLink>
+    </component>
     <div class="flex flex-wrap items-center gap-1">
       <UBadge v-if="kanji.jlpt" :label="`N${kanji.jlpt}`" variant="soft" size="sm" />
       <UBadge v-if="!kanji.is_active" label="inactivo" color="neutral" variant="outline" size="sm" />
