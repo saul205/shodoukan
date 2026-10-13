@@ -35,8 +35,8 @@ library.
 A public collection can be **browsed page by page** before importing it, each word or
 kanji as the owner shares it: what the dictionary says, plus what the owner added and
 hid. Opening one shows it whole, read-only: the meanings, senses, examples, spellings
-and readings the owner added are marked "de <owner>", and their notes "Nota de
-<owner>". The user's own data is never mixed in: items they already have are only
+and readings the collection adds to the dictionary are marked **Nuevo**, and its notes
+read "Nota de la colección". The user's own data is never mixed in: items they already have are only
 marked **En tu librería** (on importing, those keep the user's data and just gain
 what's new).
 

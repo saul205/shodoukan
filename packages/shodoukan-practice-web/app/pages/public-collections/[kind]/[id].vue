@@ -12,8 +12,8 @@ import { importSummary } from '~/utils/collection-file'
 
 // A public collection: who shares it and its counts, a preview of its
 // published version (each item as importing it would give it into an empty
-// library, not stored: a card opens it view-only, with what the owner added
-// marked as theirs; "En tu librería" on what the user has already), and
+// library, not stored: a card opens it view-only, with what the collection
+// adds marked "Nuevo"; "En tu librería" on what the user has already), and
 // importing it into the user's library as a new collection.
 
 definePageMeta({
@@ -71,7 +71,7 @@ const { data: owned, refresh: refreshOwned } = useAsyncData(
 )
 
 function openItem(item: { entry: PracticeEntry } | { kanji: PracticeKanji }) {
-  if (collection.value) overlay.create(PreviewItemModal).open({ item, author: collection.value.owner })
+  overlay.create(PreviewItemModal).open({ item })
 }
 
 const importing = ref(false)
@@ -153,8 +153,8 @@ function date(iso: string) {
 
       <template v-else-if="preview">
         <p class="text-sm text-muted">
-          Así son en la colección de {{ collection?.owner }}: pulsa una para ver lo que añadió. Al importarla, lo que ya
-          tienes en tu librería conserva tus datos y solo gana lo nuevo.
+          Pulsa una para ver qué añade la colección al diccionario. Al importarla, lo que ya tienes en tu librería
+          conserva tus datos y solo gana lo nuevo.
         </p>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <template v-if="preview.kind === 'entries'">

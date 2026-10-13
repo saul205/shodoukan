@@ -15,8 +15,8 @@ const props = withDefaults(defineProps<{
   glossLang: string // ISO 639-2, e.g. "eng"
   disabled?: boolean
   viewOnly?: boolean
-  /** Whose the added examples are, when not the user's (a public collection's owner). */
-  author?: string
+  /** In a public collection's preview: the added examples are what it brings ("Nuevo"). */
+  fromCollection?: boolean
   /** Saves a new example; resolves to whether it was saved. */
   onAdd?: (japanese: string, translation: string | null) => Promise<boolean>
   /** Saves an own example's new text; resolves to whether it was saved. */
@@ -105,7 +105,7 @@ async function save() {
       <div v-else class="flex-1" :class="{ 'opacity-50': !example.enabled }">
         <p class="font-japanese text-sm text-default">
           {{ japaneseSentence(example.sentences) }}
-          <UBadge v-if="example.origin === 'added'" :label="author ? `de ${author}` : 'propio'" color="primary" variant="soft" size="sm" />
+          <AddedBadge v-if="example.origin === 'added'" :from-collection="fromCollection" />
         </p>
         <p v-if="translatedSentence(example.sentences, glossLang)" class="text-sm text-muted">
           {{ translatedSentence(example.sentences, glossLang) }}

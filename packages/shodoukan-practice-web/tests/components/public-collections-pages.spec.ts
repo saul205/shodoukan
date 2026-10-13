@@ -84,7 +84,7 @@ describe('public collections', () => {
 })
 
 describe('a public collection item', () => {
-  it('opens view-only, marking what the owner added and their note', async () => {
+  it('opens view-only, marking what the collection adds and its note', async () => {
     // The modal is an overlay: it needs the UApp the real app has.
     const wrapper = await mountSuspended(
       defineComponent({ render: () => h(UApp, null, { default: () => h(DetailPage) }) }),
@@ -95,10 +95,11 @@ describe('a public collection item', () => {
     await wrapper.get('[data-testid="preview-item"]').trigger('click')
     await flushPromises()
 
-    const modal = document.body.textContent ?? ''
+    const modal = document.body.querySelector('[role="dialog"]')?.textContent ?? ''
     expect(modal).toContain('to scoff')
-    expect(modal).toContain('de tanaka')
-    expect(modal).toContain('Nota de tanaka')
+    expect(modal).toContain('Nuevo')
+    expect(modal).toContain('Nota de la colección')
+    expect(modal).not.toContain('tanaka')
     expect(modal).toContain('Mi truco')
     expect(modal).not.toContain('propio')
   })
