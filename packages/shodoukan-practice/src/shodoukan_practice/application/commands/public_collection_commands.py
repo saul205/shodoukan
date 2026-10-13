@@ -187,7 +187,8 @@ class UpdateEntryCollectionFromSource:
     collection (never the library) and its dropped parts, if untouched, leave
     the word (`PracticeEntry.prune_source`). What the user took out of the
     copy (`dismiss_item`) or deleted from a word (`dismissed_parts`) isn't
-    brought back. Nothing changes if the copy is up to date. A source that's
+    brought back. The user's download row takes the new version (it isn't
+    another download). Nothing changes if the copy is up to date. A source that's
     gone or private is `EntityNotFoundError`. Doesn't commit.
     """
 
@@ -234,6 +235,9 @@ class UpdateEntryCollectionFromSource:
                 result.removed += 1
         copy.follow_source(version)
         result.collection = self._collections.update(copy)
+        # The user now has this version: what the public listing shows them.
+        if user_id != source.user_id:
+            self._collections.record_download(source, user_id, version)
         return result
 
 
@@ -284,4 +288,7 @@ class UpdateKanjiCollectionFromSource:
                 result.removed += 1
         copy.follow_source(version)
         result.collection = self._collections.update(copy)
+        # The user now has this version: what the public listing shows them.
+        if user_id != source.user_id:
+            self._collections.record_download(source, user_id, version)
         return result

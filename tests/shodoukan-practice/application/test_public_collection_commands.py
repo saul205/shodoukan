@@ -211,6 +211,8 @@ def test_update_follows_what_the_source_changed(
 
     assert (result.created, result.existing, result.removed) == (1, 1, 0)
     assert result.collection.source_version == 2
+    summary = collections.public_summary(verbs, other_user.id)
+    assert (summary.viewer_version, summary.downloads) == (2, 1)
     # The untouched "to scoff" follows the source: replaced by its new version.
     assert own_glosses(entries.get_by_source_entry_id(1000001, other_user.id)) == [
         "to wolf down"

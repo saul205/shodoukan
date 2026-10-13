@@ -125,7 +125,8 @@ snapshot's items that the user didn't take out (`dismissed_items`) go through
 `ImportEntryCollection.copy_items(..., prune=True)`: imported or merged as an import
 does, then `prune_source`; they're linked `from_source`. `from_source` items the
 snapshot dropped are unlinked (they stay in the library), and `follow_source` records
-the version. `RemoveEntryFromCollection` dismisses a `from_source` item it takes out
+the version; the user's download row takes it too (`record_download`, still one
+download), so the public listing shows it as imported. `RemoveEntryFromCollection` dismisses a `from_source` item it takes out
 of a copy. The kanji use cases are the same.
 
 ### `UnpublishEntryCollection(collections).execute(user_id, collection_id)`
