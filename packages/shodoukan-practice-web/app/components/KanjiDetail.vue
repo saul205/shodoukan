@@ -13,6 +13,8 @@ const props = withDefaults(defineProps<{
   kanji: PracticeKanji
   viewOnly?: boolean
   saving?: boolean
+  /** Whose the added meanings are, when not the user's: they're marked "de <author>". */
+  author?: string
   onAddMeaning?: (text: string) => Promise<boolean>
   onEditMeaning?: (meaningId: number, text: string) => Promise<boolean>
 }>(), { viewOnly: false, saving: false })
@@ -85,6 +87,7 @@ const readingGroups = computed<{ label: string; items: PracticeReadingItem[] }[]
         <MeaningList
           :meanings="meanings"
           :view-only="viewOnly"
+          :author="author"
           :disabled="saving"
           @toggle="(meaningId, enabled) => emit('toggle', 'meanings', meaningId, enabled)"
           :on-add="onAddMeaning"

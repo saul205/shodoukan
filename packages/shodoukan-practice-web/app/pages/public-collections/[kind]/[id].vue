@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ItemKind } from '~/models/practice'
+import PreviewItemModal from '~/components/PreviewItemModal.vue'
+import type { ItemKind, PracticeEntry, PracticeKanji } from '~/models/practice'
+import { getImportStatus } from '~/services/library'
 import {
   getPublicCollection,
   importPublicCollection,
@@ -9,8 +11,10 @@ import {
 import { importSummary } from '~/utils/collection-file'
 
 // A public collection: who shares it and its counts, a preview of its
-// published version (each item as importing it would give it, not stored, so
-// not linked), and importing it into the user's library as a new collection.
+// published version (each item as importing it would give it into an empty
+// library, not stored: a card opens it view-only, with what the owner added
+// marked as theirs; "En tu librería" on what the user has already), and
+// importing it into the user's library as a new collection.
 
 definePageMeta({
   validate: route => ['entries', 'kanji'].includes(String(route.params.kind)),
@@ -22,6 +26,7 @@ const route = useRoute()
 const router = useRouter()
 const api = useApi()
 const notify = useNotify()
+const overlay = useOverlay()
 
 const kind = computed(() => route.params.kind as ItemKind)
 const id = computed(() => Number(route.params.id))
@@ -48,6 +53,27 @@ const { data: preview, status } = useAsyncData(
   { watch: [kind, id, page] },
 )
 
+// Which preview items the user has already (dictionary ones; words of the
+// owner's own have no reference to look up).
+const { data: owned, refresh: refreshOwned } = useAsyncData(
+  () => `public-collection-owned-${kind.value}-${id.value}`,
+  async () => {
+    const items = preview.value?.page.items ?? []
+    const status = preview.value?.kind === 'entries'
+      ? await getImportStatus(api, (items as PracticeEntry[]).flatMap(e => e.source_entry_id ?? []), [])
+      : await getImportStatus(api, [], (items as PracticeKanji[]).map(k => k.literal))
+    return {
+      entries: new Set(status.entries.map(e => e.source_entry_id)),
+      kanji: new Set(status.kanji.map(k => k.literal)),
+    }
+  },
+  { watch: [preview] },
+)
+
+function openItem(item: { entry: PracticeEntry } | { kanji: PracticeKanji }) {
+  if (collection.value) overlay.create(PreviewItemModal).open({ item, author: collection.value.owner })
+}
+
 const importing = ref(false)
 
 async function importIt() {
@@ -55,7 +81,7 @@ async function importIt() {
   try {
     const result = await importPublicCollection(api, kind.value, id.value)
     notify.success(`Importada como «${result.collection.name}»`, importSummary(result))
-    await refresh()
+    await Promise.all([refresh(), refreshOwned()])
   }
   catch (failure) {
     notify.failure(failure, 'No se ha podido importar')
@@ -126,13 +152,58 @@ function date(iso: string) {
       </div>
 
       <template v-else-if="preview">
-        <p class="text-sm text-muted">Así quedarán en tu librería al importarla.</p>
+        <p class="text-sm text-muted">
+          Así son en la colección de {{ collection?.owner }}: pulsa una para ver lo que añadió. Al importarla, lo que ya
+          tienes en tu librería conserva tus datos y solo gana lo nuevo.
+        </p>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <template v-if="preview.kind === 'entries'">
-            <LibraryEntryCard v-for="entry in preview.page.items" :key="entry.id" :entry="entry" />
+            <LibraryEntryCard
+              v-for="entry in preview.page.items"
+              :key="entry.id"
+              :entry="entry"
+              role="button"
+              tabindex="0"
+              class="cursor-pointer"
+              data-testid="preview-item"
+              @click="openItem({ entry })"
+              @keydown.enter="openItem({ entry })"
+            >
+              <template #actions>
+                <UBadge
+                  v-if="entry.source_entry_id !== null && owned?.entries.has(entry.source_entry_id)"
+                  label="En tu librería"
+                  icon="i-lucide-library-big"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                />
+              </template>
+            </LibraryEntryCard>
           </template>
           <template v-else>
-            <LibraryKanjiCard v-for="k in preview.page.items" :key="k.id" :kanji="k" />
+            <LibraryKanjiCard
+              v-for="k in preview.page.items"
+              :key="k.id"
+              :kanji="k"
+              role="button"
+              tabindex="0"
+              class="cursor-pointer"
+              data-testid="preview-item"
+              @click="openItem({ kanji: k })"
+              @keydown.enter="openItem({ kanji: k })"
+            >
+              <template #actions>
+                <UBadge
+                  v-if="owned?.kanji.has(k.literal)"
+                  label="En tu librería"
+                  icon="i-lucide-library-big"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                />
+              </template>
+            </LibraryKanjiCard>
           </template>
         </div>
         <UPagination

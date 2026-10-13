@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { clearNuxtData } from '#app'
+import { defineComponent, h } from 'vue'
+import { UApp } from '#components'
 import ListPage from '../../app/pages/public-collections/index.vue'
 import DetailPage from '../../app/pages/public-collections/[kind]/[id].vue'
 import { signedInAuth } from '../fakes'
@@ -21,7 +23,15 @@ const n5 = {
 const word = {
   id: 1, source_entry_id: 1000001, kanji_readings: [{ id: 2, kanji: '食べる', info: [], enabled: true, origin: 'imported' }],
   readings: [{ id: 3, text: 'たべる', no_kanji: false, info: [], restricted_to: [], enabled: true, origin: 'imported' }],
-  senses: [], jlpt: 5, is_common: true, is_active: true, notes: null,
+  senses: [{
+    id: 4, pos: [], misc: [], dialects: [], info: [], notes: null, enabled: true, origin: 'imported',
+    glosses: [
+      { id: 5, text: 'to eat', lang: 'eng', type: null, enabled: true, origin: 'imported' },
+      { id: 6, text: 'to scoff', lang: 'eng', type: null, enabled: true, origin: 'added' },
+    ],
+    examples: [],
+  }],
+  jlpt: 5, is_common: true, is_active: true, notes: 'Mi truco',
 }
 
 beforeEach(() => {
@@ -32,6 +42,7 @@ beforeEach(() => {
     if (url === '/public-collections/entries') return { items: [n5], total: 1, limit: 24, offset: 0 }
     if (url === '/public-collections/entries/7') return n5
     if (url === '/public-collections/entries/7/items') return { items: [word], total: 1, limit: 24, offset: 0 }
+    if (url === '/library/imported') return { entries: [{ source_entry_id: 1000001, id: 99 }], kanji: [] }
     if (url === '/public-collections/entries/7/import') {
       return { collection: { id: 30, name: 'JLPT N5' }, created: 1, existing: 0, missing: [] }
     }
@@ -59,6 +70,8 @@ describe('public collections', () => {
 
     expect(wrapper.text()).toContain('食べる')
     expect(wrapper.find('a[href^="/library"]').exists()).toBe(false)
+    expect(api).toHaveBeenCalledWith('/library/imported', { query: { entry_ids: [1000001], literals: [] } })
+    expect(wrapper.get('[data-testid="preview-item"]').text()).toContain('En tu librería')
     await wrapper.get('[data-testid="import-public"]').trigger('click')
     await flushPromises()
 
@@ -67,5 +80,26 @@ describe('public collections', () => {
       title: 'Importada como «JLPT N5»',
       description: '1 nuevo, 0 ya estaban en tu librería',
     }))
+  })
+})
+
+describe('a public collection item', () => {
+  it('opens view-only, marking what the owner added and their note', async () => {
+    // The modal is an overlay: it needs the UApp the real app has.
+    const wrapper = await mountSuspended(
+      defineComponent({ render: () => h(UApp, null, { default: () => h(DetailPage) }) }),
+      { route: '/public-collections/entries/7', attachTo: document.body },
+    )
+    await flushPromises()
+
+    await wrapper.get('[data-testid="preview-item"]').trigger('click')
+    await flushPromises()
+
+    const modal = document.body.textContent ?? ''
+    expect(modal).toContain('to scoff')
+    expect(modal).toContain('de tanaka')
+    expect(modal).toContain('Nota de tanaka')
+    expect(modal).toContain('Mi truco')
+    expect(modal).not.toContain('propio')
   })
 })
