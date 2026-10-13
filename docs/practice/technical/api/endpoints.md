@@ -288,6 +288,7 @@ same as a missing one.
 | `POST` | `/collections/entries/import` | `ImportEntryCollection` | `201` `EntryCollectionImportResponse` |
 | `PUT` | `/collections/entries/{collection_id}/publication` | `PublishEntryCollection` | `200` `CollectionResponse` (a new public version) |
 | `DELETE` | `/collections/entries/{collection_id}/publication` | `UnpublishEntryCollection` | `200` `CollectionResponse`, idempotent |
+| `POST` | `/collections/entries/{collection_id}/update` | `UpdateEntryCollectionFromSource` | `200` `EntryCollectionUpdateResponse` (an import's counts plus `removed`); `404` if the source isn't public |
 
 The kanji routes are the same under `/collections/kanji`, with `{kanji_id}` and
 `PracticeKanjiPageResponse`. Item ids are **practice** ids (the `id` returned by the
@@ -303,7 +304,9 @@ import), not dictionary ids.
 replaces both fields, so an omitted `description` clears it. `CollectionResponse`:
 `id`, `name`, `description`, `is_public`, `published_version` (0 if never published),
 `published_at`, `source_collection_id` and `source_version` (where a copy was imported
-from), `created_at`, `updated_at`.
+from), `latest_source_version` (its source's current version while public, filled by
+the list and get routes: newer than `source_version` means `POST .../update` applies
+it), `created_at`, `updated_at`.
 
 `PUT .../publication` takes `{ "include_notes": false }` (the default): it publishes
 the collection's active items, with the owner's notes only if `true`. See

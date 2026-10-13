@@ -116,6 +116,18 @@ Publishes a new version of one of the user's collections: its snapshot is
 `published_version` and makes it public. `EntityNotFoundError` for a collection the
 user doesn't have; `ValidationError` with more active items than an import takes.
 
+### `UpdateEntryCollectionFromSource(dictionary, entries, collections).execute(user_id, collection_id)`
+
+Brings a copy up to its source's latest version (#90) and returns a
+`CollectionUpdate` (an import's counts plus `removed`). The source must still be
+public (`EntityNotFoundError` otherwise); an up-to-date copy is left as is. The new
+snapshot's items that the user didn't take out (`dismissed_items`) go through
+`ImportEntryCollection.copy_items(..., prune=True)`: imported or merged as an import
+does, then `prune_source`; they're linked `from_source`. `from_source` items the
+snapshot dropped are unlinked (they stay in the library), and `follow_source` records
+the version. `RemoveEntryFromCollection` dismisses a `from_source` item it takes out
+of a copy. The kanji use cases are the same.
+
 ### `UnpublishEntryCollection(collections).execute(user_id, collection_id)`
 
 `Collection.unpublish()`: private again; its last version, downloads and the rest are
@@ -341,6 +353,11 @@ A `PublicCollectionPage` of `PublicCollectionSummary` (the collection, its owner
 username, item count, downloads and the version the viewer imported) and the total.
 `build_public_search` trims and lower-cases `text`; `owner` is `mine` / `others` /
 `all`, relative to the viewer; `sort` is `popular` (most downloaded) or `recent`.
+
+### `LatestEntrySourceVersions(collections).execute(user_id)`
+
+`{copy id: source's published version}` for the user's copies whose source is public:
+the routes add it to `CollectionResponse` (`latest_source_version`).
 
 ### `GetPublicEntryCollection(collections).execute(viewer_id, collection_id)`
 

@@ -23,10 +23,14 @@ def own_sense() -> SharedSense:
 
 
 def test_identity_and_version_fall_back_to_the_id() -> None:
-    copy = SharedReading(origin="added", id=3, original_id=1, edited_id=2, text="あ")
-    assert (copy.identity, copy.version) == (1, 2)
+    copy = SharedReading(
+        origin="added", id=3, original_id=1, edited_id=2, revision=4, text="あ"
+    )
+    assert copy.identity == 1
+    assert copy.version == (2, 4)
     hand_written = SharedReading(origin="added", id=3, text="あ")
-    assert (hand_written.identity, hand_written.version) == (3, 3)
+    assert hand_written.identity == 3
+    assert hand_written.version == (3, 0)
     assert SharedReading(origin="added", text="あ").version is None
 
 

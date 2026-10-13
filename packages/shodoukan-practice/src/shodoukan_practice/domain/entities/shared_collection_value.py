@@ -12,9 +12,10 @@ Each part carries three ids from the exporter's database:
 
 - `id`: the exporter's row; the copy records it as `source_id`.
 - `original_id`: the part every copy of it shares, its identity.
-- `edited_id` (parts with content: spellings, readings, meanings, examples):
-  the version of that content, the row where it was last written. A copy
-  keeps it until its owner edits it.
+- `edited_id` and `revision` (parts with content: spellings, readings,
+  meanings, examples): the version of that content, the row that wrote it
+  and how many times it rewrote it. A copy keeps them until its owner edits
+  it.
 
 An added part is skipped when the item already has that version; another
 version of the same part is added next to it (better to duplicate than to
@@ -63,10 +64,12 @@ class SharedContent(SharedPart):
     """A part with content of its own, which has versions."""
 
     edited_id: int | None = None
+    revision: int = Field(default=0, ge=0)
 
     @property
-    def version(self) -> int | None:
-        return self.edited_id if self.edited_id is not None else self.id
+    def version(self) -> tuple[int, int] | None:
+        row = self.edited_id if self.edited_id is not None else self.id
+        return None if row is None else (row, self.revision)
 
 
 class SharedSpelling(SharedContent):
@@ -159,6 +162,13 @@ class SharedEntry(SharedValue):
         """For a word of the owner's own: the word all its copies share."""
         return self.original_id if self.original_id is not None else self.id
 
+    @property
+    def key(self) -> str:
+        """What the word is across libraries (`PracticeEntry.shared_key`)."""
+        if self.source_entry_id is not None:
+            return f"entry:{self.source_entry_id}"
+        return f"own:{self.identity}"
+
     @model_validator(mode="after")
     def _check_own(self) -> Self:
         if self.source_entry_id is None:
@@ -191,6 +201,11 @@ class SharedKanji(SharedValue):
     )
     nanori: list[SharedKanjiReading] = Field(default=[], max_length=MAX_SHARED_PARTS)
     meanings: list[SharedMeaning] = Field(default=[], max_length=MAX_SHARED_PARTS)
+
+    @property
+    def key(self) -> str:
+        """What the kanji is across libraries (`PracticeKanji.shared_key`)."""
+        return f"kanji:{self.literal}"
 
 
 class SharedCollection(SharedValue):

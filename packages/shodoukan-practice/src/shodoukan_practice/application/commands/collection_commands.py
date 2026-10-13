@@ -6,6 +6,7 @@ items are looked up scoped to the user, so someone else's is "not found".
 None of them commit; the caller owns the transaction.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 from uuid import UUID
@@ -203,9 +204,13 @@ class RemoveEntryFromCollection:
 
     def execute(self, user_id: UUID, collection_id: int, entry_id: int) -> None:
         collection = entry_collection(self._collections, collection_id, user_id)
-        self._collections.remove_item(
-            collection, _entry(self._entries, entry_id, user_id)
-        )
+        entry = _entry(self._entries, entry_id, user_id)
+        # Taken out of a copy: updates from its source won't bring it back.
+        if collection.source_collection_id is not None and (
+            self._collections.is_from_source(collection, entry)
+        ):
+            self._collections.dismiss_item(collection, entry.shared_key)
+        self._collections.remove_item(collection, entry)
 
 
 class RemoveKanjiFromCollection:
@@ -219,9 +224,13 @@ class RemoveKanjiFromCollection:
 
     def execute(self, user_id: UUID, collection_id: int, kanji_id: int) -> None:
         collection = kanji_collection(self._collections, collection_id, user_id)
-        self._collections.remove_item(
-            collection, _kanji(self._kanji, kanji_id, user_id)
-        )
+        kanji = _kanji(self._kanji, kanji_id, user_id)
+        # Taken out of a copy: updates from its source won't bring it back.
+        if collection.source_collection_id is not None and (
+            self._collections.is_from_source(collection, kanji)
+        ):
+            self._collections.dismiss_item(collection, kanji.shared_key)
+        self._collections.remove_item(collection, kanji)
 
 
 # --- Import ---
@@ -240,6 +249,14 @@ class CollectionImport(Generic[C, R]):
     created: int = 0
     existing: int = 0
     missing: list[R] = field(default_factory=list)
+
+
+@dataclass
+class CollectionUpdate(CollectionImport[C, R]):
+    """What updating a copy from its source did: as an import, plus
+    `removed`, the items the source dropped that left the collection."""
+
+    removed: int = 0
 
 
 class ImportEntryCollection:
@@ -284,20 +301,37 @@ class ImportEntryCollection:
             )
         )
         result: CollectionImport[EntryCollection, int] = CollectionImport(collection)
+        for _, entry in self.copy_items(user_id, shared.items, shared.id, result):
+            self._collections.add_item(collection, entry, from_source=True)
+        return result
+
+    def copy_items(
+        self,
+        user_id: UUID,
+        items: Sequence[SharedEntry],
+        source: int | None,
+        result: CollectionImport[C, int],
+        prune: bool = False,
+    ) -> list[tuple[SharedEntry, PracticeEntry]]:
+        """Bring each shared word into the user's library, counting in
+        `result`: the stored words, with the shared item each came from.
+        `prune` (an update) also removes what `source` brought, untouched,
+        and no longer has (`PracticeEntry.prune_source`)."""
         own = self._entries.find_own_by_identity(
-            {i.identity for i in shared.items if i.identity is not None}, user_id
+            {i.identity for i in items if i.identity is not None}, user_id
         )
-        for item in shared.items:
+        copied: list[tuple[SharedEntry, PracticeEntry]] = []
+        for item in items:
             entry = (
-                self._own_word(user_id, item, own, shared.id, result)
+                self._own_word(user_id, item, own, source, result, prune)
                 if item.source_entry_id is None
                 else self._dictionary_word(
-                    user_id, item, item.source_entry_id, shared.id, result
+                    user_id, item, item.source_entry_id, source, result, prune
                 )
             )
             if entry is not None:
-                self._collections.add_item(collection, entry, from_source=True)
-        return result
+                copied.append((item, entry))
+        return copied
 
     def _own_word(
         self,
@@ -305,7 +339,8 @@ class ImportEntryCollection:
         item: SharedEntry,
         own: list[PracticeEntry],
         source: int | None,
-        result: CollectionImport[EntryCollection, int],
+        result: CollectionImport[C, int],
+        prune: bool,
     ) -> PracticeEntry:
         match = next(
             (
@@ -321,9 +356,10 @@ class ImportEntryCollection:
             result.created += 1
             return entry
         result.existing += 1
-        if match.merge_shared(item, created=False, source_collection_id=source):
-            return self._entries.update(match)
-        return match
+        changed = match.merge_shared(item, created=False, source_collection_id=source)
+        if prune and source is not None:
+            changed |= match.prune_source(item, source)
+        return self._entries.update(match) if changed else match
 
     def _dictionary_word(
         self,
@@ -331,7 +367,8 @@ class ImportEntryCollection:
         item: SharedEntry,
         source_entry_id: int,
         source: int | None,
-        result: CollectionImport[EntryCollection, int],
+        result: CollectionImport[C, int],
+        prune: bool,
     ) -> PracticeEntry | None:
         existing = self._entries.get_by_source_entry_id(source_entry_id, user_id)
         if existing is None:
@@ -346,9 +383,12 @@ class ImportEntryCollection:
                 return entry
             existing = entry  # imported meanwhile: merge as the user's
         result.existing += 1
-        if existing.merge_shared(item, created=False, source_collection_id=source):
-            return self._entries.update(existing)
-        return existing
+        changed = existing.merge_shared(
+            item, created=False, source_collection_id=source
+        )
+        if prune and source is not None:
+            changed |= existing.prune_source(item, source)
+        return self._entries.update(existing) if changed else existing
 
 
 class ImportKanjiCollection:
@@ -383,18 +423,34 @@ class ImportKanjiCollection:
             )
         )
         result: CollectionImport[KanjiCollection, str] = CollectionImport(collection)
-        for item in shared.items:
-            kanji = self._import(user_id, item, shared.id, result)
-            if kanji is not None:
-                self._collections.add_item(collection, kanji, from_source=True)
+        for _, kanji in self.copy_items(user_id, shared.items, shared.id, result):
+            self._collections.add_item(collection, kanji, from_source=True)
         return result
+
+    def copy_items(
+        self,
+        user_id: UUID,
+        items: Sequence[SharedKanji],
+        source: int | None,
+        result: CollectionImport[C, str],
+        prune: bool = False,
+    ) -> list[tuple[SharedKanji, PracticeKanji]]:
+        """Bring each shared kanji into the user's library (see
+        `ImportEntryCollection.copy_items`)."""
+        copied: list[tuple[SharedKanji, PracticeKanji]] = []
+        for item in items:
+            kanji = self._import(user_id, item, source, result, prune)
+            if kanji is not None:
+                copied.append((item, kanji))
+        return copied
 
     def _import(
         self,
         user_id: UUID,
         item: SharedKanji,
         source: int | None,
-        result: CollectionImport[KanjiCollection, str],
+        result: CollectionImport[C, str],
+        prune: bool,
     ) -> PracticeKanji | None:
         existing = self._kanji.get_by_literal(item.literal, user_id)
         if existing is None:
@@ -409,6 +465,9 @@ class ImportKanjiCollection:
                 return kanji
             existing = kanji
         result.existing += 1
-        if existing.merge_shared(item, created=False, source_collection_id=source):
-            return self._kanji.update(existing)
-        return existing
+        changed = existing.merge_shared(
+            item, created=False, source_collection_id=source
+        )
+        if prune and source is not None:
+            changed |= existing.prune_source(item, source)
+        return self._kanji.update(existing) if changed else existing

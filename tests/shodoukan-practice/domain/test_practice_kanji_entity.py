@@ -187,3 +187,22 @@ def test_kanji_sharing_notes_and_attribution() -> None:
     kanji = fresh_snapshot()
     kanji.merge_shared(origin_kanji().to_shared(), created=True, source_collection_id=4)
     assert [m.source_collection_id for m in kanji.meanings] == [None, 4]
+
+
+def test_kanji_prune_and_dismissed_meanings() -> None:
+    origin = origin_kanji()
+    copy = fresh_snapshot()
+    copy.merge_shared(origin.to_shared(), created=True, source_collection_id=3)
+    copy.meanings[1].id = 50
+    origin.meanings.pop()
+
+    assert copy.prune_source(origin.to_shared(), 3) is True
+    assert [m.text for m in copy.meanings] == ["eat"]
+    assert copy.shared_key == origin.to_shared().key == "kanji:食"
+
+    again = fresh_snapshot()
+    again.merge_shared(origin_kanji().to_shared(), created=True)
+    again.meanings[1].id = 60
+    again.remove_meaning(60)
+    again.merge_shared(origin_kanji().to_shared(), created=False)
+    assert [m.text for m in again.meanings] == ["eat"]

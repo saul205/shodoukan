@@ -46,6 +46,10 @@ class PracticeEntryORM(Base):
     is_common: Mapped[bool]
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
     notes: Mapped[str | None] = mapped_column(Text)
+    # Deleted copies, `"<kind>:<identity>"` (see `PracticeEntry.dismissed_parts`).
+    dismissed_parts: Mapped[list[str]] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
     created_at: Mapped[datetime.datetime] = created_at_column()
     updated_at: Mapped[datetime.datetime] = updated_at_column()
 
@@ -76,6 +80,7 @@ class PracticeEntryKanjiReadingORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    revision: Mapped[int] = mapped_column(default=0, server_default="0")
     source_collection_id: Mapped[int | None]
 
 
@@ -99,6 +104,7 @@ class PracticeEntryReadingORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    revision: Mapped[int] = mapped_column(default=0, server_default="0")
     source_collection_id: Mapped[int | None]
 
 
@@ -146,6 +152,7 @@ class PracticeGlossORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    revision: Mapped[int] = mapped_column(default=0, server_default="0")
     source_collection_id: Mapped[int | None]
 
 
@@ -166,6 +173,7 @@ class PracticeExampleORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    revision: Mapped[int] = mapped_column(default=0, server_default="0")
     source_collection_id: Mapped[int | None]
 
     sentences: Mapped[list[PracticeExampleSentenceORM]] = children(

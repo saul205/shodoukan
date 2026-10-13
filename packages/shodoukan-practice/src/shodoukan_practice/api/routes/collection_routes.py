@@ -24,19 +24,24 @@ from ...application.commands import (
     UnpublishEntryCollection,
     UnpublishKanjiCollection,
     UpdateEntryCollection,
+    UpdateEntryCollectionFromSource,
     UpdateKanjiCollection,
+    UpdateKanjiCollectionFromSource,
 )
 from ...application.queries import (
     ExportEntryCollection,
     ExportKanjiCollection,
     GetEntryCollection,
     GetKanjiCollection,
+    LatestEntrySourceVersions,
+    LatestKanjiSourceVersions,
     ListEntryCollections,
     ListKanjiCollections,
     SearchEntries,
     SearchKanji,
 )
 from ...domain.clock import utc_now
+from ...domain.entities import Collection
 from ..deps import (
     CurrentUserDep,
     SessionDep,
@@ -52,6 +57,8 @@ from ..deps import (
     get_get_kanji_collection,
     get_import_entry_collection,
     get_import_kanji_collection,
+    get_latest_entry_source_versions,
+    get_latest_kanji_source_versions,
     get_list_entry_collections,
     get_list_kanji_collections,
     get_publish_entry_collection,
@@ -63,15 +70,19 @@ from ..deps import (
     get_unpublish_entry_collection,
     get_unpublish_kanji_collection,
     get_update_entry_collection,
+    get_update_entry_collection_from_source,
     get_update_kanji_collection,
+    get_update_kanji_collection_from_source,
 )
 from ..schemas import (
     CollectionRequest,
     CollectionResponse,
     EntryCollectionFile,
     EntryCollectionImportResponse,
+    EntryCollectionUpdateResponse,
     KanjiCollectionFile,
     KanjiCollectionImportResponse,
+    KanjiCollectionUpdateResponse,
     MeaningLang,
     PracticeEntryPageResponse,
     PracticeKanjiPageResponse,
@@ -125,11 +136,15 @@ def list_entry_collections(
     user: CurrentUserDep,
     session: SessionDep,
     use_case: Annotated[ListEntryCollections, Depends(get_list_entry_collections)],
+    latest: Annotated[
+        LatestEntrySourceVersions, Depends(get_latest_entry_source_versions)
+    ],
 ) -> list[CollectionResponse]:
     """The current user's entry collections, by name."""
     collections = use_case.execute(user.id)
+    versions = latest.execute(user.id)
     session.commit()  # persists the user if this request created it
-    return [CollectionResponse.model_validate(c) for c in collections]
+    return [_with_source(c, versions) for c in collections]
 
 
 @entry_router.post(
@@ -158,11 +173,15 @@ def get_entry_collection(
     user: CurrentUserDep,
     session: SessionDep,
     use_case: Annotated[GetEntryCollection, Depends(get_get_entry_collection)],
+    latest: Annotated[
+        LatestEntrySourceVersions, Depends(get_latest_entry_source_versions)
+    ],
 ) -> CollectionResponse:
     """One of the current user's entry collections."""
     collection = use_case.execute(user.id, collection_id)
+    versions = latest.execute(user.id)
     session.commit()
-    return CollectionResponse.model_validate(collection)
+    return _with_source(collection, versions)
 
 
 @entry_router.put(
@@ -360,6 +379,35 @@ def unpublish_entry_collection(
     return CollectionResponse.model_validate(collection)
 
 
+@entry_router.post(
+    "/{collection_id}/update",
+    response_model=EntryCollectionUpdateResponse,
+    responses=_NOT_FOUND,
+)
+def update_entry_collection_from_source(
+    collection_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[
+        UpdateEntryCollectionFromSource,
+        Depends(get_update_entry_collection_from_source),
+    ],
+) -> EntryCollectionUpdateResponse:
+    """Bring a copy of a public collection up to its source's latest version:
+    what came from the source and is untouched follows it, what the user
+    touched or added stays; dropped items leave the collection, not the
+    library. A no-op when it's up to date; 404 if the source isn't public."""
+    result = use_case.execute(user.id, collection_id)
+    session.commit()
+    return EntryCollectionUpdateResponse(
+        collection=CollectionResponse.model_validate(result.collection),
+        created=result.created,
+        existing=result.existing,
+        missing=result.missing,
+        removed=result.removed,
+    )
+
+
 # --- Kanji collections ---
 
 
@@ -368,11 +416,15 @@ def list_kanji_collections(
     user: CurrentUserDep,
     session: SessionDep,
     use_case: Annotated[ListKanjiCollections, Depends(get_list_kanji_collections)],
+    latest: Annotated[
+        LatestKanjiSourceVersions, Depends(get_latest_kanji_source_versions)
+    ],
 ) -> list[CollectionResponse]:
     """The current user's kanji collections, by name."""
     collections = use_case.execute(user.id)
+    versions = latest.execute(user.id)
     session.commit()  # persists the user if this request created it
-    return [CollectionResponse.model_validate(c) for c in collections]
+    return [_with_source(c, versions) for c in collections]
 
 
 @kanji_router.post(
@@ -401,11 +453,15 @@ def get_kanji_collection(
     user: CurrentUserDep,
     session: SessionDep,
     use_case: Annotated[GetKanjiCollection, Depends(get_get_kanji_collection)],
+    latest: Annotated[
+        LatestKanjiSourceVersions, Depends(get_latest_kanji_source_versions)
+    ],
 ) -> CollectionResponse:
     """One of the current user's kanji collections."""
     collection = use_case.execute(user.id, collection_id)
+    versions = latest.execute(user.id)
     session.commit()
-    return CollectionResponse.model_validate(collection)
+    return _with_source(collection, versions)
 
 
 @kanji_router.put(
@@ -601,3 +657,41 @@ def unpublish_kanji_collection(
     collection = use_case.execute(user.id, collection_id)
     session.commit()
     return CollectionResponse.model_validate(collection)
+
+
+@kanji_router.post(
+    "/{collection_id}/update",
+    response_model=KanjiCollectionUpdateResponse,
+    responses=_NOT_FOUND,
+)
+def update_kanji_collection_from_source(
+    collection_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[
+        UpdateKanjiCollectionFromSource,
+        Depends(get_update_kanji_collection_from_source),
+    ],
+) -> KanjiCollectionUpdateResponse:
+    """Bring a copy of a public collection up to its source's latest version:
+    what came from the source and is untouched follows it, what the user
+    touched or added stays; dropped items leave the collection, not the
+    library. A no-op when it's up to date; 404 if the source isn't public."""
+    result = use_case.execute(user.id, collection_id)
+    session.commit()
+    return KanjiCollectionUpdateResponse(
+        collection=CollectionResponse.model_validate(result.collection),
+        created=result.created,
+        existing=result.existing,
+        missing=result.missing,
+        removed=result.removed,
+    )
+
+
+def _with_source(
+    collection: Collection, versions: dict[int, int]
+) -> CollectionResponse:
+    """The collection's response, with its source's latest version if any."""
+    response = CollectionResponse.model_validate(collection)
+    response.latest_source_version = versions.get(response.id)
+    return response

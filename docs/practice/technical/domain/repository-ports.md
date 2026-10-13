@@ -96,6 +96,14 @@ Sharing (the same in both):
 | `public_summary(collection, viewer_id)` | one collection's summary |
 | `record_download(collection, user_id, version)` | one row per user, keeping the latest version; a savepoint makes concurrent first imports safe. Downloads are counted at read time, without the owner's |
 
+Following a source (#90):
+
+| Method | Returns / behavior |
+|---|---|
+| `is_from_source(collection, item)` / `source_item_ids(collection)` | whether the source put the item there / the ids of those items |
+| `dismiss_item(collection, key)` / `dismissed_items(collection)` | remember the shared key of an item the user took out of a copy (idempotent) / those keys |
+| `latest_source_versions(user_id)` | `{copy id: source's published_version}` for the user's copies whose source is public |
+
 ## `ExerciseRepository`
 
 | Method | Returns / behavior |

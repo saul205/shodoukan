@@ -50,8 +50,25 @@ what's new).
 - It counts as **one download per person**: importing it again, or importing one's own
   collection, doesn't add to the count.
 - The copy is the user's: they can change it freely. It remembers where it came from
-  and which version, for updating it later when its owner publishes a new one (coming
-  soon).
+  and which version.
+
+## Updating a copy
+
+When the owner publishes a new version, the copy says so ("Hay una versión nueva")
+and the user can **update** it whenever they want; it never happens on its own.
+Updating follows one rule: **what came from the collection and the user hasn't
+touched follows it; what the user touched or added stays theirs.**
+
+- New words or kanji, and new meanings, examples, spellings or readings, are added.
+- What the owner changed replaces the old version, unless the user edited it: then
+  both are kept.
+- What the owner removed leaves the copy, unless the user touched it. A word the owner
+  took out of the collection leaves the copy, but stays in the user's library.
+- What the user removed from the copy (a word taken out of it, a meaning deleted)
+  doesn't come back.
+- The user's notes, what they hid and what they deactivated never change.
+- If the owner stops sharing the collection, the copy can't be updated any more (it
+  stays as it is).
 
 ## Privacy
 

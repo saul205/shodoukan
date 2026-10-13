@@ -46,6 +46,13 @@ class CollectionResponse(BaseModel):
     source_version: int | None = Field(
         description="The version of its source it was imported from, if public."
     )
+    latest_source_version: int | None = Field(
+        default=None,
+        description=(
+            "Its source's latest published version, while the source is public: "
+            "a newer one than `source_version` can be applied with `POST .../update`."
+        ),
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -99,3 +106,11 @@ class KanjiCollectionImportResponse(CollectionImportResponse):
     missing: list[str] = Field(
         description="Kanji the dictionary doesn't have, left out."
     )
+
+
+class EntryCollectionUpdateResponse(EntryCollectionImportResponse):
+    removed: int = Field(description="Items the source dropped, taken out of it.")
+
+
+class KanjiCollectionUpdateResponse(KanjiCollectionImportResponse):
+    removed: int = Field(description="Items the source dropped, taken out of it.")

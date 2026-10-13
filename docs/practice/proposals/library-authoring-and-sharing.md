@@ -141,8 +141,10 @@ payload as a file.
 **#82 built:** publishing, browsing, preview and import, see
 [sharing collections](../functional/collections/share.md),
 [use cases](../technical/application/use-cases.md#commands-commandspublic_collection_commandspy)
-and [endpoints](../technical/api/endpoints.md#public-collections). The rest of this
-section stays the design for #88, #89 and #90.
+and [endpoints](../technical/api/endpoints.md#public-collections). **#90 built:**
+updating a copy, see [sharing collections](../functional/collections/share.md#updating-a-copy)
+and [decisions](../technical/decisions.md#a-version-counts-its-owners-edits). The rest of
+this section stays the design for #88 and #89.
 
 ### Publishing versions (#82)
 
@@ -210,8 +212,10 @@ Applying an update:
   removed from the word, except a sense's last meaning or a word's last reading. An own
   sense goes only when nothing of the user's is left in it and it has no notes.
 - What the user removed isn't brought back: an item taken out of the copy is recorded
-  as dismissed for that collection, and deleting an untouched source part records its
-  version on the word (`dismissed_versions`), which imports skip.
+  as dismissed for that collection, and deleting a copied part records its kind and
+  identity on the word (`dismissed_parts`, e.g. `"gloss:12"`), which imports and
+  updates skip. By identity rather than version, so a part edited and then deleted
+  doesn't come back in the source's version; by kind too, as ids are per table.
 - Name and description are never overwritten; the page shows the source's.
 - Editing a word (notes, hiding parts, own meanings) is the library's business: it
   never counts as modifying the collection, and updates keep it.

@@ -94,3 +94,27 @@ class EntryCollectionRepository(Protocol):
         """Remember that `user_id` imported `version` of it. One row per user,
         keeping the latest version; safe against concurrent first imports."""
         ...
+
+    # --- Following a source ---
+
+    def is_from_source(self, collection: EntryCollection, entry: PracticeEntry) -> bool:
+        """Whether the collection's source put the item there."""
+        ...
+
+    def source_item_ids(self, collection: EntryCollection) -> set[int]:
+        """Ids of the items the collection's source put there."""
+        ...
+
+    def dismiss_item(self, collection: EntryCollection, key: str) -> None:
+        """Remember that the user took the item with that shared key out of a
+        copy, so updates from its source don't bring it back. Idempotent."""
+        ...
+
+    def dismissed_items(self, collection: EntryCollection) -> set[str]:
+        """The shared keys `dismiss_item` remembered for the collection."""
+        ...
+
+    def latest_source_versions(self, user_id: UUID) -> dict[int, int]:
+        """`{collection id: its source's published version}` for the user's
+        copies whose source is still public."""
+        ...

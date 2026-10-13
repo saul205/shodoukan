@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   collections by name, description or owner, preview them as they'd be imported, and
   import them (`/public-collections/{kind}`), counted as one download per user.
   Usernames now follow the identity provider's.
+- **shodoukan-practice:** Update an imported copy from its source's new version
+  (`POST /collections/{kind}/{id}/update`; `latest_source_version` says when there is
+  one): what came from the source untouched follows it, the user's changes and
+  removals stay. Editing one's own meaning or example is now a new version of it, so
+  it reaches the copies.
 - **shodoukan-practice-web:** **Colecciones públicas**: search other users' (and your
   own) public collections, preview them as they'd be imported, and import them.
   "Mis colecciones" can publish a collection (with or without your notes), publish a
