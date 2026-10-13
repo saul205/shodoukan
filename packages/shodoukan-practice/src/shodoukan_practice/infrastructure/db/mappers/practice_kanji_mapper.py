@@ -52,6 +52,7 @@ def practice_kanji_to_domain(row: PracticeKanjiORM) -> PracticeKanji:
                 original_id=m.original_id,
                 source_id=m.source_id,
                 edited_id=m.edited_id,
+                source_collection_id=m.source_collection_id,
             )
             for m in row.meanings
         ],
@@ -94,6 +95,7 @@ def practice_kanji_to_db(entity: PracticeKanji) -> PracticeKanjiORM:
                 original_id=m.original_id,
                 source_id=m.source_id,
                 edited_id=m.edited_id,
+                source_collection_id=m.source_collection_id,
             )
             for i, m in enumerate(entity.meanings)
         ],

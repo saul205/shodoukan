@@ -51,6 +51,7 @@ class PracticeKanjiMeaning(BaseModel):
     original_id: int | None = None
     source_id: int | None = None
     edited_id: int | None = None
+    source_collection_id: int | None = None
 
 
 class PracticeKanji(TimestampedEntity):
@@ -118,13 +119,14 @@ class PracticeKanji(TimestampedEntity):
         self.meanings.remove(self._own_meaning(meaning_id))
         self.touch()
 
-    def to_shared(self) -> SharedKanji:
-        """What this kanji carries in an exported collection."""
+    def to_shared(self, include_notes: bool = True) -> SharedKanji:
+        """What this kanji carries in an exported collection; its notes only
+        with `include_notes`."""
         return SharedKanji(
             id=self.id,
             literal=self.literal,
             is_active=self.is_active,
-            notes=self.notes,
+            notes=self.notes if include_notes else None,
             on_readings=_shared_readings(self.on_readings),
             kun_readings=_shared_readings(self.kun_readings),
             nanori=_shared_readings(self.nanori),
@@ -142,7 +144,12 @@ class PracticeKanji(TimestampedEntity):
             ],
         )
 
-    def merge_shared(self, shared: SharedKanji, created: bool) -> bool:
+    def merge_shared(
+        self,
+        shared: SharedKanji,
+        created: bool,
+        source_collection_id: int | None = None,
+    ) -> bool:
         """Take what a shared copy of this kanji adds.
 
         Same rules as `PracticeEntry.merge_shared`: the meanings the user
@@ -171,7 +178,7 @@ class PracticeKanji(TimestampedEntity):
             shared.meanings,
             created=created,
             same=lambda ours, theirs: ours.text == theirs.text,
-            copy=_copied_meaning,
+            copy=lambda part: _copied_meaning(part, source_collection_id),
         )
         if changed:
             self.touch()
@@ -205,7 +212,9 @@ def _take_reading_flags(
     return changed
 
 
-def _copied_meaning(part: SharedMeaning) -> PracticeKanjiMeaning:
+def _copied_meaning(
+    part: SharedMeaning, source_collection_id: int | None
+) -> PracticeKanjiMeaning:
     return PracticeKanjiMeaning(
         id=None,
         text=clean_meaning(part.text),
@@ -215,4 +224,5 @@ def _copied_meaning(part: SharedMeaning) -> PracticeKanjiMeaning:
         original_id=part.identity,
         source_id=part.id,
         edited_id=part.version,
+        source_collection_id=source_collection_id,
     )

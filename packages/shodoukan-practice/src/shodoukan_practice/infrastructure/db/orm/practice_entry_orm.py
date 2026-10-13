@@ -76,6 +76,7 @@ class PracticeEntryKanjiReadingORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    source_collection_id: Mapped[int | None]
 
 
 class PracticeEntryReadingORM(Base):
@@ -98,6 +99,7 @@ class PracticeEntryReadingORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    source_collection_id: Mapped[int | None]
 
 
 class PracticeSenseORM(Base):
@@ -144,6 +146,7 @@ class PracticeGlossORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    source_collection_id: Mapped[int | None]
 
 
 class PracticeExampleORM(Base):
@@ -163,6 +166,7 @@ class PracticeExampleORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    source_collection_id: Mapped[int | None]
 
     sentences: Mapped[list[PracticeExampleSentenceORM]] = children(
         "PracticeExampleSentenceORM.position"

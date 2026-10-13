@@ -30,6 +30,8 @@ page per use case.
 
 - [Managing collections](collections/manage.md): group words and kanji from the
   library, and use collections as tags.
+- [Sharing collections](collections/share.md): publish a collection, find others'
+  preview and import them.
 
 ## Writing practice
 

@@ -81,3 +81,4 @@ class PracticeKanjiMeaningORM(Base):
     original_id: Mapped[int | None]
     source_id: Mapped[int | None]
     edited_id: Mapped[int | None]
+    source_collection_id: Mapped[int | None]

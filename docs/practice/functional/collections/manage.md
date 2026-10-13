@@ -84,7 +84,8 @@ and if the collection can't be used nothing is imported
 ## Privacy
 
 Collections are personal. Nobody else can see, change or add to them; to anyone else
-they simply don't exist.
+they simply don't exist, unless their owner publishes them
+([sharing collections](share.md)).
 
 ## When it doesn't work
 

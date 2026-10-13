@@ -688,3 +688,28 @@ def test_reimporting_the_origin_after_editing_adds_its_version_once() -> None:
     before = stored(b, 300).model_copy(deep=True)
     b.merge_shared(a.to_shared(), created=False)
     assert b == before
+
+
+def test_to_shared_can_leave_the_notes_out() -> None:
+    shared = origin_entry().to_shared(include_notes=False)
+    assert shared.notes is None
+    assert all(s.notes is None for s in shared.senses)
+    assert origin_entry().to_shared().senses[0].notes == "a sense note"
+
+
+def test_copies_remember_the_collection_they_came_with() -> None:
+    entry = fresh_snapshot()
+    entry.merge_shared(origin_entry().to_shared(), created=True, source_collection_id=9)
+
+    sense, own_sense = entry.senses
+    assert [
+        entry.kanji_readings[1].source_collection_id,
+        entry.readings[1].source_collection_id,
+        sense.glosses[1].source_collection_id,
+        sense.examples[1].source_collection_id,
+        own_sense.glosses[0].source_collection_id,
+    ] == [9] * 5
+    # What the dictionary snapshot brought isn't the collection's.
+    assert sense.glosses[0].source_collection_id is None
+    own = PracticeEntry.from_shared(USER_ID, own_word().to_shared(), 9)
+    assert own.readings[0].source_collection_id == 9

@@ -1,15 +1,27 @@
+from uuid import UUID, uuid4
+
 import pytest
-from factories import make_entry, make_entry_collection
+from factories import TIMESTAMPS, make_entry, make_entry_collection
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from shodoukan_practice.domain.entities import PracticeEntry
+from shodoukan_practice.domain.entities import (
+    EntryCollection,
+    PracticeEntry,
+    SharedEntry,
+    SharedEntryCollection,
+)
 from shodoukan_practice.domain.exceptions import (
     CollectionNameTakenError,
     CollectionOwnershipError,
     EntityNotFoundError,
 )
-from shodoukan_practice.domain.searches import InCollection, LibrarySearch
-from shodoukan_practice.infrastructure.db.orm import UserORM
+from shodoukan_practice.domain.searches import (
+    InCollection,
+    LibrarySearch,
+    PublicCollectionSearch,
+)
+from shodoukan_practice.infrastructure.db.orm import UserORM, entry_collection_items
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
@@ -201,3 +213,139 @@ def test_add_keeps_where_it_was_copied_from(
     stored = repo.get(added.id, user.id)
     assert stored is not None
     assert stored.source_collection_id == 42
+
+
+# --- Sharing ---
+
+
+def published(
+    repo: SqlAlchemyEntryCollectionRepository,
+    user_id: UUID,
+    name: str,
+    description: str | None = None,
+) -> EntryCollection:
+    collection = repo.add(
+        make_entry_collection(user_id, name).model_copy(
+            update={"description": description}
+        )
+    )
+    collection.publish()
+    collection = repo.update(collection)
+    shared = SharedEntryCollection(
+        id=collection.id,
+        name=name,
+        items=[SharedEntry(source_entry_id=1), SharedEntry(source_entry_id=2)],
+    )
+    repo.save_publication(collection, shared, includes_notes=False)
+    return collection
+
+
+@pytest.fixture
+def third_user(session: Session) -> UserORM:
+    row = UserORM(id=uuid4(), username="Tanaka", **TIMESTAMPS)
+    session.add(row)
+    session.flush()
+    return row
+
+
+def test_publication_is_stored_and_replaced(
+    repo: SqlAlchemyEntryCollectionRepository, user: UserORM, session: Session
+) -> None:
+    collection = published(repo, user.id, "N5")
+    session.expunge_all()
+
+    stored = repo.get_publication(collection)
+    assert stored is not None
+    assert [i.source_entry_id for i in stored.items] == [1, 2]
+    repo.save_publication(collection, SharedEntryCollection(name="N5"), True)
+    again = repo.get_publication(collection)
+    assert again is not None and again.items == []
+    private = repo.add(make_entry_collection(user.id, "private"))
+    assert repo.get_publication(private) is None
+
+
+def test_get_public_is_any_owners_but_only_public(
+    repo: SqlAlchemyEntryCollectionRepository, user: UserORM, other_user: UserORM
+) -> None:
+    mine = published(repo, user.id, "N5")
+    private = repo.add(make_entry_collection(user.id, "private"))
+    assert mine.id is not None and private.id is not None
+
+    found = repo.get_public(mine.id)
+    assert found is not None and found.user_id == user.id
+    assert repo.get_public(private.id) is None
+    mine.unpublish()
+    repo.update(mine)
+    assert repo.get_public(mine.id) is None
+
+
+def test_find_public_filters_by_owner_and_text(
+    repo: SqlAlchemyEntryCollectionRepository,
+    user: UserORM,
+    other_user: UserORM,
+    third_user: UserORM,
+) -> None:
+    published(repo, user.id, "Verbos N5", "godan")
+    published(repo, other_user.id, "Kitchen")
+    published(repo, third_user.id, "Animals", "Counters and GODAN pairs")
+    repo.add(make_entry_collection(other_user.id, "hidden"))
+
+    def names(search: PublicCollectionSearch) -> list[str]:
+        found = repo.find_public(search, user.id, 10, 0)
+        assert repo.count_public(search, user.id) == len(found)
+        return sorted(s.collection.name for s in found)
+
+    assert names(PublicCollectionSearch()) == ["Animals", "Kitchen", "Verbos N5"]
+    assert names(PublicCollectionSearch(owner="mine")) == ["Verbos N5"]
+    assert names(PublicCollectionSearch(owner="others")) == ["Animals", "Kitchen"]
+    assert names(PublicCollectionSearch(text="godan")) == ["Animals", "Verbos N5"]
+    assert names(PublicCollectionSearch(text="tanaka")) == ["Animals"]
+    assert names(PublicCollectionSearch(text="100%")) == []
+
+
+def test_downloads_count_users_once_and_never_the_owner(
+    repo: SqlAlchemyEntryCollectionRepository,
+    user: UserORM,
+    other_user: UserORM,
+    third_user: UserORM,
+) -> None:
+    popular = published(repo, user.id, "Popular")
+    recent = published(repo, user.id, "Recent")
+    repo.record_download(popular, other_user.id, 1)
+    repo.record_download(popular, other_user.id, 2)  # again: the latest version
+    repo.record_download(popular, third_user.id, 1)
+    repo.record_download(popular, user.id, 1)  # the owner
+
+    by_popularity = repo.find_public(PublicCollectionSearch(), other_user.id, 10, 0)
+    assert [(s.collection.name, s.downloads) for s in by_popularity] == [
+        ("Popular", 2),
+        ("Recent", 0),
+    ]
+    assert by_popularity[0].viewer_version == 2
+    assert by_popularity[0].owner_username == "saul"
+    assert by_popularity[0].item_count == 2
+    by_date = repo.find_public(
+        PublicCollectionSearch(sort="recent"), other_user.id, 10, 0
+    )
+    assert [s.collection.name for s in by_date] == ["Recent", "Popular"]
+    summary = repo.public_summary(recent, third_user.id)
+    assert (summary.downloads, summary.viewer_version) == (0, None)
+
+
+def test_add_item_marks_what_the_source_put(
+    repo: SqlAlchemyEntryCollectionRepository,
+    user: UserORM,
+    items: list[PracticeEntry],
+    session: Session,
+) -> None:
+    collection = repo.add(make_entry_collection(user.id))
+    repo.add_item(collection, items[0], from_source=True)
+    repo.add_item(collection, items[1])
+    repo.add_item(collection, items[1], from_source=True)  # linked already: kept
+
+    rows = session.execute(
+        select(
+            entry_collection_items.c.entry_id, entry_collection_items.c.from_source
+        ).where(entry_collection_items.c.collection_id == collection.id)
+    ).all()
+    assert sorted(rows) == [(items[0].id, True), (items[1].id, False)]

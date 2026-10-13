@@ -14,10 +14,12 @@ holds. Their ids come from different tables and can collide, so repositories
 take the typed entity rather than a bare id.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import Field
 
+from ..clock import utc_now
 from .timestamped_entity import TimestampedEntity
 
 COLLECTION_NAME_MAX_LENGTH = 100
@@ -30,9 +32,15 @@ class Collection(TimestampedEntity):
     user_id: UUID
     name: str = Field(min_length=1, max_length=COLLECTION_NAME_MAX_LENGTH)
     description: str | None = None
-    # The collection this one was imported from, if any. No link: it may
-    # belong to another user, or another database, and be gone.
+    # Sharing it: whether others can see it, and its latest published
+    # version (0 = never published; the snapshot is stored apart).
+    is_public: bool = False
+    published_version: int = 0
+    published_at: datetime | None = None
+    # The collection this one was imported from, if any, and the version
+    # imported. No link: it may belong to another user and be gone.
     source_collection_id: int | None = None
+    source_version: int | None = None
 
     def rename(self, name: str) -> None:
         if name != self.name:
@@ -42,6 +50,21 @@ class Collection(TimestampedEntity):
     def describe(self, description: str | None) -> None:
         if description != self.description:
             self.description = description
+            self.touch()
+
+    def publish(self) -> int:
+        """Make it public with a new version (its snapshot is the caller's to
+        store); returns the version."""
+        self.published_version += 1
+        self.published_at = utc_now()
+        self.is_public = True
+        self.touch()
+        return self.published_version
+
+    def unpublish(self) -> None:
+        """Hide it from others; its last version is kept for publishing again."""
+        if self.is_public:
+            self.is_public = False
             self.touch()
 
 

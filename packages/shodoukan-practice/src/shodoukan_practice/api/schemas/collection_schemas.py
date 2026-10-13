@@ -37,6 +37,15 @@ class CollectionResponse(BaseModel):
     id: int
     name: str
     description: str | None
+    is_public: bool
+    published_version: int = Field(description="Latest published version; 0 if never.")
+    published_at: datetime | None
+    source_collection_id: int | None = Field(
+        description="The collection this one was imported from, if any."
+    )
+    source_version: int | None = Field(
+        description="The version of its source it was imported from, if public."
+    )
     created_at: datetime
     updated_at: datetime
 

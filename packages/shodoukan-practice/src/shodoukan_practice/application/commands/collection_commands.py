@@ -248,9 +248,12 @@ class ImportEntryCollection:
     The rules are the aggregate's (`PracticeEntry.merge_shared`): items the
     user has are reused and the missing ones imported from the dictionary,
     words of someone's own are copied unless the user has a copy of them
-    already (same identity), and only what the import creates takes the origin's flags.
-    The collection gets a free name. Doesn't commit: the caller owns the
-    transaction, so an invalid item imports nothing.
+    already (same identity), and only what the import creates takes the
+    origin's flags. The collection gets a free name and remembers its source
+    (and `source_version`, for a public one); its items and the parts copied
+    into them are marked as the source's, which an update from it relies on.
+    Doesn't commit: the caller owns the transaction, so an invalid item
+    imports nothing.
     """
 
     def __init__(
@@ -264,7 +267,10 @@ class ImportEntryCollection:
         self._collections = collections
 
     def execute(
-        self, user_id: UUID, shared: SharedEntryCollection
+        self,
+        user_id: UUID,
+        shared: SharedEntryCollection,
+        source_version: int | None = None,
     ) -> CollectionImport[EntryCollection, int]:
         taken = {c.name for c in self._collections.list_for_user(user_id)}
         collection = self._collections.add(
@@ -274,6 +280,7 @@ class ImportEntryCollection:
                 name=free_collection_name(shared.name, taken),
                 description=shared.description,
                 source_collection_id=shared.id,
+                source_version=source_version,
             )
         )
         result: CollectionImport[EntryCollection, int] = CollectionImport(collection)
@@ -282,12 +289,14 @@ class ImportEntryCollection:
         )
         for item in shared.items:
             entry = (
-                self._own_word(user_id, item, own, result)
+                self._own_word(user_id, item, own, shared.id, result)
                 if item.source_entry_id is None
-                else self._dictionary_word(user_id, item, item.source_entry_id, result)
+                else self._dictionary_word(
+                    user_id, item, item.source_entry_id, shared.id, result
+                )
             )
             if entry is not None:
-                self._collections.add_item(collection, entry)
+                self._collections.add_item(collection, entry, from_source=True)
         return result
 
     def _own_word(
@@ -295,6 +304,7 @@ class ImportEntryCollection:
         user_id: UUID,
         item: SharedEntry,
         own: list[PracticeEntry],
+        source: int | None,
         result: CollectionImport[EntryCollection, int],
     ) -> PracticeEntry:
         match = next(
@@ -306,12 +316,12 @@ class ImportEntryCollection:
             None,
         )
         if match is None:
-            entry = self._entries.add(PracticeEntry.from_shared(user_id, item))
+            entry = self._entries.add(PracticeEntry.from_shared(user_id, item, source))
             own.append(entry)  # the file may list it twice
             result.created += 1
             return entry
         result.existing += 1
-        if match.merge_shared(item, created=False):
+        if match.merge_shared(item, created=False, source_collection_id=source):
             return self._entries.update(match)
         return match
 
@@ -320,6 +330,7 @@ class ImportEntryCollection:
         user_id: UUID,
         item: SharedEntry,
         source_entry_id: int,
+        source: int | None,
         result: CollectionImport[EntryCollection, int],
     ) -> PracticeEntry | None:
         existing = self._entries.get_by_source_entry_id(source_entry_id, user_id)
@@ -328,14 +339,14 @@ class ImportEntryCollection:
             if snapshot is None:
                 result.missing.append(source_entry_id)
                 return None
-            snapshot.merge_shared(item, created=True)
+            snapshot.merge_shared(item, created=True, source_collection_id=source)
             entry, created = self._entries.add_if_absent(snapshot)
             if created:
                 result.created += 1
                 return entry
             existing = entry  # imported meanwhile: merge as the user's
         result.existing += 1
-        if existing.merge_shared(item, created=False):
+        if existing.merge_shared(item, created=False, source_collection_id=source):
             return self._entries.update(existing)
         return existing
 
@@ -355,7 +366,10 @@ class ImportKanjiCollection:
         self._collections = collections
 
     def execute(
-        self, user_id: UUID, shared: SharedKanjiCollection
+        self,
+        user_id: UUID,
+        shared: SharedKanjiCollection,
+        source_version: int | None = None,
     ) -> CollectionImport[KanjiCollection, str]:
         taken = {c.name for c in self._collections.list_for_user(user_id)}
         collection = self._collections.add(
@@ -365,19 +379,21 @@ class ImportKanjiCollection:
                 name=free_collection_name(shared.name, taken),
                 description=shared.description,
                 source_collection_id=shared.id,
+                source_version=source_version,
             )
         )
         result: CollectionImport[KanjiCollection, str] = CollectionImport(collection)
         for item in shared.items:
-            kanji = self._import(user_id, item, result)
+            kanji = self._import(user_id, item, shared.id, result)
             if kanji is not None:
-                self._collections.add_item(collection, kanji)
+                self._collections.add_item(collection, kanji, from_source=True)
         return result
 
     def _import(
         self,
         user_id: UUID,
         item: SharedKanji,
+        source: int | None,
         result: CollectionImport[KanjiCollection, str],
     ) -> PracticeKanji | None:
         existing = self._kanji.get_by_literal(item.literal, user_id)
@@ -386,13 +402,13 @@ class ImportKanjiCollection:
             if snapshot is None:
                 result.missing.append(item.literal)
                 return None
-            snapshot.merge_shared(item, created=True)
+            snapshot.merge_shared(item, created=True, source_collection_id=source)
             kanji, created = self._kanji.add_if_absent(snapshot)
             if created:
                 result.created += 1
                 return kanji
             existing = kanji
         result.existing += 1
-        if existing.merge_shared(item, created=False):
+        if existing.merge_shared(item, created=False, source_collection_id=source):
             return self._kanji.update(existing)
         return existing

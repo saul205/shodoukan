@@ -58,11 +58,14 @@ class PracticeGloss(BaseModel):
     enabled: bool = True
     origin: Origin = "imported"
     # Where a copy came from (see `shared_collection_value`): the part all
-    # its copies share, the row it was copied from, and the version of its
-    # content. `None` is this row itself. No links: the origin may be gone.
+    # its copies share, the row it was copied from, the version of its
+    # content, and the collection it came with (what an update from that
+    # collection may remove). `None` is this row itself. No links: the
+    # origin may be gone.
     original_id: int | None = None
     source_id: int | None = None
     edited_id: int | None = None
+    source_collection_id: int | None = None
 
 
 class PracticeExampleSentence(BaseModel):
@@ -80,6 +83,7 @@ class PracticeExample(BaseModel):
     original_id: int | None = None
     source_id: int | None = None
     edited_id: int | None = None
+    source_collection_id: int | None = None
 
 
 class PracticeSense(BaseModel):
@@ -111,6 +115,7 @@ class PracticeReading(BaseModel):
     original_id: int | None = None
     source_id: int | None = None
     edited_id: int | None = None
+    source_collection_id: int | None = None
 
 
 class PracticeKanjiReading(BaseModel):
@@ -128,6 +133,7 @@ class PracticeKanjiReading(BaseModel):
     original_id: int | None = None
     source_id: int | None = None
     edited_id: int | None = None
+    source_collection_id: int | None = None
 
 
 class PracticeEntry(TimestampedEntity):
@@ -180,7 +186,9 @@ class PracticeEntry(TimestampedEntity):
         )
 
     @classmethod
-    def from_shared(cls, user_id: UUID, shared: SharedEntry) -> Self:
+    def from_shared(
+        cls, user_id: UUID, shared: SharedEntry, source_collection_id: int | None = None
+    ) -> Self:
         """A copy of someone's word of their own (`shared` has no source).
 
         Everything in it is the user's (`origin="added"`), with the origin's
@@ -200,7 +208,9 @@ class PracticeEntry(TimestampedEntity):
             jlpt=None,
             is_common=False,
         )
-        entry.merge_shared(shared, created=True)
+        entry.merge_shared(
+            shared, created=True, source_collection_id=source_collection_id
+        )
         return entry
 
     @property
@@ -213,14 +223,15 @@ class PracticeEntry(TimestampedEntity):
         """For a word of the user's own: the word all its copies share."""
         return identity(self)
 
-    def to_shared(self) -> SharedEntry:
-        """What this word carries in an exported collection."""
+    def to_shared(self, include_notes: bool = True) -> SharedEntry:
+        """What this word carries in an exported collection; its notes (and
+        its senses') only with `include_notes`."""
         return SharedEntry(
             id=self.id,
             original_id=self.identity,
             source_entry_id=self.source_entry_id,
             is_active=self.is_active,
-            notes=self.notes,
+            notes=self.notes if include_notes else None,
             spellings=[
                 SharedSpelling(
                     origin=s.origin,
@@ -243,10 +254,15 @@ class PracticeEntry(TimestampedEntity):
                 )
                 for r in self.readings
             ],
-            senses=[_shared_sense(s) for s in self.senses],
+            senses=[_shared_sense(s, include_notes) for s in self.senses],
         )
 
-    def merge_shared(self, shared: SharedEntry, created: bool) -> bool:
+    def merge_shared(
+        self,
+        shared: SharedEntry,
+        created: bool,
+        source_collection_id: int | None = None,
+    ) -> bool:
         """Take what a shared copy of this word adds.
 
         The user's data wins: the parts they added that this word doesn't
@@ -256,8 +272,9 @@ class PracticeEntry(TimestampedEntity):
         was `created` by this import. Imported parts are located by place and
         checked by text; one that doesn't match (the dictionary changed) is
         left alone, with the parts the user added to it. An added meaning in
-        another language than its sense's is skipped. Returns whether
-        anything changed.
+        another language than its sense's is skipped. The copies remember
+        `source_collection_id`, the collection they came with. Returns
+        whether anything changed.
         """
         changed = False
         if created and self.is_active != shared.is_active:
@@ -271,16 +288,16 @@ class PracticeEntry(TimestampedEntity):
             shared.spellings,
             created=created,
             same=lambda target, part: target.kanji == part.text,
-            copy=_copied_spelling,
+            copy=lambda part: _copied_spelling(part, source_collection_id),
         )
         changed |= merge_parts(
             self.readings,
             shared.readings,
             created=created,
             same=lambda target, part: target.text == part.text,
-            copy=_copied_reading,
+            copy=lambda part: _copied_reading(part, source_collection_id),
         )
-        changed |= self._merge_senses(shared.senses, created)
+        changed |= self._merge_senses(shared.senses, created, source_collection_id)
         if changed:
             self.touch()
         return changed
@@ -446,7 +463,9 @@ class PracticeEntry(TimestampedEntity):
         sense.examples.remove(example)
         self.touch()
 
-    def _merge_senses(self, shared: list[SharedSense], created: bool) -> bool:
+    def _merge_senses(
+        self, shared: list[SharedSense], created: bool, source: int | None
+    ) -> bool:
         imported = [s for s in self.senses if s.origin == "imported"]
         position = 0
         changed = False
@@ -473,7 +492,7 @@ class PracticeEntry(TimestampedEntity):
                     target = _copied_sense(part)
                     self.senses.append(target)
                     changed = True
-            changed |= _merge_sense_parts(target, part, created)
+            changed |= _merge_sense_parts(target, part, created, source)
         return changed
 
     def _sense(self, sense_id: int) -> PracticeSense:
@@ -572,13 +591,13 @@ def _shared_meaning(gloss: PracticeGloss) -> SharedMeaning:
     )
 
 
-def _shared_sense(sense: PracticeSense) -> SharedSense:
+def _shared_sense(sense: PracticeSense, include_notes: bool) -> SharedSense:
     return SharedSense(
         origin=sense.origin,
         id=sense.id,
         original_id=identity(sense),
         enabled=sense.enabled,
-        notes=sense.notes,
+        notes=sense.notes if include_notes else None,
         glosses=[_shared_meaning(g) for g in sense.glosses],
         examples=[
             SharedExample(
@@ -607,7 +626,9 @@ def _japanese(sentences: Iterable[PracticeExampleSentence | SharedSentence]) -> 
     return next((s.text for s in sentences if s.lang == JAPANESE), "")
 
 
-def _merge_sense_parts(target: PracticeSense, part: SharedSense, created: bool) -> bool:
+def _merge_sense_parts(
+    target: PracticeSense, part: SharedSense, created: bool, source: int | None
+) -> bool:
     """Notes, meanings and examples of a shared sense into the user's one."""
     changed = False
     if target.notes is None and part.notes is not None:
@@ -620,7 +641,7 @@ def _merge_sense_parts(target: PracticeSense, part: SharedSense, created: bool) 
         [g for g in part.glosses if g.origin == "imported" or lang in (None, g.lang)],
         created=created,
         same=lambda ours, theirs: ours.text == theirs.text,
-        copy=_copied_gloss,
+        copy=lambda gloss: _copied_gloss(gloss, source),
     )
     changed |= merge_parts(
         target.examples,
@@ -629,12 +650,14 @@ def _merge_sense_parts(target: PracticeSense, part: SharedSense, created: bool) 
         same=lambda ours, theirs: (
             _japanese(ours.sentences) == _japanese(theirs.sentences)
         ),
-        copy=_copied_example,
+        copy=lambda example: _copied_example(example, source),
     )
     return changed
 
 
-def _copied_spelling(part: SharedSpelling) -> PracticeKanjiReading:
+def _copied_spelling(
+    part: SharedSpelling, source_collection_id: int | None
+) -> PracticeKanjiReading:
     return PracticeKanjiReading(
         id=None,
         kanji=clean_spelling(part.text),
@@ -644,10 +667,13 @@ def _copied_spelling(part: SharedSpelling) -> PracticeKanjiReading:
         original_id=part.identity,
         source_id=part.id,
         edited_id=part.version,
+        source_collection_id=source_collection_id,
     )
 
 
-def _copied_reading(part: SharedReading) -> PracticeReading:
+def _copied_reading(
+    part: SharedReading, source_collection_id: int | None
+) -> PracticeReading:
     return PracticeReading(
         id=None,
         text=clean_kana(part.text),
@@ -659,10 +685,13 @@ def _copied_reading(part: SharedReading) -> PracticeReading:
         original_id=part.identity,
         source_id=part.id,
         edited_id=part.version,
+        source_collection_id=source_collection_id,
     )
 
 
-def _copied_gloss(part: SharedMeaning) -> PracticeGloss:
+def _copied_gloss(
+    part: SharedMeaning, source_collection_id: int | None
+) -> PracticeGloss:
     return PracticeGloss(
         id=None,
         text=clean_meaning(part.text),
@@ -673,10 +702,13 @@ def _copied_gloss(part: SharedMeaning) -> PracticeGloss:
         original_id=part.identity,
         source_id=part.id,
         edited_id=part.version,
+        source_collection_id=source_collection_id,
     )
 
 
-def _copied_example(part: SharedExample) -> PracticeExample:
+def _copied_example(
+    part: SharedExample, source_collection_id: int | None
+) -> PracticeExample:
     return PracticeExample(
         id=None,
         text="",
@@ -689,6 +721,7 @@ def _copied_example(part: SharedExample) -> PracticeExample:
         original_id=part.identity,
         source_id=part.id,
         edited_id=part.version,
+        source_collection_id=source_collection_id,
     )
 
 

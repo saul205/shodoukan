@@ -30,6 +30,8 @@ from .routes import (
     library_router,
     practice_entry_router,
     practice_kanji_router,
+    public_entry_collection_router,
+    public_kanji_collection_router,
     user_router,
 )
 
@@ -65,6 +67,8 @@ def create_app() -> FastAPI:
     app.include_router(user_router)
     app.include_router(entry_collection_router)
     app.include_router(kanji_collection_router)
+    app.include_router(public_entry_collection_router)
+    app.include_router(public_kanji_collection_router)
     app.include_router(exercise_router)
     app.include_router(exercise_session_router)
     app.include_router(exercise_statistics_router)

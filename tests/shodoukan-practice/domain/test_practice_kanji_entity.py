@@ -180,3 +180,10 @@ def test_kanji_merge_refuses_another_character() -> None:
     other = origin_kanji().to_shared().model_copy(update={"literal": "飲"})
     with pytest.raises(ValueError, match="飲"):
         make_kanji().merge_shared(other, created=False)
+
+
+def test_kanji_sharing_notes_and_attribution() -> None:
+    assert origin_kanji().to_shared(include_notes=False).notes is None
+    kanji = fresh_snapshot()
+    kanji.merge_shared(origin_kanji().to_shared(), created=True, source_collection_id=4)
+    assert [m.source_collection_id for m in kanji.meanings] == [None, 4]

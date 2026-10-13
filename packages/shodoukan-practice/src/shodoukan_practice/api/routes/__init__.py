@@ -10,6 +10,8 @@ from .health_routes import router as health_router
 from .library_routes import router as library_router
 from .practice_entry_routes import router as practice_entry_router
 from .practice_kanji_routes import router as practice_kanji_router
+from .public_collection_routes import entry_router as public_entry_collection_router
+from .public_collection_routes import kanji_router as public_kanji_collection_router
 from .user_routes import router as user_router
 
 __all__ = [
@@ -23,5 +25,7 @@ __all__ = [
     "library_router",
     "practice_entry_router",
     "practice_kanji_router",
+    "public_entry_collection_router",
+    "public_kanji_collection_router",
     "user_router",
 ]

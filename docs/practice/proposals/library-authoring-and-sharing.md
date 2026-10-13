@@ -138,6 +138,12 @@ own 20, both with original 20.
 Agreed 2026-10-13. Builds on the import above: a public collection is read as the same
 payload as a file.
 
+**#82 built:** publishing, browsing, preview and import, see
+[sharing collections](../functional/collections/share.md),
+[use cases](../technical/application/use-cases.md#commands-commandspublic_collection_commandspy)
+and [endpoints](../technical/api/endpoints.md#public-collections). The rest of this
+section stays the design for #88, #89 and #90.
+
 ### Publishing versions (#82)
 
 - The owner **publishes** a collection: a snapshot of it is stored as its current

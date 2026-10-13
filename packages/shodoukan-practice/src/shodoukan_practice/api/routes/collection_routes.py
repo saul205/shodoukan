@@ -17,8 +17,12 @@ from ...application.commands import (
     DeleteKanjiCollection,
     ImportEntryCollection,
     ImportKanjiCollection,
+    PublishEntryCollection,
+    PublishKanjiCollection,
     RemoveEntryFromCollection,
     RemoveKanjiFromCollection,
+    UnpublishEntryCollection,
+    UnpublishKanjiCollection,
     UpdateEntryCollection,
     UpdateKanjiCollection,
 )
@@ -50,10 +54,14 @@ from ..deps import (
     get_import_kanji_collection,
     get_list_entry_collections,
     get_list_kanji_collections,
+    get_publish_entry_collection,
+    get_publish_kanji_collection,
     get_remove_entry_from_collection,
     get_remove_kanji_from_collection,
     get_search_entries,
     get_search_kanji,
+    get_unpublish_entry_collection,
+    get_unpublish_kanji_collection,
     get_update_entry_collection,
     get_update_kanji_collection,
 )
@@ -67,6 +75,7 @@ from ..schemas import (
     MeaningLang,
     PracticeEntryPageResponse,
     PracticeKanjiPageResponse,
+    PublicationRequest,
     SearchText,
 )
 
@@ -313,6 +322,44 @@ def import_entry_collection(
     )
 
 
+@entry_router.put(
+    "/{collection_id}/publication",
+    response_model=CollectionResponse,
+    responses={**_NOT_FOUND, **_TOO_BIG},
+)
+def publish_entry_collection(
+    collection_id: int,
+    body: PublicationRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[PublishEntryCollection, Depends(get_publish_entry_collection)],
+) -> CollectionResponse:
+    """Publish a new version: a snapshot of its active items (notes only if
+    `include_notes`) that any signed-in user can see and import."""
+    collection = use_case.execute(user.id, collection_id, body.include_notes)
+    session.commit()
+    return CollectionResponse.model_validate(collection)
+
+
+@entry_router.delete(
+    "/{collection_id}/publication",
+    response_model=CollectionResponse,
+    responses=_NOT_FOUND,
+)
+def unpublish_entry_collection(
+    collection_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[
+        UnpublishEntryCollection, Depends(get_unpublish_entry_collection)
+    ],
+) -> CollectionResponse:
+    """Make it private again; its last version is kept. Idempotent."""
+    collection = use_case.execute(user.id, collection_id)
+    session.commit()
+    return CollectionResponse.model_validate(collection)
+
+
 # --- Kanji collections ---
 
 
@@ -516,3 +563,41 @@ def import_kanji_collection(
         existing=result.existing,
         missing=result.missing,
     )
+
+
+@kanji_router.put(
+    "/{collection_id}/publication",
+    response_model=CollectionResponse,
+    responses={**_NOT_FOUND, **_TOO_BIG},
+)
+def publish_kanji_collection(
+    collection_id: int,
+    body: PublicationRequest,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[PublishKanjiCollection, Depends(get_publish_kanji_collection)],
+) -> CollectionResponse:
+    """Publish a new version: a snapshot of its active items (notes only if
+    `include_notes`) that any signed-in user can see and import."""
+    collection = use_case.execute(user.id, collection_id, body.include_notes)
+    session.commit()
+    return CollectionResponse.model_validate(collection)
+
+
+@kanji_router.delete(
+    "/{collection_id}/publication",
+    response_model=CollectionResponse,
+    responses=_NOT_FOUND,
+)
+def unpublish_kanji_collection(
+    collection_id: int,
+    user: CurrentUserDep,
+    session: SessionDep,
+    use_case: Annotated[
+        UnpublishKanjiCollection, Depends(get_unpublish_kanji_collection)
+    ],
+) -> CollectionResponse:
+    """Make it private again; its last version is kept. Idempotent."""
+    collection = use_case.execute(user.id, collection_id)
+    session.commit()
+    return CollectionResponse.model_validate(collection)

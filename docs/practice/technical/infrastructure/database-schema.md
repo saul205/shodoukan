@@ -13,19 +13,23 @@ The models that define these tables are described in
 |---|---|---|
 | `users` | — | `id` **`uuid`**: the identity provider's user id (token `sub`), not generated here; `username` (display name, up to 255 characters, not unique) |
 | `practice_entries` | `users` | `source_entry_id` nullable (a word of the user's own has none), `UNIQUE(user_id, source_entry_id)` (NULLs are distinct, so own words can repeat), `notes` text (nullable), `original_id`, `source_id` |
-| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id` |
-| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id` |
+| `practice_entry_kanji_readings` | `practice_entries` | `position`, `info` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `source_collection_id` |
+| `practice_entry_readings` | `practice_entries` | `position`, `info` / `restricted_to` JSON, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `source_collection_id` |
 | `practice_senses` | `practice_entries` | `position`, `pos` / `misc` / `dialects` / `info` JSON, `notes` text (nullable), `enabled`, `origin` (CHECK), `original_id`, `source_id` |
-| `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')`, `original_id`, `source_id`, `edited_id` |
-| `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id` |
+| `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')`, `original_id`, `source_id`, `edited_id`, `source_collection_id` |
+| `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `source_collection_id` |
 | `practice_example_sentences` | `practice_examples` | `position`, `lang`, `text` |
 | `practice_kanji` | `users` | `UNIQUE(user_id, literal)`, `notes` text (nullable) |
 | `practice_kanji_reading_items` | `practice_kanji` | `kind` with `CHECK kind IN ('on','kun','nanori')`, `position`, `enabled` |
-| `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id` |
-| `entry_collections` | `users` | `UNIQUE(user_id, name)`, `source_collection_id` |
-| `kanji_collections` | `users` | `UNIQUE(user_id, name)`, `source_collection_id` |
-| `entry_collection_items` | link table | PK `(collection_id, entry_id)`, index on `entry_id`, `added_at` |
-| `kanji_collection_items` | link table | PK `(collection_id, kanji_id)`, index on `kanji_id`, `added_at` |
+| `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `source_collection_id` |
+| `entry_collections` | `users` | `UNIQUE(user_id, name)`; `is_public` (default false), `published_version` (default 0), `published_at`; `source_collection_id`, `source_version` |
+| `kanji_collections` | `users` | `UNIQUE(user_id, name)`; `is_public` (default false), `published_version` (default 0), `published_at`; `source_collection_id`, `source_version` |
+| `entry_collection_items` | link table | PK `(collection_id, entry_id)`, index on `entry_id`, `added_at`, `from_source` (default false) |
+| `entry_collection_publications` | `entry_collections` | PK `collection_id` (one row per collection: the latest version), `item_count`, `includes_notes`, `payload` JSON (a `SharedEntryCollection`) |
+| `entry_collection_downloads` | link table | PK `(collection_id, user_id)` (one row per user), index on `user_id`, `version` (the latest imported), `downloaded_at` |
+| `kanji_collection_items` | link table | PK `(collection_id, kanji_id)`, index on `kanji_id`, `added_at`, `from_source` (default false) |
+| `kanji_collection_publications` | `kanji_collections` | PK `collection_id` (one row per collection: the latest version), `item_count`, `includes_notes`, `payload` JSON (a `SharedKanjiCollection`) |
+| `kanji_collection_downloads` | link table | PK `(collection_id, user_id)` (one row per user), index on `user_id`, `version` (the latest imported), `downloaded_at` |
 | `exercises` | `users` | `item_kind` with `CHECK item_kind IN ('entries','kanji')`, `settings` JSON, `name` (not unique), `description` |
 | `exercise_entry_collections` | `exercises` | PK `(exercise_id, collection_id)`, `collection_id` → `entry_collections`, index on `collection_id`, `position` |
 | `exercise_sessions` | `users` | partial unique index `uq_exercise_sessions_user_id_open` on `user_id` `WHERE finished_at IS NULL` (one open session per user); `exercise_id` → `exercises` (`SET NULL`), `exercise_name`, `item_kind` (CHECK), `meaning_lang`, `finished_at` (nullable) |

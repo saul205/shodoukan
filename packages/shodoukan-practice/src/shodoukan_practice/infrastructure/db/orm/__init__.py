@@ -5,14 +5,24 @@ what Alembic and `create_all` use.
 """
 
 from .base_orm import Base
-from .entry_collection_orm import EntryCollectionORM, entry_collection_items
+from .entry_collection_orm import (
+    EntryCollectionORM,
+    EntryCollectionPublicationORM,
+    entry_collection_downloads,
+    entry_collection_items,
+)
 from .exercise_orm import (
     ExerciseEntryCollectionORM,
     ExerciseKanjiCollectionORM,
     ExerciseORM,
 )
 from .exercise_session_orm import ExerciseQuestionORM, ExerciseSessionORM
-from .kanji_collection_orm import KanjiCollectionORM, kanji_collection_items
+from .kanji_collection_orm import (
+    KanjiCollectionORM,
+    KanjiCollectionPublicationORM,
+    kanji_collection_downloads,
+    kanji_collection_items,
+)
 from .practice_entry_orm import (
     PracticeEntryKanjiReadingORM,
     PracticeEntryORM,
@@ -32,12 +42,14 @@ from .user_orm import UserORM
 __all__ = [
     "Base",
     "EntryCollectionORM",
+    "EntryCollectionPublicationORM",
     "ExerciseEntryCollectionORM",
     "ExerciseKanjiCollectionORM",
     "ExerciseORM",
     "ExerciseQuestionORM",
     "ExerciseSessionORM",
     "KanjiCollectionORM",
+    "KanjiCollectionPublicationORM",
     "PracticeEntryKanjiReadingORM",
     "PracticeEntryORM",
     "PracticeEntryReadingORM",
@@ -49,6 +61,8 @@ __all__ = [
     "PracticeKanjiReadingItemORM",
     "PracticeSenseORM",
     "UserORM",
+    "entry_collection_downloads",
     "entry_collection_items",
+    "kanji_collection_downloads",
     "kanji_collection_items",
 ]

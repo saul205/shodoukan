@@ -21,7 +21,9 @@ items), dictionary entry and kanji details (`/dictionary/entries/{id}`,
 `/dictionary/kanji/{literal}`, ...), and customising library items (notes, enabling
 parts, own meanings, active, removal: `/library/entries/{id}/...`,
 `/library/kanji/{id}/...`), exporting and importing collections as files
-(`/collections/{kind}/{id}/export`, `/collections/{kind}/import`), saved exercise definitions (`/exercises`: CRUD) and
+(`/collections/{kind}/{id}/export`, `/collections/{kind}/import`), sharing them
+(`/collections/{kind}/{id}/publication`; `/public-collections/{kind}`: search,
+detail, preview `/items`, `/import`), saved exercise definitions (`/exercises`: CRUD) and
 exercise sessions (`POST /exercises/{id}/sessions`, `/exercise-sessions/{id}` with
 `/answer` and `/finish`: open-ended, one active question at a time, built and graded
 on the server; choice cards, kanji handwriting and words written a character per
@@ -74,6 +76,13 @@ standalone: never call shodoukan-api from here.
   collection use cases, one class per use case and kind (`CreateEntryCollection`,
   `AddKanjiToCollection`, ...), and `ExportEntryCollection` / `ImportEntryCollection`
   (and kanji; returns `CollectionImport`).
+- `application/commands/public_collection_commands.py` /
+  `queries/public_collection_queries.py`: `PublishEntryCollection`,
+  `UnpublishEntryCollection`, `ImportPublicEntryCollection`,
+  `SearchPublicEntryCollections`, `GetPublicEntryCollection`,
+  `PreviewPublicEntryCollection` (and kanji). Routes in
+  `api/routes/public_collection_routes.py`; `domain/searches/public_collection_search.py`
+  holds `PublicCollectionSearch` and the `PublicCollectionSummary` read model.
 - `application/commands/exercise_commands.py` / `queries/exercise_queries.py`:
   `CreateExercise`, `UpdateExercise`, `DeleteExercise`, `ListExercises`, `GetExercise`.
   Routes in `api/routes/exercise_routes.py`.
@@ -168,6 +177,13 @@ standalone: never call shodoukan-api from here.
   that version, and another version is added next to it; senses and own words match
   by identity. Imported parts are located by place and checked by text. Contract:
   `docs/practice/proposals/library-authoring-and-sharing.md`.
+- Sharing: publishing stores a snapshot (the export of the active items, notes
+  optional) as the collection's latest version (`*_collection_publications`, one row
+  per collection). A public collection is readable by anyone signed in; private is a
+  404, to its owner too on `/public-collections`. Downloads are rows (one per user,
+  the owner's not counted), counted at read time. Imports record `source_version`,
+  `from_source` on membership and `source_collection_id` on copied parts, for
+  updating from the source (#90).
 - Dictionary data in the library is never edited or deleted, only disabled
   (`OriginalDataError` → 409); only the user's own spellings, readings, senses,
   meanings and examples change. A disabled sense hides its glosses and examples (a

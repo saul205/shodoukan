@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Sharing collections. An owner publishes a version of a
+  collection (its active items, notes optional; `PUT/DELETE
+  /collections/{kind}/{id}/publication`), and anyone signed in can search public
+  collections by name, description or owner, preview them as they'd be imported, and
+  import them (`/public-collections/{kind}`), counted as one download per user.
+  Usernames now follow the identity provider's.
 - **shodoukan-practice:** Export a collection as a file and import it back, in any
   account (`GET /collections/{entries,kanji}/{id}/export`, `POST
   /collections/{entries,kanji}/import`). The file carries each item's dictionary

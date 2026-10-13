@@ -75,3 +75,25 @@ def test_collection_name_is_at_most_100_characters() -> None:
     assert make_collection(name="x" * COLLECTION_NAME_MAX_LENGTH).name
     with pytest.raises(ValidationError):
         make_collection(name="x" * (COLLECTION_NAME_MAX_LENGTH + 1))
+
+
+def test_publish_makes_a_new_public_version() -> None:
+    collection = make_collection()
+    assert (collection.is_public, collection.published_version) == (False, 0)
+
+    assert collection.publish() == 1
+    first = collection.published_at
+    assert collection.is_public and first is not None
+    assert collection.updated_at > NOW
+    assert collection.publish() == 2
+
+
+def test_unpublish_keeps_the_version_and_touches_once() -> None:
+    collection = make_collection()
+    collection.unpublish()
+    assert collection.updated_at == NOW  # nothing to hide
+
+    collection.publish()
+    collection.unpublish()
+    assert (collection.is_public, collection.published_version) == (False, 1)
+    assert collection.publish() == 2

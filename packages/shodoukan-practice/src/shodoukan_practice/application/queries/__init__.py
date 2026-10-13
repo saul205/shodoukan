@@ -47,6 +47,16 @@ from .library_search_queries import (
     build_search,
     resolve_scope,
 )
+from .public_collection_queries import (
+    GetPublicEntryCollection,
+    GetPublicKanjiCollection,
+    PreviewPublicEntryCollection,
+    PreviewPublicKanjiCollection,
+    PublicCollectionPage,
+    SearchPublicEntryCollections,
+    SearchPublicKanjiCollections,
+    build_public_search,
+)
 
 __all__ = [
     "MAX_ACTIVITY_DAYS",
@@ -67,6 +77,8 @@ __all__ = [
     "GetLibraryEntry",
     "GetLibraryKanji",
     "GetPracticeStatistics",
+    "GetPublicEntryCollection",
+    "GetPublicKanjiCollection",
     "ImportStatus",
     "LibraryPage",
     "ListCollectionsOfEntry",
@@ -79,10 +91,16 @@ __all__ = [
     "ListKanjiForEntry",
     "MissedItem",
     "PracticeStatistics",
+    "PreviewPublicEntryCollection",
+    "PreviewPublicKanjiCollection",
+    "PublicCollectionPage",
     "SearchDictionary",
     "SearchEntries",
     "SearchKanji",
+    "SearchPublicEntryCollections",
+    "SearchPublicKanjiCollections",
     "SessionSummaryPage",
+    "build_public_search",
     "build_search",
     "resolve_scope",
 ]
