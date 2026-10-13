@@ -235,3 +235,5 @@ __marimo__/
 
 # Node / pnpm workspace
 node_modules/
+# Playwright MCP output (snapshots, screenshots, console logs)
+.playwright-mcp/
