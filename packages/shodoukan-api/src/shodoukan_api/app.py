@@ -7,7 +7,7 @@ from shodoukan_api.routes import entries, kanji, search
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Shodoukan API", version="0.2.0")
+    app = FastAPI(title="Shodoukan API", version="0.3.0")
 
     origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     app.add_middleware(
