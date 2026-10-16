@@ -108,22 +108,13 @@ file rather than one per package. Tag each entry with the package it affects, e.
 
 ## Releases and versions
 
-The repo ships two products, each versioned on its own (SemVer):
-
-| Product | Packages | Tag |
-|---|---|---|
-| Dictionary | `shodoukan`, `shodoukan-api`, `shodoukan-web`, `shodoukan-ui` | `dictionary-vX.Y.Z` |
-| Practice | `shodoukan-practice`, `shodoukan-practice-web` | `practice-vX.Y.Z` |
-
-Every package of a product carries the product's version (`pyproject.toml`,
-`package.json`, the `FastAPI(version=...)` of its API). A practice package that needs
-a new dictionary feature raises its `shodoukan>=` requirement.
+Every package shares one version (SemVer): `pyproject.toml`, `package.json` and the
+`FastAPI(version=...)` of each API. Packages that need a new library feature raise
+their `shodoukan>=` requirement.
 
 A release is one PR from a branch off `develop`, `release/X.Y.Z` (no username
-prefix), into `main`; after the merge, `main` is merged back into `develop`. In it, `[Unreleased]` moves into a
-`## Dictionary [X.Y.Z] — date` and/or `## Practice [X.Y.Z] — date` section (an entry
-that touches both products goes in both), and the versions are bumped. After the
-merge, tag the merge commit on `main` with the tag of each product released. Only the
-products whose version changed get a tag. The full flow, and the scheme we plan to
-move to (an independent library version, deploys triggered by tags), are in
-`docs/technical/releases.md`.
+prefix), into `main`; after the merge, `main` is merged back into `develop`. In it,
+`[Unreleased]` moves into a `## [X.Y.Z] — date` section and the versions are bumped.
+After the merge, tag the merge commit on `main` with `vX.Y.Z`. The full flow, and the
+scheme we plan to move to (an independent library version, deploys triggered by
+tags), are in `docs/technical/releases.md`.

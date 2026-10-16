@@ -6,7 +6,7 @@ conventions are in `.claude/rules/git-and-docs.md`.
 
 ## Today
 
-The flow is git-flow's:
+Every package shares one version, tagged `vX.Y.Z` on `main`. The flow is git-flow's:
 
 1. Cut `release/X.Y.Z` from `develop` (no username prefix: a release isn't one
    person's work).
