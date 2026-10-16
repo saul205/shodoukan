@@ -4,7 +4,96 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+The repo ships two products, each with its own version and tags on `main`:
+
+- **Dictionary** (`shodoukan`, `shodoukan-api`, `shodoukan-web`, `shodoukan-ui`):
+  tags `dictionary-vX.Y.Z`.
+- **Practice** (`shodoukan-practice`, `shodoukan-practice-web`): tags
+  `practice-vX.Y.Z`.
+
+A release can carry both; `[Unreleased]` holds the changes of either until then.
+
 ## [Unreleased]
+
+## Dictionary [0.3.0] — 2026-10-16
+
+### Added
+
+- **shodoukan-ui:** `pathPoints` (the TypeScript twin of `shodoukan.path_points`),
+  `matchStroke` to tell whether a traced stroke follows a model stroke, and a
+  `background` slot on `KanjiDrawingPad` for a model under the drawing.
+- **shodoukan:** `Dictionary.get_kanji_strokes(literal)` returns a character's stroke
+  order from KanjiVG (Japanese order, all jōyō kanji and about 6,400 in total). A
+  compatibility ideograph is drawn with its canonical form.
+- **shodoukan-ui:** `KanjiDrawingPad`, a square to draw a kanji in KanjiVG's space;
+  `KanjiStrokeDiagram` takes per-stroke `colors`, a faint `ghost` underneath, `numbers`
+  and a CSS `size`; `pointsToPath` and `simplifyStroke` for drawn strokes.
+- **shodoukan:** `Dictionary.literals_with_strokes(literals)` tells which characters have
+  a stroke order without reading the drawings, and `shodoukan.path_points`
+  flattens a stroke's path into evenly spaced points (for comparing
+  handwriting).
+- **shodoukan-api:** `GET /kanji/{literal}/strokes`.
+- **shodoukan-ui:** `KanjiStrokeDiagram` (the numbered character) and
+  `getKanjiStrokes`.
+- **shodoukan-ui:** `AboutSources`: what shodoukan is, every data source with its
+  licence (JMdict, KANJIDIC2, RADKFILE, KanjiVG, Tatoeba / Tanaka Corpus, the JLPT
+  lists) and Jisho as inspiration, in English or Spanish.
+- **repo:** CI runs on `develop` too and builds every deployable image.
+- **shodoukan:** `shodoukan-setup` sends `GITHUB_TOKEN` when set, avoiding GitHub's
+  anonymous rate limit.
+- **repo:** Deployment, at no cost: the dictionary API and web stay on Render
+  (static site plus a kept-awake API, deployed by CI). See
+  `docs/technical/deployment.md`.
+- **shodoukan-api:** `GET /health`.
+
+### Changed
+
+- **shodoukan-ui:** `KanjiStrokeAnimator` and `KanjiStrokeGrid` take the KanjiVG
+  `strokes` as a prop instead of a `literal`, and render plain SVG (no `<ClientOnly>`
+  needed).
+- **shodoukan-web / shodoukan-practice-web:** the kanji pages fetch stroke order from
+  their API. The web app's diagram no longer loads from raw.githack.com.
+- **shodoukan-web:** the Sources page is merged into About, which now credits every
+  data source; `/sources` redirects there.
+- **shodoukan-web:** The dictionary frontend is a static SPA (`ssr: false`, `nuxt
+  generate`), published on a Render Static Site.
+- **shodoukan-ui, shodoukan-web, shodoukan-practice-web:** Kanji readings list kun'yomi
+  before on'yomi everywhere (`KanjiCard` and the kanji pages), as the compact cards
+  already did.
+- **shodoukan:** Entry search ranks every match with one score, `match_tier × 2000 +
+  popularity`, in a single query: reading matches by exact/prefix, meaning matches by
+  bm25 relative to the best match of the search. Japanese searches keep their order;
+  romaji searches interleave readings and meanings.
+- **shodoukan:** Meaning matches are decayed by the position of the matched sense only
+  (`/ log2(position + 2)`) instead of by the number of senses, so common words with many
+  meanings (水) are no longer pushed down.
+- **shodoukan:** In romaji searches, a word found both by reading and by meaning is
+  ranked by its reading. Words whose definition is their own romaji (水ようかん, "mizu
+  yōkan") no longer rank above common words starting with the same reading (湖, 水着 for
+  `mizu`); translations found only by meaning (同じ for `same`) keep their rank.
+- **shodoukan:** Kanji searches rank by the kind of match first, then by popularity: an
+  exact reading or meaning, then a reading prefix or a meaning that contains the search,
+  then meanings that only start with it. `au` now lists 合 and 遇 (あう) instead of 図
+  ("audacious") and 秋 ("autumn"); `same` still lists both 同 and 鮫 (さめ).
+- **shodoukan-ui:** The debug bar shows the new `score` as the sort value, with `tier`
+  and `relevance`.
+
+### Fixed
+
+- **shodoukan-web / shodoukan-practice-web:** stroke order was blank for Japanese
+  forms such as 楽, 気 or 図, and used the Chinese order where it showed.
+- **shodoukan:** Romaji searches report the right number of results and page through
+  all of them. They used to count only meaning matches (`taberu` said 0 results while
+  showing 2) and later pages skipped words, because the reading and meaning searches
+  were paginated separately and merged afterwards.
+- **shodoukan:** Kanji are found by their on-readings. These are stored in katakana and
+  were compared with the hiragana of the search, so `kai` didn't list 会, 海 or 回.
+
+### Removed
+
+- **shodoukan-ui:** the `hanzi-writer` dependency.
+
+## Practice [0.1.0] — 2026-10-16
 
 ### Added
 
@@ -90,13 +179,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   see the drawing over the model). Nothing is graded or stored. Also from a library
   kanji, a kanji collection, and, in a window over the session, from a graded
   handwriting question and the session review.
-- **shodoukan-ui:** `pathPoints` (the TypeScript twin of `shodoukan.path_points`),
-  `matchStroke` to tell whether a traced stroke follows a model stroke, and a
-  `background` slot on `KanjiDrawingPad` for a model under the drawing.
-
-- **shodoukan:** `Dictionary.get_kanji_strokes(literal)` returns a character's stroke
-  order from KanjiVG (Japanese order, all jōyō kanji and about 6,400 in total). A
-  compatibility ideograph is drawn with its canonical form.
 - **shodoukan-practice:** Handwriting exercises (`card.handwriting`), the backend: the
   user draws the kanji and the server grades the strokes against KanjiVG (a 0-100
   score, correct / close / wrong, and what's wrong with each stroke: backwards, out of
@@ -108,38 +190,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a score, the drawing next to the KanjiVG kanji coloured stroke by stroke, and what
   was wrong with each stroke; the card is one tap away on phones. The exercise form
   offers the type for kanji, and the session review shows each drawing.
-- **shodoukan-ui:** `KanjiDrawingPad`, a square to draw a kanji in KanjiVG's space;
-  `KanjiStrokeDiagram` takes per-stroke `colors`, a faint `ghost` underneath, `numbers`
-  and a CSS `size`; `pointsToPath` and `simplifyStroke` for drawn strokes.
-- **shodoukan:** `Dictionary.literals_with_strokes(literals)` tells which characters have
-  a stroke order without reading the drawings, and `shodoukan.path_points`
-  flattens a stroke's path into evenly spaced points (for comparing
-  handwriting).
-- **shodoukan-api:** `GET /kanji/{literal}/strokes`.
 - **shodoukan-practice:** `GET /dictionary/kanji/{literal}/strokes`.
-- **shodoukan-ui:** `KanjiStrokeDiagram` (the numbered character) and
-  `getKanjiStrokes`.
-- **shodoukan-ui:** `AboutSources`: what shodoukan is, every data source with its
-  licence (JMdict, KANJIDIC2, RADKFILE, KanjiVG, Tatoeba / Tanaka Corpus, the JLPT
-  lists) and Jisho as inspiration, in English or Spanish.
 - **shodoukan-practice-web:** "Acerca de" page, linked from the sidebar, crediting
   the data sources.
-- **repo:** Deployment, at no cost. The dictionary API and web stay on Render
-  (static site plus a kept-awake API, deployed by CI). The practice stack (API,
-  PostgreSQL, Keycloak, practice SPA) runs as "pre" on our own machine with docker
-  compose, shared privately through Tailscale: only invited people can reach it, and
-  accounts are invite-only. One URL serves `/`, `/practice-api/` and `/idp/`.
-  `deploy/deploy.sh` builds any commit (default `origin/main`) in a separate worktree,
-  backs up before every deploy, rolls back to any ref, and copies chosen dev users into
-  pre (`seed`). Nightly database backups, and each deploy picks up the latest
-  dictionary. See `docs/technical/deployment.md`.
 - **repo:** CI runs on `develop` too and builds every deployable image.
-- **shodoukan-api**, **shodoukan-practice:** `GET /health`.
 - **shodoukan-practice:** A Dockerfile for the API, with the dictionary baked in; it
   also runs the migrations.
-- **shodoukan:** `shodoukan-setup` sends `GITHUB_TOKEN` when set, avoiding GitHub's
-  anonymous rate limit.
-
 - **shodoukan-practice-web:** Statistics: each exercise's page shows its totals,
   accuracy per direction and the items missed most; "Estadísticas" shows them over
   every exercise, with the answers per day over the last 7, 30 or 90 days, a table
@@ -205,17 +261,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for it.
 - **shodoukan-practice-web:** A library word's page shows its kanji as the dictionary
   does, ready to import or put in a collection; imported ones open the library copy.
-
-### Fixed
-
-- **shodoukan-web / shodoukan-practice-web:** stroke order was blank for Japanese
-  forms such as 楽, 気 or 図, and used the Chinese order where it showed.
-- **shodoukan:** Romaji searches report the right number of results and page through
-  all of them. They used to count only meaning matches (`taberu` said 0 results while
-  showing 2) and later pages skipped words, because the reading and meaning searches
-  were paginated separately and merged afterwards.
-- **shodoukan:** Kanji are found by their on-readings. These are stored in katakana and
-  were compared with the hiragana of the search, so `kai` didn't list 会, 海 or 回.
+- **repo:** Deployment, at no cost: the practice stack (API, PostgreSQL,
+  Keycloak, practice SPA) runs as "pre" on our own machine with docker compose,
+  shared privately through Tailscale: only invited people can reach it, and
+  accounts are invite-only. One URL serves `/`, `/practice-api/` and `/idp/`.
+  `deploy/deploy.sh` builds any commit (default `origin/main`) in a separate
+  worktree, backs up before every deploy, rolls back to any ref, and copies chosen
+  dev users into pre (`seed`). Nightly database backups, and each deploy picks up
+  the latest dictionary. See `docs/technical/deployment.md`.
+- **shodoukan-practice:** `GET /health`.
 
 ### Changed
 
@@ -229,13 +283,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **shodoukan-practice:** Session questions are stored by `type`, with what only that
   type has in a `details` JSON column; a choice card's options and right option move
   there (migration `33f2afbdd7cf`). Session responses return each question by type.
-- **shodoukan-ui:** `KanjiStrokeAnimator` and `KanjiStrokeGrid` take the KanjiVG
-  `strokes` as a prop instead of a `literal`, and render plain SVG (no `<ClientOnly>`
-  needed).
 - **shodoukan-web / shodoukan-practice-web:** the kanji pages fetch stroke order from
   their API. The web app's diagram no longer loads from raw.githack.com.
-- **shodoukan-web:** the Sources page is merged into About, which now credits every
-  data source; `/sources` redirects there.
 - **shodoukan-practice-web:** Fits phones better. On a dictionary word or kanji
   page the import buttons take their own row below it (and stack on very narrow
   screens), so the meanings keep the width. During an exercise the card shows only
@@ -245,8 +294,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   grow into the room the card doesn't need, in one column on phones (two with
   short texts, 7–8 options or on short screens), so a session fits a phone screen
   without scrolling.
-- **shodoukan-web:** The dictionary frontend is a static SPA (`ssr: false`, `nuxt
-  generate`), published on a Render Static Site.
 - **shodoukan-practice-web:** The identity provider URL can be relative to the site
   (`/idp/realms/shodoukan`).
 - **shodoukan-practice-web:** The dictionary's kanji page shows the meanings larger,
@@ -261,29 +308,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the item in it. In the dictionary it ticks the collections the item is in, to take it
   out; on a library page (an icon in the "Colecciones" header, instead of a full-width
   selector) it lists only the others.
-- **shodoukan:** Entry search ranks every match with one score, `match_tier × 2000 +
-  popularity`, in a single query: reading matches by exact/prefix, meaning matches by
-  bm25 relative to the best match of the search. Japanese searches keep their order;
-  romaji searches interleave readings and meanings.
-- **shodoukan:** Meaning matches are decayed by the position of the matched sense only
-  (`/ log2(position + 2)`) instead of by the number of senses, so common words with many
-  meanings (水) are no longer pushed down.
-- **shodoukan:** In romaji searches, a word found both by reading and by meaning is
-  ranked by its reading. Words whose definition is their own romaji (水ようかん, "mizu
-  yōkan") no longer rank above common words starting with the same reading (湖, 水着 for
-  `mizu`); translations found only by meaning (同じ for `same`) keep their rank.
-- **shodoukan:** Kanji searches rank by the kind of match first, then by popularity: an
-  exact reading or meaning, then a reading prefix or a meaning that contains the search,
-  then meanings that only start with it. `au` now lists 合 and 遇 (あう) instead of 図
-  ("audacious") and 秋 ("autumn"); `same` still lists both 同 and 鮫 (さめ).
-- **shodoukan-ui:** The debug bar shows the new `score` as the sort value, with `tier`
-  and `relevance`.
 
-### Removed
+### Fixed
 
-- **shodoukan-ui:** the `hanzi-writer` dependency.
+- **shodoukan-web / shodoukan-practice-web:** stroke order was blank for Japanese
+  forms such as 楽, 気 or 図, and used the Chinese order where it showed.
 
-## [0.2.0] — 2026-05-21
+## Dictionary [0.2.0] — 2026-05-21
 
 ### Added
 
@@ -299,6 +330,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Ranking — sense count** in gloss search only counts senses that have at least one gloss in the target language, preventing inflation from senses in other languages.
 - **Ranking — JLPT weight** raised from 50 to 100 per level (N5 = +500 … N1 = +100), consistently pushing beginner-friendly entries above rarer alternatives with equivalent frequency tags.
 
-## [0.1.0] — 2026-04-01
+## Dictionary [0.1.0] — 2026-04-01
 
 Initial release of the `shodoukan` library and `shodoukan-api` REST API.

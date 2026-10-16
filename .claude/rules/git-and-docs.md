@@ -104,3 +104,23 @@ file rather than one per package. Tag each entry with the package it affects, e.
 ```markdown
 - **shodoukan-practice:** ...
 ```
+
+## Releases and versions
+
+The repo ships two products, each versioned on its own (SemVer):
+
+| Product | Packages | Tag |
+|---|---|---|
+| Dictionary | `shodoukan`, `shodoukan-api`, `shodoukan-web`, `shodoukan-ui` | `dictionary-vX.Y.Z` |
+| Practice | `shodoukan-practice`, `shodoukan-practice-web` | `practice-vX.Y.Z` |
+
+Every package of a product carries the product's version (`pyproject.toml`,
+`package.json`, the `FastAPI(version=...)` of its API). A practice package that needs
+a new dictionary feature raises its `shodoukan>=` requirement.
+
+A release is one PR from a branch off `develop`, named by date
+(`<username>/release-YYYY-MM-DD`), into `main`. In it, `[Unreleased]` moves into a
+`## Dictionary [X.Y.Z] — date` and/or `## Practice [X.Y.Z] — date` section (an entry
+that touches both products goes in both), and the versions are bumped. After the
+merge, tag the merge commit on `main` with the tag of each product released. Only the
+products whose version changed get a tag.
