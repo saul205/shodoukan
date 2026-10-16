@@ -5,7 +5,8 @@ These apply to any project in this repo, not just Python.
 ## Git
 
 - Branches: `<username>/<issue>_<short-description>` (e.g.
-  `saul205/16_create-the-shodoukan-practice-app`).
+  `saul205/16_create-the-shodoukan-practice-app`). Releases are the exception:
+  `release/X.Y.Z`.
 - PR-based workflow — no direct pushes to `main`.
 - One logical change per commit: tooling, domain code and docs changes go in separate
   commits when they can stand alone. Each commit should leave `ruff`, `mypy` and the
@@ -118,9 +119,11 @@ Every package of a product carries the product's version (`pyproject.toml`,
 `package.json`, the `FastAPI(version=...)` of its API). A practice package that needs
 a new dictionary feature raises its `shodoukan>=` requirement.
 
-A release is one PR from a branch off `develop`, named by date
-(`<username>/release-YYYY-MM-DD`), into `main`. In it, `[Unreleased]` moves into a
+A release is one PR from a branch off `develop`, `release/X.Y.Z` (no username
+prefix), into `main`; after the merge, `main` is merged back into `develop`. In it, `[Unreleased]` moves into a
 `## Dictionary [X.Y.Z] — date` and/or `## Practice [X.Y.Z] — date` section (an entry
 that touches both products goes in both), and the versions are bumped. After the
 merge, tag the merge commit on `main` with the tag of each product released. Only the
-products whose version changed get a tag.
+products whose version changed get a tag. The full flow, and the scheme we plan to
+move to (an independent library version, deploys triggered by tags), are in
+`docs/technical/releases.md`.

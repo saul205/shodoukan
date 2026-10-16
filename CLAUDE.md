@@ -63,6 +63,7 @@ See `docs/index.md` for the full documentation index. Quick reference:
 | `docs/technical/search.md` | Search architecture: query classification, pipelines, scoring formulas |
 | `docs/technical/frontend.md` | Frontend architecture, components, responsive layout, Tailwind conventions |
 | `docs/technical/deployment.md` | Deployment: Render (dictionary), the self-hosted pre (`deploy/`), Tailscale access, CI/CD, backups |
+| `docs/technical/releases.md` | Releases: `release/X.Y.Z` branches, versions and tags; planned separate library version |
 | `docs/practice/README.md` | Practice app entry point: status and map of its docs |
 | `docs/practice/technical/frontend.md` | Practice frontend: sign-in flow, API client, screens, tests |
 | `docs/practice/technical/README.md` | Practice app technical docs index, plus the "where to document what" table |

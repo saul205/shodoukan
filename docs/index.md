@@ -24,6 +24,7 @@ For developers building, extending, or debugging the platform.
 | [technical/search.md](technical/search.md) | Search architecture: query classification, entry/kanji pipelines, scoring formulas |
 | [technical/frontend.md](technical/frontend.md) | Frontend architecture: components, responsive layout conventions, Tailwind patterns, debug mode |
 | [technical/deployment.md](technical/deployment.md) | Deployment: dictionary on Render, self-hosted pre shared through Tailscale, CI/CD, backups, runbook |
+| [technical/releases.md](technical/releases.md) | Releases: release branches, versions and tags, and the planned library/platform version lines |
 
 ## Practice app
 
