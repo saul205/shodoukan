@@ -79,7 +79,8 @@ Keycloak, then search the dictionary and import, customise your library (meaning
 notes, readings), group it into collections, and practise writing their kanji, words and the kana (guided stroke by stroke, tracing
 the model or from memory), practise them with exercises (choose
 the answer, or write the kanji or the word by hand), with a
-history, a review of each session and statistics. See the
+history, a review of each session and statistics, and share collections with other
+users (publish them, search and import theirs). See the
 [frontend docs](docs/practice/technical/frontend.md).
 
 ---

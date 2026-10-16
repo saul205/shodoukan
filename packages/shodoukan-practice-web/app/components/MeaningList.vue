@@ -21,6 +21,8 @@ const props = withDefaults(defineProps<{
   meanings: MeaningItem[]
   disabled?: boolean
   viewOnly?: boolean
+  /** In a public collection's preview: the added meanings are what it brings ("Nuevo"). */
+  fromCollection?: boolean
   /**
    * The list can't be left empty (a word's sense keeps one meaning): the only
    * meaning can be edited but not deleted; the sense itself is deleted instead.
@@ -93,7 +95,7 @@ async function confirmEdit(meaning: MeaningItem) {
     <ul v-if="shown.length" class="list-inside list-disc space-y-0.5 text-default">
       <li v-for="meaning in shown" :key="meaning.id" data-testid="meaning">
         {{ meaning.text }}
-        <UBadge v-if="meaning.origin === 'added'" label="propio" color="primary" variant="soft" size="sm" />
+        <AddedBadge v-if="meaning.origin === 'added'" :from-collection="fromCollection" />
       </li>
     </ul>
     <p v-else class="text-sm text-muted">Sin significados en este idioma.</p>

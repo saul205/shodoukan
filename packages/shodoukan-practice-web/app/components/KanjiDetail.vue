@@ -13,6 +13,8 @@ const props = withDefaults(defineProps<{
   kanji: PracticeKanji
   viewOnly?: boolean
   saving?: boolean
+  /** In a public collection's preview: the added meanings are what it brings ("Nuevo"). */
+  fromCollection?: boolean
   onAddMeaning?: (text: string) => Promise<boolean>
   onEditMeaning?: (meaningId: number, text: string) => Promise<boolean>
 }>(), { viewOnly: false, saving: false })
@@ -85,6 +87,7 @@ const readingGroups = computed<{ label: string; items: PracticeReadingItem[] }[]
         <MeaningList
           :meanings="meanings"
           :view-only="viewOnly"
+          :from-collection="fromCollection"
           :disabled="saving"
           @toggle="(meaningId, enabled) => emit('toggle', 'meanings', meaningId, enabled)"
           :on-add="onAddMeaning"

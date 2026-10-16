@@ -42,6 +42,10 @@ from ..application.commands import (
     ImportEntryCollection,
     ImportKanji,
     ImportKanjiCollection,
+    ImportPublicEntryCollection,
+    ImportPublicKanjiCollection,
+    PublishEntryCollection,
+    PublishKanjiCollection,
     RemoveEntryExample,
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
@@ -60,9 +64,13 @@ from ..application.commands import (
     SetKanjiPartEnabled,
     SetSenseNotes,
     StartExerciseSession,
+    UnpublishEntryCollection,
+    UnpublishKanjiCollection,
     UpdateEntryCollection,
+    UpdateEntryCollectionFromSource,
     UpdateExercise,
     UpdateKanjiCollection,
+    UpdateKanjiCollectionFromSource,
 )
 from ..application.queries import (
     ExportEntryCollection,
@@ -79,6 +87,10 @@ from ..application.queries import (
     GetLibraryEntry,
     GetLibraryKanji,
     GetPracticeStatistics,
+    GetPublicEntryCollection,
+    GetPublicKanjiCollection,
+    LatestEntrySourceVersions,
+    LatestKanjiSourceVersions,
     ListCollectionsOfEntry,
     ListCollectionsOfKanji,
     ListEntriesForKanji,
@@ -87,9 +99,13 @@ from ..application.queries import (
     ListExerciseSessions,
     ListKanjiCollections,
     ListKanjiForEntry,
+    PreviewPublicEntryCollection,
+    PreviewPublicKanjiCollection,
     SearchDictionary,
     SearchEntries,
     SearchKanji,
+    SearchPublicEntryCollections,
+    SearchPublicKanjiCollections,
 )
 from ..domain.entities import User
 from ..domain.gateways import DictionaryGateway, KanaGateway
@@ -322,7 +338,10 @@ def get_edit_entry_gloss(session: SessionDep) -> EditEntryGloss:
 
 
 def get_remove_entry_from_library(session: SessionDep) -> RemoveEntryFromLibrary:
-    return RemoveEntryFromLibrary(SqlAlchemyPracticeEntryRepository(session))
+    return RemoveEntryFromLibrary(
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
 
 
 def get_remove_entry_gloss(session: SessionDep) -> RemoveEntryGloss:
@@ -358,7 +377,10 @@ def get_edit_kanji_meaning(session: SessionDep) -> EditKanjiMeaning:
 
 
 def get_remove_kanji_from_library(session: SessionDep) -> RemoveKanjiFromLibrary:
-    return RemoveKanjiFromLibrary(SqlAlchemyPracticeKanjiRepository(session))
+    return RemoveKanjiFromLibrary(
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
 
 
 def get_remove_kanji_meaning(session: SessionDep) -> RemoveKanjiMeaning:
@@ -500,6 +522,121 @@ def get_import_kanji_collection(
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
 ) -> ImportKanjiCollection:
     return ImportKanjiCollection(
+        dictionary,
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+# --- Sharing collections ---
+
+
+def get_publish_entry_collection(session: SessionDep) -> PublishEntryCollection:
+    return PublishEntryCollection(
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+    )
+
+
+def get_publish_kanji_collection(session: SessionDep) -> PublishKanjiCollection:
+    return PublishKanjiCollection(
+        SqlAlchemyKanjiCollectionRepository(session),
+        SqlAlchemyPracticeKanjiRepository(session),
+    )
+
+
+def get_unpublish_entry_collection(session: SessionDep) -> UnpublishEntryCollection:
+    return UnpublishEntryCollection(SqlAlchemyEntryCollectionRepository(session))
+
+
+def get_unpublish_kanji_collection(session: SessionDep) -> UnpublishKanjiCollection:
+    return UnpublishKanjiCollection(SqlAlchemyKanjiCollectionRepository(session))
+
+
+def get_search_public_entry_collections(
+    session: SessionDep,
+) -> SearchPublicEntryCollections:
+    return SearchPublicEntryCollections(SqlAlchemyEntryCollectionRepository(session))
+
+
+def get_search_public_kanji_collections(
+    session: SessionDep,
+) -> SearchPublicKanjiCollections:
+    return SearchPublicKanjiCollections(SqlAlchemyKanjiCollectionRepository(session))
+
+
+def get_get_public_entry_collection(session: SessionDep) -> GetPublicEntryCollection:
+    return GetPublicEntryCollection(SqlAlchemyEntryCollectionRepository(session))
+
+
+def get_get_public_kanji_collection(session: SessionDep) -> GetPublicKanjiCollection:
+    return GetPublicKanjiCollection(SqlAlchemyKanjiCollectionRepository(session))
+
+
+def get_preview_public_entry_collection(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> PreviewPublicEntryCollection:
+    return PreviewPublicEntryCollection(
+        SqlAlchemyEntryCollectionRepository(session), dictionary
+    )
+
+
+def get_preview_public_kanji_collection(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> PreviewPublicKanjiCollection:
+    return PreviewPublicKanjiCollection(
+        SqlAlchemyKanjiCollectionRepository(session), dictionary
+    )
+
+
+def get_import_public_entry_collection(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> ImportPublicEntryCollection:
+    return ImportPublicEntryCollection(
+        dictionary,
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
+def get_import_public_kanji_collection(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> ImportPublicKanjiCollection:
+    return ImportPublicKanjiCollection(
+        dictionary,
+        SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyKanjiCollectionRepository(session),
+    )
+
+
+def get_latest_entry_source_versions(session: SessionDep) -> LatestEntrySourceVersions:
+    return LatestEntrySourceVersions(SqlAlchemyEntryCollectionRepository(session))
+
+
+def get_latest_kanji_source_versions(session: SessionDep) -> LatestKanjiSourceVersions:
+    return LatestKanjiSourceVersions(SqlAlchemyKanjiCollectionRepository(session))
+
+
+def get_update_entry_collection_from_source(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> UpdateEntryCollectionFromSource:
+    return UpdateEntryCollectionFromSource(
+        dictionary,
+        SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyEntryCollectionRepository(session),
+    )
+
+
+def get_update_kanji_collection_from_source(
+    session: SessionDep,
+    dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+) -> UpdateKanjiCollectionFromSource:
+    return UpdateKanjiCollectionFromSource(
         dictionary,
         SqlAlchemyPracticeKanjiRepository(session),
         SqlAlchemyKanjiCollectionRepository(session),

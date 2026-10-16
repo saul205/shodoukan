@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ...domain.entities import User
+from ...domain.exceptions import EntityNotFoundError
 from ...domain.repositories import UserRepository
 from ..db.mappers import user_to_db, user_to_domain
 from ..db.orm import UserORM
@@ -43,5 +44,12 @@ class SqlAlchemyUserRepository(UserRepository):
     def add(self, user: User) -> User:
         row = user_to_db(user)
         self._session.add(row)
+        self._session.flush()
+        return user_to_domain(row)
+
+    def update(self, user: User) -> User:
+        if self._session.get(UserORM, user.id) is None:
+            raise EntityNotFoundError(f"user {user.id} not found")
+        row = self._session.merge(user_to_db(user))
         self._session.flush()
         return user_to_domain(row)

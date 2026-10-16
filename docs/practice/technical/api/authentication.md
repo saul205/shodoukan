@@ -31,7 +31,7 @@ OpenID Connect). Why: [decisions](../decisions.md#external-identity-provider-ins
 | `iss` | Required, must equal `AUTH_ISSUER` (the realm URL) |
 | `aud` | Must contain `AUTH_AUDIENCE` when it's set (`shodoukan-practice` locally) |
 | `sub` | Required, and must be a **UUID**: it is the practice user's `id` (`users.id`). Otherwise `401` |
-| `preferred_username` | Optional; becomes `users.username` on creation (falls back to `sub`) |
+| `preferred_username` | Optional; becomes `users.username` on creation (falls back to `sub`), and replaces it on a later request when it changed (a token without it keeps the stored name) |
 
 `TokenVerifier.from_env()` builds it from the environment (see
 [configuration](../cross-cutting/configuration.md#authentication)). In tests it's

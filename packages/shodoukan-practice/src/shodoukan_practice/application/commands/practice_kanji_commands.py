@@ -8,7 +8,7 @@ from uuid import UUID
 
 from ...domain.entities import KanjiPart, PracticeKanji
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.repositories import PracticeKanjiRepository
+from ...domain.repositories import KanjiCollectionRepository, PracticeKanjiRepository
 
 
 class _KanjiCommand:
@@ -90,8 +90,27 @@ class RemoveKanjiMeaning(_KanjiCommand):
         return self._kanji.update(kanji)
 
 
-class RemoveKanjiFromLibrary(_KanjiCommand):
-    """Delete the user's copy of a kanji, and take it out of their collections."""
+class RemoveKanjiFromLibrary:
+    """Delete the user's copy of a kanji, and take it out of their collections.
+
+    The dictionary item itself is untouched and can be imported again. Taken
+    out of a copy that its source put it in, it's remembered there as
+    dismissed, so updating that copy doesn't bring it back.
+    """
+
+    def __init__(
+        self, kanji: PracticeKanjiRepository, collections: KanjiCollectionRepository
+    ) -> None:
+        self._kanji = kanji
+        self._collections = collections
 
     def execute(self, user_id: UUID, kanji_id: int) -> None:
-        self._kanji.delete(self._load(user_id, kanji_id))
+        item = self._kanji.get(kanji_id, user_id)
+        if item is None:
+            raise EntityNotFoundError(f"kanji {kanji_id} not found")
+        for collection in self._collections.list_for_item(item):
+            if collection.source_collection_id is not None and (
+                self._collections.is_from_source(collection, item)
+            ):
+                self._collections.dismiss_item(collection, item.shared_key)
+        self._kanji.delete(item)

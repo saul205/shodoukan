@@ -16,6 +16,10 @@ class UserRepository(Protocol):
 
     def add(self, user: User) -> User: ...
 
+    def update(self, user: User) -> User:
+        """Raises `EntityNotFoundError` if the user isn't stored."""
+        ...
+
     def add_if_absent(self, user: User) -> tuple[User, bool]:
         """Store `user` unless one with the same id exists.
 

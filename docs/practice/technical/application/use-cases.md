@@ -80,11 +80,11 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
-### `ImportEntryCollection(dictionary, entries, collections).execute(user_id, shared)`
+### `ImportEntryCollection(dictionary, entries, collections).execute(user_id, shared, source=None)`
 
 Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)
-(an exported file) as a **new** collection named with `free_collection_name` and
-`source_collection_id = shared.id`, and returns a `CollectionImport(collection,
+(an exported file, or a public collection's snapshot) as a **new** collection named
+with `free_collection_name`, and returns a `CollectionImport(collection,
 created, existing, missing)`. For each item, in order:
 
 - a dictionary word the user has is merged (`merge_shared(created=False)`) and stored
@@ -96,9 +96,56 @@ created, existing, missing)`. For each item, in order:
   (`find_own_by_identity`, one query for the whole file): reused and merged, or
   created with `PracticeEntry.from_shared`.
 
-Each is then added to the collection. Doesn't commit, so an error leaves nothing.
+Each is then added to the collection. From a public collection (`source`), the copy
+records `source_collection_id` and `source_version`, its items are linked
+`from_source`, and the parts merged into them list the source among what brings them
+(`source_collection_ids`): what an update from it will be allowed to change. From a
+file there's no source: the copy is never updated, and its parts are **pinned** with
+`FILE` in `source_collection_ids`, which no update removes. Doesn't commit, so an error leaves nothing.
 `ImportKanjiCollection(dictionary, kanji, collections)` does the same by `literal`
 (`missing` holds literals).
+
+## Commands (`commands/public_collection_commands.py`)
+
+Sharing collections; one use case per kind, like the rest. See the
+[proposal](../../proposals/library-authoring-and-sharing.md#sharing-public-collections-82-88-89-90).
+
+### `PublishEntryCollection(collections, entries).execute(user_id, collection_id, include_notes)`
+
+Publishes a new version of one of the user's collections: its snapshot is
+`ExportEntryCollection(active_only=True, include_notes=...)`, stored with
+`save_publication` (replacing the previous one), and `Collection.publish()` bumps
+`published_version` and makes it public. `EntityNotFoundError` for a collection the
+user doesn't have; `ValidationError` with more active items than an import takes.
+
+### `UpdateEntryCollectionFromSource(dictionary, entries, collections).execute(user_id, collection_id)`
+
+Brings a copy up to its source's latest version (#90) and returns a
+`CollectionUpdate` (an import's counts plus `removed`). The source must still be
+public (`EntityNotFoundError` otherwise); an up-to-date copy is left as is. The new
+snapshot's items that the user didn't take out (`dismissed_items`) go through
+`ImportEntryCollection.copy_items(..., prune=True)`: imported or merged as an import
+does, then `prune_source`; they're linked `from_source`. `from_source` items the
+snapshot dropped are unlinked (they stay in the library), and `follow_source` records
+the version; the user's download row takes it too (`record_download`, still one
+download), so the public listing shows it as imported. Every use case that puts an item in a collection (`AddEntryToCollection`,
+`ImportEntry` / `ImportKanji` with collections) goes through `put_entry` / `put_kanji`
+(`commands/collection_membership.py`): putting it back in a copy it was dismissed from
+lifts the dismissal and links it `from_source` again.
+`RemoveEntryFromCollection` and `RemoveEntryFromLibrary` dismiss a `from_source` item it takes out
+of a copy. The kanji use cases are the same.
+
+### `UnpublishEntryCollection(collections).execute(user_id, collection_id)`
+
+`Collection.unpublish()`: private again; its last version, downloads and the rest are
+kept for publishing it again.
+
+### `ImportPublicEntryCollection(dictionary, entries, collections).execute(user_id, collection_id)`
+
+`ImportEntryCollection` with the public collection's snapshot and
+`source_version = published_version`, then `record_download` unless the user is its
+owner. A private or missing collection is `EntityNotFoundError`. The kanji use cases
+(`PublishKanjiCollection`, ...) are the same.
 
 ## Commands (`commands/exercise_commands.py`)
 
@@ -195,8 +242,10 @@ and returns the stored item, with ids for anything new.
 
 Returns the practice user whose `id` is `user_id`, the identity provider's user id
 (the token's `sub`, a UUID), **creating it** with that same id if this is the
-identity's first request. `username`
-(the token's `preferred_username`) is only used on creation. Creation goes through
+identity's first request. `username` (the token's `preferred_username`, `None` if
+it has none) names a new user (its id when `None`), and renames an existing one when it
+changed (`User.rename`, `users.update`): public collections show it, so a rename in
+Keycloak shows up on the user's next request. Creation goes through
 `users.add_if_absent`, so two concurrent first requests create a single user. See
 [decisions](../decisions.md#users-are-created-on-their-first-request).
 
@@ -296,6 +345,38 @@ The collection as a `SharedEntryCollection`: every item (active or not) in the o
 they were added, each `to_shared()`. `EntityNotFoundError` for a collection the user
 doesn't have; `ValidationError` (422) with more than `MAX_SHARED_ITEMS` items, which no
 import would take. `ExportKanjiCollection(collections, kanji)` likewise.
+
+`active_only=True` leaves deactivated items out, and `include_notes=False` the notes
+(entry, sense, kanji): what publishing uses.
+
+## Queries (`queries/public_collection_queries.py`)
+
+A private collection is `EntityNotFoundError` to everyone, its owner included (they
+manage it with the collection use cases).
+
+### `SearchPublicEntryCollections(collections).execute(viewer_id, text=None, owner="all", sort="popular", limit=20, offset=0)`
+
+A `PublicCollectionPage` of `PublicCollectionSummary` (the collection, its owner's
+username, item count, downloads and the version the viewer imported) and the total.
+`build_public_search` trims and lower-cases `text`; `owner` is `mine` / `others` /
+`all`, relative to the viewer; `sort` is `popular` (most downloaded) or `recent`.
+
+### `LatestEntrySourceVersions(collections).execute(user_id)`
+
+`{copy id: source's published version}` for the user's copies whose source is public:
+the routes add it to `CollectionResponse` (`latest_source_version`).
+
+### `GetPublicEntryCollection(collections).execute(viewer_id, collection_id)`
+
+One public collection's summary.
+
+### `PreviewPublicEntryCollection(collections, dictionary).execute(viewer_id, collection_id, limit=20, offset=0)`
+
+A `LibraryPage` of its published version, each word built as importing it into an
+empty library would: a fresh dictionary snapshot plus `merge_shared(created=True)`, or
+`PracticeEntry.from_shared` for a word of the owner's own. Nothing is stored (no
+ids); a word the dictionary no longer has is left out of its page. The kanji queries
+are the same.
 
 A collection's items are listed (and searched) with
 [`SearchEntries` / `SearchKanji`](#queries-querieslibrary_search_queriespy) and

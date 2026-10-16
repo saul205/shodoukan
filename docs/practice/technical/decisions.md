@@ -879,3 +879,68 @@ nothing has to be written after an insert.
   compared within one database (the shared one); a file moved between separate
   databases could match unrelated rows, accepted while there's only one.
 
+## Public collections are published versions
+
+A public collection is a snapshot the owner publishes (v1, v2, …), the same payload as
+an exported file, not a live view of their library. Live was simpler, but every
+half-made edit or private note would be public at once, an import could differ from
+the preview a moment earlier, and a copy would have nothing to compare against to be
+offered an update. Only the latest version is kept: updates don't need the base
+version (see the next entry). Details in the
+[proposal](../proposals/library-authoring-and-sharing.md#sharing-public-collections-82-88-89-90).
+
+## Untouched source content follows the source
+
+An imported collection has no "reference" or "own copy" mode. Each element decides:
+what came from the source and is untouched (membership with `from_source`, parts
+attributed to that collection whose `edited_id` is still the source's) follows the
+source on update, including removals; what the user touched or added is theirs and
+stays. A copy nobody touched is thus replaced by the new version, and a modified one
+keeps every change, without a button to turn one into the other.
+
+Without a base version, a two-way merge can't tell "the user removed it" from "the
+source added it", so the user's removals are recorded (dismissed items per collection,
+`dismissed_versions` per word). Items the source drops leave the collection but never
+the library. Counts (downloads, likes) are rows with a composite key, counted at read
+time: no counter to keep consistent.
+
+## A version counts its owner's edits
+
+#86 took a part's version to be `edited_id` (the row that last wrote it), or the
+part's own id for an original. But an owner editing their own original part left
+both unchanged, so the edit looked like the same version: imports skipped it and
+updates (#90) couldn't replace the old copy. Parts with content now also have a
+`revision`, raised by every edit, and the version is `(edited_id or id, revision)`.
+Copies take both from their source, and an edit by the copy's owner makes the version
+theirs (`edited_id = None`, a new revision).
+
+## Dismissed parts are keyed by kind and identity
+
+Deleting a copied part records it on the word or kanji (`dismissed_parts`) so its
+source doesn't bring it back. Keys are `"<kind>:<identity>"` (`"gloss:12"`): ids are
+per table, so a gloss and a sense can share a number. Identity rather than version: a
+part the user edited and then deleted would otherwise come back in the source's
+version.
+
+## A part remembers every collection that brings it
+
+A copied part first recorded the one collection it came with. When two collections
+the user follows bring the same part, importing the second found it already there in
+that version and didn't record it, so updating the first could remove a part the
+second still brings, with no update left to bring it back. A part now records every
+followed collection that brings it (`source_collection_ids`): importing or updating
+from another one adds it, and an update lets go of its own collection, removing the
+part only when none is left. Ruled out: never removing anything on update, which is
+simpler but piles up every old version in copies nobody touched.
+
+## File imports have no source; their parts are pinned
+
+A collection imported from a file records no source: a file is never published, so it
+never updates, and the id it carries may belong to another database or have been
+edited by hand (it could match an unrelated public collection here). Its parts list
+`FILE` among what brings them, a reference no update removes, so a public collection
+that also brings them can't delete them when it drops them. Re-importing a file creates
+another collection. And an update only drops an own sense if its collection brings
+something in it: a sense from a file, another collection or an older copy isn't its
+to remove.
+

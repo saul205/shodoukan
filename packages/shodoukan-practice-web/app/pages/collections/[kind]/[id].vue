@@ -9,7 +9,9 @@ import {
   listCollectionEntries,
   listCollectionKanji,
   removeFromCollection,
+  updateFromSource,
 } from '~/services/collections'
+import { hasSourceUpdate, updateSummary } from '~/utils/collection-file'
 
 // One collection and its items, with a search (best match first; ?q= in the
 // URL) and the active filter, inactive ones included unless filtered out (as in
@@ -96,6 +98,23 @@ async function removeItem(itemId: number) {
   }
 }
 
+const updating = ref(false)
+
+async function update() {
+  updating.value = true
+  try {
+    const result = await updateFromSource(api, kind.value, id.value)
+    notify.success(`Actualizada a la versión ${result.collection.source_version}`, updateSummary(result))
+    await Promise.all([refreshCollection(), refreshItems()])
+  }
+  catch (failure) {
+    notify.failure(failure, 'No se ha podido actualizar', 'La colección de origen ya no es pública.')
+  }
+  finally {
+    updating.value = false
+  }
+}
+
 async function edit() {
   if (!collection.value) return
   const saved = await overlay.create(CollectionFormModal).open({ kind: kind.value, collection: collection.value }).result
@@ -164,6 +183,16 @@ async function remove() {
           Colección de {{ kind === 'entries' ? 'palabras' : 'kanji' }}<template v-if="items"> · {{ countLabel }}</template>
         </p>
         <p v-if="collection.description" class="text-toned">{{ collection.description }}</p>
+        <UAlert
+          v-if="hasSourceUpdate(collection)"
+          icon="i-lucide-sparkles"
+          color="primary"
+          variant="soft"
+          :title="`Hay una versión nueva (${collection.latest_source_version}) de la colección de origen`"
+          description="Lo que vino de ella y no has tocado se actualiza; tus cambios, lo que quitaste y tus notas se mantienen."
+          :actions="[{ label: 'Actualizar', icon: 'i-lucide-refresh-cw', loading: updating, onClick: update }]"
+          data-testid="source-update"
+        />
       </div>
 
       <div class="flex flex-wrap gap-3">

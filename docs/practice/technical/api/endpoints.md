@@ -286,6 +286,9 @@ same as a missing one.
 | `DELETE` | `/collections/entries/{collection_id}/items/{entry_id}` | `RemoveEntryFromCollection` | `204`, idempotent |
 | `GET` | `/collections/entries/{collection_id}/export` | `ExportEntryCollection` | `200` `EntryCollectionFile` |
 | `POST` | `/collections/entries/import` | `ImportEntryCollection` | `201` `EntryCollectionImportResponse` |
+| `PUT` | `/collections/entries/{collection_id}/publication` | `PublishEntryCollection` | `200` `CollectionResponse` (a new public version) |
+| `DELETE` | `/collections/entries/{collection_id}/publication` | `UnpublishEntryCollection` | `200` `CollectionResponse`, idempotent |
+| `POST` | `/collections/entries/{collection_id}/update` | `UpdateEntryCollectionFromSource` | `200` `EntryCollectionUpdateResponse` (an import's counts plus `removed`); `404` if the source isn't public |
 
 The kanji routes are the same under `/collections/kanji`, with `{kanji_id}` and
 `PracticeKanjiPageResponse`. Item ids are **practice** ids (the `id` returned by the
@@ -299,7 +302,15 @@ import), not dictionary ids.
 
 `name` is stripped and must be 1–100 characters; `description` is optional. `PUT`
 replaces both fields, so an omitted `description` clears it. `CollectionResponse`:
-`id`, `name`, `description`, `created_at`, `updated_at`.
+`id`, `name`, `description`, `is_public`, `published_version` (0 if never published),
+`published_at`, `source_collection_id` and `source_version` (where a copy was imported
+from), `latest_source_version` (its source's current version while public, filled by
+the list and get routes: newer than `source_version` means `POST .../update` applies
+it), `created_at`, `updated_at`.
+
+`PUT .../publication` takes `{ "include_notes": false }` (the default): it publishes
+the collection's active items, with the owner's notes only if `true`. See
+[public collections](#public-collections).
 
 `GET .../items` takes `limit` (1–100, default `20`), `offset` (≥ 0, default `0`) and
 `active` (`true` only active items, `false` only deactivated ones; all if omitted, as
@@ -354,6 +365,34 @@ dictionary no longer has, left out).
 | `404` | No such collection, or no such item in the user's library |
 | `409` | The user already has a collection of that kind with that name (`POST`, `PUT`) |
 | `422` | Invalid body, name, `limit` or `offset`; an invalid or wrong-kind file, or one that lists an item twice; exporting more than 5000 items |
+
+## Public collections
+
+Two routers with the same shape: `/public-collections/entries` and
+`/public-collections/kanji`. Code: `routes/public_collection_routes.py`,
+`schemas/public_collection_schemas.py`. Any signed-in user can read a public
+collection; a private or missing one is a `404`, to its owner too (they manage it
+under `/collections`).
+
+| Method | Route | Use case | Success |
+|---|---|---|---|
+| `GET` | `/public-collections/entries` | `SearchPublicEntryCollections` | `200` `PublicCollectionPageResponse` |
+| `GET` | `/public-collections/entries/{collection_id}` | `GetPublicEntryCollection` | `200` `PublicCollectionResponse` |
+| `GET` | `/public-collections/entries/{collection_id}/items` | `PreviewPublicEntryCollection` | `200` `PracticeEntryPageResponse` |
+| `POST` | `/public-collections/entries/{collection_id}/import` | `ImportPublicEntryCollection` | `201` `EntryCollectionImportResponse` |
+
+- The list takes `q` (in the name, the description and the owner's username,
+  case-insensitive), `owner` (`mine`, `others`, `all`), `sort` (`popular`: most
+  downloaded first; `recent`), `limit` (1–100) and `offset`.
+- `PublicCollectionResponse`: `id`, `name`, `description`, `owner` (username),
+  `is_mine`, `version`, `published_at`, `item_count`, `downloads` (users other than
+  the owner) and `imported_version` (the version the current user last imported).
+- The preview's items are built as importing them would give them to the current
+  user, but aren't stored: their ids are numbered per page only to tell them apart
+  (`preview_ids`). Never use them with the library routes.
+- Importing is the same as `POST /collections/entries/import` with the published
+  snapshot; the copy's `source_version` is the version imported, and the download is
+  counted unless the current user owns it.
 
 ## Exercises
 

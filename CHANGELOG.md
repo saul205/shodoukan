@@ -8,6 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **shodoukan-practice:** Sharing collections. An owner publishes a version of a
+  collection (its active items, notes optional; `PUT/DELETE
+  /collections/{kind}/{id}/publication`), and anyone signed in can search public
+  collections by name, description or owner, preview them as they'd be imported, and
+  import them (`/public-collections/{kind}`), counted as one download per user.
+  Usernames now follow the identity provider's.
+- **shodoukan-practice:** Update an imported copy from its source's new version
+  (`POST /collections/{kind}/{id}/update`; `latest_source_version` says when there is
+  one): what came from the source untouched follows it, the user's changes and
+  removals stay. Editing one's own meaning or example is now a new version of it, so
+  it reaches the copies.
+- **shodoukan-practice-web:** **Colecciones públicas**: search other users' (and your
+  own) public collections, preview them as they'd be imported, and import them.
+  "Mis colecciones" can publish a collection (with or without your notes), publish a
+  new version, or stop sharing it.
+- **shodoukan-practice-web:** A copy of a public collection shows when its source has
+  a new version ("Actualización disponible") and updates it with **Actualizar**.
 - **shodoukan-practice:** Export a collection as a file and import it back, in any
   account (`GET /collections/{entries,kanji}/{id}/export`, `POST
   /collections/{entries,kanji}/import`). The file carries each item's dictionary

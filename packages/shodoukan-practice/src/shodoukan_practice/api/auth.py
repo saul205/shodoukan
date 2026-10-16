@@ -48,7 +48,7 @@ class TokenIdentity:
     """Who a verified token belongs to."""
 
     user_id: UUID  # the token's `sub`
-    username: str
+    username: str | None  # `preferred_username`, if the token has it
 
 
 class TokenVerifier:
@@ -78,8 +78,9 @@ class TokenVerifier:
     def identity(self, token: str) -> TokenIdentity:
         """The verified token's `sub` (a UUID) and `preferred_username`.
 
-        `preferred_username` falls back to `sub`. Practice users are keyed by
-        the provider's user id, so a `sub` that isn't a UUID is rejected.
+        `preferred_username` is `None` when the token lacks it. Practice users
+        are keyed by the provider's user id, so a `sub` that isn't a UUID is
+        rejected.
 
         Raises `jwt.PyJWTError` if the token is malformed, expired, signed by
         an unknown key, or issued for another issuer or audience.
@@ -100,7 +101,7 @@ class TokenVerifier:
             user_id = UUID(subject)
         except ValueError as error:
             raise jwt.InvalidTokenError("the `sub` claim is not a UUID") from error
+        username = claims.get("preferred_username")
         return TokenIdentity(
-            user_id=user_id,
-            username=str(claims.get("preferred_username") or subject),
+            user_id=user_id, username=str(username) if username else None
         )

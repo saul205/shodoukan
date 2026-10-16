@@ -17,8 +17,9 @@ from ...domain.repositories import (
 )
 from ...domain.searches import InCollection, LibrarySearch
 
-# Every item, active or not: an export is the whole collection.
+# An export is the whole collection; a publication only its active items.
 _EVERY_ITEM = LibrarySearch()
+_ACTIVE_ITEMS = LibrarySearch(active=True)
 
 
 class ListEntryCollections:
@@ -71,9 +72,10 @@ class ExportEntryCollection:
     """One of the user's entry collections in its portable form: its items, in
     the order they were added, each with the user's own data.
 
-    Raises `EntityNotFoundError` for a collection the user doesn't have, and
-    `ValidationError` for one with more items than an import takes
-    (`MAX_SHARED_ITEMS`).
+    `active_only` leaves deactivated items out, and `include_notes=False`
+    the notes (both for publishing it). Raises `EntityNotFoundError` for a
+    collection the user doesn't have, and `ValidationError` for one with more
+    items than an import takes (`MAX_SHARED_ITEMS`).
     """
 
     def __init__(
@@ -84,18 +86,26 @@ class ExportEntryCollection:
         self._collections = collections
         self._entries = entries
 
-    def execute(self, user_id: UUID, collection_id: int) -> SharedEntryCollection:
+    def execute(
+        self,
+        user_id: UUID,
+        collection_id: int,
+        *,
+        active_only: bool = False,
+        include_notes: bool = True,
+    ) -> SharedEntryCollection:
         collection = GetEntryCollection(self._collections).execute(
             user_id, collection_id
         )
         scope = InCollection(collection)
-        total = self._entries.count(user_id, _EVERY_ITEM, scope)
-        items = self._entries.find(user_id, _EVERY_ITEM, scope, total, 0)
+        search = _ACTIVE_ITEMS if active_only else _EVERY_ITEM
+        total = self._entries.count(user_id, search, scope)
+        items = self._entries.find(user_id, search, scope, total, 0)
         return SharedEntryCollection(
             id=collection.id,
             name=collection.name,
             description=collection.description,
-            items=[item.to_shared() for item in items],
+            items=[item.to_shared(include_notes) for item in items],
         )
 
 
@@ -111,16 +121,24 @@ class ExportKanjiCollection:
         self._collections = collections
         self._kanji = kanji
 
-    def execute(self, user_id: UUID, collection_id: int) -> SharedKanjiCollection:
+    def execute(
+        self,
+        user_id: UUID,
+        collection_id: int,
+        *,
+        active_only: bool = False,
+        include_notes: bool = True,
+    ) -> SharedKanjiCollection:
         collection = GetKanjiCollection(self._collections).execute(
             user_id, collection_id
         )
         scope = InCollection(collection)
-        total = self._kanji.count(user_id, _EVERY_ITEM, scope)
-        items = self._kanji.find(user_id, _EVERY_ITEM, scope, total, 0)
+        search = _ACTIVE_ITEMS if active_only else _EVERY_ITEM
+        total = self._kanji.count(user_id, search, scope)
+        items = self._kanji.find(user_id, search, scope, total, 0)
         return SharedKanjiCollection(
             id=collection.id,
             name=collection.name,
             description=collection.description,
-            items=[item.to_shared() for item in items],
+            items=[item.to_shared(include_notes) for item in items],
         )

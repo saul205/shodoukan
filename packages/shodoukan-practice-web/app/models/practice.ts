@@ -107,8 +107,48 @@ export interface Collection {
   id: number
   name: string
   description: string | null
+  /** Others can see and import it (its latest published version). */
+  is_public: boolean
+  /** Its latest published version; 0 if never published. */
+  published_version: number
+  published_at: string | null
+  /** For a copy of someone's collection: where it came from, and which version. */
+  source_collection_id: number | null
+  source_version: number | null
+  /** Its source's current version while public (lists and gets); newer than `source_version` = update available. */
+  latest_source_version?: number | null
   created_at: string
   updated_at: string
+}
+
+/** Whose public collections to list, relative to the current user. */
+export type PublicOwner = 'mine' | 'others' | 'all'
+/** `popular`: most downloaded first; `recent`: newest first. */
+export type PublicSort = 'popular' | 'recent'
+
+/** A public collection as listed: its owner and counts. */
+export interface PublicCollection {
+  id: number
+  name: string
+  description: string | null
+  /** The owner's username (a display name). */
+  owner: string
+  is_mine: boolean
+  version: number
+  published_at: string
+  item_count: number
+  /** Users who imported it, its owner apart. */
+  downloads: number
+  /** The version the current user last imported, if they did. */
+  imported_version: number | null
+}
+
+export interface PublicCollectionQuery {
+  q?: string
+  owner?: PublicOwner
+  sort?: PublicSort
+  limit?: number
+  offset?: number
 }
 
 export interface CollectionInput {
@@ -129,6 +169,11 @@ export interface CollectionFile {
   kind: ItemKind
   exported_at: string | null
   collection: { name: string, items: unknown[] }
+}
+
+/** What updating a copy from its source did: an import's counts plus the items it took out. */
+export interface CollectionUpdate extends CollectionImport {
+  removed: number
 }
 
 /** What importing a collection file did. */

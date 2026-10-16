@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addToCollection, exportCollection, importCollection, listCollectionEntries, listCollectionKanji, updateCollection } from '../../app/services/collections'
+import { addToCollection, exportCollection, importCollection, listCollectionEntries, listCollectionKanji, publishCollection, unpublishCollection, updateCollection, updateFromSource } from '../../app/services/collections'
+import { getPublicCollection, importPublicCollection, previewPublicEntries, previewPublicKanji, searchPublicCollections } from '../../app/services/public-collections'
 import { searchDictionary } from '../../app/services/dictionary'
 import { answerQuestion, finishSession, getSession, listSessions, startSession } from '../../app/services/exercise-sessions'
 import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
@@ -107,6 +108,36 @@ describe('practice API services', () => {
     expect(calls).toEqual([
       ['/collections/entries/7/export'],
       ['/collections/kanji/import', { method: 'POST', body: file }],
+    ])
+  })
+
+  it('collections are published and unpublished by kind', async () => {
+    const { api, calls } = fakeApi()
+    await publishCollection(api, 'kanji', 3, true)
+    await unpublishCollection(api, 'entries', 4)
+    await updateFromSource(api, 'kanji', 5)
+
+    expect(calls).toEqual([
+      ['/collections/kanji/3/publication', { method: 'PUT', body: { include_notes: true } }],
+      ['/collections/entries/4/publication', { method: 'DELETE' }],
+      ['/collections/kanji/5/update', { method: 'POST' }],
+    ])
+  })
+
+  it('public collections are searched, previewed and imported by kind', async () => {
+    const { api, calls } = fakeApi()
+    await searchPublicCollections(api, 'entries', { q: 'n5', owner: 'others', sort: 'recent', limit: 24, offset: 0 })
+    await getPublicCollection(api, 'kanji', 5)
+    await previewPublicEntries(api, 5, { limit: 24, offset: 24 })
+    await previewPublicKanji(api, 6)
+    await importPublicCollection(api, 'kanji', 6)
+
+    expect(calls).toEqual([
+      ['/public-collections/entries', { query: { q: 'n5', owner: 'others', sort: 'recent', limit: 24, offset: 0 } }],
+      ['/public-collections/kanji/5'],
+      ['/public-collections/entries/5/items', { query: { limit: 24, offset: 24 } }],
+      ['/public-collections/kanji/6/items', { query: {} }],
+      ['/public-collections/kanji/6/import', { method: 'POST' }],
     ])
   })
 

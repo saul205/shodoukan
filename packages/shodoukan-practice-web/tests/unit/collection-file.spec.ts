@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { collectionFileName, importSummary, parseCollectionFile } from '../../app/utils/collection-file'
+import { collectionFileName, hasSourceUpdate, importSummary, parseCollectionFile, updateSummary } from '../../app/utils/collection-file'
 
 const header = { format: 'shodoukan.collection', version: 1, kind: 'entries', exported_at: null }
 
@@ -28,5 +28,15 @@ describe('collection files', () => {
       .toBe('1 nuevo, 2 ya estaban en tu librería')
     expect(importSummary({ collection, created: 0, existing: 1, missing: ['𠮟'] }))
       .toBe('0 nuevos, 1 ya estaba en tu librería, 1 ya no está en el diccionario (𠮟)')
+  })
+
+  it('tells when a copy can be updated, and sums up an update', () => {
+    const copy = { id: 1, name: 'N5', description: null, is_public: false, published_version: 0, published_at: null,
+      source_collection_id: 9, source_version: 2, latest_source_version: 3, created_at: '', updated_at: '' }
+    expect(hasSourceUpdate(copy)).toBe(true)
+    expect(hasSourceUpdate({ ...copy, latest_source_version: 2 })).toBe(false)
+    expect(hasSourceUpdate({ ...copy, source_collection_id: null, source_version: null, latest_source_version: null })).toBe(false)
+    expect(updateSummary({ collection: copy, created: 1, existing: 3, missing: [], removed: 1 }))
+      .toBe('1 nuevo, 3 revisados, 1 quitado de la colección')
   })
 })

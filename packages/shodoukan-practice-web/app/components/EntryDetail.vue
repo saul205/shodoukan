@@ -19,6 +19,11 @@ const props = withDefaults(defineProps<{
   entry: PracticeEntry
   viewOnly?: boolean
   saving?: boolean
+  /**
+   * In a public collection's preview: what isn't the dictionary's is what the
+   * collection brings, marked "Nuevo", and its notes are the collection's.
+   */
+  fromCollection?: boolean
   onAddSense?: (text: string) => Saved
   onAddGloss?: (senseId: number, text: string) => Saved
   onEditGloss?: (glossId: number, text: string) => Saved
@@ -41,6 +46,14 @@ const addExample = (senseId: number) => (japanese: string, translation: string |
   props.onAddExample?.(senseId, japanese, translation) ?? NOT_SAVED
 const editExample = (exampleId: number, japanese: string, translation: string | null) =>
   props.onEditExample?.(exampleId, japanese, translation) ?? NOT_SAVED
+
+// Read-only, the spellings and readings someone added, besides the headword.
+const addedForms = computed(() =>
+  props.viewOnly
+    ? [...props.entry.kanji_readings.map(k => ({ ...k, text: k.kanji })), ...props.entry.readings]
+        .filter(form => form.origin === 'added' && form.enabled)
+    : [],
+)
 
 const { glossCode, lang, options: languages } = useMeaningLang()
 const languageLabel = computed(() => languages.find(l => l.value === lang.value)?.label ?? lang.value)
@@ -87,8 +100,18 @@ async function addSense() {
       <div class="flex flex-wrap gap-1">
         <UBadge v-if="entry.jlpt" :label="`JLPT N${entry.jlpt}`" variant="soft" />
         <UBadge v-if="entry.is_common" label="común" color="success" variant="soft" />
-        <UBadge v-if="entry.source_entry_id === null" label="palabra propia" color="primary" variant="soft" data-testid="own-word" />
+        <AddedBadge
+          v-if="entry.source_entry_id === null"
+          word
+          :from-collection="fromCollection"
+          size="md"
+          data-testid="own-word"
+        />
       </div>
+      <p v-if="addedForms.length" class="flex flex-wrap items-center gap-2 text-sm text-toned" data-testid="added-forms">
+        <span v-for="form in addedForms" :key="`${form.id}-${form.text}`" class="font-japanese">{{ form.text }}</span>
+        <AddedBadge :from-collection="fromCollection" />
+      </p>
     </header>
 
     <section aria-labelledby="senses" class="space-y-4">
@@ -117,7 +140,7 @@ async function addSense() {
           <span v-if="sense.misc.length || sense.info.length" class="text-xs text-muted italic">
             {{ [...sense.misc, ...sense.info].join(' · ') }}
           </span>
-          <UBadge v-if="sense.origin === 'added'" label="propio" color="primary" variant="soft" size="sm" />
+          <AddedBadge v-if="sense.origin === 'added'" :from-collection="fromCollection" />
           <span v-if="!viewOnly && !sense.enabled" class="text-xs text-dimmed">oculto al practicar</span>
           <UButton
             v-if="!viewOnly && sense.origin === 'added'"
@@ -138,6 +161,7 @@ async function addSense() {
             :meanings="meaningsOf(sense)"
             keep-last
             :view-only="viewOnly"
+            :from-collection="fromCollection"
             :disabled="saving"
             @toggle="(glossId, enabled) => emit('toggle', 'glosses', glossId, enabled)"
             :on-add="addGloss(sense.id)"
@@ -149,6 +173,7 @@ async function addSense() {
             :examples="sense.examples"
             :gloss-lang="glossCode"
             :view-only="viewOnly"
+            :from-collection="fromCollection"
             :disabled="saving"
             @toggle="(exampleId, enabled) => emit('toggle', 'examples', exampleId, enabled)"
             :on-add="addExample(sense.id)"
@@ -157,7 +182,7 @@ async function addSense() {
           />
 
           <p v-if="viewOnly && sense.notes" class="text-sm whitespace-pre-line text-toned" data-testid="sense-notes">
-            {{ sense.notes }}
+            <span v-if="fromCollection" class="font-medium text-muted">Nota de la colección: </span>{{ sense.notes }}
           </p>
           <NotesEditor
             v-else-if="!viewOnly"

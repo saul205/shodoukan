@@ -31,6 +31,7 @@ span several of their rows (starting an exercise session).
 | `get(user_id)` | `User \| None` (`user_id` is the identity provider's user id, a UUID) |
 | `add(user)` | the stored `User` (with id) |
 | `add_if_absent(user)` | `(stored user, created)`: stores it unless a user with the same id exists; safe against concurrent first requests |
+| `update(user)` | the stored `User`; `EntityNotFoundError` if it isn't stored |
 
 ## `PracticeEntryRepository` / `PracticeKanjiRepository`
 
@@ -78,11 +79,30 @@ and the user still needs to find the item to manage it.
 | `get(id, user_id)` | the collection or `None` |
 | `list_for_user(user_id)` | the user's collections, by name |
 | `list_for_item(item)` | the collections (tags) the item belongs to, by name |
-| `add_item(collection, item)` | links the item; no-op if already linked; `CollectionOwnershipError` if the item belongs to another user |
+| `add_item(collection, item, from_source=False)` | links the item; no-op if already linked; `CollectionOwnershipError` if the item belongs to another user. `from_source`: an import from the collection's source put it there |
 | `remove_item(collection, item)` | unlinks the item; no-op if not linked |
 | `item_ids(collections)` | distinct ids of the **active** items across the collections |
 | `add(collection)` / `update(collection)` | the stored collection; `CollectionNameTakenError` if the user already has a collection of that kind with that name |
 | `delete(collection)` | removes the collection and its links; the items stay |
+
+Sharing (the same in both):
+
+| Method | Returns / behavior |
+|---|---|
+| `save_publication(collection, shared, includes_notes)` | stores the published snapshot, replacing the previous one |
+| `get_publication(collection)` | the snapshot (`SharedEntryCollection` / `SharedKanjiCollection`), or `None` if never published |
+| `get_public(collection_id)` | the collection if it's public, **whoever owns it** |
+| `find_public(search, viewer_id, limit, offset)` / `count_public(search, viewer_id)` | public collections matching a `PublicCollectionSearch` (`domain/searches/public_collection_search.py`: `text` in the name, description or owner's username; `owner` relative to the viewer; `sort`), as `PublicCollectionSummary` |
+| `public_summary(collection, viewer_id)` | one collection's summary |
+| `record_download(collection, user_id, version)` | one row per user, keeping the latest version; a savepoint makes concurrent first imports safe. Downloads are counted at read time, without the owner's |
+
+Following a source (#90):
+
+| Method | Returns / behavior |
+|---|---|
+| `is_from_source(collection, item)` / `source_item_ids(collection)` | whether the source put the item there / the ids of those items |
+| `dismiss_item(collection, key)` / `undismiss_item(collection, key)` / `dismissed_items(collection)` | remember the shared key of an item the user took out of a copy (idempotent) / forget it (whether it was there) / those keys |
+| `latest_source_versions(user_id)` | `{copy id: source's published_version}` for the user's copies whose source is public |
 
 ## `ExerciseRepository`
 

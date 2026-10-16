@@ -2,14 +2,21 @@
 import type { DropdownMenuItem, TabsItem } from '@nuxt/ui'
 import CollectionFormModal from '~/components/CollectionFormModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
+import PublishCollectionModal from '~/components/PublishCollectionModal.vue'
 import type { Collection, ItemKind } from '~/models/practice'
-import { deleteCollection, exportCollection, importCollection, listCollections } from '~/services/collections'
+import {
+  deleteCollection,
+  exportCollection,
+  importCollection,
+  listCollections,
+  unpublishCollection,
+} from '~/services/collections'
 import { apiStatus } from '~/utils/api-error'
-import { downloadCollectionFile, importSummary, parseCollectionFile } from '~/utils/collection-file'
+import { downloadCollectionFile, hasSourceUpdate, importSummary, parseCollectionFile } from '~/utils/collection-file'
 
 // "Mis colecciones": word and kanji collections in tabs; create, edit and
-// delete them, open one to see its items, and export one to a file or import
-// one from a file (into a new collection).
+// delete them, open one to see its items, export one to a file or import
+// one from a file (into a new collection), and publish one for others.
 
 const route = useRoute()
 const router = useRouter()
@@ -36,6 +43,7 @@ const { data: collections, status, error, refresh } = useAsyncData(
 
 const form = overlay.create(CollectionFormModal)
 const confirm = overlay.create(ConfirmModal)
+const publisher = overlay.create(PublishCollectionModal)
 
 async function create() {
   const saved = await form.open({ kind: kind.value }).result
@@ -111,12 +119,51 @@ async function importFromFile(event: Event) {
   }
 }
 
+async function publish(collection: Collection) {
+  const published = await publisher.open({ kind: kind.value, collection }).result
+  if (published) {
+    notify.success(`«${published.name}» publicada (versión ${published.published_version})`)
+    await refresh()
+  }
+}
+
+async function unpublish(collection: Collection) {
+  const confirmed = await confirm.open({
+    title: `¿Dejar de publicar «${collection.name}»?`,
+    description: 'Nadie más podrá verla ni importarla. Quien ya la importó conserva su copia.',
+  }).result
+  if (!confirmed) return
+  try {
+    await unpublishCollection(api, kind.value, collection.id)
+    notify.success('Ya no es pública')
+    await refresh()
+  }
+  catch (failure) {
+    notify.failure(failure, 'No se ha podido dejar de publicar')
+  }
+}
+
+function sharing(collection: Collection): DropdownMenuItem[] {
+  if (!collection.is_public)
+    return [{ label: 'Publicar', icon: 'i-lucide-globe', onSelect: () => publish(collection) }]
+  return [
+    { label: 'Publicar nueva versión', icon: 'i-lucide-globe', onSelect: () => publish(collection) },
+    {
+      label: 'Ver en colecciones públicas',
+      icon: 'i-lucide-external-link',
+      to: `/public-collections/${kind.value}/${collection.id}`,
+    },
+    { label: 'Dejar de publicar', icon: 'i-lucide-globe-lock', onSelect: () => unpublish(collection) },
+  ]
+}
+
 function actions(collection: Collection): DropdownMenuItem[][] {
   return [
     [
       { label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => edit(collection) },
       { label: 'Exportar', icon: 'i-lucide-download', onSelect: () => exportToFile(collection) },
     ],
+    sharing(collection),
     [{ label: 'Eliminar', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => remove(collection) }],
   ]
 }
@@ -170,7 +217,27 @@ function actions(collection: Collection): DropdownMenuItem[][] {
       <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <UCard v-for="collection in collections" :key="collection.id" :ui="{ body: 'p-4 sm:p-4 flex items-start gap-3' }">
           <NuxtLink :to="`/collections/${kind}/${collection.id}`" class="min-w-0 flex-1">
-            <p class="truncate font-medium text-highlighted">{{ collection.name }}</p>
+            <p class="flex items-center gap-2">
+              <span class="truncate font-medium text-highlighted">{{ collection.name }}</span>
+              <UBadge
+                v-if="hasSourceUpdate(collection)"
+                label="Actualización disponible"
+                icon="i-lucide-sparkles"
+                color="primary"
+                variant="soft"
+                size="sm"
+                class="shrink-0"
+              />
+              <UBadge
+                v-if="collection.is_public"
+                :label="`Pública · v${collection.published_version}`"
+                icon="i-lucide-globe"
+                color="success"
+                variant="soft"
+                size="sm"
+                class="shrink-0"
+              />
+            </p>
             <p class="line-clamp-2 text-sm text-muted">{{ collection.description || 'Sin descripción' }}</p>
           </NuxtLink>
           <UDropdownMenu :items="actions(collection)" :content="{ align: 'end' }">

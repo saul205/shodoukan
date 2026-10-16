@@ -25,6 +25,7 @@ from shodoukan_practice.application.queries import (
     ExportKanjiCollection,
 )
 from shodoukan_practice.domain.entities import (
+    FILE,
     EntryCollection,
     KanjiCollection,
     PracticeEntry,
@@ -311,6 +312,7 @@ def exported_verbs(
 
 def test_import_copies_a_collection_into_another_library(
     import_entries: ImportEntryCollection,
+    collections: SqlAlchemyEntryCollectionRepository,
     exported_verbs: SharedEntryCollection,
     entries: SqlAlchemyPracticeEntryRepository,
     other_user: UserORM,
@@ -319,12 +321,15 @@ def test_import_copies_a_collection_into_another_library(
 
     assert (result.created, result.existing, result.missing) == (2, 0, [])
     assert result.collection.name == "verbs"
-    assert result.collection.source_collection_id == exported_verbs.id
+    # From a file: no source, so never updated, and its parts are pinned.
+    assert result.collection.source_collection_id is None
+    assert collections.source_item_ids(result.collection) == set()
     eat = entries.get_by_source_entry_id(1000001, other_user.id)
     assert eat is not None
     assert eat.notes == "my note"
     assert eat.kanji_readings[0].enabled is False
     assert [g.text for g in eat.senses[0].glosses][-1] == "to scoff"
+    assert eat.senses[0].glosses[-1].source_collection_ids == [FILE]
     own = entries.find_own_by_identity(
         [exported_verbs.items[1].identity or 0], other_user.id
     )

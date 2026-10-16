@@ -6,11 +6,13 @@ items are looked up scoped to the user, so someone else's is "not found".
 None of them commit; the caller owns the transaction.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 from uuid import UUID
 
 from ...domain.entities import (
+    FILE,
     EntryCollection,
     KanjiCollection,
     PracticeEntry,
@@ -19,6 +21,7 @@ from ...domain.entities import (
     SharedEntryCollection,
     SharedKanji,
     SharedKanjiCollection,
+    SourceRef,
 )
 from ...domain.exceptions import EntityNotFoundError
 from ...domain.gateways import DictionaryGateway
@@ -30,6 +33,7 @@ from ...domain.repositories import (
 )
 from ...domain.services import free_collection_name
 from .collection_lookups import entry_collection, kanji_collection
+from .collection_membership import put_entry, put_kanji
 
 C = TypeVar("C", EntryCollection, KanjiCollection)
 R = TypeVar("R", int, str)
@@ -175,7 +179,9 @@ class AddEntryToCollection:
 
     def execute(self, user_id: UUID, collection_id: int, entry_id: int) -> None:
         collection = entry_collection(self._collections, collection_id, user_id)
-        self._collections.add_item(collection, _entry(self._entries, entry_id, user_id))
+        put_entry(
+            self._collections, collection, _entry(self._entries, entry_id, user_id)
+        )
 
 
 class AddKanjiToCollection:
@@ -189,7 +195,8 @@ class AddKanjiToCollection:
 
     def execute(self, user_id: UUID, collection_id: int, kanji_id: int) -> None:
         collection = kanji_collection(self._collections, collection_id, user_id)
-        self._collections.add_item(collection, _kanji(self._kanji, kanji_id, user_id))
+        kanji = _kanji(self._kanji, kanji_id, user_id)
+        put_kanji(self._collections, collection, kanji)
 
 
 class RemoveEntryFromCollection:
@@ -203,9 +210,13 @@ class RemoveEntryFromCollection:
 
     def execute(self, user_id: UUID, collection_id: int, entry_id: int) -> None:
         collection = entry_collection(self._collections, collection_id, user_id)
-        self._collections.remove_item(
-            collection, _entry(self._entries, entry_id, user_id)
-        )
+        entry = _entry(self._entries, entry_id, user_id)
+        # Taken out of a copy: updates from its source won't bring it back.
+        if collection.source_collection_id is not None and (
+            self._collections.is_from_source(collection, entry)
+        ):
+            self._collections.dismiss_item(collection, entry.shared_key)
+        self._collections.remove_item(collection, entry)
 
 
 class RemoveKanjiFromCollection:
@@ -219,9 +230,13 @@ class RemoveKanjiFromCollection:
 
     def execute(self, user_id: UUID, collection_id: int, kanji_id: int) -> None:
         collection = kanji_collection(self._collections, collection_id, user_id)
-        self._collections.remove_item(
-            collection, _kanji(self._kanji, kanji_id, user_id)
-        )
+        kanji = _kanji(self._kanji, kanji_id, user_id)
+        # Taken out of a copy: updates from its source won't bring it back.
+        if collection.source_collection_id is not None and (
+            self._collections.is_from_source(collection, kanji)
+        ):
+            self._collections.dismiss_item(collection, kanji.shared_key)
+        self._collections.remove_item(collection, kanji)
 
 
 # --- Import ---
@@ -242,15 +257,29 @@ class CollectionImport(Generic[C, R]):
     missing: list[R] = field(default_factory=list)
 
 
+@dataclass
+class CollectionUpdate(CollectionImport[C, R]):
+    """What updating a copy from its source did: as an import, plus
+    `removed`, the items the source dropped that left the collection."""
+
+    removed: int = 0
+
+
 class ImportEntryCollection:
     """Import a shared entry collection (an exported file) as a new collection.
 
     The rules are the aggregate's (`PracticeEntry.merge_shared`): items the
     user has are reused and the missing ones imported from the dictionary,
     words of someone's own are copied unless the user has a copy of them
-    already (same identity), and only what the import creates takes the origin's flags.
-    The collection gets a free name. Doesn't commit: the caller owns the
-    transaction, so an invalid item imports nothing.
+    already (same identity), and only what the import creates takes the
+    origin's flags. The collection gets a free name. Imported from a public
+    collection (`source`), the copy remembers it and its version, its items
+    are marked as the source's (`from_source`) and the parts copied into them
+    as brought by it: what an update from it relies on. From a file there's
+    no source: the copy is never updated, and the parts it copies are pinned
+    (`FILE`), so no update from another collection removes them. Doesn't
+    commit: the caller owns the transaction, so an invalid item
+    imports nothing.
     """
 
     def __init__(
@@ -264,7 +293,10 @@ class ImportEntryCollection:
         self._collections = collections
 
     def execute(
-        self, user_id: UUID, shared: SharedEntryCollection
+        self,
+        user_id: UUID,
+        shared: SharedEntryCollection,
+        source: EntryCollection | None = None,
     ) -> CollectionImport[EntryCollection, int]:
         taken = {c.name for c in self._collections.list_for_user(user_id)}
         collection = self._collections.add(
@@ -273,29 +305,52 @@ class ImportEntryCollection:
                 user_id=user_id,
                 name=free_collection_name(shared.name, taken),
                 description=shared.description,
-                source_collection_id=shared.id,
+                source_collection_id=source.id if source else None,
+                source_version=source.published_version if source else None,
             )
         )
         result: CollectionImport[EntryCollection, int] = CollectionImport(collection)
+        brought_by: SourceRef = source.id if source and source.id else FILE
+        for _, entry in self.copy_items(user_id, shared.items, brought_by, result):
+            self._collections.add_item(collection, entry, from_source=bool(source))
+        return result
+
+    def copy_items(
+        self,
+        user_id: UUID,
+        items: Sequence[SharedEntry],
+        source: SourceRef | None,
+        result: CollectionImport[C, int],
+        prune: bool = False,
+    ) -> list[tuple[SharedEntry, PracticeEntry]]:
+        """Bring each shared word into the user's library, counting in
+        `result`: the stored words, with the shared item each came from.
+        `prune` (an update) also removes what `source` brought, untouched,
+        and no longer has (`PracticeEntry.prune_source`)."""
         own = self._entries.find_own_by_identity(
-            {i.identity for i in shared.items if i.identity is not None}, user_id
+            {i.identity for i in items if i.identity is not None}, user_id
         )
-        for item in shared.items:
+        copied: list[tuple[SharedEntry, PracticeEntry]] = []
+        for item in items:
             entry = (
-                self._own_word(user_id, item, own, result)
+                self._own_word(user_id, item, own, source, result, prune)
                 if item.source_entry_id is None
-                else self._dictionary_word(user_id, item, item.source_entry_id, result)
+                else self._dictionary_word(
+                    user_id, item, item.source_entry_id, source, result, prune
+                )
             )
             if entry is not None:
-                self._collections.add_item(collection, entry)
-        return result
+                copied.append((item, entry))
+        return copied
 
     def _own_word(
         self,
         user_id: UUID,
         item: SharedEntry,
         own: list[PracticeEntry],
-        result: CollectionImport[EntryCollection, int],
+        source: SourceRef | None,
+        result: CollectionImport[C, int],
+        prune: bool,
     ) -> PracticeEntry:
         match = next(
             (
@@ -306,21 +361,24 @@ class ImportEntryCollection:
             None,
         )
         if match is None:
-            entry = self._entries.add(PracticeEntry.from_shared(user_id, item))
+            entry = self._entries.add(PracticeEntry.from_shared(user_id, item, source))
             own.append(entry)  # the file may list it twice
             result.created += 1
             return entry
         result.existing += 1
-        if match.merge_shared(item, created=False):
-            return self._entries.update(match)
-        return match
+        changed = match.merge_shared(item, created=False, source_collection_id=source)
+        if prune and isinstance(source, int):
+            changed |= match.prune_source(item, source)
+        return self._entries.update(match) if changed else match
 
     def _dictionary_word(
         self,
         user_id: UUID,
         item: SharedEntry,
         source_entry_id: int,
-        result: CollectionImport[EntryCollection, int],
+        source: SourceRef | None,
+        result: CollectionImport[C, int],
+        prune: bool,
     ) -> PracticeEntry | None:
         existing = self._entries.get_by_source_entry_id(source_entry_id, user_id)
         if existing is None:
@@ -328,16 +386,19 @@ class ImportEntryCollection:
             if snapshot is None:
                 result.missing.append(source_entry_id)
                 return None
-            snapshot.merge_shared(item, created=True)
+            snapshot.merge_shared(item, created=True, source_collection_id=source)
             entry, created = self._entries.add_if_absent(snapshot)
             if created:
                 result.created += 1
                 return entry
             existing = entry  # imported meanwhile: merge as the user's
         result.existing += 1
-        if existing.merge_shared(item, created=False):
-            return self._entries.update(existing)
-        return existing
+        changed = existing.merge_shared(
+            item, created=False, source_collection_id=source
+        )
+        if prune and isinstance(source, int):
+            changed |= existing.prune_source(item, source)
+        return self._entries.update(existing) if changed else existing
 
 
 class ImportKanjiCollection:
@@ -355,7 +416,10 @@ class ImportKanjiCollection:
         self._collections = collections
 
     def execute(
-        self, user_id: UUID, shared: SharedKanjiCollection
+        self,
+        user_id: UUID,
+        shared: SharedKanjiCollection,
+        source: KanjiCollection | None = None,
     ) -> CollectionImport[KanjiCollection, str]:
         taken = {c.name for c in self._collections.list_for_user(user_id)}
         collection = self._collections.add(
@@ -364,21 +428,40 @@ class ImportKanjiCollection:
                 user_id=user_id,
                 name=free_collection_name(shared.name, taken),
                 description=shared.description,
-                source_collection_id=shared.id,
+                source_collection_id=source.id if source else None,
+                source_version=source.published_version if source else None,
             )
         )
         result: CollectionImport[KanjiCollection, str] = CollectionImport(collection)
-        for item in shared.items:
-            kanji = self._import(user_id, item, result)
-            if kanji is not None:
-                self._collections.add_item(collection, kanji)
+        brought_by: SourceRef = source.id if source and source.id else FILE
+        for _, kanji in self.copy_items(user_id, shared.items, brought_by, result):
+            self._collections.add_item(collection, kanji, from_source=bool(source))
         return result
+
+    def copy_items(
+        self,
+        user_id: UUID,
+        items: Sequence[SharedKanji],
+        source: SourceRef | None,
+        result: CollectionImport[C, str],
+        prune: bool = False,
+    ) -> list[tuple[SharedKanji, PracticeKanji]]:
+        """Bring each shared kanji into the user's library (see
+        `ImportEntryCollection.copy_items`)."""
+        copied: list[tuple[SharedKanji, PracticeKanji]] = []
+        for item in items:
+            kanji = self._import(user_id, item, source, result, prune)
+            if kanji is not None:
+                copied.append((item, kanji))
+        return copied
 
     def _import(
         self,
         user_id: UUID,
         item: SharedKanji,
-        result: CollectionImport[KanjiCollection, str],
+        source: SourceRef | None,
+        result: CollectionImport[C, str],
+        prune: bool,
     ) -> PracticeKanji | None:
         existing = self._kanji.get_by_literal(item.literal, user_id)
         if existing is None:
@@ -386,13 +469,16 @@ class ImportKanjiCollection:
             if snapshot is None:
                 result.missing.append(item.literal)
                 return None
-            snapshot.merge_shared(item, created=True)
+            snapshot.merge_shared(item, created=True, source_collection_id=source)
             kanji, created = self._kanji.add_if_absent(snapshot)
             if created:
                 result.created += 1
                 return kanji
             existing = kanji
         result.existing += 1
-        if existing.merge_shared(item, created=False):
-            return self._kanji.update(existing)
-        return existing
+        changed = existing.merge_shared(
+            item, created=False, source_collection_id=source
+        )
+        if prune and isinstance(source, int):
+            changed |= existing.prune_source(item, source)
+        return self._kanji.update(existing) if changed else existing

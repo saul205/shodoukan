@@ -4,6 +4,7 @@ import type {
   CollectionFile,
   CollectionImport,
   CollectionInput,
+  CollectionUpdate,
   ItemKind,
   SearchQuery,
   PracticeEntry,
@@ -37,6 +38,29 @@ export function updateCollection(
 
 export function deleteCollection(api: ApiClient, kind: ItemKind, id: number): Promise<void> {
   return api(`/collections/${kind}/${id}`, { method: 'DELETE' })
+}
+
+/** Publish a new version: its active items, the user's notes only if `includeNotes`. */
+export function publishCollection(
+  api: ApiClient,
+  kind: ItemKind,
+  id: number,
+  includeNotes: boolean,
+): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}/publication`, {
+    method: 'PUT',
+    body: { include_notes: includeNotes },
+  })
+}
+
+/** Make it private again; its last version is kept. */
+export function unpublishCollection(api: ApiClient, kind: ItemKind, id: number): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}/publication`, { method: 'DELETE' })
+}
+
+/** Bring a copy up to its source's latest version. */
+export function updateFromSource(api: ApiClient, kind: ItemKind, id: number): Promise<CollectionUpdate> {
+  return api<CollectionUpdate>(`/collections/${kind}/${id}/update`, { method: 'POST' })
 }
 
 /** The collection as a file to download (every item, with the user's own data). */

@@ -4,6 +4,7 @@ from .collection_commands import (
     AddEntryToCollection,
     AddKanjiToCollection,
     CollectionImport,
+    CollectionUpdate,
     CreateEntryCollection,
     CreateKanjiCollection,
     DeleteEntryCollection,
@@ -50,6 +51,16 @@ from .practice_kanji_commands import (
     SetKanjiNotes,
     SetKanjiPartEnabled,
 )
+from .public_collection_commands import (
+    ImportPublicEntryCollection,
+    ImportPublicKanjiCollection,
+    PublishEntryCollection,
+    PublishKanjiCollection,
+    UnpublishEntryCollection,
+    UnpublishKanjiCollection,
+    UpdateEntryCollectionFromSource,
+    UpdateKanjiCollectionFromSource,
+)
 from .user_commands import EnsureUser
 
 __all__ = [
@@ -63,6 +74,7 @@ __all__ = [
     "AddKanjiToCollection",
     "AnswerExerciseQuestion",
     "CollectionImport",
+    "CollectionUpdate",
     "CreateEntryCollection",
     "CreateExercise",
     "CreateKanjiCollection",
@@ -79,7 +91,11 @@ __all__ = [
     "ImportEntryCollection",
     "ImportKanji",
     "ImportKanjiCollection",
+    "ImportPublicEntryCollection",
+    "ImportPublicKanjiCollection",
     "ImportResult",
+    "PublishEntryCollection",
+    "PublishKanjiCollection",
     "RemoveEntryExample",
     "RemoveEntryFromCollection",
     "RemoveEntryFromLibrary",
@@ -98,7 +114,11 @@ __all__ = [
     "SetKanjiPartEnabled",
     "SetSenseNotes",
     "StartExerciseSession",
+    "UnpublishEntryCollection",
+    "UnpublishKanjiCollection",
     "UpdateEntryCollection",
+    "UpdateEntryCollectionFromSource",
     "UpdateExercise",
     "UpdateKanjiCollection",
+    "UpdateKanjiCollectionFromSource",
 ]

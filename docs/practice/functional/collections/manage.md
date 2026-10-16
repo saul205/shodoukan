@@ -57,6 +57,9 @@ account or another one (to move it, keep a copy, or give it to someone).
   (hidden parts, notes, active or not).
 - **Importing the same file again duplicates nothing**: it creates another collection
   with the same items, and adds no meaning or word twice.
+- **A collection imported from a file is the user's alone**: it's never updated, and
+  what it brought stays even if a public collection with the same words later drops
+  it.
 - **If someone changed something along the way, both versions are kept.** For example,
   if a meaning the user wrote was edited by whoever passed the collection on, the
   edited one is added next to the user's own: nothing is lost, and the user can delete
@@ -84,7 +87,8 @@ and if the collection can't be used nothing is imported
 ## Privacy
 
 Collections are personal. Nobody else can see, change or add to them; to anyone else
-they simply don't exist.
+they simply don't exist, unless their owner publishes them
+([sharing collections](share.md)).
 
 ## When it doesn't work
 

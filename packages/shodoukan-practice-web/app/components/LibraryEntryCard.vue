@@ -4,7 +4,9 @@ import type { PracticeEntry } from '~/models/practice'
 import { entryHeadword, entryMeanings, entryReading } from '~/utils/practice-text'
 
 // A word of the user's library, as a card that opens its detail page.
-const props = defineProps<{ entry: PracticeEntry; to: RouteLocationRaw }>()
+// Without `to` (a preview) it's not a link.
+const props = defineProps<{ entry: PracticeEntry; to?: RouteLocationRaw }>()
+const link = resolveComponent('NuxtLink')
 
 const { glossCode } = useMeaningLang()
 
@@ -17,11 +19,11 @@ const meanings = computed(() => entryMeanings(props.entry, glossCode.value).slic
     class="h-full transition hover:ring-accented"
     :class="{ 'opacity-60': !entry.is_active }"
   >
-    <NuxtLink :to="to" class="flex flex-1 flex-col gap-1">
+    <component :is="to ? link : 'div'" :to="to" class="flex flex-1 flex-col gap-1">
       <span v-if="entryReading(entry)" class="font-japanese text-xs text-muted">{{ entryReading(entry) }}</span>
       <span class="font-japanese text-xl font-bold text-highlighted">{{ entryHeadword(entry) }}</span>
       <span class="line-clamp-2 text-sm text-toned">{{ meanings || '—' }}</span>
-    </NuxtLink>
+    </component>
     <div class="flex flex-wrap items-center gap-1">
       <UBadge v-if="entry.jlpt" :label="`N${entry.jlpt}`" variant="soft" size="sm" />
       <UBadge v-if="entry.is_common" label="común" color="success" variant="soft" size="sm" />

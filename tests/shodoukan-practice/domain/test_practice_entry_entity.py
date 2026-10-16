@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from shodoukan_practice.domain.entities import (
+    FILE,
     EntryPart,
     PracticeEntry,
     PracticeExample,
@@ -688,3 +689,178 @@ def test_reimporting_the_origin_after_editing_adds_its_version_once() -> None:
     before = stored(b, 300).model_copy(deep=True)
     b.merge_shared(a.to_shared(), created=False)
     assert b == before
+
+
+def test_to_shared_can_leave_the_notes_out() -> None:
+    shared = origin_entry().to_shared(include_notes=False)
+    assert shared.notes is None
+    assert all(s.notes is None for s in shared.senses)
+    assert origin_entry().to_shared().senses[0].notes == "a sense note"
+
+
+def test_copies_remember_the_collection_they_came_with() -> None:
+    entry = fresh_snapshot()
+    entry.merge_shared(origin_entry().to_shared(), created=True, source_collection_id=9)
+
+    sense, own_sense = entry.senses
+    assert [
+        entry.kanji_readings[1].source_collection_ids,
+        entry.readings[1].source_collection_ids,
+        sense.glosses[1].source_collection_ids,
+        sense.examples[1].source_collection_ids,
+        own_sense.glosses[0].source_collection_ids,
+    ] == [[9]] * 5
+    # What the dictionary snapshot brought isn't the collection's.
+    assert sense.glosses[0].source_collection_ids == []
+    own = PracticeEntry.from_shared(USER_ID, own_word().to_shared(), 9)
+    assert own.readings[0].source_collection_ids == [9]
+
+
+# --- Following a source ---
+
+SOURCE = 77
+
+
+def copied_from_source(origin: PracticeEntry, first_id: int) -> PracticeEntry:
+    """A stored copy of `origin` imported with collection SOURCE."""
+    entry = fresh_snapshot()
+    entry.merge_shared(origin.to_shared(), created=True, source_collection_id=SOURCE)
+    return stored(entry, first_id)
+
+
+def test_prune_removes_what_the_source_dropped_untouched() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    origin.kanji_readings.pop()  # 喰べる
+    origin.senses[0].examples.pop()  # パンを食べる。
+    origin.senses.pop()  # the own sense "to live on"
+
+    assert copy.prune_source(origin.to_shared(), SOURCE) is True
+
+    assert [s.kanji for s in copy.kanji_readings] == ["食べる"]
+    assert [e.origin for e in copy.senses[0].examples] == ["imported"]
+    assert [s.origin for s in copy.senses] == ["imported"]
+    # What's still in the source stays.
+    assert "to scoff (colloquial)" in [g.text for g in copy.senses[0].glosses]
+
+
+def test_prune_keeps_what_the_user_touched_or_added() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    own_sense = copy.senses[1]
+    copy.edit_gloss(copy.senses[0].glosses[1].id or 0, "to wolf down")
+    copy.add_gloss(own_sense.id or 0, "to subsist on", "eng")
+    origin.senses[0].glosses.pop()  # the source drops "to scoff"
+    origin.senses.pop()  # and its own sense
+
+    copy.prune_source(origin.to_shared(), SOURCE)
+
+    assert "to wolf down" in [g.text for g in copy.senses[0].glosses]
+    # The own sense stays: the user added to it; only the source's meaning goes.
+    assert [g.text for g in copy.senses[1].glosses] == ["to subsist on"]
+
+
+def test_prune_keeps_a_senses_last_meaning_and_ignores_other_sources() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    copy.senses[1].notes = "mine"  # an own sense with the user's note stays whole
+    origin.senses.pop()
+
+    # The collection lets go of the sense's meaning, which stays, unclaimed.
+    assert copy.prune_source(origin.to_shared(), SOURCE) is True
+    assert [g.text for g in copy.senses[1].glosses] == ["to live on"]
+    assert copy.senses[1].glosses[0].source_collection_ids == []
+    # Nothing comes from collection 5.
+    assert copy.prune_source(make_entry().to_shared(), 5) is False
+
+
+def test_deleting_a_copied_part_remembers_it() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    gloss = copy.senses[0].glosses[1]
+    copy.remove_gloss(gloss.id or 0)
+    copy.remove_sense(copy.senses[1].id or 0)
+
+    # The gloss and the sense share an id number, not an identity.
+    assert copy.dismissed_parts == ["gloss:2", "sense:2"]
+    copy.merge_shared(origin.to_shared(), created=False, source_collection_id=SOURCE)
+    assert [g.text for g in copy.senses[0].glosses] == ["to eat"]
+    assert len(copy.senses) == 1
+    # A part of the user's own isn't remembered when deleted.
+    added = copy.add_spelling("喰う")
+    added.id = 999
+    copy.remove_spelling(999)
+    assert copy.dismissed_parts == ["gloss:2", "sense:2"]
+
+
+def test_shared_keys_match_across_libraries() -> None:
+    assert make_entry().shared_key == "entry:1000001"
+    assert make_entry().to_shared().key == "entry:1000001"
+    word = own_word()
+    copy = PracticeEntry.from_shared(USER_ID, word.to_shared())
+    assert word.shared_key == copy.shared_key == word.to_shared().key == "own:7"
+
+
+def test_the_owners_edit_is_a_new_version_for_their_copies() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    origin.edit_gloss(2, "to wolf down")  # the owner's own meaning, rewritten
+    assert origin.senses[0].glosses[1].revision == 1
+
+    shared = origin.to_shared()
+    copy.merge_shared(shared, created=False, source_collection_id=SOURCE)
+    copy.prune_source(shared, SOURCE)
+
+    assert [g.text for g in copy.senses[0].glosses if g.origin == "added"] == [
+        "to wolf down"
+    ]
+
+
+def test_a_part_another_followed_collection_brings_stays() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)  # through collection SOURCE
+    other = 88  # another collection of the owner's with the same word
+    copy.merge_shared(origin.to_shared(), created=False, source_collection_id=other)
+    gloss = copy.senses[0].glosses[1]
+    assert gloss.source_collection_ids == [SOURCE, other]
+
+    origin.senses[0].glosses.pop()  # SOURCE drops "to scoff" and its own sense
+    origin.senses.pop()
+    copy.prune_source(origin.to_shared(), SOURCE)
+
+    # Still brought by the other collection: kept, only SOURCE let go.
+    assert gloss in copy.senses[0].glosses
+    assert gloss.source_collection_ids == [other]
+    assert len(copy.senses) == 2
+    # When the other one drops them too, they go.
+    copy.prune_source(origin.to_shared(), other)
+    assert gloss not in copy.senses[0].glosses
+    assert len(copy.senses) == 1
+
+
+def test_what_a_file_brought_or_the_source_never_did_stays() -> None:
+    origin = origin_entry()
+    copy = fresh_snapshot()
+    copy.merge_shared(origin.to_shared(), created=True, source_collection_id=FILE)
+    stored(copy, 100)
+    # A public collection with the same word brings the same parts, then drops them.
+    copy.merge_shared(origin.to_shared(), created=False, source_collection_id=SOURCE)
+    gloss = copy.senses[0].glosses[1]
+    assert gloss.source_collection_ids == [FILE, SOURCE]
+    origin.senses[0].glosses.pop()
+    origin.senses.pop()
+
+    copy.prune_source(origin.to_shared(), SOURCE)
+
+    assert gloss in copy.senses[0].glosses  # still pinned by the file
+    assert len(copy.senses) == 2
+
+    # A sense no collection brings (an older copy) isn't another source's to drop.
+    old = copied_from_source(origin_entry(), 300)
+    for sense in old.senses:
+        for gloss in sense.glosses:
+            gloss.source_collection_ids = []
+        for example in sense.examples:
+            example.source_collection_ids = []
+    old.prune_source(make_entry().to_shared(), 5)
+    assert len(old.senses) == 2
