@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shodoukan-practice"
-version = "0.1.0"
+version = "0.3.0"
 description = "Práctica y ejercicios interactivos sobre el diccionario shodoukan"
 license = "MIT"
 requires-python = ">=3.11"
