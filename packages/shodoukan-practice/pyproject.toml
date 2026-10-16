@@ -9,7 +9,7 @@ description = "Práctica y ejercicios interactivos sobre el diccionario shodouka
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
-    "shodoukan>=0.2.0",
+    "shodoukan>=0.3.0",
     "pydantic>=2.0",
     "fastapi>=0.111",
     "uvicorn[standard]>=0.29",

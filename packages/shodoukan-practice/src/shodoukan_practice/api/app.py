@@ -41,6 +41,7 @@ PORT = 8001  # shodoukan-api uses 8000
 def create_app() -> FastAPI:
     app = FastAPI(
         title="shodoukan-practice",
+        version="0.1.0",
         # Swagger UI "Authorize": sign in with Keycloak (authorization code +
         # PKCE) through a public client whose redirect URIs include
         # http://localhost:8001/docs/oauth2-redirect.
