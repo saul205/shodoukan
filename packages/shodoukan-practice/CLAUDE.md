@@ -44,6 +44,8 @@ standalone: never call shodoukan-api from here.
     with `touch()`); `shared_collection_value.py`: the portable form of a collection
     (`SharedEntryCollection`, `SharedEntry`, ...), what export/import carry.
   - `repositories/`: Protocol ports. Read models live with their port:
+    `EntryStudyText` / `KanjiStudyText` (what an exercise's pool reads,
+    `study_texts`) in `practice_entry_repository.py` / `practice_kanji_repository.py`;
     `SessionSummary` in `exercise_session_repository.py`; `AnswerTotals`,
     `DirectionTotals`, `ItemTotals`, `ExerciseTotals`, `AnswerMoment` with the
     read-only `ExerciseStatisticsRepository` in `exercise_statistics_repository.py`.

@@ -176,7 +176,8 @@ Answering and finishing load the session with `get_for_update`, so concurrent
 requests on one session (a double click) run one after the other: the second sees the
 question already answered (`QuestionNotActiveError`). The three of them read the
 exercise's pool the same way: the **active** items of its
-collections (`item_ids`, then `get_many`), as study cards in the session's
+collections (`item_ids`, then `study_texts`: only the text the cards use, never the
+whole items), as study cards in the session's
 `meaning_lang` (as the items store it: `eng` for entries, `en` for kanji). `rng`
 defaults to a new `random.Random`; tests pass a seeded one.
 

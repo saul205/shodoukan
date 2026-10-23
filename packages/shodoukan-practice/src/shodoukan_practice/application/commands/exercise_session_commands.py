@@ -67,7 +67,8 @@ from .collection_lookups import entry_collection, kanji_collection
 
 class _Pool:
     """Reads an exercise's pool: the active items of its collections, as study
-    cards in a meaning language."""
+    cards in a meaning language. Only the text the cards use is read
+    (`study_texts`), not the items' whole snapshots."""
 
     def __init__(
         self,
@@ -90,8 +91,8 @@ class _Pool:
             ]
             ids = self._entry_collections.item_ids(entry_collections)
             return [
-                entry_card(entry, fields, meaning_lang)
-                for entry in self._entries.get_many(ids, user_id)
+                entry_card(entry, fields)
+                for entry in self._entries.study_texts(ids, user_id, meaning_lang)
             ]
         kanji_collections = [
             kanji_collection(self._kanji_collections, cid, user_id)
@@ -99,8 +100,8 @@ class _Pool:
         ]
         ids = self._kanji_collections.item_ids(kanji_collections)
         return [
-            kanji_card(item, fields, meaning_lang)
-            for item in self._kanji.get_many(ids, user_id)
+            kanji_card(item, fields)
+            for item in self._kanji.study_texts(ids, user_id, meaning_lang)
         ]
 
 

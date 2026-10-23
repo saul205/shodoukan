@@ -39,6 +39,7 @@ span several of their rows (starting an exercise session).
 |---|---|
 | `get(id, user_id)` | the item or `None` |
 | `get_many(ids, user_id)` | the user's items among `ids`, ordered by id |
+| `study_texts(ids, user_id, meaning_lang)` | `EntryStudyText` / `KanjiStudyText` of the user's items among `ids`, ordered by id: only what an exercise studies (see below); reads columns, no snapshot |
 | `find(user_id, search, scope, limit, offset)` | the user's items matching a [`LibrarySearch`](#library-search-domainsearches) within a scope, best match first, then the scope's order; paginated. Without text, only the scope and `active` filter |
 | `count(user_id, search, scope)` | how many items `find` pages through |
 | `get_by_source_entry_id(source_entry_id, user_id)` / `get_by_literal(literal, user_id)` | the user's copy of that dictionary item, or `None` |
@@ -48,6 +49,13 @@ span several of their rows (starting an exercise session).
 | `add_if_absent(item)` | `(stored item, created)`: stores it unless the user already has it, and is safe against a concurrent import of the same item |
 | `update(item)` | the stored item. Replaces the whole snapshot: nested parts with an id are updated, those without one are inserted, missing ones are deleted |
 | `delete(item)` | removes it from the library with its nested parts and collection links; `EntityNotFoundError` if it isn't stored for its user |
+
+`EntryStudyText(id, spellings, readings, sense_glosses)` and
+`KanjiStudyText(id, literal, onyomi, kunyomi, meanings)` are frozen read models
+defined with their port. They hold the enabled parts only, in order, with meanings in
+`meaning_lang`: an entry's `sense_glosses` are the enabled glosses in that language of
+each enabled sense that has any. An exercise's pool is read through them
+([decision](../decisions.md#an-exercises-pool-reads-a-study-read-model)).
 
 ## Library search (`domain/searches/`)
 

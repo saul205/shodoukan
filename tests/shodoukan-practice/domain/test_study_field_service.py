@@ -10,11 +10,14 @@ from shodoukan_practice.domain.entities import (
     StudyField,
 )
 from shodoukan_practice.domain.services import (
+    FieldValue,
     entry_card,
     entry_label,
+    entry_study_text,
     gloss_key,
     kana_key,
     kanji_card,
+    kanji_study_text,
 )
 
 
@@ -40,11 +43,15 @@ def _stored(item: T, item_id: int) -> T:
     return item.model_copy(update={"id": item_id})
 
 
+def _meaning(entry: PracticeEntry, lang: str) -> tuple[FieldValue, ...]:
+    return entry_card(entry_study_text(entry, lang), ENTRY_FIELDS).get("meaning")
+
+
 def test_entry_card_reads_enabled_parts() -> None:
     entry = _stored(make_entry(USER_ID), 7)
     entry.readings[1].enabled = False  # くう hidden
 
-    card = entry_card(entry, ENTRY_FIELDS, "eng")
+    card = entry_card(entry_study_text(entry, "eng"), ENTRY_FIELDS)
 
     assert card.item_id == 7
     assert [v.text for v in card.get("writing")] == ["食べる"]
@@ -55,10 +62,8 @@ def test_entry_card_reads_enabled_parts() -> None:
 
 def test_entry_meaning_is_the_first_sense_in_the_language() -> None:
     entry = _stored(make_word(USER_ID, 1, "橋", "はし", [("puente", "spa")]), 1)
-    assert entry_card(entry, ENTRY_FIELDS, "eng").get("meaning") == ()
-    assert [v.text for v in entry_card(entry, ENTRY_FIELDS, "spa").get("meaning")] == [
-        "puente"
-    ]
+    assert _meaning(entry, "eng") == ()
+    assert [v.text for v in _meaning(entry, "spa")] == ["puente"]
 
 
 def test_entry_meaning_skips_disabled_senses() -> None:
@@ -66,9 +71,7 @@ def test_entry_meaning_skips_disabled_senses() -> None:
     entry.add_sense("to dine", "eng")
     entry.senses[0].enabled = False
 
-    assert [v.text for v in entry_card(entry, ENTRY_FIELDS, "eng").get("meaning")] == [
-        "to dine"
-    ]
+    assert [v.text for v in _meaning(entry, "eng")] == ["to dine"]
 
 
 def test_entry_meaning_joins_glosses_and_keys_each() -> None:
@@ -78,40 +81,41 @@ def test_entry_meaning_joins_glosses_and_keys_each() -> None:
         ),
         1,
     )
-    (meaning,) = entry_card(entry, ENTRY_FIELDS, "eng").get("meaning")
+    (meaning,) = _meaning(entry, "eng")
     assert meaning.text == "to speak; to talk"
     assert meaning.keys == {"speak", "talk"}
 
 
 def test_only_the_first_spelling_and_reading_of_a_word_are_asked() -> None:
     entry = _stored(make_entry(USER_ID), 7)  # たべる, then くう
-    card = entry_card(entry, ENTRY_FIELDS, "eng")
+    card = entry_card(entry_study_text(entry, "eng"), ENTRY_FIELDS)
 
     assert [v.text for v in card.get("reading")] == ["たべる", "くう"]
     assert [v.text for v in card.answers("reading")] == ["たべる"]
     assert card.keys("reading") == {"たべる", "くう"}  # still compared
 
     entry.readings[0].enabled = False
-    card = entry_card(entry, ENTRY_FIELDS, "eng")
+    card = entry_card(entry_study_text(entry, "eng"), ENTRY_FIELDS)
     assert [v.text for v in card.answers("reading")] == ["くう"]
 
 
 def test_every_kanji_reading_can_be_asked() -> None:
-    card = kanji_card(_stored(make_kanji(USER_ID), 3), KANJI_FIELDS, "en")
+    card = kanji_card(
+        kanji_study_text(_stored(make_kanji(USER_ID), 3), "en"), KANJI_FIELDS
+    )
     assert [v.text for v in card.answers("kunyomi")] == ["た.べる", "く.う"]
 
 
 def test_kana_only_word_has_no_writing() -> None:
     entry = _stored(make_word(USER_ID, 1, None, "これ", [("this", "eng")]), 1)
-    card = entry_card(entry, ENTRY_FIELDS, "eng")
+    card = entry_card(entry_study_text(entry, "eng"), ENTRY_FIELDS)
     assert not card.has("writing")
     assert card.has("reading", "meaning")
 
 
 def test_only_requested_fields_are_read() -> None:
-    card = entry_card(
-        _stored(make_entry(USER_ID), 1), frozenset[StudyField]({"reading"}), "eng"
-    )
+    text = entry_study_text(_stored(make_entry(USER_ID), 1), "eng")
+    card = entry_card(text, frozenset[StudyField]({"reading"}))
     assert set(card.values) == {"reading"}
 
 
@@ -119,7 +123,7 @@ def test_kanji_card() -> None:
     kanji = _stored(make_kanji(USER_ID), 3)
     kanji.meanings[1].enabled = False  # "food" hidden
 
-    card = kanji_card(kanji, KANJI_FIELDS, "en")
+    card = kanji_card(kanji_study_text(kanji, "en"), KANJI_FIELDS)
 
     assert [v.text for v in card.get("literal")] == ["食"]
     assert [v.text for v in card.get("onyomi")] == ["ショク"]

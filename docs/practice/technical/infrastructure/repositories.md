@@ -38,6 +38,13 @@ The nested snapshot is loaded eagerly with `selectinload`, one query per level
 (entry → readings, senses → glosses, examples → sentences), so lists don't trigger
 N+1 queries.
 
+`study_texts` doesn't load the snapshot: it selects columns only, one query per part
+(the owned ids, then enabled spellings, readings and glosses of enabled senses in the
+language, or a kanji's readings and meanings), ordered by `position` and grouped in
+Python. No ORM objects are built, which is what makes an exercise's pool cheap:
+with 1000 real JMDict entries (about 22,500 glosses) it takes about 30 ms, where
+`get_many` takes over a second.
+
 ## Searching the library
 
 `find` / `count` build one query (`_search`) shared by both, so the total always

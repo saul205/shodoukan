@@ -26,10 +26,14 @@ the name so the suffix fits.
 
 ### `study_field_service`: reading what an exercise studies
 
-`entry_card(entry, fields, meaning_lang)` / `kanji_card(kanji, fields, meaning_lang)`
-build a `StudyCard`: the item's id and, for each field, its enabled values as
-`FieldValue(text, keys)`. `meaning_lang` is the language as the items store it (`eng`
-for glosses, `en` for kanji meanings). Keys are what values are compared by:
+`entry_card(text, fields)` / `kanji_card(text, fields)` build a `StudyCard` from an
+item's study read model (`EntryStudyText` / `KanjiStudyText`, see
+[repository ports](repository-ports.md)): the item's id and, for each field, its
+enabled values as `FieldValue(text, keys)`; a word's meaning is its first sense's
+glosses. `entry_study_text(entry, meaning_lang)` / `kanji_study_text(kanji,
+meaning_lang)` turn a loaded aggregate into that read model, with the same rules the
+repositories apply in SQL. `meaning_lang` is the language as the items store it
+(`eng` for glosses, `en` for kanji meanings). Keys are what values are compared by:
 `kana_key` (katakana as hiragana, no `.` or `-`) and `gloss_key` (lower-case, no
 "to ", no parentheses), one key per gloss of a meaning. `StudyCard.answers(field)`
 is what can be asked or offered: only the first value of a word's `writing` and

@@ -15,6 +15,7 @@ from shodoukan_practice.domain.searches import (
     SearchScope,
     WholeLibrary,
 )
+from shodoukan_practice.domain.services import kanji_study_text
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
@@ -49,6 +50,30 @@ def test_get_is_scoped_to_the_owner(
     added = repo.add(make_kanji(user.id))
     assert added.id is not None
     assert repo.get(added.id, other_user.id) is None
+
+
+def test_study_texts_read_what_the_kanji_studies(
+    repo: SqlAlchemyPracticeKanjiRepository, user: UserORM, other_user: UserORM
+) -> None:
+    kanji = make_kanji(user.id, "食")  # ショク; た.べる, く.う; eat, food
+    kanji.kun_readings[0].enabled = False
+    kanji.meanings[0].enabled = False
+    kanji.add_meaning("comer", "es")
+    kanji.nanori.append(PracticeReadingItem(id=None, text="あき"))
+    mine = repo.add(kanji)
+    water = repo.add(make_kanji(user.id, "水"))
+    theirs = repo.add(make_kanji(other_user.id, "火"))
+    ids = [k.id for k in (water, theirs, mine) if k.id is not None]
+
+    texts = repo.study_texts(ids, user.id, "en")
+
+    assert texts == [kanji_study_text(k, "en") for k in repo.get_many(ids, user.id)]
+    assert (texts[0].onyomi, texts[0].kunyomi, texts[0].meanings) == (
+        ("ショク",),
+        ("く.う",),
+        ("food",),
+    )
+    assert repo.study_texts(ids, user.id, "es")[0].meanings == ("comer",)
 
 
 def test_get_many_skips_other_users(

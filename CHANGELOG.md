@@ -218,6 +218,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   were paginated separately and merged afterwards.
 - **shodoukan:** Kanji are found by their on-readings. These are stored in katakana and
   were compared with the hiragana of the search, so `kai` didn't list 会, 海 or 回.
+- **shodoukan-practice:** Exercise questions were slow with large collections (about
+  1 s each with 1000 words): every question loaded the whole library items of the
+  pool. The pool now reads only the text the cards use (`study_texts`), about 50 ms
+  per question.
 
 ### Changed
 

@@ -211,8 +211,9 @@ Further rules:
 
 Pure domain services, testable with a seeded `random.Random`:
 
-- `domain/services/study_field_service.py`: reads a field's values from a
-  `PracticeEntry` / `PracticeKanji`, and builds their comparison keys. Katakana to
+- `domain/services/study_field_service.py`: reads a field's values from an item's
+  study read model (`EntryStudyText` / `KanjiStudyText`, read by the item
+  repositories' `study_texts`), and builds their comparison keys. Katakana to
   hiragana is a code-point shift, so the domain doesn't need the `KanaGateway`.
 - `domain/services/question_order_service.py`: which item comes next (see
   [which item comes next](#which-item-comes-next)), shared by every card type, and

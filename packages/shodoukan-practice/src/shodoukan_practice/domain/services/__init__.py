@@ -25,10 +25,12 @@ from .study_field_service import (
     StudyCard,
     entry_card,
     entry_label,
+    entry_study_text,
     gloss_key,
     kana_key,
     kanji_card,
     kanji_literal,
+    kanji_study_text,
 )
 from .word_grading_service import KANA, SMALL_TWINS, TWINS, grade_word
 from .word_handwriting_question_service import (
@@ -64,6 +66,7 @@ __all__ = [
     "ensure_enough_writable_items",
     "entry_card",
     "entry_label",
+    "entry_study_text",
     "fits_prompt",
     "free_collection_name",
     "gloss_key",
@@ -74,6 +77,7 @@ __all__ = [
     "kana_key",
     "kanji_card",
     "kanji_literal",
+    "kanji_study_text",
     "word_characters",
     "writable_items",
     "written_word",

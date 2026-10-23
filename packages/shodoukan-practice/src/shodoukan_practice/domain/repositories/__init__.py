@@ -18,8 +18,8 @@ from .exercise_statistics_repository import (
     ItemTotals,
 )
 from .kanji_collection_repository import KanjiCollectionRepository
-from .practice_entry_repository import PracticeEntryRepository
-from .practice_kanji_repository import PracticeKanjiRepository
+from .practice_entry_repository import EntryStudyText, PracticeEntryRepository
+from .practice_kanji_repository import KanjiStudyText, PracticeKanjiRepository
 from .user_repository import UserRepository
 
 __all__ = [
@@ -27,12 +27,14 @@ __all__ = [
     "AnswerTotals",
     "DirectionTotals",
     "EntryCollectionRepository",
+    "EntryStudyText",
     "ExerciseRepository",
     "ExerciseSessionRepository",
     "ExerciseStatisticsRepository",
     "ExerciseTotals",
     "ItemTotals",
     "KanjiCollectionRepository",
+    "KanjiStudyText",
     "PracticeEntryRepository",
     "PracticeKanjiRepository",
     "SessionSummary",

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any, TypeVar
 from uuid import UUID
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ...domain.entities import KanjiCollection, PracticeKanji
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.repositories import PracticeKanjiRepository
+from ...domain.repositories import KanjiStudyText, PracticeKanjiRepository
 from ...domain.searches import (
     InCollection,
     LibrarySearch,
@@ -68,6 +69,52 @@ class SqlAlchemyPracticeKanjiRepository(PracticeKanjiRepository):
             .order_by(PracticeKanjiORM.id)
         )
         return [practice_kanji_to_domain(row) for row in self._session.scalars(query)]
+
+    def study_texts(
+        self, ids: Iterable[int], user_id: UUID, meaning_lang: str
+    ) -> list[KanjiStudyText]:
+        # Columns only, one query per part: no ORM objects or whole snapshots.
+        wanted = list(ids)
+        owned = (PracticeKanjiORM.id.in_(wanted), PracticeKanjiORM.user_id == user_id)
+        literals = self._session.execute(
+            select(PracticeKanjiORM.id, PracticeKanjiORM.literal)
+            .where(*owned)
+            .order_by(PracticeKanjiORM.id)
+        )
+        readings: defaultdict[tuple[int, str], list[str]] = defaultdict(list)
+        for kanji_id, kind, text in self._session.execute(
+            select(
+                PracticeKanjiReadingItemORM.kanji_id,
+                PracticeKanjiReadingItemORM.kind,
+                PracticeKanjiReadingItemORM.text,
+            )
+            .join(PracticeKanjiORM)
+            .where(*owned, PracticeKanjiReadingItemORM.enabled)
+            .order_by(PracticeKanjiReadingItemORM.position)
+        ):
+            readings[kanji_id, kind].append(text)
+        meanings: defaultdict[int, list[str]] = defaultdict(list)
+        for kanji_id, text in self._session.execute(
+            select(PracticeKanjiMeaningORM.kanji_id, PracticeKanjiMeaningORM.text)
+            .join(PracticeKanjiORM)
+            .where(
+                *owned,
+                PracticeKanjiMeaningORM.enabled,
+                PracticeKanjiMeaningORM.lang == meaning_lang,
+            )
+            .order_by(PracticeKanjiMeaningORM.position)
+        ):
+            meanings[kanji_id].append(text)
+        return [
+            KanjiStudyText(
+                id=kanji_id,
+                literal=literal,
+                onyomi=tuple(readings[kanji_id, "on"]),
+                kunyomi=tuple(readings[kanji_id, "kun"]),
+                meanings=tuple(meanings[kanji_id]),
+            )
+            for kanji_id, literal in literals
+        ]
 
     def find(
         self,

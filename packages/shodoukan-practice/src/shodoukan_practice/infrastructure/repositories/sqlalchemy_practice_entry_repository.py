@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any, TypeVar
 from uuid import UUID
@@ -16,7 +17,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ...domain.entities import EntryCollection, PracticeEntry
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.repositories import PracticeEntryRepository
+from ...domain.repositories import EntryStudyText, PracticeEntryRepository
 from ...domain.searches import (
     InCollection,
     LibrarySearch,
@@ -70,6 +71,62 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
             .order_by(PracticeEntryORM.id)
         )
         return [practice_entry_to_domain(row) for row in self._session.scalars(query)]
+
+    def study_texts(
+        self, ids: Iterable[int], user_id: UUID, meaning_lang: str
+    ) -> list[EntryStudyText]:
+        # Columns only, one query per part: no ORM objects or whole snapshots.
+        wanted = list(ids)
+        owned = (PracticeEntryORM.id.in_(wanted), PracticeEntryORM.user_id == user_id)
+        entry_ids = self._session.scalars(
+            select(PracticeEntryORM.id).where(*owned).order_by(PracticeEntryORM.id)
+        ).all()
+        spellings = _texts_by_item(
+            self._session.execute(
+                select(
+                    PracticeEntryKanjiReadingORM.entry_id,
+                    PracticeEntryKanjiReadingORM.kanji,
+                )
+                .join(PracticeEntryORM)
+                .where(*owned, PracticeEntryKanjiReadingORM.enabled)
+                .order_by(PracticeEntryKanjiReadingORM.position)
+            )
+        )
+        readings = _texts_by_item(
+            self._session.execute(
+                select(PracticeEntryReadingORM.entry_id, PracticeEntryReadingORM.text)
+                .join(PracticeEntryORM)
+                .where(*owned, PracticeEntryReadingORM.enabled)
+                .order_by(PracticeEntryReadingORM.position)
+            )
+        )
+        senses: defaultdict[int, defaultdict[int, list[str]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        for entry_id, sense_id, text in self._session.execute(
+            select(
+                PracticeSenseORM.entry_id, PracticeSenseORM.id, PracticeGlossORM.text
+            )
+            .join(PracticeGlossORM)
+            .join(PracticeEntryORM)
+            .where(
+                *owned,
+                PracticeSenseORM.enabled,
+                PracticeGlossORM.enabled,
+                PracticeGlossORM.lang == meaning_lang,
+            )
+            .order_by(PracticeSenseORM.position, PracticeGlossORM.position)
+        ):
+            senses[entry_id][sense_id].append(text)
+        return [
+            EntryStudyText(
+                id=entry_id,
+                spellings=tuple(spellings[entry_id]),
+                readings=tuple(readings[entry_id]),
+                sense_glosses=tuple(tuple(g) for g in senses[entry_id].values()),
+            )
+            for entry_id in entry_ids
+        ]
 
     def find(
         self,
@@ -256,3 +313,11 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
 
     def _select(self) -> Select[PracticeEntryORM]:
         return select(PracticeEntryORM).options(*_LOAD)
+
+
+def _texts_by_item(rows: Iterable[tuple[int, str]]) -> defaultdict[int, list[str]]:
+    """`(item id, text)` rows, in order, as each item's texts."""
+    texts: defaultdict[int, list[str]] = defaultdict(list)
+    for item_id, text in rows:
+        texts[item_id].append(text)
+    return texts

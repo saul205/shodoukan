@@ -5,14 +5,37 @@ from collections.abc import Iterable
 from typing import Protocol
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict
+
 from ..entities import KanjiCollection, PracticeKanji
 from ..searches import LibrarySearch, SearchScope
+
+
+class KanjiStudyText(BaseModel):
+    """What an exercise studies of a kanji: its literal, and its enabled
+    on-readings, kun-readings and meanings in one language, in order. A read
+    model: an exercise's pool reads only this, never the whole kanji."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    literal: str
+    onyomi: tuple[str, ...]
+    kunyomi: tuple[str, ...]
+    meanings: tuple[str, ...]
 
 
 class PracticeKanjiRepository(Protocol):
     def get(self, kanji_id: int, user_id: UUID) -> PracticeKanji | None: ...
 
     def get_many(self, ids: Iterable[int], user_id: UUID) -> list[PracticeKanji]: ...
+
+    def study_texts(
+        self, ids: Iterable[int], user_id: UUID, meaning_lang: str
+    ) -> list[KanjiStudyText]:
+        """`KanjiStudyText` of the user's kanji among `ids`, by id;
+        `meaning_lang` as meanings store it (ISO 639-1, e.g. "en")."""
+        ...
 
     def find(
         self,

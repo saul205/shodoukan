@@ -944,3 +944,25 @@ another collection. And an update only drops an own sense if its collection brin
 something in it: a sense from a file, another collection or an older copy isn't its
 to remove.
 
+## An exercise's pool reads a study read model
+
+Every question rebuilds the pool: the next item, the distractors (none may be a valid
+answer, which looks at every item that fits the prompt) and the accepted answers of a
+handwriting question all need the whole pool. Loading it as aggregates (`get_many`)
+built every entry's senses, glosses in every language, examples and sentences: about
+1.1 s per question with 1000 real JMDict entries. The pool now reads
+`EntryStudyText` / `KanjiStudyText` (`study_texts` on the item repositories, columns
+only): about 30 ms. The "only enabled parts" rule is applied in that SQL and in
+`entry_study_text` / `kanji_study_text` for loaded aggregates; a repository test
+checks both agree.
+
+Ruled out:
+
+- **Aggregates with relationships left unloaded** (`noload`): an entry without its
+  senses can't be told from one that has none, and any code given it would trust it.
+- **Picking items one at a time** and loading only those: whether a distractor is
+  valid depends on the other items that fit the prompt, so it needs either the pool
+  or the comparison keys stored in the database, and a pool with many unusable items
+  would take a round trip per try.
+- **Caching the pool per session**: not needed at this cost; worth revisiting if it
+  grows.

@@ -19,6 +19,7 @@ from shodoukan_practice.domain.searches import (
     SearchScope,
     WholeLibrary,
 )
+from shodoukan_practice.domain.services import entry_study_text
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
@@ -64,6 +65,34 @@ def test_get_many_skips_other_users(
     ids = [e.id for e in (mine, theirs) if e.id is not None]
 
     assert repo.get_many(ids, user.id) == [mine]
+
+
+def test_study_texts_read_what_the_entry_studies(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM, other_user: UserORM
+) -> None:
+    entry = make_entry(user.id, 1)  # 食べる, たべる / くう, "to eat" / "comer"
+    entry.add_spelling("喰べる")
+    entry.kanji_readings[0].enabled = False
+    entry.readings[0].enabled = False
+    entry.senses[0].glosses[0].enabled = False
+    entry.senses[0].glosses.append(
+        PracticeGloss(id=None, text="to devour", lang="eng", type=None)
+    )
+    entry.add_sense("to dine", "eng")
+    entry.add_sense("to feast", "eng").enabled = False
+    mine = repo.add(entry)
+    word = repo.add(make_word(user.id, 2, None, "すし", [("sushi", "eng")]))
+    theirs = repo.add(make_entry(other_user.id, 3))
+    ids = [e.id for e in (word, theirs, mine) if e.id is not None]
+
+    texts = repo.study_texts(ids, user.id, "eng")
+
+    assert texts == [entry_study_text(e, "eng") for e in repo.get_many(ids, user.id)]
+    assert [(t.spellings, t.readings, t.sense_glosses) for t in texts] == [
+        (("喰べる",), ("くう",), (("to devour",), ("to dine",))),
+        ((), ("すし",), (("sushi",),)),
+    ]
+    assert repo.study_texts(ids, user.id, "spa")[0].sense_glosses == (("comer",),)
 
 
 def test_update_edits_adds_and_removes_nested_items(
