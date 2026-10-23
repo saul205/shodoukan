@@ -32,6 +32,7 @@ packages/
   shodoukan-ui/        Shared Vue component library (EntryCard, KanjiCard, SearchBar, ...), own Tailwind build
   shodoukan-web/       Nuxt 3 dictionary frontend (docs/technical/frontend.md)
   shodoukan-practice-web/  Nuxt 4 + Nuxt UI practice frontend on :3001, Keycloak sign-in (docs/practice/technical/frontend.md)
+benchmarks/            Scripts timed by hand, not tests (shodoukan-practice/: exercise sessions on real data; docs/practice/technical/testing.md)
 deploy/                Self-hosted practice stack ("pre"): compose.yml, Caddy, private Tailscale tunnel, deploy.sh (docs/technical/deployment.md)
 docker/keycloak/       Dev realm; production Keycloak image and realm (prod/)
 tests/

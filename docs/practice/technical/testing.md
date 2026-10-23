@@ -99,6 +99,29 @@ and call `/users/me`. Scripting the browser flow (authorization code + PKCE with
 `shodoukan-web`) also works, but Keycloak's session cookies are `Secure`: browsers send
 them on `http://localhost`, while scripted HTTP clients have to forward them by hand.
 
+## Benchmarks
+
+Not tests: scripts under `benchmarks/shodoukan-practice/` that print timings, run by
+hand when a change may make the app slower. Neither pytest nor CI runs them, and they
+don't pass or fail.
+
+```bash
+python benchmarks/shodoukan-practice/exercise_sessions.py            # 1000 words, 500 kanji
+python benchmarks/shodoukan-practice/exercise_sessions.py --entries 50 --kanji 50 --answers 5
+```
+
+`exercise_sessions.py` needs the downloaded dictionary (`shodoukan-setup`). It imports
+real words (common ones, by id) and kanji (most frequent with a stroke order) into a
+practice database in memory, through `ImportEntry` / `ImportKanji`. Then, for word
+choice cards, kanji choice cards and kanji handwriting, it times reading the pool
+alone (`study_texts`), starting a session, and answering (each answer asks the next
+question; drawings are skipped, so the grader isn't timed).
+
+Reference, on a development laptop with the defaults (SQLite, so Postgres will
+differ): starting and answering take about 25–55 ms per question. Before the pool was
+read as study text, a question over 1000 words took about 1.15 s
+([decision](decisions.md#an-exercises-pool-reads-a-study-read-model)).
+
 ## CI
 
 `.github/workflows/ci.yml` installs the package, runs `mypy` and

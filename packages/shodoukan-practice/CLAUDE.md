@@ -235,6 +235,9 @@ standalone: never call shodoukan-api from here.
 ## Tests
 
 - `pytest tests/shodoukan-practice` (domain + infrastructure).
+- Benchmarks (not tests, run by hand):
+  `python benchmarks/shodoukan-practice/exercise_sessions.py` times sessions on real
+  dictionary data; see `docs/practice/technical/testing.md`.
 - `tests/shodoukan-practice/conftest.py` (the only conftest; mypy rejects duplicate
   module names): SQLite engine with FKs on, savepoint-safe, cross-thread for
   `TestClient`. Fixtures: `engine`, `session`, `user`, `other_user`, `dictionary`,
