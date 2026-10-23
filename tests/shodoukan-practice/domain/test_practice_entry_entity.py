@@ -1,0 +1,866 @@
+from collections.abc import Callable
+from datetime import UTC, datetime
+from uuid import UUID
+
+import pytest
+from pydantic import ValidationError
+
+from shodoukan_practice.domain.entities import (
+    FILE,
+    EntryPart,
+    PracticeEntry,
+    PracticeExample,
+    PracticeExampleSentence,
+    PracticeGloss,
+    PracticeKanjiReading,
+    PracticeReading,
+    PracticeSense,
+)
+from shodoukan_practice.domain.exceptions import (
+    EntityNotFoundError,
+    LastMeaningError,
+    LastReadingError,
+    OriginalDataError,
+    SenseLanguageError,
+)
+
+NOW = datetime(2026, 1, 1, tzinfo=UTC)
+USER_ID = UUID("8f14e45f-ceea-467a-9575-2ad4a6a1a001")
+
+
+def make_entry() -> PracticeEntry:
+    return PracticeEntry(
+        id=1,
+        user_id=USER_ID,
+        source_entry_id=1000001,
+        kanji_readings=[
+            PracticeKanjiReading(id=1, kanji="食べる", info=[]),
+        ],
+        readings=[
+            PracticeReading(
+                id=1,
+                text="たべる",
+                no_kanji=False,
+                info=[],
+                restricted_to=[],
+            ),
+        ],
+        senses=[
+            PracticeSense(
+                id=1,
+                pos=["v1"],
+                misc=[],
+                dialects=[],
+                info=[],
+                glosses=[
+                    PracticeGloss(id=1, text="to eat", lang="eng", type=None),
+                    PracticeGloss(
+                        id=None,
+                        text="to scoff (colloquial)",
+                        lang="eng",
+                        type=None,
+                        origin="added",
+                    ),
+                ],
+                examples=[
+                    PracticeExample(
+                        id=1,
+                        text="",
+                        sentences=[
+                            PracticeExampleSentence(lang="jpn", text="ご飯を食べる。"),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+        jlpt=5,
+        is_common=True,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def test_practice_entry_shape_and_defaults() -> None:
+    entry = make_entry()
+    assert entry.is_active is True
+    assert entry.senses[0].glosses[0].enabled is True
+    assert entry.senses[0].glosses[0].origin == "imported"
+    assert entry.senses[0].glosses[1].origin == "added"
+
+
+def test_practice_entry_serializes_round_trip() -> None:
+    entry = make_entry()
+    dumped = entry.model_dump()
+    assert PracticeEntry.model_validate(dumped) == entry
+
+
+def test_deactivate_and_activate_touch() -> None:
+    item = make_entry()
+    item.deactivate()
+    assert item.is_active is False
+    assert item.updated_at > NOW
+
+    touched = item.updated_at
+    item.activate()
+    assert item.is_active is True
+    assert item.updated_at >= touched
+
+
+def test_activate_when_active_does_not_touch() -> None:
+    item = make_entry()
+    item.activate()
+
+    assert item.updated_at == NOW
+
+
+def stored_entry() -> PracticeEntry:
+    """`make_entry` as loaded from the database: every nested item has an id."""
+    entry = make_entry()
+    entry.senses[0].glosses[1].id = 2
+    return entry
+
+
+def test_set_notes_cleans_and_touches_only_on_change() -> None:
+    entry = stored_entry()
+
+    entry.set_notes("  ichidan  ")
+    assert entry.notes == "ichidan"
+    assert entry.updated_at > NOW
+
+    touched = entry.updated_at
+    entry.set_notes("ichidan")
+    assert entry.updated_at == touched
+    entry.set_notes("   ")
+    assert entry.notes is None
+
+
+def test_set_sense_notes() -> None:
+    entry = stored_entry()
+
+    entry.set_sense_notes(1, "polite: 召し上がる")
+
+    assert entry.senses[0].notes == "polite: 召し上がる"
+    assert entry.updated_at > NOW
+    with pytest.raises(EntityNotFoundError):
+        entry.set_sense_notes(99, "x")
+    with pytest.raises(ValidationError):
+        entry.set_sense_notes(1, "x" * 2001)
+
+
+@pytest.mark.parametrize(
+    ("part", "get"),
+    [
+        ("kanji_readings", lambda e: e.kanji_readings[0]),
+        ("readings", lambda e: e.readings[0]),
+        ("senses", lambda e: e.senses[0]),
+        ("glosses", lambda e: e.senses[0].glosses[0]),
+        ("examples", lambda e: e.senses[0].examples[0]),
+    ],
+)
+def test_set_enabled_toggles_one_item(
+    part: EntryPart,
+    get: Callable[
+        [PracticeEntry],
+        PracticeKanjiReading
+        | PracticeReading
+        | PracticeSense
+        | PracticeGloss
+        | PracticeExample,
+    ],
+) -> None:
+    entry = stored_entry()
+
+    entry.set_enabled(part, 1, False)
+
+    assert get(entry).enabled is False
+    assert entry.updated_at > NOW
+
+
+def test_set_enabled_without_change_does_not_touch() -> None:
+    entry = stored_entry()
+    entry.set_enabled("readings", 1, True)
+    assert entry.updated_at == NOW
+
+
+def test_set_enabled_of_an_unknown_item_fails() -> None:
+    with pytest.raises(EntityNotFoundError):
+        stored_entry().set_enabled("glosses", 99, False)
+
+
+def test_original_meanings_can_be_disabled_but_not_changed() -> None:
+    entry = stored_entry()
+
+    entry.set_enabled("glosses", 1, False)  # the dictionary's "to eat"
+
+    with pytest.raises(OriginalDataError):
+        entry.edit_gloss(1, "to devour")
+    with pytest.raises(OriginalDataError):
+        entry.remove_gloss(1)
+    assert entry.senses[0].glosses[0].text == "to eat"
+
+
+def test_add_edit_and_remove_own_meanings() -> None:
+    entry = stored_entry()
+
+    added = entry.add_gloss(1, "  to scoff  ", "eng")
+    assert (added.text, added.origin, added.id) == ("to scoff", "added", None)
+    assert entry.senses[0].glosses[-1] is added
+
+    entry.edit_gloss(2, "to wolf down")
+    assert entry.senses[0].glosses[1].text == "to wolf down"
+    entry.remove_gloss(2)
+    assert [g.text for g in entry.senses[0].glosses] == ["to eat", "to scoff"]
+    assert entry.updated_at > NOW
+
+
+def test_own_meanings_cant_be_empty() -> None:
+    entry = stored_entry()
+    with pytest.raises(ValueError):
+        entry.add_gloss(1, "   ", "eng")
+    with pytest.raises(ValueError):
+        entry.edit_gloss(2, "")
+    with pytest.raises(EntityNotFoundError):
+        entry.add_gloss(99, "x", "eng")
+
+
+def test_disabling_a_sense_keeps_its_meanings_flags() -> None:
+    entry = stored_entry()
+    entry.set_enabled("glosses", 2, False)
+
+    entry.set_enabled("senses", 1, False)
+    entry.set_enabled("senses", 1, True)
+
+    assert [g.enabled for g in entry.senses[0].glosses] == [True, False]
+
+
+def test_add_and_remove_own_senses() -> None:
+    entry = stored_entry()
+
+    sense = entry.add_sense("  to dine  ", "eng")
+
+    assert entry.senses[-1] is sense
+    assert (sense.id, sense.origin, sense.enabled) == (None, "added", True)
+    assert [(g.text, g.origin) for g in sense.glosses] == [("to dine", "added")]
+    assert entry.updated_at > NOW
+    sense.id = 2  # as stored
+    entry.remove_sense(2)
+    assert [s.id for s in entry.senses] == [1]
+
+
+def test_own_senses_start_with_a_meaning() -> None:
+    with pytest.raises(ValueError):
+        stored_entry().add_sense("   ", "eng")
+
+
+def test_dictionary_senses_can_be_disabled_but_not_removed() -> None:
+    entry = stored_entry()
+    with pytest.raises(OriginalDataError):
+        entry.remove_sense(1)
+    with pytest.raises(EntityNotFoundError):
+        entry.remove_sense(99)
+    assert len(entry.senses) == 1
+
+
+def _texts(example: PracticeExample) -> list[tuple[str, str]]:
+    return [(s.lang, s.text) for s in example.sentences]
+
+
+def test_add_edit_and_remove_own_examples() -> None:
+    entry = stored_entry()
+
+    added = entry.add_example(1, " 朝ご飯を食べる。 ", " I eat breakfast. ", "eng")
+    assert (added.id, added.origin, added.text) == (None, "added", "")
+    assert entry.senses[0].examples[-1] is added
+    assert _texts(added) == [("jpn", "朝ご飯を食べる。"), ("eng", "I eat breakfast.")]
+    assert entry.updated_at > NOW
+
+    added.id = 2  # as stored
+    entry.edit_example(2, "朝ご飯を食べた。", "Desayuné.", "spa")
+    assert _texts(added) == [
+        ("jpn", "朝ご飯を食べた。"),
+        ("spa", "Desayuné."),
+        ("eng", "I eat breakfast."),
+    ]
+    entry.edit_example(2, "朝ご飯を食べた。", "  ", "eng")
+    assert _texts(added) == [("jpn", "朝ご飯を食べた。"), ("spa", "Desayuné.")]
+
+    entry.remove_example(2)
+    assert [e.id for e in entry.senses[0].examples] == [1]
+
+
+def test_own_examples_without_a_translation_or_change() -> None:
+    entry = stored_entry()
+    added = entry.add_example(1, "食べる。", None, "eng")
+    assert _texts(added) == [("jpn", "食べる。")]
+
+    added.id = 2
+    touched = entry.updated_at
+    entry.edit_example(2, "食べる。", None, "eng")
+    assert entry.updated_at == touched
+
+
+def test_own_examples_need_a_sentence_and_a_foreign_translation() -> None:
+    entry = stored_entry()
+    with pytest.raises(ValueError):
+        entry.add_example(1, "   ", "x", "eng")
+    with pytest.raises(ValueError):
+        entry.add_example(1, "食べる。", "食べる。", "jpn")
+    with pytest.raises(EntityNotFoundError):
+        entry.add_example(99, "食べる。", None, "eng")
+
+
+def test_dictionary_examples_can_be_disabled_but_not_changed() -> None:
+    entry = stored_entry()
+    with pytest.raises(OriginalDataError):
+        entry.edit_example(1, "x", None, "eng")
+    with pytest.raises(OriginalDataError):
+        entry.remove_example(1)
+    with pytest.raises(EntityNotFoundError):
+        entry.remove_example(99)
+
+
+def test_create_own_word() -> None:
+    entry = PracticeEntry.create_own(
+        USER_ID,
+        [" 三匹 ", "三匹"],
+        ["さんびき", " サンビキ "],
+        " three animals ",
+        "eng",
+    )
+
+    assert entry.is_own and entry.source_entry_id is None and entry.id is None
+    assert [(k.kanji, k.origin) for k in entry.kanji_readings] == [("三匹", "added")]
+    assert [(r.text, r.origin) for r in entry.readings] == [
+        ("さんびき", "added"),
+        ("サンビキ", "added"),
+    ]
+    (sense,) = entry.senses
+    assert sense.origin == "added"
+    assert [(g.text, g.lang, g.origin) for g in sense.glosses] == [
+        ("three animals", "eng", "added")
+    ]
+    assert (entry.jlpt, entry.is_common, entry.is_active) == (None, False, True)
+
+
+def test_imported_words_are_not_own() -> None:
+    assert make_entry().is_own is False
+
+
+def test_own_word_needs_a_kana_reading_and_a_meaning() -> None:
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, ["三匹"], [], "three animals", "eng")
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, ["三匹"], ["sanbiki"], "x", "eng")
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, [], ["さんびき"], "  ", "eng")
+    with pytest.raises(ValueError):
+        PracticeEntry.create_own(USER_ID, [" "], ["さんびき"], "x", "eng")
+
+
+def test_add_and_remove_own_spellings_and_readings() -> None:
+    entry = stored_entry()
+
+    spelling = entry.add_spelling(" 喰べる ")
+    reading = entry.add_reading("クウ")
+    assert (spelling.kanji, spelling.origin) == ("喰べる", "added")
+    assert (reading.text, reading.origin) == ("クウ", "added")
+    assert entry.updated_at > NOW
+
+    spelling.id, reading.id = 2, 3  # as stored
+    entry.remove_spelling(2)
+    entry.remove_reading(3)
+    assert [k.id for k in entry.kanji_readings] == [1]
+    assert [r.text for r in entry.readings] == ["たべる"]
+    with pytest.raises(ValueError):
+        entry.add_reading("taberu")
+
+
+def test_dictionary_spellings_and_readings_are_only_disabled() -> None:
+    entry = stored_entry()
+    with pytest.raises(OriginalDataError):
+        entry.remove_spelling(1)
+    with pytest.raises(OriginalDataError):
+        entry.remove_reading(1)
+    with pytest.raises(EntityNotFoundError):
+        entry.remove_reading(99)
+
+
+def test_a_word_keeps_its_last_reading() -> None:
+    entry = PracticeEntry.create_own(USER_ID, [], ["ねこ"], "cat", "eng")
+    entry.readings[0].id = 1
+
+    with pytest.raises(LastReadingError):
+        entry.remove_reading(1)
+    assert len(entry.readings) == 1
+
+
+def test_a_sense_keeps_its_last_meaning() -> None:
+    entry = stored_entry()
+    sense = entry.add_sense("to dine", "eng")
+    sense.id, sense.glosses[0].id = 2, 3  # as stored
+    entry.add_gloss(2, "to sup", "eng").id = 4
+
+    entry.remove_gloss(4)
+    with pytest.raises(LastMeaningError):
+        entry.remove_gloss(3)
+    assert [g.text for g in entry.senses[-1].glosses] == ["to dine"]
+    entry.remove_sense(2)  # the way to get rid of it
+    assert [s.id for s in entry.senses] == [1]
+
+
+def test_a_senses_meanings_are_in_one_language() -> None:
+    entry = stored_entry()
+    with pytest.raises(SenseLanguageError):
+        entry.add_gloss(1, "comer", "spa")
+    assert [g.lang for g in entry.senses[0].glosses] == ["eng", "eng"]
+
+
+# --- Sharing ---
+
+
+def origin_entry() -> PracticeEntry:
+    """A stored word with parts of the owner's own, as it would be exported."""
+    entry = make_entry()
+    entry.senses[0].glosses[1].id = 2
+    entry.kanji_readings[0].enabled = False
+    entry.kanji_readings.append(
+        PracticeKanjiReading(id=2, kanji="喰べる", info=[], origin="added")
+    )
+    entry.readings.append(
+        PracticeReading(
+            id=2,
+            text="たべるる",
+            no_kanji=False,
+            info=[],
+            restricted_to=[],
+            origin="added",
+        )
+    )
+    entry.senses[0].notes = "a sense note"
+    entry.senses[0].examples.append(
+        PracticeExample(
+            id=2,
+            text="",
+            sentences=[PracticeExampleSentence(lang="jpn", text="パンを食べる。")],
+            origin="added",
+        )
+    )
+    entry.senses.append(
+        PracticeSense(
+            id=2,
+            pos=[],
+            misc=[],
+            dialects=[],
+            info=[],
+            glosses=[
+                PracticeGloss(
+                    id=3, text="to live on", lang="eng", type=None, origin="added"
+                )
+            ],
+            examples=[],
+            enabled=False,
+            origin="added",
+        )
+    )
+    entry.notes = "the owner's note"
+    entry.is_active = False
+    return entry
+
+
+def fresh_snapshot() -> PracticeEntry:
+    """The same word just taken from the dictionary, unstored."""
+    entry = make_entry()
+    entry.senses[0].glosses.pop()
+    return entry.model_copy(update={"id": None})
+
+
+def test_to_shared_carries_every_part_in_order() -> None:
+    shared = origin_entry().to_shared()
+    assert shared.source_entry_id == 1000001
+    assert shared.is_active is False
+    assert shared.notes == "the owner's note"
+    assert [(s.origin, s.text, s.enabled) for s in shared.spellings] == [
+        ("imported", "食べる", False),
+        ("added", "喰べる", True),
+    ]
+    assert [s.origin for s in shared.senses] == ["imported", "added"]
+    assert shared.senses[0].notes == "a sense note"
+    assert [(g.id, g.origin) for g in shared.senses[0].glosses] == [
+        (1, "imported"),
+        (2, "added"),
+    ]
+    assert shared.senses[0].examples[1].sentences[0].text == "パンを食べる。"
+
+
+def test_merge_into_a_created_copy_takes_everything() -> None:
+    entry = fresh_snapshot()
+    entry.merge_shared(origin_entry().to_shared(), created=True)
+
+    assert entry.is_active is False
+    assert entry.notes == "the owner's note"
+    assert [(s.kanji, s.enabled, s.origin) for s in entry.kanji_readings] == [
+        ("食べる", False, "imported"),
+        ("喰べる", True, "added"),
+    ]
+    copied = entry.kanji_readings[1]
+    assert (copied.id, copied.original_id, copied.source_id, copied.edited_id) == (
+        None,
+        2,
+        2,
+        2,
+    )
+    assert [r.text for r in entry.readings] == ["たべる", "たべるる"]
+    sense = entry.senses[0]
+    assert sense.notes == "a sense note"
+    assert [(g.text, g.source_id) for g in sense.glosses] == [
+        ("to eat", None),
+        ("to scoff (colloquial)", 2),
+    ]
+    assert [e.source_id for e in sense.examples] == [None, 2]
+    own = entry.senses[1]
+    assert (own.origin, own.enabled, own.original_id) == ("added", False, 2)
+    assert [(g.text, g.source_id) for g in own.glosses] == [("to live on", 3)]
+    assert entry.updated_at > NOW
+
+
+def test_merge_into_an_existing_word_keeps_the_users_choices() -> None:
+    entry = fresh_snapshot()
+    entry.notes = "mine"
+    entry.senses[0].notes = "my sense note"
+    entry.merge_shared(origin_entry().to_shared(), created=False)
+
+    assert entry.is_active is True
+    assert entry.notes == "mine"
+    assert entry.senses[0].notes == "my sense note"
+    assert entry.kanji_readings[0].enabled is True
+    # What the user didn't have is still appended, with the origin's flag.
+    assert [s.kanji for s in entry.kanji_readings] == ["食べる", "喰べる"]
+    assert entry.senses[1].enabled is False
+
+
+def test_merging_again_duplicates_nothing() -> None:
+    entry = fresh_snapshot()
+    shared = origin_entry().to_shared()
+    entry.merge_shared(shared, created=True)
+    before = entry.model_copy(deep=True)
+
+    entry.merge_shared(shared, created=False)
+    assert entry == before
+
+    # Nor does importing a copy back into the origin.
+    origin = origin_entry()
+    copy = fresh_snapshot()
+    copy.merge_shared(origin.to_shared(), created=True)
+    for i, spelling in enumerate(copy.kanji_readings):
+        spelling.id = 10 + i  # stored
+    untouched = origin.model_copy(deep=True)
+    origin.merge_shared(copy.to_shared(), created=False)
+    assert origin == untouched
+
+
+def test_an_imported_sense_that_moved_is_left_alone() -> None:
+    entry = fresh_snapshot()
+    entry.senses[0].glosses[0].text = "to devour"  # the dictionary changed
+    entry.merge_shared(origin_entry().to_shared(), created=True)
+    assert [g.text for g in entry.senses[0].glosses] == ["to devour"]
+    assert entry.senses[0].notes is None
+    assert entry.senses[0].enabled is True
+
+
+def test_an_added_meaning_in_another_language_is_skipped() -> None:
+    origin = origin_entry()
+    origin.senses[0].glosses[1].lang = "spa"
+    entry = fresh_snapshot()
+    entry.merge_shared(origin.to_shared(), created=True)
+    assert [g.text for g in entry.senses[0].glosses] == ["to eat"]
+
+
+def test_merging_nothing_new_does_not_touch() -> None:
+    entry = origin_entry()
+    entry.merge_shared(origin_entry().to_shared(), created=False)
+    assert entry.updated_at == NOW
+
+
+def own_word() -> PracticeEntry:
+    entry = PracticeEntry.create_own(USER_ID, ["三匹"], ["さんびき"], "three", "eng")
+    entry.id = 7
+    entry.kanji_readings[0].id = 1
+    entry.readings[0].id = 1
+    entry.senses[0].id = 1
+    entry.senses[0].glosses[0].id = 1
+    return entry
+
+
+def test_from_shared_copies_a_word_of_ones_own_whole() -> None:
+    copy = PracticeEntry.from_shared(USER_ID, own_word().to_shared())
+    assert copy.is_own
+    assert (copy.original_id, copy.source_id) == (7, 7)
+    assert [s.kanji for s in copy.kanji_readings] == ["三匹"]
+    assert [r.text for r in copy.readings] == ["さんびき"]
+    assert [(g.text, g.source_id) for g in copy.senses[0].glosses] == [("three", 1)]
+    assert copy.jlpt is None
+
+
+def test_from_shared_refuses_a_dictionary_word() -> None:
+    with pytest.raises(ValueError, match="own"):
+        PracticeEntry.from_shared(USER_ID, make_entry().to_shared())
+
+
+def stored(entry: PracticeEntry, first_id: int) -> PracticeEntry:
+    """`entry` as the repository returns it: every part has an id."""
+    ids = iter(range(first_id, first_id + 1000))
+    entry.id = entry.id or next(ids)
+    for spelling in entry.kanji_readings:
+        spelling.id = spelling.id or next(ids)
+    for reading in entry.readings:
+        reading.id = reading.id or next(ids)
+    for sense in entry.senses:
+        sense.id = sense.id or next(ids)
+        for gloss in sense.glosses:
+            gloss.id = gloss.id or next(ids)
+        for example in sense.examples:
+            example.id = example.id or next(ids)
+    return entry
+
+
+def copied(shared_from: PracticeEntry, first_id: int) -> PracticeEntry:
+    """Another user's stored copy of `shared_from`, imported from scratch."""
+    entry = fresh_snapshot()
+    entry.merge_shared(shared_from.to_shared(), created=True)
+    return stored(entry, first_id)
+
+
+def added_meanings(entry: PracticeEntry) -> list[str]:
+    return [g.text for s in entry.senses for g in s.glosses if g.origin == "added"]
+
+
+def test_an_unchanged_copy_of_a_copy_is_still_the_original() -> None:
+    a = origin_entry()
+    b = copied(a, 100)
+    c = copied(b, 200)
+
+    gloss = c.senses[0].glosses[1]
+    from_b = b.senses[0].glosses[1].id
+    assert (gloss.original_id, gloss.source_id, gloss.edited_id) == (2, from_b, 2)
+    before = a.model_copy(deep=True)
+    assert a.merge_shared(c.to_shared(), created=False) is False
+    assert a == before
+
+
+def test_editing_a_copy_makes_its_version_the_users() -> None:
+    b = copied(origin_entry(), 100)
+    gloss = b.senses[0].glosses[1]
+    b.edit_gloss(gloss.id or 0, "to wolf down")
+
+    assert (gloss.original_id, gloss.edited_id) == (2, None)
+    shared = b.to_shared().senses[0].glosses[1]
+    assert (shared.original_id, shared.edited_id) == (2, gloss.id)
+
+
+def test_another_version_of_a_part_is_added_next_to_it() -> None:
+    a = origin_entry()
+    b = copied(a, 100)
+    b_gloss = b.senses[0].glosses[1]
+    b.edit_gloss(b_gloss.id or 0, "to wolf down")
+    c = copied(b, 200)
+
+    a.merge_shared(c.to_shared(), created=False)
+
+    assert added_meanings(a) == ["to scoff (colloquial)", "to wolf down", "to live on"]
+    # Both versions are the same part: a later conflicts panel can group them.
+    assert {g.original_id or g.id for g in a.senses[0].glosses[1:]} == {2}
+    # Importing it again adds nothing more.
+    before = a.model_copy(deep=True)
+    a.merge_shared(c.to_shared(), created=False)
+    assert a == before
+
+
+def test_reimporting_the_origin_after_editing_adds_its_version_once() -> None:
+    a = origin_entry()
+    b = copied(a, 100)
+    b.edit_gloss(b.senses[0].glosses[1].id or 0, "to wolf down")
+
+    b.merge_shared(a.to_shared(), created=False)
+    assert [g.text for g in b.senses[0].glosses] == [
+        "to eat",
+        "to wolf down",
+        "to scoff (colloquial)",
+    ]
+    before = stored(b, 300).model_copy(deep=True)
+    b.merge_shared(a.to_shared(), created=False)
+    assert b == before
+
+
+def test_to_shared_can_leave_the_notes_out() -> None:
+    shared = origin_entry().to_shared(include_notes=False)
+    assert shared.notes is None
+    assert all(s.notes is None for s in shared.senses)
+    assert origin_entry().to_shared().senses[0].notes == "a sense note"
+
+
+def test_copies_remember_the_collection_they_came_with() -> None:
+    entry = fresh_snapshot()
+    entry.merge_shared(origin_entry().to_shared(), created=True, source_collection_id=9)
+
+    sense, own_sense = entry.senses
+    assert [
+        entry.kanji_readings[1].source_collection_ids,
+        entry.readings[1].source_collection_ids,
+        sense.glosses[1].source_collection_ids,
+        sense.examples[1].source_collection_ids,
+        own_sense.glosses[0].source_collection_ids,
+    ] == [[9]] * 5
+    # What the dictionary snapshot brought isn't the collection's.
+    assert sense.glosses[0].source_collection_ids == []
+    own = PracticeEntry.from_shared(USER_ID, own_word().to_shared(), 9)
+    assert own.readings[0].source_collection_ids == [9]
+
+
+# --- Following a source ---
+
+SOURCE = 77
+
+
+def copied_from_source(origin: PracticeEntry, first_id: int) -> PracticeEntry:
+    """A stored copy of `origin` imported with collection SOURCE."""
+    entry = fresh_snapshot()
+    entry.merge_shared(origin.to_shared(), created=True, source_collection_id=SOURCE)
+    return stored(entry, first_id)
+
+
+def test_prune_removes_what_the_source_dropped_untouched() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    origin.kanji_readings.pop()  # 喰べる
+    origin.senses[0].examples.pop()  # パンを食べる。
+    origin.senses.pop()  # the own sense "to live on"
+
+    assert copy.prune_source(origin.to_shared(), SOURCE) is True
+
+    assert [s.kanji for s in copy.kanji_readings] == ["食べる"]
+    assert [e.origin for e in copy.senses[0].examples] == ["imported"]
+    assert [s.origin for s in copy.senses] == ["imported"]
+    # What's still in the source stays.
+    assert "to scoff (colloquial)" in [g.text for g in copy.senses[0].glosses]
+
+
+def test_prune_keeps_what_the_user_touched_or_added() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    own_sense = copy.senses[1]
+    copy.edit_gloss(copy.senses[0].glosses[1].id or 0, "to wolf down")
+    copy.add_gloss(own_sense.id or 0, "to subsist on", "eng")
+    origin.senses[0].glosses.pop()  # the source drops "to scoff"
+    origin.senses.pop()  # and its own sense
+
+    copy.prune_source(origin.to_shared(), SOURCE)
+
+    assert "to wolf down" in [g.text for g in copy.senses[0].glosses]
+    # The own sense stays: the user added to it; only the source's meaning goes.
+    assert [g.text for g in copy.senses[1].glosses] == ["to subsist on"]
+
+
+def test_prune_keeps_a_senses_last_meaning_and_ignores_other_sources() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    copy.senses[1].notes = "mine"  # an own sense with the user's note stays whole
+    origin.senses.pop()
+
+    # The collection lets go of the sense's meaning, which stays, unclaimed.
+    assert copy.prune_source(origin.to_shared(), SOURCE) is True
+    assert [g.text for g in copy.senses[1].glosses] == ["to live on"]
+    assert copy.senses[1].glosses[0].source_collection_ids == []
+    # Nothing comes from collection 5.
+    assert copy.prune_source(make_entry().to_shared(), 5) is False
+
+
+def test_deleting_a_copied_part_remembers_it() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    gloss = copy.senses[0].glosses[1]
+    copy.remove_gloss(gloss.id or 0)
+    copy.remove_sense(copy.senses[1].id or 0)
+
+    # The gloss and the sense share an id number, not an identity.
+    assert copy.dismissed_parts == ["gloss:2", "sense:2"]
+    copy.merge_shared(origin.to_shared(), created=False, source_collection_id=SOURCE)
+    assert [g.text for g in copy.senses[0].glosses] == ["to eat"]
+    assert len(copy.senses) == 1
+    # A part of the user's own isn't remembered when deleted.
+    added = copy.add_spelling("喰う")
+    added.id = 999
+    copy.remove_spelling(999)
+    assert copy.dismissed_parts == ["gloss:2", "sense:2"]
+
+
+def test_shared_keys_match_across_libraries() -> None:
+    assert make_entry().shared_key == "entry:1000001"
+    assert make_entry().to_shared().key == "entry:1000001"
+    word = own_word()
+    copy = PracticeEntry.from_shared(USER_ID, word.to_shared())
+    assert word.shared_key == copy.shared_key == word.to_shared().key == "own:7"
+
+
+def test_the_owners_edit_is_a_new_version_for_their_copies() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)
+    origin.edit_gloss(2, "to wolf down")  # the owner's own meaning, rewritten
+    assert origin.senses[0].glosses[1].revision == 1
+
+    shared = origin.to_shared()
+    copy.merge_shared(shared, created=False, source_collection_id=SOURCE)
+    copy.prune_source(shared, SOURCE)
+
+    assert [g.text for g in copy.senses[0].glosses if g.origin == "added"] == [
+        "to wolf down"
+    ]
+
+
+def test_a_part_another_followed_collection_brings_stays() -> None:
+    origin = origin_entry()
+    copy = copied_from_source(origin, 100)  # through collection SOURCE
+    other = 88  # another collection of the owner's with the same word
+    copy.merge_shared(origin.to_shared(), created=False, source_collection_id=other)
+    gloss = copy.senses[0].glosses[1]
+    assert gloss.source_collection_ids == [SOURCE, other]
+
+    origin.senses[0].glosses.pop()  # SOURCE drops "to scoff" and its own sense
+    origin.senses.pop()
+    copy.prune_source(origin.to_shared(), SOURCE)
+
+    # Still brought by the other collection: kept, only SOURCE let go.
+    assert gloss in copy.senses[0].glosses
+    assert gloss.source_collection_ids == [other]
+    assert len(copy.senses) == 2
+    # When the other one drops them too, they go.
+    copy.prune_source(origin.to_shared(), other)
+    assert gloss not in copy.senses[0].glosses
+    assert len(copy.senses) == 1
+
+
+def test_what_a_file_brought_or_the_source_never_did_stays() -> None:
+    origin = origin_entry()
+    copy = fresh_snapshot()
+    copy.merge_shared(origin.to_shared(), created=True, source_collection_id=FILE)
+    stored(copy, 100)
+    # A public collection with the same word brings the same parts, then drops them.
+    copy.merge_shared(origin.to_shared(), created=False, source_collection_id=SOURCE)
+    gloss = copy.senses[0].glosses[1]
+    assert gloss.source_collection_ids == [FILE, SOURCE]
+    origin.senses[0].glosses.pop()
+    origin.senses.pop()
+
+    copy.prune_source(origin.to_shared(), SOURCE)
+
+    assert gloss in copy.senses[0].glosses  # still pinned by the file
+    assert len(copy.senses) == 2
+
+    # A sense no collection brings (an older copy) isn't another source's to drop.
+    old = copied_from_source(origin_entry(), 300)
+    for sense in old.senses:
+        for gloss in sense.glosses:
+            gloss.source_collection_ids = []
+        for example in sense.examples:
+            example.source_collection_ids = []
+    old.prune_source(make_entry().to_shared(), 5)
+    assert len(old.senses) == 2

@@ -1,8 +1,8 @@
 import sqlite3
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 from shodoukan.dictionary import Dictionary
 
 
@@ -56,9 +56,23 @@ def test_search_entries_romaji_falls_back_to_english(dictionary):
     assert any(e.id == 1000002 for e in page.items)
 
 
+def test_search_romaji_total_counts_every_match(dictionary):
+    # "taberu" matches the reading たべる and no English gloss: the total is
+    # the number of distinct matches, not the gloss matches only.
+    result = dictionary.search("taberu")
+    assert result.entries.total == len(result.entries.items) == 1
+    assert dictionary.search_entries("taberu").total == 1
+
+
 def test_search_routes_romaji(dictionary):
     result = dictionary.search("taberu")
     assert any(e.id == 1000001 for e in result.entries.items)
+
+
+def test_search_romaji_finds_kanji_by_on_reading(dictionary):
+    # "sui" → すい, matched against the katakana on-reading スイ.
+    result = dictionary.search("sui")
+    assert any(k.literal == "水" for k in result.kanji)
 
 
 def test_get_kanji_for_entry(dictionary):
@@ -120,3 +134,35 @@ def test_context_manager(tmp_path, conn):
     with patch("shodoukan.dictionary.download"):
         with Dictionary(db_path=db_file, auto_download=False) as d:
             assert d.get_kanji("水") is not None
+
+
+def test_search_romaji_ranks_kanji_by_match_tier(conn, tmp_path):
+    # 図 is more popular than 合, but only its meaning "audacious" starts
+    # with "au"; 合 is read あう.
+    conn.execute(
+        "INSERT INTO kanji(literal, stroke_count, freq, jlpt, kun_readings)"
+        " VALUES ('合', 6, 41, 3, '[\"あ.う\"]'), ('図', 7, 539, 4, '[]')"
+    )
+    conn.execute(
+        "INSERT INTO kanji_meanings(literal, text, lang)"
+        " VALUES ('合', 'fit', 'en'), ('図', 'audacious', 'en')"
+    )
+    conn.commit()
+    db_file = tmp_path / "ranked.sqlite"
+    backup = sqlite3.connect(str(db_file))
+    conn.backup(backup)
+    backup.close()
+
+    with Dictionary(db_path=db_file, auto_download=False) as d:
+        assert [k.literal for k in d.search("au").kanji] == ["合", "図"]
+
+
+def test_get_kanji_strokes(dictionary):
+    strokes = dictionary.get_kanji_strokes("食")
+    assert strokes is not None
+    assert len(strokes.strokes) == 2
+    assert dictionary.get_kanji_strokes("水") is None
+
+
+def test_literals_with_strokes(dictionary):
+    assert dictionary.literals_with_strokes(["食", "水"]) == {"食"}

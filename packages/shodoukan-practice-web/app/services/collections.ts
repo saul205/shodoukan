@@ -1,0 +1,100 @@
+import type { Page } from 'shodoukan-ui'
+import type {
+  Collection,
+  CollectionFile,
+  CollectionImport,
+  CollectionInput,
+  CollectionUpdate,
+  ItemKind,
+  SearchQuery,
+  PracticeEntry,
+  PracticeKanji,
+} from '../models/practice'
+import type { ApiClient } from '../utils/api-client'
+
+// Collections: `/collections/entries` and `/collections/kanji` have the same shape.
+
+export function listCollections(api: ApiClient, kind: ItemKind): Promise<Collection[]> {
+  return api<Collection[]>(`/collections/${kind}`)
+}
+
+export function getCollection(api: ApiClient, kind: ItemKind, id: number): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}`)
+}
+
+export function createCollection(api: ApiClient, kind: ItemKind, input: CollectionInput): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}`, { method: 'POST', body: input })
+}
+
+/** Replaces name and description together. */
+export function updateCollection(
+  api: ApiClient,
+  kind: ItemKind,
+  id: number,
+  input: CollectionInput,
+): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}`, { method: 'PUT', body: input })
+}
+
+export function deleteCollection(api: ApiClient, kind: ItemKind, id: number): Promise<void> {
+  return api(`/collections/${kind}/${id}`, { method: 'DELETE' })
+}
+
+/** Publish a new version: its active items, the user's notes only if `includeNotes`. */
+export function publishCollection(
+  api: ApiClient,
+  kind: ItemKind,
+  id: number,
+  includeNotes: boolean,
+): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}/publication`, {
+    method: 'PUT',
+    body: { include_notes: includeNotes },
+  })
+}
+
+/** Make it private again; its last version is kept. */
+export function unpublishCollection(api: ApiClient, kind: ItemKind, id: number): Promise<Collection> {
+  return api<Collection>(`/collections/${kind}/${id}/publication`, { method: 'DELETE' })
+}
+
+/** Bring a copy up to its source's latest version. */
+export function updateFromSource(api: ApiClient, kind: ItemKind, id: number): Promise<CollectionUpdate> {
+  return api<CollectionUpdate>(`/collections/${kind}/${id}/update`, { method: 'POST' })
+}
+
+/** The collection as a file to download (every item, with the user's own data). */
+export function exportCollection(api: ApiClient, kind: ItemKind, id: number): Promise<CollectionFile> {
+  return api<CollectionFile>(`/collections/${kind}/${id}/export`)
+}
+
+/** Creates a new collection from an exported file; the API answers 422 for an invalid one. */
+export function importCollection(api: ApiClient, file: CollectionFile): Promise<CollectionImport> {
+  return api<CollectionImport>(`/collections/${file.kind}/import`, { method: 'POST', body: file })
+}
+
+export function listCollectionEntries(
+  api: ApiClient,
+  id: number,
+  query: SearchQuery = {},
+): Promise<Page<PracticeEntry>> {
+  return api<Page<PracticeEntry>>(`/collections/entries/${id}/items`, { query })
+}
+
+export function listCollectionKanji(
+  api: ApiClient,
+  id: number,
+  query: SearchQuery = {},
+): Promise<Page<PracticeKanji>> {
+  return api<Page<PracticeKanji>>(`/collections/kanji/${id}/items`, { query })
+}
+
+/** Idempotent: adding an item that's already there does nothing. */
+export function addToCollection(api: ApiClient, kind: ItemKind, id: number, itemId: number): Promise<void> {
+  return api(`/collections/${kind}/${id}/items/${itemId}`, { method: 'PUT' })
+}
+
+/** Idempotent; the item stays in the library. */
+export function removeFromCollection(api: ApiClient, kind: ItemKind, id: number, itemId: number): Promise<void> {
+  return api(`/collections/${kind}/${id}/items/${itemId}`, { method: 'DELETE' })
+}

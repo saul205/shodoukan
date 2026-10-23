@@ -1,0 +1,40 @@
+# Single entry point of the practice stack (pre and prod). Plain HTTP: in
+# prod, TLS ends at Tailscale Funnel; pre runs on localhost.
+#
+#   /practice-api/*  practice API (prefix stripped here; UVICORN_ROOT_PATH puts it
+#                    back in the URLs the API generates, e.g. its docs)
+#   /idp/*           Keycloak (built with http-relative-path=/idp)
+#   everything else  the practice SPA
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+
+	handle_path /practice-api/* {
+		reverse_proxy practice-api:8001
+	}
+
+	# The admin console and the master realm are only served on the
+	# localhost-only admin port (KC_HOSTNAME_ADMIN), never publicly.
+	@keycloakAdmin path /idp/admin /idp/admin/* /idp/realms/master /idp/realms/master/*
+	handle @keycloakAdmin {
+		respond 404
+	}
+
+	handle /idp/* {
+		reverse_proxy keycloak:8080 {
+			# Keycloak refuses plain-HTTP requests from outside unless it knows
+			# the browser's scheme: https in prod (Funnel), http in pre.
+			header_up X-Forwarded-Proto {$PUBLIC_SCHEME}
+		}
+	}
+
+	handle {
+		root * /srv
+		try_files {path} {path}/index.html /index.html
+		file_server
+	}
+}

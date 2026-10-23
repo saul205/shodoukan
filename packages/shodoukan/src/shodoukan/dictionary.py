@@ -1,14 +1,18 @@
+from collections.abc import Iterable
 from pathlib import Path
 
 from shodoukan.db.connection import open_connection, resolve_path
 from shodoukan.db.download import download
 from shodoukan.models.entry import Entry, EntryKanjiLink, Page
-from shodoukan.models.kanji import Kanji
+from shodoukan.models.kanji import Kanji, KanjiStrokes
 from shodoukan.models.search import SearchResult
 from shodoukan.repositories.entry import EntryRepository
 from shodoukan.repositories.kanji import KanjiRepository
-from shodoukan.utils.detect import contains_kanji, is_japanese, is_romaji
+from shodoukan.repositories.scoring import kanji_score_value
+from shodoukan.utils.detect import contains_kanji, is_japanese, is_kanji_only, is_romaji
 from shodoukan.utils.romaji import to_hiragana
+
+_KANJI_SIDE_LIMIT = 10
 
 
 class Dictionary:
@@ -41,16 +45,24 @@ class Dictionary:
     def search_entries(
         self,
         query: str,
+        lang: str = "en",
         limit: int = 20,
         offset: int = 0,
     ) -> Page[Entry]:
         if is_japanese(query):
             return self._entries.search_by_japanese(query, limit=limit, offset=offset)
-        if is_romaji(query):
-            hiragana = to_hiragana(query)
-            if hiragana:
-                return self._entries.search_by_japanese(hiragana, limit=limit, offset=offset)
-        return self._entries.search_by_english(query, limit=limit, offset=offset)
+        if is_romaji(query) and (hiragana := to_hiragana(query)):
+            # Readings (as hiragana) and meanings, ranked together.
+            return self._entries.search(
+                reading_query=hiragana,
+                gloss_query=query,
+                lang=lang,
+                limit=limit,
+                offset=offset,
+            )
+        return self._entries.search_by_gloss(
+            query, lang=lang, limit=limit, offset=offset
+        )
 
     def get_kanji_for_entry(self, entry_id: int) -> list[EntryKanjiLink]:
         return self._entries.get_kanji_for_entry(entry_id)
@@ -68,69 +80,84 @@ class Dictionary:
     def get_kanji(self, literal: str) -> Kanji | None:
         return self._kanji.get_by_literal(literal)
 
+    def get_kanji_strokes(self, literal: str) -> KanjiStrokes | None:
+        """The stroke order of `literal` (KanjiVG), or `None` if it has none."""
+        return self._kanji.get_strokes(literal)
+
+    def literals_with_strokes(self, literals: Iterable[str]) -> set[str]:
+        """Which of `literals` have a stroke order (KanjiVG)."""
+        return self._kanji.literals_with_strokes(literals)
+
     def search_kanji(
         self,
         query: str | None = None,
         grade: int | None = None,
         jlpt: int | None = None,
+        lang: str = "en",
         limit: int = 20,
         offset: int = 0,
     ) -> Page[Kanji]:
         return self._kanji.search(
-            query=query, grade=grade, jlpt=jlpt, limit=limit, offset=offset
+            query=query, grade=grade, jlpt=jlpt, lang=lang, limit=limit, offset=offset
         )
 
     def search(
         self,
         query: str,
+        lang: str = "en",
         limit: int = 20,
         offset: int = 0,
     ) -> SearchResult:
-        if len(query) == 1 and contains_kanji(query):
-            return self._search_single_kanji(query, limit, offset)
-        if is_japanese(query):
-            return self._search_japanese(query, limit, offset)
-        if is_romaji(query):
-            hiragana = to_hiragana(query)
-            if hiragana:
-                return self._search_japanese(hiragana, limit, offset)
-        return self._search_translation(query, limit, offset)
-
-    def _search_single_kanji(
-        self, literal: str, limit: int, offset: int
-    ) -> SearchResult:
-        kanji = self._kanji.get_by_literal(literal)
-        entries = self._entries.get_entries_for_kanji(
-            literal, limit=limit, offset=offset
-        )
-        return SearchResult(entries=entries, kanji=[kanji] if kanji else [])
-
-    def _search_japanese(self, query: str, limit: int, offset: int) -> SearchResult:
-        entries = self._entries.search_by_japanese(query, limit=limit, offset=offset)
-        entry_ids = [e.id for e in entries.items]
-        literals = self._entries.get_related_kanji_literals(entry_ids, limit=10)
-        kanji = [k for lit in literals if (k := self._kanji.get_by_literal(lit))]
+        if is_kanji_only(query):
+            entries = self._entries.search_by_japanese(
+                query, limit=limit, offset=offset
+            )
+            kanji = self._literal_kanji(query)
+        elif is_japanese(query):
+            entries = self._entries.search_by_japanese(
+                query, limit=limit, offset=offset
+            )
+            kanji = self._kanji.search(
+                query, grade=None, jlpt=None, limit=_KANJI_SIDE_LIMIT, offset=0
+            ).items
+        elif is_romaji(query) and (hiragana := to_hiragana(query)):
+            # Readings (as hiragana) and meanings, ranked together in one query.
+            entries = self._entries.search(
+                reading_query=hiragana,
+                gloss_query=query,
+                lang=lang,
+                limit=limit,
+                offset=offset,
+            )
+            # Kanji by reading and by meaning, ranked by kind of match first.
+            kanji = self._kanji.search_ranked(
+                reading_query=hiragana,
+                meaning_query=query,
+                lang=lang,
+                limit=_KANJI_SIDE_LIMIT,
+                offset=0,
+            ).items
+        else:
+            entries = self._entries.search_by_gloss(
+                query, lang=lang, limit=limit, offset=offset
+            )
+            kanji = self._kanji.search(
+                query, grade=None, jlpt=None, lang=lang,
+                limit=_KANJI_SIDE_LIMIT, offset=0,
+            ).items
         return SearchResult(entries=entries, kanji=kanji)
 
-    def _search_translation(self, query: str, limit: int, offset: int) -> SearchResult:
-        entries = self._entries.search_by_english(query, limit=limit, offset=offset)
-        entry_ids = [e.id for e in entries.items]
-
-        related_literals = self._entries.get_related_kanji_literals(entry_ids, limit=10)
-        meaning_page = self._kanji.search(
-            query=query, grade=None, jlpt=None, limit=5, offset=0
+    def _literal_kanji(self, query: str) -> list[Kanji]:
+        literals = list(dict.fromkeys(ch for ch in query if contains_kanji(ch)))
+        if not literals:
+            return []
+        return sorted(
+            self._kanji.get_by_literals(literals), key=kanji_score_value, reverse=True
         )
-        meaning_literals = [k.literal for k in meaning_page.items]
 
-        seen: set[str] = set()
-        merged: list[str] = []
-        for lit in related_literals + meaning_literals:
-            if lit not in seen:
-                seen.add(lit)
-                merged.append(lit)
-
-        kanji = [k for lit in merged[:10] if (k := self._kanji.get_by_literal(lit))]
-        return SearchResult(entries=entries, kanji=kanji)
+    def get_kanji_for_entry_related(self, entry_id: int) -> list[Kanji]:
+        literals = self._entries.get_related_kanji_literals([entry_id])
+        return [k for lit in literals if (k := self._kanji.get_by_literal(lit))]
 
     @staticmethod
     def download_db(dest: Path | str | None = None, force: bool = False) -> None:

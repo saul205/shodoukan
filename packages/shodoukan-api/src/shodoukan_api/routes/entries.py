@@ -9,11 +9,12 @@ router = APIRouter()
 @router.get("/search", response_model=Page[Entry])
 def search_entries(
     q: str = Query(min_length=1),
+    lang: str = Query(default="en"),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     d: Dictionary = Depends(dictionary_dep),
 ) -> Page[Entry]:
-    return d.search_entries(q, limit=limit, offset=offset)
+    return d.search_entries(q, lang=lang, limit=limit, offset=offset)
 
 
 @router.get("/by-kanji/{literal}", response_model=Page[Entry])

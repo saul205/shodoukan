@@ -1,0 +1,213 @@
+import { describe, expect, it, vi } from 'vitest'
+import { addToCollection, exportCollection, importCollection, listCollectionEntries, listCollectionKanji, publishCollection, unpublishCollection, updateCollection, updateFromSource } from '../../app/services/collections'
+import { getPublicCollection, importPublicCollection, previewPublicEntries, previewPublicKanji, searchPublicCollections } from '../../app/services/public-collections'
+import { searchDictionary } from '../../app/services/dictionary'
+import { answerQuestion, finishSession, getSession, listSessions, startSession } from '../../app/services/exercise-sessions'
+import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
+import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
+import {
+  addExample,
+  addGloss,
+  addReading,
+  addSpelling,
+  createOwnEntry,
+  addSense,
+  getImportStatus,
+  importEntry,
+  listLibraryEntries,
+  editExample,
+  listLibraryKanji,
+  removeExample,
+  removeReading,
+  removeSense,
+  removeSpelling,
+  setEntryPartEnabled,
+  setKanjiNotes,
+} from '../../app/services/library'
+import type { ApiClient } from '../../app/utils/api-client'
+
+function fakeApi() {
+  const api = vi.fn(async () => ({}))
+  return { api: api as unknown as ApiClient, calls: api.mock.calls as unknown as [string, Record<string, unknown>?][] }
+}
+
+describe('practice API services', () => {
+  it('search sends the query and paging', async () => {
+    const { api, calls } = fakeApi()
+    await searchDictionary(api, '食べる', 'es', 20, 40)
+    expect(calls[0]).toEqual(['/dictionary/search', { query: { q: '食べる', lang: 'es', limit: 20, offset: 40 } }])
+  })
+
+  it('import status skips the request when there is nothing to ask about', async () => {
+    const { api, calls } = fakeApi()
+    expect(await getImportStatus(api, [], [])).toEqual({ entries: [], kanji: [] })
+    expect(calls).toHaveLength(0)
+
+    await getImportStatus(api, [1, 2], ['食'])
+    expect(calls[0]).toEqual(['/library/imported', { query: { entry_ids: [1, 2], literals: ['食'] } }])
+  })
+
+  it('library edits use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    await importEntry(api, 1000001)
+    await importEntry(api, 1000002, [4])
+    await setEntryPartEnabled(api, 3, 'kanji-readings', 7, false)
+    await addGloss(api, 3, 5, 'to scoff', 'eng')
+    await addSense(api, 3, 'to dine', 'eng')
+    await removeSense(api, 3, 6)
+    await addExample(api, 3, 5, '水を飲む。', null, 'eng')
+    await editExample(api, 3, 8, '水を飲んだ。', 'I drank water.', 'eng')
+    await removeExample(api, 3, 8)
+    await createOwnEntry(api, { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng' })
+    await addSpelling(api, 3, '猫')
+    await removeSpelling(api, 3, 9)
+    await addReading(api, 3, 'ネコ')
+    await removeReading(api, 3, 10)
+    await setKanjiNotes(api, 4, null)
+
+    expect(calls).toEqual([
+      ['/library/entries', { method: 'POST', body: { entry_id: 1000001, collection_ids: [] } }],
+      ['/library/entries', { method: 'POST', body: { entry_id: 1000002, collection_ids: [4] } }],
+      ['/library/entries/3/kanji-readings/7/enabled', { method: 'PUT', body: { enabled: false } }],
+      ['/library/entries/3/senses/5/glosses', { method: 'POST', body: { text: 'to scoff', lang: 'eng' } }],
+      ['/library/entries/3/senses', { method: 'POST', body: { text: 'to dine', lang: 'eng' } }],
+      ['/library/entries/3/senses/6', { method: 'DELETE' }],
+      ['/library/entries/3/senses/5/examples', { method: 'POST', body: { japanese: '水を飲む。', translation: null, lang: 'eng' } }],
+      ['/library/entries/3/examples/8', { method: 'PUT', body: { japanese: '水を飲んだ。', translation: 'I drank water.', lang: 'eng' } }],
+      ['/library/entries/3/examples/8', { method: 'DELETE' }],
+      ['/library/entries/own', { method: 'POST', body: { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng', collection_ids: [] } }],
+      ['/library/entries/3/kanji-readings', { method: 'POST', body: { kanji: '猫' } }],
+      ['/library/entries/3/kanji-readings/9', { method: 'DELETE' }],
+      ['/library/entries/3/readings', { method: 'POST', body: { text: 'ネコ' } }],
+      ['/library/entries/3/readings/10', { method: 'DELETE' }],
+      ['/library/kanji/4/notes', { method: 'PUT', body: { notes: null } }],
+    ])
+  })
+
+  it('collections use the kind in the path', async () => {
+    const { api, calls } = fakeApi()
+    await updateCollection(api, 'kanji', 2, { name: 'N5', description: null })
+    await addToCollection(api, 'entries', 1, 9)
+    await listCollectionEntries(api, 1, { limit: 10, offset: 10 })
+    await listCollectionEntries(api, 1, { active: false })
+
+    expect(calls).toEqual([
+      ['/collections/kanji/2', { method: 'PUT', body: { name: 'N5', description: null } }],
+      ['/collections/entries/1/items/9', { method: 'PUT' }],
+      ['/collections/entries/1/items', { query: { limit: 10, offset: 10 } }],
+      ['/collections/entries/1/items', { query: { active: false } }],
+    ])
+  })
+
+  it('collections are exported and imported by kind', async () => {
+    const { api, calls } = fakeApi()
+    const file = { format: 'shodoukan.collection' as const, version: 1, kind: 'kanji' as const, exported_at: null, collection: { name: 'N5', items: [] } }
+    await exportCollection(api, 'entries', 7)
+    await importCollection(api, file)
+
+    expect(calls).toEqual([
+      ['/collections/entries/7/export'],
+      ['/collections/kanji/import', { method: 'POST', body: file }],
+    ])
+  })
+
+  it('collections are published and unpublished by kind', async () => {
+    const { api, calls } = fakeApi()
+    await publishCollection(api, 'kanji', 3, true)
+    await unpublishCollection(api, 'entries', 4)
+    await updateFromSource(api, 'kanji', 5)
+
+    expect(calls).toEqual([
+      ['/collections/kanji/3/publication', { method: 'PUT', body: { include_notes: true } }],
+      ['/collections/entries/4/publication', { method: 'DELETE' }],
+      ['/collections/kanji/5/update', { method: 'POST' }],
+    ])
+  })
+
+  it('public collections are searched, previewed and imported by kind', async () => {
+    const { api, calls } = fakeApi()
+    await searchPublicCollections(api, 'entries', { q: 'n5', owner: 'others', sort: 'recent', limit: 24, offset: 0 })
+    await getPublicCollection(api, 'kanji', 5)
+    await previewPublicEntries(api, 5, { limit: 24, offset: 24 })
+    await previewPublicKanji(api, 6)
+    await importPublicCollection(api, 'kanji', 6)
+
+    expect(calls).toEqual([
+      ['/public-collections/entries', { query: { q: 'n5', owner: 'others', sort: 'recent', limit: 24, offset: 0 } }],
+      ['/public-collections/kanji/5'],
+      ['/public-collections/entries/5/items', { query: { limit: 24, offset: 24 } }],
+      ['/public-collections/kanji/6/items', { query: {} }],
+      ['/public-collections/kanji/6/import', { method: 'POST' }],
+    ])
+  })
+
+  it('library and collection lists send the search', async () => {
+    const { api, calls } = fakeApi()
+    await listLibraryEntries(api, { q: 'taberu', meaning_lang: 'eng', not_in_collection: 3, limit: 20, offset: 0 })
+    await listLibraryKanji(api, { q: '兄弟', active: true })
+    await listCollectionKanji(api, 4, { q: 'eat', meaning_lang: 'en' })
+
+    expect(calls).toEqual([
+      ['/library/entries', { query: { q: 'taberu', meaning_lang: 'eng', not_in_collection: 3, limit: 20, offset: 0 } }],
+      ['/library/kanji', { query: { q: '兄弟', active: true } }],
+      ['/collections/kanji/4/items', { query: { q: 'eat', meaning_lang: 'en' } }],
+    ])
+  })
+
+  it('exercises use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    const input = {
+      name: 'Verbos',
+      description: null,
+      collection_ids: [1],
+      settings: {
+        type: 'card.choice' as const,
+        directions: [{ prompt: ['writing' as const], answer: 'meaning' as const }],
+        back_fields: [],
+        option_count: 4,
+        distractor_source: 'collection' as const,
+      },
+    }
+    await listExercises(api)
+    await getExercise(api, 7)
+    await createExercise(api, { ...input, item_kind: 'entries' })
+    await updateExercise(api, 7, input)
+    await deleteExercise(api, 7)
+    expect(calls).toEqual([
+      ['/exercises'],
+      ['/exercises/7'],
+      ['/exercises', { method: 'POST', body: { ...input, item_kind: 'entries' } }],
+      ['/exercises/7', { method: 'PUT', body: input }],
+      ['/exercises/7', { method: 'DELETE' }],
+    ])
+  })
+
+  it('exercise sessions use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    await startSession(api, 2, 'eng')
+    await getSession(api, 5)
+    await answerQuestion(api, 5, 9, { type: 'option', option: 1 }, 1500)
+    await finishSession(api, 5)
+    await listSessions(api, { status: 'open', limit: 1 })
+    expect(calls).toEqual([
+      ['/exercises/2/sessions', { method: 'POST', body: { meaning_lang: 'eng' } }],
+      ['/exercise-sessions/5'],
+      ['/exercise-sessions/5/answer', {
+        method: 'POST',
+        body: { question_id: 9, answer: { type: 'option', option: 1 }, response_ms: 1500 },
+      }],
+      ['/exercise-sessions/5/finish', { method: 'POST' }],
+      ['/exercise-sessions', { query: { status: 'open', limit: 1 } }],
+    ])
+  })
+
+  it('statistics use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+    await getExerciseStatistics(api, 2)
+    await getPracticeStatistics(api, 30, 'Europe/Madrid')
+    expect(calls).toEqual([
+      ['/exercises/2/statistics'],
+      ['/statistics', { query: { days: 30, tz: 'Europe/Madrid' } }],
+    ])
+  })
+})

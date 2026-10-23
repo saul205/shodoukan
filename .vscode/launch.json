@@ -1,0 +1,76 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Back",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["shodoukan_api.app:app", "--reload"],
+      "jinja": true,
+      "envFile": "${workspaceFolder}/.env.dev",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/packages/shodoukan/src:${workspaceFolder}/packages/shodoukan-api/src"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Practice API",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["shodoukan_practice.api.app:app", "--port", "8001", "--reload"],
+      "envFile": "${workspaceFolder}/.env.dev",
+      "preLaunchTask": "practice: prepare",
+      "justMyCode": false
+    },
+    {
+      "name": "Front",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/packages/shodoukan-web",
+      "preLaunchTask": "nuxt: dev",
+      "postDebugTask": "nuxt: stop"
+    },
+    {
+      "name": "Front [Full Stack]",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/packages/shodoukan-web",
+      "preLaunchTask": "nuxt: dev (after api)",
+      "postDebugTask": "nuxt: stop"
+    },
+    {
+      "name": "Practice Front",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3001",
+      "webRoot": "${workspaceFolder}/packages/shodoukan-practice-web",
+      "preLaunchTask": "practice-web: dev",
+      "postDebugTask": "practice-web: stop"
+    },
+    {
+      "name": "Practice Front [Full Stack]",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3001",
+      "webRoot": "${workspaceFolder}/packages/shodoukan-practice-web",
+      "preLaunchTask": "practice-web: dev (after api)",
+      "postDebugTask": "practice-web: stop"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack",
+      "configurations": ["Back", "Front [Full Stack]"],
+      "stopAll": true
+    },
+    {
+      "name": "Practice Full Stack",
+      "configurations": ["Practice API", "Practice Front [Full Stack]"],
+      "stopAll": true
+    }
+  ]
+}

@@ -85,7 +85,7 @@ def _cmd_entry_kanji(args, d) -> None:
         print(f"No kanji found for entry {args.id}.", file=sys.stderr)
         return
     for lk in links:
-        print(f"{lk.literal}  (priority: {lk.priority_score})")
+        print(f"  {lk.literal}")
 
 
 def _cmd_entries_for_kanji(args, d) -> None:

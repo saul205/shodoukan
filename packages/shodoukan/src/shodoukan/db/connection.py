@@ -1,3 +1,4 @@
+import math
 import os
 import sqlite3
 from pathlib import Path
@@ -19,16 +20,30 @@ def resolve_path(path: Path | str | None = None) -> Path:
     return _DEFAULT
 
 
+def ensure_math_functions(conn: sqlite3.Connection) -> sqlite3.Connection:
+    """Make `log2` available in SQL (entry search ranking uses it).
+
+    SQLite only has math functions when compiled with them; register a Python
+    one when this build lacks it.
+    """
+    try:
+        conn.execute("SELECT log2(2)")
+    except sqlite3.OperationalError:
+        conn.create_function("log2", 1, math.log2, deterministic=True)
+    return conn
+
+
 def open_connection(path: Path) -> Engine:
     def _creator() -> sqlite3.Connection:
-        return sqlite3.connect(
-            f"file:{path}?mode=ro", uri=True, check_same_thread=False
+        return ensure_math_functions(
+            sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
         )
 
     return create_engine("sqlite://", creator=_creator)
 
 
 def open_test_connection(raw: sqlite3.Connection) -> Engine:
+    ensure_math_functions(raw)
     return create_engine(
         "sqlite://",
         creator=lambda: raw,

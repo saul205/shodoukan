@@ -1,0 +1,7 @@
+# Nuxt build output and generated types
+.nuxt/
+.output/
+.data/
+node_modules/
+# nuxt generate links dist to .output/public
+dist

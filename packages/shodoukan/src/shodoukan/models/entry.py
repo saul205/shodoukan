@@ -65,13 +65,28 @@ class KanjiReading(BaseModel):
     info: list[str]
 
 
+class ScoreBreakdown(BaseModel):
+    score: float | None = None  # match_tier * TIER_WEIGHT + popularity; sort key
+    match_tier: int | None = None
+    relevance: float | None = None  # gloss: this entry's bm25 / the best bm25 (0-1]
+    freq: int | None = None
+    jlpt_bonus: int | None = None
+    exact_match: bool | None = None
+    fts_rank: float | None = None
+    sense_pos: int | None = None
+    total_senses: int | None = None
+    composite: float | None = None
+
+
 class Entry(BaseModel):
     id: int
     kanji_readings: list[KanjiReading]
     readings: list[Reading]
     senses: list[Sense]
+    jlpt: int | None = None
+    is_common: bool = False
+    score: ScoreBreakdown | None = None
 
 
 class EntryKanjiLink(BaseModel):
     literal: str
-    priority_score: int

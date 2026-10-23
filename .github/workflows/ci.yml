@@ -2,14 +2,30 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+
+    # Throwaway database, only reachable from this job.
+    services:
+      practice-db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: shodoukan_practice
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d shodoukan_practice"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +38,11 @@ jobs:
       - name: Install
         run: |
           pip install -e "packages/shodoukan[dev]" \
-                      -e "packages/shodoukan-api[dev]"
+                      -e "packages/shodoukan-api[dev]" \
+                      -e "packages/shodoukan-practice[dev]"
+
+      - name: Type check
+        run: mypy
 
       - name: Test library
         run: pytest tests/shodoukan
@@ -30,13 +50,99 @@ jobs:
       - name: Test API
         run: pytest tests/shodoukan-api
 
+      - name: Test practice
+        run: pytest tests/shodoukan-practice
+
+      - name: Migrate practice database (PostgreSQL)
+        env:
+          PRACTICE_DATABASE_URL: postgresql+psycopg://ci:ci@localhost:5432/shodoukan_practice
+        run: |
+          alembic -c packages/shodoukan-practice/alembic.ini upgrade head
+          alembic -c packages/shodoukan-practice/alembic.ini check
+          alembic -c packages/shodoukan-practice/alembic.ini downgrade base
+          alembic -c packages/shodoukan-practice/alembic.ini upgrade head
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4  # version from package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test shodoukan-ui
+        run: |
+          pnpm --filter shodoukan-ui build
+          pnpm --filter shodoukan-ui test
+
+      - name: Test practice frontend
+        run: |
+          pnpm --filter shodoukan-practice-web test
+          pnpm --filter shodoukan-practice-web typecheck
+
+      - name: Build dictionary frontend
+        run: |
+          pnpm --filter shodoukan-web typecheck
+          pnpm --filter shodoukan-web generate
+
+  # Builds every deployable image (without pushing) so a broken Dockerfile
+  # shows up in the PR, not at deploy time.
+  docker-build:
+    name: Docker build (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: dictionary-api
+            dockerfile: packages/shodoukan-api/Dockerfile
+          - image: practice-api
+            dockerfile: packages/shodoukan-practice/Dockerfile
+          - image: practice-web
+            dockerfile: deploy/web/Dockerfile
+          - image: keycloak
+            dockerfile: docker/keycloak/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # The dictionary (API and static web) lives on Render; its deploy hooks
+  # make Render rebuild from main. The practice stack is deployed by hand on
+  # its host (deploy/deploy.sh), which builds it from main.
   deploy:
-    name: Deploy to Render
-    needs: test
+    name: Deploy dictionary to Render
+    needs: [test, frontend, docker-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Render Deploy
-        # El comando curl "llama" a Render para que empiece el build
+      - name: Deploy dictionary API
+        run: curl -fsS -X POST "${{ secrets.RENDER_HOOK_DICT_API }}"
+
+      - name: Deploy dictionary web
+        env:
+          HOOK: ${{ secrets.RENDER_HOOK_DICT_WEB }}
         run: |
-          curl -f "${{ secrets.DEPLOY_HOOK }}"
+          if [ -z "$HOOK" ]; then
+            echo "RENDER_HOOK_DICT_WEB isn't set yet; skipping the static site."
+          else
+            curl -fsS -X POST "$HOOK"
+          fi

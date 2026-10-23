@@ -26,6 +26,9 @@ class EntryORM(Base):
     __tablename__ = "entries"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    jlpt: Mapped[int | None]
+    freq_score: Mapped[int]
+    has_common: Mapped[int]
 
     kanji_readings: Mapped[list[KanjiReadingORM]] = relationship(
         back_populates="entry"
@@ -69,6 +72,7 @@ class SenseORM(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(ForeignKey("entries.id"))
+    sense_index: Mapped[int]
     pos: Mapped[str]
     misc: Mapped[str]
     dialects: Mapped[str]
@@ -139,9 +143,24 @@ class EntryKanjiORM(Base):
         ForeignKey("entries.id"), primary_key=True
     )
     literal: Mapped[str] = mapped_column(primary_key=True)
-    priority_score: Mapped[int]
 
     entry: Mapped[EntryORM] = relationship(back_populates="entry_kanji")
+
+
+class EntrySenseLangCountORM(Base):
+    __tablename__ = "entry_sense_counts"
+
+    entry_id: Mapped[int] = mapped_column(ForeignKey("entries.id"), primary_key=True)
+    lang: Mapped[str] = mapped_column(primary_key=True)
+    count: Mapped[int]
+
+
+class SenseLangIndexORM(Base):
+    __tablename__ = "sense_lang_index"
+
+    sense_id: Mapped[int] = mapped_column(ForeignKey("senses.id"), primary_key=True)
+    lang: Mapped[str] = mapped_column(primary_key=True)
+    lang_sense_index: Mapped[int]
 
 
 class KanjiORM(Base):
@@ -168,3 +187,16 @@ class KanjiMeaningORM(Base):
     lang: Mapped[str]
 
     kanji_obj: Mapped[KanjiORM] = relationship(back_populates="meanings")
+
+
+class KanjiSvgORM(Base):
+    """A KanjiVG drawing: one SVG per character, keyed by its literal.
+
+    Not every kanji has one, and a few non-kanji (kana, digits) do, so there's
+    no foreign key to `kanji`.
+    """
+
+    __tablename__ = "kanji_svg"
+
+    literal: Mapped[str] = mapped_column(primary_key=True)
+    svg: Mapped[str]

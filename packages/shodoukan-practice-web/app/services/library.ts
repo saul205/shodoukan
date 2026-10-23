@@ -1,0 +1,255 @@
+import type { Page } from 'shodoukan-ui'
+import type {
+  Collection,
+  EntryPart,
+  ImportStatus,
+  KanjiPart,
+  LibraryQuery,
+  PracticeEntry,
+  PracticeKanji,
+  PracticeUser,
+} from '../models/practice'
+import type { ApiClient } from '../utils/api-client'
+
+// The user's library. Every edit returns the whole item as it is now.
+
+export function getMe(api: ApiClient): Promise<PracticeUser> {
+  return api<PracticeUser>('/users/me')
+}
+
+// --- Import ---
+
+// `collectionIds` puts the item in those collections in the same request: if
+// one isn't the user's, nothing is imported (404). Idempotent.
+
+export function importEntry(api: ApiClient, entryId: number, collectionIds: number[] = []): Promise<PracticeEntry> {
+  return api<PracticeEntry>('/library/entries', {
+    method: 'POST',
+    body: { entry_id: entryId, collection_ids: collectionIds },
+  })
+}
+
+export function importKanji(api: ApiClient, literal: string, collectionIds: number[] = []): Promise<PracticeKanji> {
+  return api<PracticeKanji>('/library/kanji', { method: 'POST', body: { literal, collection_ids: collectionIds } })
+}
+
+/** Which of these dictionary items the user has imported, with their practice ids. */
+export function getImportStatus(
+  api: ApiClient,
+  entryIds: number[],
+  literals: string[],
+): Promise<ImportStatus> {
+  if (!entryIds.length && !literals.length) return Promise.resolve({ entries: [], kanji: [] })
+  return api<ImportStatus>('/library/imported', {
+    query: { entry_ids: entryIds, literals },
+  })
+}
+
+// --- Entries ---
+
+export function listLibraryEntries(api: ApiClient, query: LibraryQuery = {}): Promise<Page<PracticeEntry>> {
+  return api<Page<PracticeEntry>>('/library/entries', { query })
+}
+
+export function getLibraryEntry(api: ApiClient, id: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}`)
+}
+
+export function removeLibraryEntry(api: ApiClient, id: number): Promise<void> {
+  return api(`/library/entries/${id}`, { method: 'DELETE' })
+}
+
+export function getEntryCollections(api: ApiClient, id: number): Promise<Collection[]> {
+  return api<Collection[]>(`/library/entries/${id}/collections`)
+}
+
+export function setEntryActive(api: ApiClient, id: number, active: boolean): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/active`, { method: 'PUT', body: { active } })
+}
+
+export function setEntryNotes(api: ApiClient, id: number, notes: string | null): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/notes`, { method: 'PUT', body: { notes } })
+}
+
+export function setSenseNotes(
+  api: ApiClient,
+  id: number,
+  senseId: number,
+  notes: string | null,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}/notes`, {
+    method: 'PUT',
+    body: { notes },
+  })
+}
+
+export function setEntryPartEnabled(
+  api: ApiClient,
+  id: number,
+  part: EntryPart,
+  itemId: number,
+  enabled: boolean,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/${part}/${itemId}/enabled`, {
+    method: 'PUT',
+    body: { enabled },
+  })
+}
+
+export interface OwnEntryInput {
+  spellings: string[]
+  readings: string[] // kana
+  meaning: string
+  lang: string // ISO 639-2, the meaning's
+  collection_ids?: number[]
+}
+
+/** A word of the user's own, one the dictionary doesn't have. */
+export function createOwnEntry(api: ApiClient, input: OwnEntryInput): Promise<PracticeEntry> {
+  return api<PracticeEntry>('/library/entries/own', {
+    method: 'POST',
+    body: { ...input, collection_ids: input.collection_ids ?? [] },
+  })
+}
+
+/** A spelling of the user's own (any word can take them). */
+export function addSpelling(api: ApiClient, id: number, kanji: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/kanji-readings`, { method: 'POST', body: { kanji } })
+}
+
+export function removeSpelling(api: ApiClient, id: number, spellingId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/kanji-readings/${spellingId}`, { method: 'DELETE' })
+}
+
+/** A reading (kana) of the user's own. */
+export function addReading(api: ApiClient, id: number, text: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/readings`, { method: 'POST', body: { text } })
+}
+
+/** Remove an own reading; the API refuses (409) the word's last one. */
+export function removeReading(api: ApiClient, id: number, readingId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/readings/${readingId}`, { method: 'DELETE' })
+}
+
+/** A sense of the user's own, created with its first meaning; `lang` is ISO 639-2. */
+export function addSense(api: ApiClient, id: number, text: string, lang: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses`, { method: 'POST', body: { text, lang } })
+}
+
+/** Remove one of the user's own senses, with its meanings and examples. */
+export function removeSense(api: ApiClient, id: number, senseId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}`, { method: 'DELETE' })
+}
+
+/** `lang` is ISO 639-2 (e.g. "eng"), like the entry's glosses. */
+export function addGloss(
+  api: ApiClient,
+  id: number,
+  senseId: number,
+  text: string,
+  lang: string,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}/glosses`, {
+    method: 'POST',
+    body: { text, lang },
+  })
+}
+
+export function editGloss(api: ApiClient, id: number, glossId: number, text: string): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/glosses/${glossId}`, { method: 'PUT', body: { text } })
+}
+
+export function removeGloss(api: ApiClient, id: number, glossId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/glosses/${glossId}`, { method: 'DELETE' })
+}
+
+/** An example of the user's own: a Japanese sentence and an optional translation in `lang` (ISO 639-2). */
+export function addExample(
+  api: ApiClient,
+  id: number,
+  senseId: number,
+  japanese: string,
+  translation: string | null,
+  lang: string,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/senses/${senseId}/examples`, {
+    method: 'POST',
+    body: { japanese, translation, lang },
+  })
+}
+
+/** Rewrite an own example: its sentence and the translation in `lang`; others are kept. */
+export function editExample(
+  api: ApiClient,
+  id: number,
+  exampleId: number,
+  japanese: string,
+  translation: string | null,
+  lang: string,
+): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/examples/${exampleId}`, {
+    method: 'PUT',
+    body: { japanese, translation, lang },
+  })
+}
+
+export function removeExample(api: ApiClient, id: number, exampleId: number): Promise<PracticeEntry> {
+  return api<PracticeEntry>(`/library/entries/${id}/examples/${exampleId}`, { method: 'DELETE' })
+}
+
+// --- Kanji ---
+
+export function listLibraryKanji(api: ApiClient, query: LibraryQuery = {}): Promise<Page<PracticeKanji>> {
+  return api<Page<PracticeKanji>>('/library/kanji', { query })
+}
+
+export function getLibraryKanji(api: ApiClient, id: number): Promise<PracticeKanji> {
+  return api<PracticeKanji>(`/library/kanji/${id}`)
+}
+
+export function removeLibraryKanji(api: ApiClient, id: number): Promise<void> {
+  return api(`/library/kanji/${id}`, { method: 'DELETE' })
+}
+
+export function getKanjiCollections(api: ApiClient, id: number): Promise<Collection[]> {
+  return api<Collection[]>(`/library/kanji/${id}/collections`)
+}
+
+export function setKanjiActive(api: ApiClient, id: number, active: boolean): Promise<PracticeKanji> {
+  return api<PracticeKanji>(`/library/kanji/${id}/active`, { method: 'PUT', body: { active } })
+}
+
+export function setKanjiNotes(api: ApiClient, id: number, notes: string | null): Promise<PracticeKanji> {
+  return api<PracticeKanji>(`/library/kanji/${id}/notes`, { method: 'PUT', body: { notes } })
+}
+
+export function setKanjiPartEnabled(
+  api: ApiClient,
+  id: number,
+  part: KanjiPart,
+  itemId: number,
+  enabled: boolean,
+): Promise<PracticeKanji> {
+  return api<PracticeKanji>(`/library/kanji/${id}/${part}/${itemId}/enabled`, {
+    method: 'PUT',
+    body: { enabled },
+  })
+}
+
+/** `lang` is ISO 639-1 (e.g. "en"), like the kanji's meanings. */
+export function addKanjiMeaning(api: ApiClient, id: number, text: string, lang: string): Promise<PracticeKanji> {
+  return api<PracticeKanji>(`/library/kanji/${id}/meanings`, { method: 'POST', body: { text, lang } })
+}
+
+export function editKanjiMeaning(
+  api: ApiClient,
+  id: number,
+  meaningId: number,
+  text: string,
+): Promise<PracticeKanji> {
+  return api<PracticeKanji>(`/library/kanji/${id}/meanings/${meaningId}`, { method: 'PUT', body: { text } })
+}
+
+export function removeKanjiMeaning(api: ApiClient, id: number, meaningId: number): Promise<PracticeKanji> {
+  return api<PracticeKanji>(`/library/kanji/${id}/meanings/${meaningId}`, { method: 'DELETE' })
+}

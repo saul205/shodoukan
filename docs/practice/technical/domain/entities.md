@@ -1,0 +1,292 @@
+# Domain Entities
+
+[← Technical documentation](../README.md)
+
+The aggregates of the practice domain, their state and the rules for changing them.
+Code: `src/shodoukan_practice/domain/entities/`.
+
+## Aggregates
+
+All entities are Pydantic models. Aggregate roots inherit
+[`TimestampedEntity`](#timestamps-and-touch).
+
+| Aggregate | Module | Key fields |
+|---|---|---|
+| `User` | `user_entity.py` | `id: UUID`, the identity provider's user id (the token's `sub`), so practice users map 1:1 to provider users; `username` (display name from the provider, not unique) |
+| `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id` (`None` for a word of the user's own; `is_own`), `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
+| `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active`, `notes` |
+| `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description`; sharing: `is_public`, `published_version` (0 if never), `published_at`; a copy's `source_collection_id`, `source_version` |
+| `ExerciseSession` | `exercise_session_entity.py` | `user_id`, `exercise_id` (`None` once the exercise is deleted), `exercise_name`, `item_kind`, `meaning_lang`, `current` (the active question), `history` (the answered ones), `finished_at`; `created_at` is the start, `updated_at` the last activity |
+| `Exercise` → `EntryExercise`, `KanjiExercise` | `exercise_entity.py` | `user_id`, `name` (1–100, `EXERCISE_NAME_MAX_LENGTH`, not unique), `description`, `collection_ids`, `settings`; `item_kind` (`"entries"` / `"kanji"`) comes from the subclass |
+
+Everything is re-exported from `domain/entities/__init__.py`.
+
+## Snapshot and practice state
+
+A `PracticeEntry` / `PracticeKanji` is a copy of the dictionary item taken at import
+time, so dictionary updates never overwrite the user's edits. The only link back is
+`source_entry_id` (shodoukan `Entry.id`) or `literal` (shodoukan `Kanji.literal`).
+
+A word can also be the user's own: `PracticeEntry.create_own(user_id, spellings,
+readings, meaning, lang)` builds one with no `source_entry_id` (`is_own`), at least one
+reading in kana, optional spellings and an own sense with its first meaning; everything
+in it is `origin="added"`, `jlpt=None`, `is_common=False`. It's what the dictionary
+doesn't have, such as counters with their numbers (三匹).
+
+On top of the snapshot:
+
+- `enabled: bool` on readings, kanji spellings, senses, glosses, examples, kanji
+  reading items and kanji meanings: the user can hide individual parts. A disabled
+  sense hides its glosses and examples without changing their own flags, so a gloss
+  counts only when `sense.enabled and gloss.enabled`.
+- `origin: "imported" | "added"` on spellings, readings, senses, glosses, examples and
+  kanji meanings: the user can add their own, and they stay distinguishable from
+  imported ones.
+- `notes` on the entry, on each of its senses, and on the kanji: the user's own
+  free text (`Notes` in `notes_value.py`: stripped, blank becomes `None`, at most
+  2000 characters).
+- `is_active` on the aggregate: an inactive item stays in the library and in its
+  collections, but is skipped when listing a collection's cards and when building
+  exercise pools.
+- Where a copy came from (see [sharing](#sharing-shared_collection_valuepy)):
+  `original_id` (identity) and `source_id` (the row it was copied from) on the parts
+  the user can add, senses and words of the user's own, plus `edited_id` (the version)
+  on parts with content (spellings, readings, glosses, examples, kanji meanings);
+  `source_collection_id` on collections; parts with content also record the
+  collections that bring them (`source_collection_ids`: the one they were copied
+  with, and any other followed collection found to bring the same version). `None` is the row itself. Editing a meaning or
+  an example sets `edited_id = None`: that version is now the user's.
+  `PracticeEntry.identity` is `original_id`, or `id` for an original.
+
+`PracticeKanjiReading` (a word's kanji spelling, e.g. 食べる) isn't the same as
+`PracticeReadingItem` (one on/kun reading or nanori of a character).
+
+## Collections
+
+- **Metadata only.** A collection holds its name and description, not its members.
+  Membership lives in link tables and is read and changed through the
+  [collection repositories](repository-ports.md#collection-repositories), so listing
+  cards paginates in SQL and tagging one item never loads the whole membership.
+- **Collections double as tags.** Tagging an item "verbs" means adding it to the
+  "verbs" collection. There is no separate Tag entity.
+- **Entry and kanji collections are separate subclasses** and never mixed. Code that
+  only needs the grouping (e.g. exercises) works against the `Collection` base.
+  Why subclasses: [decisions](../decisions.md#entry-and-kanji-collections-are-subclasses).
+
+## Exercises
+
+A saved exercise. The design (types, sessions, statistics) is in
+[exercises](../exercises.md); this is what's built.
+
+- **Subclasses by item kind.** `EntryExercise` studies the fields `writing`,
+  `reading`, `meaning` (`ENTRY_FIELDS`); `KanjiExercise` studies `literal`, `onyomi`,
+  `kunyomi`, `meaning` (`KANJI_FIELDS`). A model validator rejects settings that use a
+  field of the other kind, on construction and on `configure`.
+- **`settings: ExerciseSettings`**, a union discriminated by `type`; card types
+  share `CardSettings` (`directions`, `back_fields`). Frozen value objects; a
+  `question_count` stored by earlier versions is ignored.
+  - `ChoiceCardSettings` (`card.choice`): `option_count` (2–8, default 4),
+    `distractor_source` (`"collection"`).
+  - `HandwritingCardSettings` (`card.handwriting`): every direction asks for
+    something to write (`HANDWRITING_ANSWERS`): `literal` (a `KanjiExercise`), or
+    `writing` / `reading` (an `EntryExercise`, a word written a character per cell).
+- **`Direction(prompt, answer)`**: the fields shown (at least one, no repeats) and the
+  field asked, which can't be one of them. An exercise needs at least one direction
+  and can't repeat one (the prompt's order doesn't count); back fields can't repeat.
+- **`collection_ids`**: the collections it draws from, in order. They're part of the
+  definition, so the entity holds them (unlike a collection's members). It can be
+  empty after its collections are deleted: the exercise stays but can't run. Why:
+  [decisions](../decisions.md#an-exercise-holds-its-collection-ids).
+
+## Exercise sessions
+
+An open-ended study session of an exercise: one active question (`current`) and the
+answered ones (`history`). Its questions are built by the
+[question services](services-and-errors.md#services-domainservices).
+`ExerciseQuestion` is a union discriminated by `type`, like the settings:
+`ChoiceQuestion` (`card.choice`), `HandwritingQuestion` (`card.handwriting`) and
+`WordHandwritingQuestion` (`card.handwriting_word`), on a shared `QuestionBase`. Each is a snapshot of the card, so the session reads the same
+after its items or its exercise change:
+
+- `item_id` (the item asked about; `None` once it leaves the library),
+  `prompt_fields`, `answer_field`;
+- `prompt` and `back`: `ShownField(field, values)`, what the front and the back show;
+- choice cards: `options`, `ChoiceOption(text, item_id)`, with `correct_option` as an
+  index;
+- handwriting cards: `references`, the kanji it accepts (at least one):
+  `ReferenceKanji(literal, strokes)`, each stroke a `ReferenceStroke(path, label,
+  points)` from KanjiVG (the path to draw it, its number's place, its centre line as
+  points to grade against); and `grade`, a `HandwritingGrade(score, verdict, matched,
+  strokes, looks_like)` once drawn: a 0–100 score, `correct` / `close` / `wrong`, the
+  accepted kanji it's closest to, a `StrokeFeedback(drawn, reference, status)` per
+  stroke, and the character it was taken for when it's another one (a kana in a
+  word: ろ for る, や for ゃ);
+- word handwriting cards: `words`, the words it accepts, all as long:
+  `ReferenceWord(text, characters)`, a `ReferenceKanji` per character spelling
+  `text`; `cell_count`, their length; and `grade`, a `WordGrade(score, verdict,
+  matched, cells)` once written, a `HandwritingGrade` per cell;
+- `answer`: `ExerciseAnswer`, a union discriminated by `type`:
+  `OptionAnswer(type="option", option)`, `StrokesAnswer(type="strokes", strokes)` (the
+  drawing: up to `MAX_STROKES` strokes of up to `MAX_STROKE_POINTS` points each,
+  inside `CANVAS_SIZE` plus `CANVAS_MARGIN`), `CellsAnswer(type="cells", cells)` (a
+  word: up to `MAX_CELLS` drawings in that space, one per character, some may be
+  empty but not all) or `SkipAnswer(type="skip")`, which is
+  graded as a miss ([decisions](../decisions.md#skipping-is-a-miss)). Then
+  `is_correct`, `answered_at`, `response_ms` (measured by the client). All `None`
+  until answered.
+- `needs_review`: whether its item comes back as a review: a miss, or a drawing
+  graded `close`.
+
+`ask` and `answer` raise `SessionFinishedError` on a finished **or idle** session,
+and change nothing then. Methods:
+
+- `ask(question)`: makes it the active question, positioned after the history;
+  `QuestionNotActiveError` if one is active already.
+- `answer(question_id, answer, response_ms, grade=None)`: grades the active question
+  and moves it to the history. `question_id` must be the active one's
+  (`QuestionNotActiveError` otherwise: a double click, a stale tab);
+  `InvalidAnswerError` for an answer of another type or an option it doesn't have. A
+  drawing is graded by `handwriting_grading_service`, which the caller runs and
+  passes as `grade` (required for a drawing, refused otherwise; `ValueError`, a
+  programming error); it's right unless the verdict is `wrong`. See
+  [decisions](../decisions.md#a-drawing-is-graded-by-a-service-and-recorded-by-the-session).
+- `finish()`: the user closes it now; drops the active question; idempotent.
+- `close_at_last_activity()`: closes a session the user left (another one started,
+  or idle), with `finished_at = updated_at`. It drops the active question but
+  **doesn't `touch()`**: in a session `updated_at` is the last activity, and closing
+  a left session isn't activity. Idempotent.
+- `ended_at(now)`: `finished_at`, or the last activity if idle for more than
+  `IDLE_TIMEOUT` (30 minutes), or `None`. `close_if_idle(now)` makes that permanent
+  (closing isn't activity: `updated_at` stays). It delegates to the module function
+  `session_end(finished_at, last_activity, now)`, the one idle rule, which the
+  history's `SessionSummary` uses too (see
+  [ports](repository-ports.md#exercisesessionrepository)).
+- `answered` and `score` count the history and its right answers.
+
+`SessionStatus = Literal["open", "finished"]` is how the history filters sessions
+(idle ones are `"finished"`). `IDLE_TIMEOUT`, `SessionStatus` and `session_end` are
+exported from `domain.entities`.
+
+## Sharing (`shared_collection_value.py`)
+
+The portable form of a collection: what an exported file (later, a public collection)
+carries, and what importing it copies. Frozen Pydantic values, used as is in the API's
+file format. The contract is in the
+[proposal](../../proposals/library-authoring-and-sharing.md#importing-a-collection-86-from-a-file-82-from-another-user).
+
+- `SharedEntryCollection` / `SharedKanjiCollection` (`SharedCollection`): `id`, `name`,
+  `description`, `items` (at most `MAX_SHARED_ITEMS`, 5000, each once: a repeated
+  `source_entry_id`, own word identity or kanji literal is invalid, as in the link
+  table).
+- `SharedEntry`: `id`, `original_id`, `source_entry_id` (`None` for a word of the
+  owner's own, which then has only `added` parts and at least one reading),
+  `is_active`, `notes`, `spellings`, `readings`, `senses` → `glosses`, `examples` →
+  `sentences`. `SharedKanji`: `literal`, `is_active`, `notes`, `on_readings` /
+  `kun_readings` / `nanori` (`SharedKanjiReading(text, enabled)`), `meanings`.
+- Every part is a `SharedPart`: `origin`, `id`, `original_id` (its `identity`),
+  `enabled`; parts with content are `SharedContent`, with `edited_id` (its `version`).
+  The exporter fills them resolved (an original's `original_id` is its `id`). Added parts are validated like the user's own (kana
+  readings, non-empty meanings, an example's Japanese sentence, a sense with meanings
+  in one language); imported ones aren't, they're only located. Lists are bounded by
+  `MAX_SHARED_PARTS` (500).
+
+Aggregate methods:
+
+- `to_shared(include_notes=True)` on `PracticeEntry` / `PracticeKanji`: everything, in
+  order; without notes when publishing without them.
+- `merge_shared(shared, created, source_collection_id=None) -> bool`: takes what the
+  shared copy adds; the parts it copies record the collection they came with in
+  `source_collection_ids`, and a copy already there in that version gains it too. Parts in `dismissed_parts` are
+  skipped.
+- `prune_source(shared, source_collection_id) -> bool` (#90): the collection lets go
+  of the parts it brought, untouched (`edited_id` still set), that the shared item no
+  longer has (by version): it leaves their `source_collection_ids`, and a part no
+  collection brings any more is removed, never a sense's last meaning or a word's last
+  reading. An own sense the collection dropped is only considered if the collection
+  brings something in it, and goes whole only when nothing in it is the user's or
+  still brought by anything, and it has no notes. `FILE` in `source_collection_ids`
+  pins a part imported from a file: no update removes it. The helpers are `prune_parts` / `untouched_from`.
+- A version is `(edited_id or id, revision)`: `revision` counts the edits of the row
+  that wrote the part, so an owner editing their own part makes a new version.
+- `dismissed_parts`: copied parts the user deleted, as `"<kind>:<identity>"`
+  (`dismissal_key`, `dismissed_of`). `shared_key` (`entry:<id>`, `own:<identity>`,
+  `kanji:<literal>`) is what an item is across libraries, as `SharedEntry.key`. Imported
+  parts are located by their place among the imported parts of the same list, checked
+  by text (a sense by its first imported meaning); flags (`enabled`, `is_active`) are
+  taken only when `created` is true (the item was created by this import). Added parts
+  are appended as copies (`original_id` / `edited_id` as shared, `source_id` = the shared
+  part's id) unless the item has that version already; another version of the same
+  part is appended next to it. Senses and words are matched by identity. Notes are copied only where there are none. An added meaning in
+  another language than its sense's, and the added parts of an imported sense that
+  can't be located, are skipped. Returns whether anything changed (touches then). The
+  shared helper is `merge_parts` in `nested_item_lookup.py`.
+- `PracticeEntry.from_shared(user_id, shared)`: a copy of someone's word of their own.
+
+## Timestamps and `touch()`
+
+`TimestampedEntity` (`timestamped_entity.py`):
+
+- `created_at` / `updated_at` default to `utc_now()` (aware UTC). See
+  [dates](../cross-cutting/dates-and-time-zones.md).
+- `touch()` sets `updated_at = utc_now()`.
+- `validate_assignment=True`: assignments made by methods are validated like the
+  constructor (e.g. `rename("")` fails).
+
+**Rule: aggregates change only through their own methods, and every method that
+changes state calls `touch()`.** A call that changes nothing doesn't touch. The one
+exception is closing an exercise session the user left
+(`ExerciseSession.close_at_last_activity`): there `updated_at` means the last
+activity, which closing must not move. Use cases
+call methods; they don't assign fields of a loaded aggregate.
+
+Current methods:
+
+| Aggregate | Methods |
+|---|---|
+| `User` | `rename(username)` (the provider's display name changed) |
+| `Collection` | `rename(name)`, `describe(description)`, `publish()` (a new public version; returns it), `unpublish()`, `follow_source(version)` (a copy now follows that version of its source) |
+| `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
+| `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
+| `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)`, `merge_shared(shared, created)` |
+| `PracticeEntry` | `create_own(...)` and `from_shared(...)` (class methods), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `add_example(sense_id, japanese, translation, lang)`, `edit_example(example_id, japanese, translation, lang)`, `remove_example(example_id)` |
+| `PracticeKanji` | `add_meaning(text, lang)`, `edit_meaning(meaning_id, text)`, `remove_meaning(meaning_id)` |
+
+`part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"senses"`, `"glosses"`,
+`"examples"`)
+or a `KanjiPart` (`"readings"`, covering on, kun and nanori, or `"meanings"`). A nested
+id that isn't there raises `EntityNotFoundError`. Nested models don't validate on
+assignment, so notes go through `parse_notes` and meaning texts through
+`clean_meaning`, example sentences through `clean_sentence` (`nested_item_lookup.py`).
+
+## Customisation rules
+
+The library copy keeps the dictionary's data intact; the user layers their choices on
+top:
+
+- **Dictionary data is never edited or deleted, only disabled.** That covers every
+  reading, spelling, example and imported (`origin="imported"`) sense and meaning.
+  Editing or removing an imported spelling, reading, sense or meaning raises
+  `OriginalDataError`.
+- **Senses of their own.** The user adds a sense (`origin="added"`, appended to the
+  entry, `pos` / `misc` empty) with its first meaning, so it's never empty, and can
+  remove it with its meanings and examples. Imported senses take own meanings too.
+- **Examples of their own.** Like the dictionary's, they belong to a sense: a Japanese
+  sentence (`lang="jpn"`) and optionally a translation in the user's language (ISO
+  639-2). `text`, JMDict's form of the word in the sentence, is empty. Editing replaces
+  the Japanese sentence and the translation in that language (a blank one removes it)
+  and keeps the other translations. Only own examples are edited or removed.
+- **A sense keeps one meaning, in one language.** Removing a sense's only meaning
+  raises `LastMeaningError`: an empty sense shows in no language, and its examples
+  and note couldn't be reached. The user edits it, or removes the whole own sense.
+  Like JMDict's (no sense in the dictionary mixes languages), a sense's meanings are
+  all in one language: adding one in another raises `SenseLanguageError`.
+- **Meanings are an editable list.** The user adds meanings of their own
+  (`origin="added"`, appended to the sense or kanji) and can edit their text or remove
+  them. Entry glosses use ISO 639-2 language codes (`eng`), kanji meanings ISO 639-1
+  (`en`), as the dictionary stores them.
+- **Spellings and readings of their own** can be added to any word and removed;
+  readings are kana only (`clean_kana`). A word keeps at least one reading: removing the
+  last raises `LastReadingError`.
+- **Notes**: one general note on the entry or kanji, plus one per sense.
+
+Why: [decisions](../decisions.md#dictionary-data-in-the-library-is-only-ever-disabled).

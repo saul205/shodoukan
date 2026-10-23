@@ -2,7 +2,7 @@
 
 import json
 
-from shodoukan.db.orm import EntryORM, KanjiORM
+from shodoukan.db.orm import EntryORM, KanjiORM, KanjiSvgORM
 from shodoukan.models.entry import (
     CrossReference,
     Entry,
@@ -13,7 +13,8 @@ from shodoukan.models.entry import (
     Reading,
     Sense,
 )
-from shodoukan.models.kanji import Kanji, KanjiMeaning
+from shodoukan.models.kanji import Kanji, KanjiMeaning, KanjiStrokes
+from shodoukan.repositories.kanjivg_parser import parse_kanjivg
 
 
 def _json(value: str) -> list[str]:
@@ -23,6 +24,8 @@ def _json(value: str) -> list[str]:
 def entry_to_domain(e: EntryORM) -> Entry:
     return Entry(
         id=e.id,
+        jlpt=e.jlpt,
+        is_common=bool(e.has_common),
         kanji_readings=[
             KanjiReading(
                 id=kr.id,
@@ -93,3 +96,12 @@ def kanji_to_domain(k: KanjiORM) -> Kanji:
         nanori=_json(k.nanori),
         meanings=[KanjiMeaning(text=m.text, lang=m.lang) for m in k.meanings],
     )
+
+
+def kanji_strokes_to_domain(literal: str, k: KanjiSvgORM) -> KanjiStrokes:
+    """The strokes of `k`'s drawing, for `literal`.
+
+    `literal` is the character that was asked for, which may differ from the
+    drawing's own (a compatibility ideograph is drawn with its canonical form).
+    """
+    return KanjiStrokes(literal=literal, strokes=parse_kanjivg(k.svg))

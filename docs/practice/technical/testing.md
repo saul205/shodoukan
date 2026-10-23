@@ -1,0 +1,139 @@
+# Testing
+
+[← Technical documentation](README.md)
+
+How the practice app is tested and what each group of tests covers.
+
+```bash
+pytest tests/shodoukan-practice
+mypy        # strict for shodoukan_practice and its tests (mypy.ini)
+ruff check packages/shodoukan-practice tests/shodoukan-practice
+```
+
+## Principles
+
+- Real SQLite (in memory) as the test database. Repositories and the ORM are never
+  mocked.
+- One test file per module under test: `test_<subject>_<role>.py`.
+- Plain pytest functions with assertions on domain objects.
+
+## Layout
+
+| Folder / file | Covers |
+|---|---|
+| `domain/test_*_entity.py` | Entity shape, defaults, validation, mutation methods (notes, enabled parts, own meanings, dictionary data protected) and `touch()` |
+| `domain/test_notes_value.py` | Notes cleaning and length limit |
+| `domain/test_timestamped_entity.py` | Timestamp defaults, `touch()` |
+| `domain/test_collection_service.py` | `ensure_combinable` |
+| `domain/test_study_field_service.py` | Reading study fields from words and kanji (enabled parts, meaning language), comparison keys (kana, glosses), `entry_label` |
+| `domain/test_handwriting_question_service.py` | Handwriting drafts: only kanji with a stroke order, every kanji that fits the prompt accepted |
+| `domain/test_stroke_geometry_service.py` | Normalizing, resampling and comparing strokes |
+| `domain/test_handwriting_grading_service.py` | Grading drawings against real KanjiVG strokes: shaky drawings are right; a reversed stroke, two swapped or one missing are close; other kanji are wrong; the closest accepted kanji grades it |
+| `domain/test_choice_question_service.py` | Building the next question: deck per round, missed items back after `REVIEW_GAP`, no item twice in a row, distractors that are never a valid answer, pools too small |
+| `infrastructure/test_base_orm.py` | `UtcDateTime`: naive UTC stored, aware UTC read, naive rejected, no DB default |
+| `infrastructure/test_*_orm.py` | Constraints, cascades, `position` ordering |
+| `infrastructure/test_*_mapper.py` | `to_domain(to_db(entity)) == entity` without a database |
+| `infrastructure/test_sqlalchemy_*_repository.py` | Each repository through its port, including owner scoping and membership; `find` / `count`: match tiers, romaji and katakana, hidden and own meanings, meaning language, wildcards, scopes, paging |
+| `infrastructure/test_shodoukan_kana_gateway.py` | Romaji and kana in both scripts; text that isn't either |
+| `infrastructure/test_migrations.py` | Migrations match the models; downgrade works |
+| `infrastructure/test_shodoukan_mapper.py` | Dictionary models → fresh practice entities, every language kept |
+| `infrastructure/test_shodoukan_dictionary_gateway.py` | The gateway against a real seeded dictionary: snapshots, search by Japanese, romaji and meaning, and entry/kanji details |
+| `application/test_library_commands.py` | Import use cases with real repositories and the real gateway: created, already imported, per-user copies, not found |
+| `application/test_dictionary_queries.py` | Dictionary detail queries: found, not found, words for a kanji, kanji of an entry |
+| `application/test_library_queries.py` | `GetImportStatus`: only the user's imports, empty input; getting items and their collections |
+| `application/test_library_search_queries.py` | `build_search` (normalizing, kana, blank text), `resolve_scope`, and `SearchEntries` / `SearchKanji`: library with total and `active`, romaji, a collection's items filtered by `active`, not in a collection, other users' collections not found |
+| `application/test_collection_commands.py` | Collection commands: create, duplicate names, update and `updated_at`, delete keeps items, idempotent membership, other users' collections and items not found |
+| `application/test_collection_queries.py` | Listing and getting collections, owner scoping |
+| `application/test_practice_entry_commands.py`, `test_practice_kanji_commands.py` | Customisation use cases: notes, active, enabled, own meanings, dictionary meanings rejected, other users' items, removal from the library |
+| `application/test_exercise_commands.py`, `test_exercise_queries.py` | Exercise definitions: create, update, delete, list and get; collections of the right kind and owner; settings checked against the item kind |
+| `application/test_exercise_session_commands.py` | Starting (closes the user's open session, pool too small), answering (grading, the next question, idle and finished sessions, stale question ids), finishing; handwriting sessions (only kanji with a stroke order, drawings graded against their strokes, a pool too small to draw) |
+| `application/test_exercise_statistics_queries.py` | Statistics per exercise and overall: missed items named from the library (removed ones dropped), activity per day in the user's time zone, not found, window bounds |
+| `application/test_user_commands.py` | `EnsureUser`: existing identity, first request creates, no duplicates |
+| `api/test_library_routes.py` | The library endpoints through `TestClient`: listing (newest first, total, paging, `active`, owner scoping, ids usable in collections), search (`q`, romaji, `meaning_lang`, `not_in_collection` and its `404`, `q` length), import (201/200/404/422/401), import status (only the user's imports, limits, validation), user creation on first request, CORS preflight |
+| `api/test_collection_routes.py` | The collection endpoints: create/get/list/update/delete, name validation and `409`, items (add, list, page, search, remove), other users' collections `404`, `401`, CORS for `DELETE` |
+| `api/test_practice_entry_routes.py`, `test_practice_kanji_routes.py` | Library item endpoints: detail, notes (and validation), active, enabled per part, own meanings, 409 for dictionary meanings, collections of an item, removal, other users' items `404`, `401` |
+| `api/test_dictionary_routes.py` | `GET /dictionary/search` and the detail routes: public, the same shape as shodoukan-api, pagination, validation, 404s, and that results can be imported |
+| `api/test_exercise_routes.py` | The exercise endpoints: CRUD, validation, other users' exercises and collections `404` |
+| `api/test_exercise_session_routes.py` | Session endpoints: start, solutions hidden until answered, answer and next, finish, `409`s, the question `type`, listing the history and the open session; handwriting questions hide their references and grade until drawn, drawings that don't fit are `422` |
+| `api/test_exercise_statistics_routes.py` | `GET /exercises/{id}/statistics` and `GET /statistics`: figures after playing, empty statistics, `404`, bad `tz` / `days` `422` |
+| `api/test_user_routes.py` | `GET /users/me`, and the OAuth2 login declared in the OpenAPI schema |
+| `api/test_auth.py` | `TokenVerifier`: identity, expiry, issuer, signature, audience, configuration |
+
+## Fixtures and helpers
+
+All fixtures live in `tests/shodoukan-practice/conftest.py`, so every test folder can
+use them. There's a single `conftest.py` because mypy rejects two modules with the
+same name in folders that aren't packages.
+
+- `engine`: in-memory SQLite configured for the tests:
+  - `StaticPool`, so every session shares the same in-memory database;
+  - `check_same_thread=False`, because `TestClient` runs endpoints in a worker thread;
+  - `PRAGMA foreign_keys = ON`, since SQLite ignores FKs and `ON DELETE CASCADE`
+    otherwise;
+  - SQLAlchemy emits `BEGIN` itself (`isolation_level = None` plus a `begin` event),
+    because pysqlite's own transaction handling breaks savepoints (`begin_nested`,
+    used by `add_if_absent`);
+  - `Base.metadata.create_all`.
+- `session`, `user` (`id=USER_ID`), `other_user` (`id=OTHER_USER_ID`).
+- `dictionary`: a real `shodoukan.Dictionary` over a temporary SQLite, built with the
+  core library's `SCHEMA` and `seed` from `tests/db_helpers.py` (`auto_download=False`).
+- API: `signing_key` (an RSA key generated per test run), `make_token(subject, ...)`
+  (signs RS256 tokens with overridable claims; the default `sub` is `str(USER_ID)`), `verifier` (a `TokenVerifier` given
+  the matching public key), and `client` (a `TestClient` with `get_session`,
+  `get_dictionary_gateway` and `get_token_verifier` overridden).
+- Helper modules next to `conftest.py`:
+  - `factories.py`: `USER_ID` / `OTHER_USER_ID` (fixed UUIDs), `make_entry`,
+    `make_kanji`, `make_*_collection`, `make_entry_exercise` / `make_kanji_exercise`,
+    `choice_settings((prompt, answer), ...)`, `make_session` / `make_question`,
+    `make_answered_session(user_id, exercise_id, [answered(item_id, correct, at,
+    ...)])` (a session with only answered questions, for history and statistics),
+    `NOW`, and `TIMESTAMPS` for ORM rows built directly;
+  - `tokens.py`: `ISSUER`, `DEFAULT_SUBJECT`, `TokenFactory`, `bearer(token)`.
+
+## Against the real Keycloak
+
+The unit tests use locally signed tokens. To check the real sign-in end to end, start
+`practice-db` and `keycloak`, run the API on port 8001, get a token (password grant
+with `shodoukan-dev-cli`, see [authentication](api/authentication.md#local-keycloak)),
+and call `/users/me`. Scripting the browser flow (authorization code + PKCE with
+`shodoukan-web`) also works, but Keycloak's session cookies are `Secure`: browsers send
+them on `http://localhost`, while scripted HTTP clients have to forward them by hand.
+
+## Benchmarks
+
+Not tests: scripts under `benchmarks/shodoukan-practice/` that print timings, run by
+hand when a change may make the app slower. Neither pytest nor CI runs them, and they
+don't pass or fail.
+
+```bash
+python benchmarks/shodoukan-practice/exercise_sessions.py            # 1000 words, 500 kanji
+python benchmarks/shodoukan-practice/exercise_sessions.py --entries 50 --kanji 50 --answers 5
+```
+
+`exercise_sessions.py` needs the downloaded dictionary (`shodoukan-setup`). It imports
+real words (common ones, by id) and kanji (most frequent with a stroke order) into a
+practice database in memory, through `ImportEntry` / `ImportKanji`. Then, for word
+choice cards, kanji choice cards and kanji handwriting, it times reading the pool
+alone (`study_texts`), starting a session, and answering (each answer asks the next
+question; drawings are skipped, so the grader isn't timed).
+
+Reference, on a development laptop with the defaults (SQLite, so Postgres will
+differ): starting and answering take about 25–55 ms per question. Before the pool was
+read as study text, a question over 1000 words took about 1.15 s
+([decision](decisions.md#an-exercises-pool-reads-a-study-read-model)).
+
+## CI
+
+`.github/workflows/ci.yml` installs the package, runs `mypy` and
+`pytest tests/shodoukan-practice`, then runs the migrations against a throwaway
+`postgres:16-alpine` service: `upgrade head`, `check`, `downgrade base`, `upgrade head`.
+
+A separate `frontend` job installs the pnpm workspace (`--frozen-lockfile`), builds and
+tests `shodoukan-ui`, and runs the practice frontend's Vitest suite and `nuxt
+typecheck`. See [frontend](frontend.md#tests). It also typechecks and generates the
+dictionary frontend.
+
+A `docker-build` job builds every deployable image (practice API, practice web,
+Keycloak, dictionary API) without pushing, so a broken Dockerfile fails the PR. CI runs
+on pushes and PRs to `main` and `develop`; publishing and deploying are described in
+[deployment](../../technical/deployment.md#cicd-summary).
