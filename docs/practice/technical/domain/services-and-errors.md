@@ -119,6 +119,26 @@ returns the closest `WordGrade`: the worst cell's verdict, the cells' average sc
 `KANA`, `TWINS` and `SMALL_TWINS` list the kana and their small / big twins.
 [exercises](../exercises.md#words).
 
+### `inflection_service`: the form of a word in a sentence
+
+A gap covers one or more `Morpheme`s: the word (its **head**, the first content
+morpheme, after a prefix like お) and whatever inflects it (引か + れ + た).
+
+- `is_content_word(m)`: its part of speech is in `CONTENT_POS` (nouns, pronouns,
+  verbs, adjectives, adjectival nouns, adverbs, adnominals, interjections), not a
+  particle, auxiliary, prefix or symbol.
+- `gap_head(morphemes)`: the head, or `None`.
+- `gap_inflection(morphemes)`: an `Inflection(endings, form)`, the lemmas of the
+  morphemes after the head and the last one's form without its variant (終止形 for
+  終止形-一般; `None` when it doesn't inflect). 引かれた and 飲まれた are both
+  `(れる, た) · 終止形`. Variants that only depend on the verb's class are merged: past
+  だ is た, te-form で is て (the conjunctive particle only), られる is れる and させる
+  is せる. Fill-the-gap options are other words with the same inflection.
+- `gap_dictionary_forms(morphemes)`: how the word may be written in the dictionary,
+  best first: the head's lemma (引く), the gap as written (共に, several morphemes),
+  and the gap with its last morpheme as a lemma (いけない, an expression). Used to
+  find the gap's word in the library.
+
 ## Exceptions (`domain/exceptions.py`)
 
 | Exception | Base | Raised when |

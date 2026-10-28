@@ -28,6 +28,7 @@ and why. Coding conventions (naming, typing, testing style) live in the backend 
   - [Repositories](infrastructure/repositories.md): the SQLAlchemy implementations.
   - [Migrations](infrastructure/migrations.md): Alembic setup and workflow.
   - [Dictionary gateway](infrastructure/dictionary-gateway.md): reading the shodoukan dictionary and mapping it to practice entities.
+  - [Morphology gateway](infrastructure/morphology-gateway.md): splitting sentences into morphemes with SudachiPy.
 - Cross-cutting
   - [Dates and time zones](cross-cutting/dates-and-time-zones.md)
   - [Configuration and local setup](cross-cutting/configuration.md)
@@ -51,6 +52,7 @@ the page to update:
 | `infrastructure/repositories/` | [infrastructure/repositories.md](infrastructure/repositories.md) |
 | Alembic config or workflow | [infrastructure/migrations.md](infrastructure/migrations.md) |
 | `infrastructure/dictionary/`, dictionary wiring in `api/deps.py` | [infrastructure/dictionary-gateway.md](infrastructure/dictionary-gateway.md) |
+| `infrastructure/morphology/` | [infrastructure/morphology-gateway.md](infrastructure/morphology-gateway.md) |
 | Date handling | [cross-cutting/dates-and-time-zones.md](cross-cutting/dates-and-time-zones.md) |
 | Environment variables, docker compose, `connection.py` | [cross-cutting/configuration.md](cross-cutting/configuration.md) |
 | Test fixtures, factories, CI | [testing.md](testing.md) |

@@ -187,3 +187,23 @@ Turns what the user types into kana, for searching the library by reading
 
 Both scripts because readings are stored in hiragana (kun-readings, most words) and
 katakana (on-readings, loanwords).
+
+## `MorphologyGateway`
+
+Splits a Japanese sentence into morphemes (`morphology_gateway.py`). Sentences use it
+when they're added or edited, to propose their words, link them to the library and
+know the form of a gap; the morphemes aren't stored
+([proposal](../../proposals/sentences.md)).
+
+| Method | Returns |
+|---|---|
+| `morphemes(text)` | The `Morpheme`s of `text`, in order, covering all of it |
+
+`Morpheme` (a `NamedTuple`): `surface`; `lemma`, the dictionary form (引く for 引か);
+`reading`, of the surface, in katakana; `pos`, the part of speech, most general first
+(`("動詞", "一般")`); `conjugation_type` and `conjugation_form` (活用型 and 活用形,
+`"五段-カ行"`, `"未然形-一般"`; `None` when it doesn't inflect); `start` and `end`,
+character offsets in `text`.
+
+Implemented by `SudachiMorphologyGateway`: see
+[morphology gateway](../infrastructure/morphology-gateway.md).

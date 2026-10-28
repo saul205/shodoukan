@@ -9,6 +9,14 @@ from .handwriting_question_service import (
     drawable_items,
     ensure_enough_drawable_items,
 )
+from .inflection_service import (
+    CONTENT_POS,
+    Inflection,
+    gap_dictionary_forms,
+    gap_head,
+    gap_inflection,
+    is_content_word,
+)
 from .question_order_service import (
     MIN_POOL_SIZE,
     REVIEW_GAP,
@@ -43,6 +51,7 @@ from .word_handwriting_question_service import (
 )
 
 __all__ = [
+    "CONTENT_POS",
     "KANA",
     "MIN_POOL_SIZE",
     "REVIEW_GAP",
@@ -50,6 +59,7 @@ __all__ = [
     "TWINS",
     "FieldValue",
     "HandwritingDraft",
+    "Inflection",
     "StudyCard",
     "WordHandwritingDraft",
     "build_next_question",
@@ -69,10 +79,14 @@ __all__ = [
     "entry_study_text",
     "fits_prompt",
     "free_collection_name",
+    "gap_dictionary_forms",
+    "gap_head",
+    "gap_inflection",
     "gloss_key",
     "grade_drawing",
     "grade_kana",
     "grade_word",
+    "is_content_word",
     "items_in_order",
     "kana_key",
     "kanji_card",

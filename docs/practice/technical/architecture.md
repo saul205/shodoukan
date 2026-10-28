@@ -50,6 +50,7 @@ packages/shodoukan-practice/
       db/migrations/                  env.py, script.py.mako, versions/
       repositories/                   sqlalchemy_*_repository.py (+ sqlalchemy_library_search.py)
       dictionary/                     shodoukan gateway + anti-corruption mapper
+      morphology/                     SudachiPy morphology gateway
     api/
       app.py                          FastAPI app, domain error → HTTP mapping
       auth.py                         TokenVerifier (Keycloak, RS256 via JWKS)

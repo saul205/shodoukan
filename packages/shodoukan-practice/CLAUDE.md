@@ -50,7 +50,8 @@ standalone: never call shodoukan-api from here.
     `DirectionTotals`, `ItemTotals`, `ExerciseTotals`, `AnswerMoment` with the
     read-only `ExerciseStatisticsRepository` in `exercise_statistics_repository.py`.
   - `gateways/dictionary_gateway.py`: `DictionaryGateway`, the read-only dictionary port;
-    `gateways/kana_gateway.py`: `KanaGateway` (romaji/kana → both kana scripts).
+    `gateways/kana_gateway.py`: `KanaGateway` (romaji/kana → both kana scripts);
+    `gateways/morphology_gateway.py`: `MorphologyGateway` (a sentence's `Morpheme`s).
   - `searches/library_search.py`: library search criteria, match tiers and scopes.
   - `services/collection_service.py`: `ensure_combinable`;
     `services/study_field_service.py` (field values, comparison keys, `entry_label`) and
@@ -61,7 +62,9 @@ standalone: never call shodoukan-api from here.
     `services/stroke_geometry_service.py` and `services/handwriting_grading_service.py`
     (`grade_drawing`); for words, `services/word_handwriting_question_service.py`
     (`draft_next_word_question`) and `services/word_grading_service.py` (`grade_word`;
-    kana recognised by `grade_kana`, small kana by size).
+    kana recognised by `grade_kana`, small kana by size); for sentences,
+    `services/inflection_service.py` (`gap_head`, `gap_inflection`: a gap's form,
+    `gap_dictionary_forms`).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`
@@ -118,6 +121,8 @@ standalone: never call shodoukan-api from here.
 - `infrastructure/repositories/`: `sqlalchemy_*_repository.py`.
 - `infrastructure/dictionary/`: `ShodoukanDictionaryGateway` and `shodoukan_mapper.py`
   (the anti-corruption layer), and `ShodoukanKanaGateway`. Wired in `api/deps.py` (cached `Dictionary()`).
+- `infrastructure/morphology/`: `SudachiMorphologyGateway` (SudachiPy, `core`
+  dictionary, split mode C).
 
 ## Domain rules specific to this app
 
@@ -237,7 +242,8 @@ standalone: never call shodoukan-api from here.
 - `pytest tests/shodoukan-practice` (domain + infrastructure).
 - Benchmarks (not tests, run by hand):
   `python benchmarks/shodoukan-practice/exercise_sessions.py` times sessions on real
-  dictionary data; see `docs/practice/technical/testing.md`.
+  dictionary data; `sentence_analysis.py` checks the morphology gateway on JMDict
+  example sentences; see `docs/practice/technical/testing.md`.
 - `tests/shodoukan-practice/conftest.py` (the only conftest; mypy rejects duplicate
   module names): SQLite engine with FKs on, savepoint-safe, cross-thread for
   `TestClient`. Fixtures: `engine`, `session`, `user`, `other_user`, `dictionary`,

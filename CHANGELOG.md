@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **shodoukan-practice:** A morphological analyzer for sentences (SudachiPy, behind a
+  `MorphologyGateway` port): each morpheme's dictionary form, reading, part of speech
+  and conjugation, and the form of a word in a sentence, merged across verb classes
+  (飲んだ / 食べた). The groundwork for sentences in the library and sentence
+  exercises; a benchmark checks it on JMDict example sentences.
+
 ## [0.3.0] — 2026-10-23
 
 ### Added

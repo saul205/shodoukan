@@ -25,7 +25,8 @@ exercises built from those collections.
 - [Technical documentation](technical/README.md): architecture, layers, domain,
   persistence, conventions. Kept up to date with the code.
 - Proposals (agreed, not built): [own library content and shared
-  collections](proposals/library-authoring-and-sharing.md).
+  collections](proposals/library-authoring-and-sharing.md), [sentences in the library
+  and sentence exercises](proposals/sentences.md).
 
 Package: [`packages/shodoukan-practice`](../../packages/shodoukan-practice/). Tests:
 [`tests/shodoukan-practice`](../../tests/shodoukan-practice/). Back to the
