@@ -16,6 +16,7 @@ package registers every table on `Base.metadata`, which Alembic and `create_all`
 | `user_orm.py` | `UserORM` |
 | `practice_entry_orm.py` | `PracticeEntryORM`, `PracticeEntryKanjiReadingORM`, `PracticeEntryReadingORM`, `PracticeSenseORM`, `PracticeGlossORM`, `PracticeExampleORM`, `PracticeExampleSentenceORM` |
 | `practice_kanji_orm.py` | `PracticeKanjiORM`, `PracticeKanjiReadingItemORM`, `PracticeKanjiMeaningORM` |
+| `practice_sentence_orm.py` | `PracticeSentenceORM`, `PracticeSentenceTranslationORM`, `PracticeSentenceWordORM` (a word's `Inflection` as `inflection_endings` JSON and `inflection_form`; NULL endings: not analyzed, `[]`: analyzed, nothing follows) |
 | `entry_collection_orm.py` | `EntryCollectionORM`, `entry_collection_items` (plain `Table`) |
 | `kanji_collection_orm.py` | `KanjiCollectionORM`, `kanji_collection_items` (plain `Table`) |
 | `exercise_session_orm.py` | `ExerciseSessionORM`, `ExerciseQuestionORM` (children via `children()`) |

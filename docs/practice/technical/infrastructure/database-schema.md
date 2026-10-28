@@ -19,6 +19,9 @@ The models that define these tables are described in
 | `practice_glosses` | `practice_senses` | `position`, `enabled`, `origin` with `CHECK origin IN ('imported','added')`, `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
 | `practice_examples` | `practice_senses` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
 | `practice_example_sentences` | `practice_examples` | `position`, `lang`, `text` |
+| `practice_sentences` | `users` | `text` (the Japanese), `is_active`, `notes` text (nullable), `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`). Converted from `practice_examples`, keeping their ids |
+| `practice_sentence_translations` | `practice_sentences` | `position`, `lang`, `text` |
+| `practice_sentence_words` | `practice_sentences` | `position`, `span_start` / `span_end` (both or neither: `CHECK span_complete`), `lemma`, `reading`, `pos` JSON (default `[]`), `inflection_endings` JSON (NULL: not analyzed), `inflection_form`; `entry_id` → `practice_entries` and `sense_id` → `practice_senses`, both nullable and `SET NULL` (index on `entry_id`: the sentences of a word) |
 | `practice_kanji` | `users` | `UNIQUE(user_id, literal)`, `notes` text (nullable), `dismissed_parts` JSON (default `[]`) |
 | `practice_kanji_reading_items` | `practice_kanji` | `kind` with `CHECK kind IN ('on','kun','nanori')`, `position`, `enabled` |
 | `practice_kanji_meanings` | `practice_kanji` | `position`, `enabled`, `origin` (CHECK), `original_id`, `source_id`, `edited_id`, `revision` (default 0), `source_collection_ids` JSON (default `[]`) |
@@ -59,7 +62,10 @@ is the pair of foreign keys.
 
 - Every foreign key uses `ON DELETE CASCADE`, except the ones that keep exercise
   history: `exercise_sessions.exercise_id` and `exercise_questions.entry_id` /
-  `kanji_id` are `SET NULL`, so sessions outlive their exercise and items.
+  `kanji_id` are `SET NULL`, so sessions outlive their exercise and items. And a
+  sentence's words: `practice_sentence_words.entry_id` / `sense_id` are `SET NULL`,
+  so removing a word (or an own sense) from the library leaves its sentences, with
+  the gap unlinked.
 - Deleting a user removes their whole library, their collections and all links.
 - Deleting an entry or kanji removes its nested rows and its links; the collections
   stay.

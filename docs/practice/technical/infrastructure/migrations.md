@@ -66,6 +66,7 @@ Once any environment is deployed, migrations are append-only.
 | `eb193a97a273` | Following a source: `*_collection_dismissed_items`, `dismissed_parts` on practice entries and kanji |
 | `7d4e1c2b9a60` | `revision` on parts with content: a part's version is its row and revision, so the owner's edits reach their copies |
 | `c3a9f5e0d2b1` | `source_collection_id` on parts with content becomes `source_collection_ids` (JSON list; existing values become one-element lists): several followed collections can bring one part |
+| `37c04a6faa6f` | Sentences: `practice_sentences`, `practice_sentence_translations`, `practice_sentence_words`. Every example becomes a sentence with the example's id (so copies' identities and versions, and `example:<id>` dismissals, still match), its state, translations and version fields, and one word linked to its entry and sense; the span is JMDict's form of the word, or for an own example its first enabled spelling or reading found as is, else none. Examples stay; downgrading drops the sentences |
 
 ## Safety nets
 

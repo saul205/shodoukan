@@ -39,6 +39,11 @@ from .practice_kanji_orm import (
     PracticeKanjiORM,
     PracticeKanjiReadingItemORM,
 )
+from .practice_sentence_orm import (
+    PracticeSentenceORM,
+    PracticeSentenceTranslationORM,
+    PracticeSentenceWordORM,
+)
 from .user_orm import UserORM
 
 __all__ = [
@@ -62,6 +67,9 @@ __all__ = [
     "PracticeKanjiORM",
     "PracticeKanjiReadingItemORM",
     "PracticeSenseORM",
+    "PracticeSentenceORM",
+    "PracticeSentenceTranslationORM",
+    "PracticeSentenceWordORM",
     "UserORM",
     "entry_collection_dismissed_items",
     "entry_collection_downloads",

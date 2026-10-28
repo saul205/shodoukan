@@ -133,3 +133,66 @@ def test_downgrading_drops_what_the_old_code_cant_read(tmp_path: Path) -> None:
         questions = connection.execute(text("SELECT id FROM exercise_questions")).all()
         assert [row.id for row in exercises] == [1]
         assert questions == []
+
+
+def test_examples_become_sentences(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'practice.sqlite'}"
+    config = Config(str(ALEMBIC_INI))
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "c3a9f5e0d2b1")
+    engine = create_engine(url)
+    user = "00000000000000000000000000000001"
+    now = "2026-10-20 10:00:00"
+    with engine.begin() as connection:
+        for sql in [
+            f"INSERT INTO users VALUES ('{user}', 'dev', '{now}', '{now}')",
+            "INSERT INTO practice_entries (id, user_id, source_entry_id, jlpt, "
+            "is_common, is_active, dismissed_parts, created_at, updated_at) VALUES "
+            f"(1, '{user}', 100, 5, 1, 1, '[]', '{now}', '{now}')",
+            "INSERT INTO practice_entry_kanji_readings (entry_id, position, kanji, "
+            "info, enabled, origin) VALUES (1, 0, '引く', '[]', 1, 'imported')",
+            "INSERT INTO practice_senses (id, entry_id, position, pos, misc, "
+            "dialects, info, enabled, origin) VALUES "
+            "(10, 1, 0, '[]', '[]', '[]', '[]', 1, 'imported')",
+            "INSERT INTO practice_examples (id, sense_id, position, text, enabled, "
+            "origin, revision, source_collection_ids) VALUES "
+            "(5, 10, 0, '引かれた', 1, 'imported', 0, '[]'), "
+            "(6, 10, 1, '', 0, 'added', 2, '[]'), "
+            "(7, 10, 2, '', 1, 'added', 0, '[4, \"file\"]')",
+            "INSERT INTO practice_example_sentences (example_id, position, lang, "
+            "text) VALUES (5, 0, 'jpn', 'カーテンがゆっくり引かれた。'), "
+            "(5, 1, 'eng', 'The curtain was drawn.'), "
+            "(6, 0, 'jpn', 'くじを引く。'), (7, 0, 'jpn', '風邪を引いた。')",
+        ]:
+            connection.execute(text(sql))
+
+    command.upgrade(config, "37c04a6faa6f")
+
+    with engine.connect() as connection:
+        sentences = connection.execute(
+            text(
+                "SELECT s.id, s.text, s.is_active, s.origin, s.revision, "
+                "s.source_collection_ids, w.span_start, w.span_end, w.entry_id, "
+                "w.sense_id FROM practice_sentences s "
+                "JOIN practice_sentence_words w ON w.sentence_id = s.id ORDER BY s.id"
+            )
+        ).all()
+        translations = connection.execute(
+            text("SELECT sentence_id, lang, text FROM practice_sentence_translations")
+        ).all()
+    assert [tuple(row) for row in sentences] == [
+        # JMDict's form of the word, inflected, is the gap.
+        (5, "カーテンがゆっくり引かれた。", 1, "imported", 0, "[]", 9, 13, 1, 10),
+        # An own example: the spelling found as is; its state and version kept.
+        (6, "くじを引く。", 0, "added", 2, "[]", 3, 5, 1, 10),
+        # Not found as is: linked without a span.
+        (7, "風邪を引いた。", 1, "added", 0, '[4, "file"]', None, None, 1, 10),
+    ]
+    assert [tuple(row) for row in translations] == [
+        (5, "eng", "The curtain was drawn.")
+    ]
+
+    command.downgrade(config, "c3a9f5e0d2b1")
+    with engine.connect() as connection:
+        examples = connection.execute(text("SELECT id FROM practice_examples")).all()
+    assert [row.id for row in examples] == [5, 6, 7]

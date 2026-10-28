@@ -57,6 +57,21 @@ defined with their port. They hold the enabled parts only, in order, with meanin
 each enabled sense that has any. An exercise's pool is read through them
 ([decision](../decisions.md#an-exercises-pool-reads-a-study-read-model)).
 
+## `PracticeSentenceRepository`
+
+The sentences of the user's library (`practice_sentence_repository.py`).
+
+| Method | Returns / behavior |
+|---|---|
+| `get(id, user_id)` | the sentence or `None` |
+| `for_entry(entry_id, user_id)` | the user's sentences with a word linked to that entry, oldest first: "the sentences of a word" |
+| `imported_by_text(texts, user_id)` | `{text: sentence}` for the user's dictionary sentences among `texts` (the oldest if two have the same text): importing a word reuses a sentence another word brought |
+| `needing_analysis(user_id)` | sentences with a word to analyze: a gap not analyzed yet, or a linked word without a span |
+| `users_needing_analysis()` | the users with such sentences; the one query across users, for `analyze-sentences`, which then goes user by user |
+| `add(sentence)` | the stored sentence, with ids for its words |
+| `update(sentence)` | the stored sentence: words with an id updated, without one inserted, missing ones deleted; translations rewritten. `EntityNotFoundError` if it isn't stored for its user |
+| `delete(sentence)` | removes it, with its translations and words |
+
 ## Library search (`domain/searches/`)
 
 The values `find` / `count` take. Built by the search use cases from what the user
