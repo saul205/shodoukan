@@ -1,8 +1,8 @@
 import pytest
 
+from shodoukan_practice.domain.entities import Inflection
 from shodoukan_practice.domain.gateways import Morpheme
 from shodoukan_practice.domain.services import (
-    Inflection,
     gap_dictionary_forms,
     gap_inflection,
 )

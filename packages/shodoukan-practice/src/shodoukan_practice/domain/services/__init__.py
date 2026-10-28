@@ -11,7 +11,6 @@ from .handwriting_question_service import (
 )
 from .inflection_service import (
     CONTENT_POS,
-    Inflection,
     gap_dictionary_forms,
     gap_head,
     gap_inflection,
@@ -59,7 +58,6 @@ __all__ = [
     "TWINS",
     "FieldValue",
     "HandwritingDraft",
-    "Inflection",
     "StudyCard",
     "WordHandwritingDraft",
     "build_next_question",

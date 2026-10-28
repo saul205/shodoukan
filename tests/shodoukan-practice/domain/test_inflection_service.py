@@ -1,6 +1,6 @@
+from shodoukan_practice.domain.entities import Inflection
 from shodoukan_practice.domain.gateways import Morpheme
 from shodoukan_practice.domain.services import (
-    Inflection,
     gap_dictionary_forms,
     gap_head,
     gap_inflection,
@@ -60,7 +60,9 @@ def test_a_word_alone_has_its_own_form() -> None:
     taberu = [morpheme("食べる", "食べる", VERB, ("下一段-バ行", "終止形-一般"))]
 
     assert gap_inflection(taberu) == Inflection(endings=(), form="終止形")
-    assert gap_inflection([morpheme("学校", "学校", NOUN)]) == Inflection((), None)
+    assert gap_inflection([morpheme("学校", "学校", NOUN)]) == Inflection(
+        endings=(), form=None
+    )
 
 
 def test_variants_of_the_verb_class_are_the_same_form() -> None:

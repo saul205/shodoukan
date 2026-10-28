@@ -70,6 +70,12 @@ from .practice_kanji_entity import (
     PracticeKanjiMeaning,
     PracticeReadingItem,
 )
+from .practice_sentence_entity import (
+    Inflection,
+    PracticeSentence,
+    SentenceTranslation,
+    SentenceWord,
+)
 from .shared_collection_value import (
     MAX_SHARED_ITEMS,
     MAX_SHARED_PARTS,
@@ -124,6 +130,7 @@ __all__ = [
     "HandwritingCardSettings",
     "HandwritingGrade",
     "HandwritingQuestion",
+    "Inflection",
     "ItemKind",
     "KanjiCollection",
     "KanjiExercise",
@@ -141,10 +148,13 @@ __all__ = [
     "PracticeReading",
     "PracticeReadingItem",
     "PracticeSense",
+    "PracticeSentence",
     "QuestionBase",
     "ReferenceKanji",
     "ReferenceStroke",
     "ReferenceWord",
+    "SentenceTranslation",
+    "SentenceWord",
     "SessionStatus",
     "SharedCollection",
     "SharedEntry",

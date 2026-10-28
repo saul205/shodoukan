@@ -14,8 +14,8 @@ See docs/practice/proposals/sentences.md.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 
+from ..entities import Inflection
 from ..gateways import Morpheme
 
 # Parts of speech a gap can be made of: words worth studying, not particles,
@@ -26,17 +26,6 @@ CONTENT_POS = frozenset(
 
 _PAST = "助動詞-タ"
 _LEMMA_VARIANTS = {"られる": "れる", "させる": "せる"}
-
-
-@dataclass(frozen=True)
-class Inflection:
-    """What follows a word inside its gap, and the form it ends in."""
-
-    # Lemmas of the morphemes after the head: ("れる", "た").
-    endings: tuple[str, ...]
-    # Form of the last morpheme without its variant ("終止形" for
-    # "終止形-一般"); `None` when it doesn't inflect (a noun alone).
-    form: str | None
 
 
 def is_content_word(morpheme: Morpheme) -> bool:
