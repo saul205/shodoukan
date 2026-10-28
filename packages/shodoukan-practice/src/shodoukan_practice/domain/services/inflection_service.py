@@ -1,14 +1,18 @@
 """The form of a word in a sentence, from its morphemes.
 
-A gap covers one or more morphemes: the word itself (its head) and whatever
-inflects it (引か + れ + た). Two gaps are in the same form when they have the
-same inflection: the lemmas of the morphemes after the head, in order, and the
-form of the last one. 引かれた and 飲まれた are both (れる, た · 終止形);
-食べた and 飲んだ both (た · 終止形). Fill-the-gap options are other words in
-the same form, so an ending never gives the answer away.
+A gap covers one or more morphemes: the word itself (its head, the first
+content morpheme, with the content words and suffixes that are part of it:
+勉強 + し, 七 + つ) and whatever inflects it (引か + れ + た). Two gaps are in
+the same form when they have the same inflection: the lemmas of the
+morphemes after the word, in order, and the form of the last one. 引かれた
+and 飲まれた are both (れる, た · 終止形); 食べた and 飲んだ both (た · 終止形).
+Fill-the-gap options are other words in the same form, so an ending never
+gives the answer away.
 
-Variants that only depend on the verb's class are merged: past だ is た
-(飲んだ), te-form で is て (読んで), られる is れる and させる is せる.
+Variants that look the same are merged: past だ is た (飲んだ), te-form で is
+て (読んで), られる is れる, させる is せる, and the attributive form (連体形) is
+the conclusive (終止形), as they're written alike except for the copula
+(だ / な).
 
 See docs/practice/proposals/sentences.md.
 """
@@ -25,6 +29,8 @@ CONTENT_POS = frozenset(
 )
 
 _PAST = "助動詞-タ"
+_COPULA = "助動詞-ダ"
+_SUFFIX = "接尾辞"
 _LEMMA_VARIANTS = {"られる": "れる", "させる": "せる"}
 
 
@@ -43,12 +49,12 @@ def gap_inflection(morphemes: Sequence[Morpheme]) -> Inflection | None:
     head = gap_head(morphemes)
     if head is None:
         return None
-    tail = list(morphemes[morphemes.index(head) + 1 :])
-    last = tail[-1] if tail else head
-    return Inflection(
-        endings=tuple(_ending(m) for m in tail),
-        form=_main_form(last.conjugation_form),
-    )
+    end = morphemes.index(head) + 1
+    while end < len(morphemes) and _part_of_word(morphemes[end]):
+        end += 1
+    tail = morphemes[end:]
+    last = tail[-1] if tail else morphemes[end - 1]
+    return Inflection(endings=tuple(_ending(m) for m in tail), form=_form(last))
 
 
 def gap_dictionary_forms(morphemes: Sequence[Morpheme]) -> list[str]:
@@ -76,7 +82,15 @@ def _ending(morpheme: Morpheme) -> str:
     return _LEMMA_VARIANTS.get(morpheme.lemma, morpheme.lemma)
 
 
-def _main_form(conjugation_form: str | None) -> str | None:
-    if conjugation_form is None:
+def _part_of_word(morpheme: Morpheme) -> bool:
+    return is_content_word(morpheme) or morpheme.pos[:1] == (_SUFFIX,)
+
+
+def _form(morpheme: Morpheme) -> str | None:
+    """The morpheme's form without its variant (終止形 for 終止形-一般)."""
+    if morpheme.conjugation_form is None:
         return None
-    return conjugation_form.split("-", 1)[0]
+    form = morpheme.conjugation_form.split("-", 1)[0]
+    if form == "連体形" and morpheme.conjugation_type != _COPULA:
+        return "終止形"
+    return form

@@ -22,6 +22,8 @@ from .inflection_service import (
 )
 from .study_field_service import kana_key
 
+# Morphemes an expression of the dictionary may span (持っ + て + いく).
+_LONGEST_EXPRESSION = 4
 _KATAKANA = frozenset(chr(c) for c in range(ord("ァ"), ord("ヺ") + 1)) | {"ー"}
 
 
@@ -70,17 +72,36 @@ def find_gap(
     taken: Sequence[tuple[int, int]] = (),
 ) -> tuple[int, int] | None:
     """Where a word with these `forms` is in the sentence: the first content
-    morpheme whose lemma is one of them, with what inflects it (auxiliaries,
-    te-form て / で), clear of the `taken` spans; `None` if it isn't there."""
+    morpheme whose lemma is one of them, or that starts an expression which
+    is (持って + いっ for 持っていく: the morphemes as written, the last one's
+    lemma), with what inflects it (auxiliaries, te-form て / で), clear of
+    the `taken` spans; `None` if it isn't there."""
     for i, morpheme in enumerate(morphemes):
-        if not is_content_word(morpheme) or not _matches(morpheme.lemma, forms):
+        if not is_content_word(morpheme):
             continue
-        last = i
+        last = _expression_end(morphemes, i, forms)
+        if last is None:
+            continue
         while last + 1 < len(morphemes) and _inflects(morphemes[last + 1]):
             last += 1
         start, end = morpheme.start, morphemes[last].end
         if all(end <= s or start >= e for s, e in taken):
             return start, end
+    return None
+
+
+def _expression_end(
+    morphemes: Sequence[Morpheme], first: int, forms: Collection[str]
+) -> int | None:
+    """The last morpheme of the shortest word or expression starting at
+    `first` that is one of `forms`."""
+    written = ""
+    for last in range(first, min(first + _LONGEST_EXPRESSION, len(morphemes))):
+        if _matches(written + morphemes[last].lemma, forms):
+            return last
+        written += morphemes[last].surface
+        if _matches(written, forms):
+            return last
     return None
 
 

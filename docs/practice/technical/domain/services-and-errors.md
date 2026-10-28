@@ -129,11 +129,13 @@ morpheme, after a prefix like お) and whatever inflects it (引か + れ + た)
   particle, auxiliary, prefix or symbol.
 - `gap_head(morphemes)`: the head, or `None`.
 - `gap_inflection(morphemes)`: an `Inflection(endings, form)`, the lemmas of the
-  morphemes after the head and the last one's form without its variant (終止形 for
-  終止形-一般; `None` when it doesn't inflect). 引かれた and 飲まれた are both
-  `(れる, た) · 終止形`. Variants that only depend on the verb's class are merged: past
-  だ is た, te-form で is て (the conjunctive particle only), られる is れる and させる
-  is せる. Fill-the-gap options are other words with the same inflection.
+  morphemes after the word and the last one's form without its variant (終止形 for
+  終止形-一般; `None` when it doesn't inflect). The word is the head with the content
+  words and suffixes right after it (勉強 + し in 勉強した, 七 + つ in 七つ, which has
+  no endings). 引かれた and 飲まれた are both `(れる, た) · 終止形`. What looks the same
+  is merged: past だ is た, te-form で is て (the conjunctive particle only), られる is
+  れる, させる is せる, and 連体形 is 終止形 (走った人 / 走った。) except for the copula
+  (な / だ). Fill-the-gap options are other words with the same inflection.
 - `gap_dictionary_forms(morphemes)`: how the word may be written in the dictionary,
   best first: the head's lemma (引く), the gap as written (共に, several morphemes),
   and the gap with its last morpheme as a lemma (いけない, an expression). Used to
@@ -149,9 +151,11 @@ morpheme, after a prefix like お) and whatever inflects it (引か + れ + た)
   the reading is the gap's in context, in hiragana (katakana for a word written in
   katakana); `pos` is the head's.
 - `find_gap(morphemes, forms, taken=())`: where a linked word without a span is: the
-  first content morpheme whose lemma is one of `forms` (kana compared as hiragana),
-  with what inflects it (auxiliaries, te-form て / で), clear of the `taken` spans. A
-  word written in kanji is found by its spelling, one in kana by its reading.
+  first content morpheme whose lemma is one of `forms` (kana compared as hiragana), or
+  that starts an expression of up to four morphemes which is (持って + いっ for
+  持っていく: as written, then the last one's lemma), with what inflects it
+  (auxiliaries, te-form て / で), clear of the `taken` spans. A word written in kanji
+  is found by its spelling, one in kana by its reading.
 
 ## Exceptions (`domain/exceptions.py`)
 

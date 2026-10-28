@@ -121,3 +121,17 @@ def test_te_form_is_part_of_the_word() -> None:
     )
 
     assert find_gap(yonde, ["読む"]) == (0, 3)
+
+
+def test_find_an_expression_of_several_words() -> None:
+    # 持っていってね: 持っ + て + いっ + て + ね, the word 持っていく.
+    motte = sentence(
+        ("持っ", "持つ", "モッ", VERB, "連用形-促音便"),
+        ("て", "て", "テ", ("助詞", "接続助詞"), None),
+        ("いっ", "いく", "イッ", ("動詞", "非自立可能"), "連用形-促音便"),
+        ("て", "て", "テ", ("助詞", "接続助詞"), None),
+        ("ね", "ね", "ネ", ("助詞", "終助詞"), None),
+    )
+
+    assert find_gap(motte, ["持っていく", "もっていく"]) == (0, 6)  # 持っていって
+    assert find_gap(motte, ["持つ"]) == (0, 3)  # 持って

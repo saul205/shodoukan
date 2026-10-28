@@ -125,3 +125,36 @@ def test_dictionary_forms() -> None:
     assert gap_dictionary_forms(tomoni) == ["共", "共に"]
     assert gap_dictionary_forms(ikenai) == ["いける", "いけない"]
     assert gap_dictionary_forms([]) == []
+
+
+def test_suffixes_and_compounds_are_part_of_the_word() -> None:
+    # 七つ: 七 + the counter つ; 勉強した: 勉強 + し + た.
+    nanatsu = [
+        morpheme("七", "七", ("名詞", "数詞")),
+        morpheme("つ", "つ", ("接尾辞", "名詞的", "助数詞")),
+    ]
+    benkyou_shita = [
+        morpheme("勉強", "勉強", NOUN),
+        morpheme("し", "する", VERB, ("サ行変格", "連用形-一般")),
+        morpheme("た", "た", AUXILIARY, PAST),
+    ]
+
+    assert gap_inflection(nanatsu) == Inflection(endings=(), form=None)
+    assert gap_inflection(benkyou_shita) == Inflection(endings=("た",), form="終止形")
+
+
+def test_attributive_and_conclusive_are_one_form_except_for_the_copula() -> None:
+    # 走った人 (連体形) is written like 走った。 (終止形); 静かな isn't 静かだ.
+    hashitta = [
+        morpheme("走っ", "走る", VERB, ("五段-ラ行", "連用形-促音便")),
+        morpheme("た", "た", AUXILIARY, ("助動詞-タ", "連体形-一般")),
+    ]
+    takai = [morpheme("高い", "高い", ("形容詞", "一般"), ("形容詞", "連体形-一般"))]
+    shizukana = [
+        morpheme("静か", "静か", ("形状詞", "一般")),
+        morpheme("な", "だ", AUXILIARY, ("助動詞-ダ", "連体形-一般")),
+    ]
+
+    assert gap_inflection(hashitta) == Inflection(endings=("た",), form="終止形")
+    assert gap_inflection(takai) == Inflection(endings=(), form="終止形")
+    assert gap_inflection(shizukana) == Inflection(endings=("だ",), form="連体形")
