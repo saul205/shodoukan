@@ -966,3 +966,30 @@ Ruled out:
   would take a round trip per try.
 - **Caching the pool per session**: not needed at this cost; worth revisiting if it
   grows.
+
+## Sentences are analyzed with SudachiPy, and only gaps are stored
+
+Sentence exercises need, for each gap, the word it is (to link it to the library even
+when inflected or in kana) and its form (fill-the-gap options are other words in the
+same form, so the ending never gives the answer away and no conjugation engine is
+needed). A morphological analyzer gives both: per morpheme the dictionary form, the
+reading, the part of speech and the conjugation type and form. SudachiPy (`core`
+dictionary, long units) links 98 % of 1000 JMDict example gaps to their word and reads
+99 % of the uninflected ones right, at 0.1 ms per sentence
+([morphology gateway](infrastructure/morphology-gateway.md#accuracy)).
+
+- **Behind a port** (`MorphologyGateway`): fugashi + UniDic gives the same fields, and
+  the rules on them (`inflection_service`) don't depend on the analyzer.
+- **The form is computed in the domain**, from the morphemes after the head, merging
+  variants that only depend on the verb's class (飲んだ / 食べた, 読んで / 食べて).
+- **Only gaps are stored, not morphemes**: re-analyzing is cheap, and stored morphemes
+  would tie the data to one version of the analyzer's dictionary. The analyzer runs
+  when sentences are added or edited, never in a session.
+- **`core` over `small`**: as accurate on JLPT vocabulary, but `core` covers the rarer
+  words of the user's own sentences, for 83 MB more in the image.
+
+Ruled out: matching sentences by text (fails on inflections, and kana is ambiguous),
+and generating grammar questions (particles, patterns) from the analysis: their
+correctness can't be guaranteed, so grammar will get written, reviewed exercises of
+its own ([proposal](../proposals/sentences.md#decisions)).
+

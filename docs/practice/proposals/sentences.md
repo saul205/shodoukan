@@ -75,24 +75,19 @@ PracticeSentence (aggregate, library item like PracticeEntry)
 
 ## Sentence analyzer (#95)
 
-- A domain port, `SentenceAnalyzer.tokens(text)`, giving per morpheme: surface, lemma,
-  reading, part of speech, conjugation type (活用型), conjugation form (活用形) and
-  offsets.
-- Adapter in `infrastructure/` with **SudachiPy**, whose `part_of_speech()` gives those
-  six fields. A benchmark on ~200 JMDict sentences decides first (lemma matches the
-  entry, reading, signature, size of the dictionary in Docker); fugashi + UniDic is the
-  fallback behind the same port.
-- The `inflection` of a gap is computed in the domain from its morphemes: the
-  auxiliaries' lemmas in order and the last one's form. It doesn't depend on the
-  analyzer.
-- Only used when adding or editing sentences, never by sessions. Gaps are stored, not
-  tokens: re-analyzing is cheap, and stored tokens would tie the data to one version of
-  the analyzer's dictionary.
+Built: the `MorphologyGateway` port
+([repository ports](../technical/domain/repository-ports.md#morphologygateway)), its
+SudachiPy adapter ([morphology gateway](../technical/infrastructure/morphology-gateway.md),
+with the benchmark's figures), the form of a gap
+([`inflection_service`](../technical/domain/services-and-errors.md#inflection_service-the-form-of-a-word-in-a-sentence))
+and the
+[decision](../technical/decisions.md#sentences-are-analyzed-with-sudachipy-and-only-gaps-are-stored).
+A gap that isn't on morpheme boundaries (心地 in 使い心地) is analyzed on its own.
 
 ## Adding sentences
 
 - **One sentence** (from the sentences section or from an entry): it's analyzed;
-  content words whose lemma matches an enabled writing or reading of the library are
+  content words one of whose dictionary forms (`gap_dictionary_forms`) matches an enabled writing or reading of the library are
   proposed. Kanji matches come marked as gaps, kana-only ones unmarked (はし is
   ambiguous). Particles and auxiliaries aren't proposed. The user confirms and picks
   the sense. From an entry, its gap comes already linked.

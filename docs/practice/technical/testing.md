@@ -108,6 +108,8 @@ don't pass or fail.
 ```bash
 python benchmarks/shodoukan-practice/exercise_sessions.py            # 1000 words, 500 kanji
 python benchmarks/shodoukan-practice/exercise_sessions.py --entries 50 --kanji 50 --answers 5
+python benchmarks/shodoukan-practice/sentence_analysis.py            # 200 sentences
+python benchmarks/shodoukan-practice/sentence_analysis.py --sentences 1000 --dictionaries core small --modes A C
 ```
 
 `exercise_sessions.py` needs the downloaded dictionary (`shodoukan-setup`). It imports
@@ -121,6 +123,14 @@ Reference, on a development laptop with the defaults (SQLite, so Postgres will
 differ): starting and answering take about 25–55 ms per question. Before the pool was
 read as study text, a question over 1000 words took about 1.15 s
 ([decision](decisions.md#an-exercises-pool-reads-a-study-read-model)).
+
+`sentence_analysis.py` needs the dictionary too, and the Sudachi dictionaries it
+compares (`pip install sudachidict_small` for `small`; `core` is a dependency). On a
+random sample of example sentences of JLPT words it checks, per dictionary and split
+mode, how often the word's form in the sentence falls on morpheme boundaries, links to
+its entry and gets its reading right, and how many forms the inflected ones fall into;
+it prints a few misses of each kind. Results:
+[morphology gateway](infrastructure/morphology-gateway.md#accuracy).
 
 ## CI
 
