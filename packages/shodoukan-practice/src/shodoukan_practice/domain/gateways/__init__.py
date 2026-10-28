@@ -18,6 +18,7 @@ from .dictionary_gateway import (
     DictionarySense,
 )
 from .kana_gateway import KanaForms, KanaGateway
+from .morphology_gateway import Morpheme, MorphologyGateway
 
 __all__ = [
     "DictionaryCrossReference",
@@ -37,4 +38,6 @@ __all__ = [
     "DictionarySense",
     "KanaForms",
     "KanaGateway",
+    "Morpheme",
+    "MorphologyGateway",
 ]
