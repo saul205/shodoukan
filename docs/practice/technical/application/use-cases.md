@@ -92,6 +92,28 @@ as one more of its words instead of being stored twice; a sentence under two sen
 of the entry is linked to the first. Until #97, the entry still keeps its examples
 too.
 
+### `AnalyzeSentences(sentences, entries, morphology).execute()`
+
+Maintenance, for every user with sentences to analyze
+(`sentences.users_needing_analysis`), through the
+[morphology gateway](../infrastructure/morphology-gateway.md); returns a
+`SentenceAnalysis(users, sentences, analyzed, marked, unmarked)`. For each word of the
+user's `needing_analysis` sentences:
+
+- a word linked to a library word but without a span gets one where that word is in
+  the sentence (`find_gap`, by the entry's enabled spellings and readings, inflected
+  or not, clear of the other words' spans), and is counted `marked`; if it isn't
+  there it stays without a span (`unmarked`);
+- a gap not analyzed yet is analyzed (`analyze_gap` on its morphemes, or on its own
+  text when it cuts one of the sentence's): lemma, reading in context, part of speech,
+  inflection.
+
+Only words without an analysis are touched, so what the user corrected stays and a
+second run does nothing. Doesn't commit; `python -m shodoukan_practice.cli
+analyze-sentences` (also `shodoukan-practice-admin analyze-sentences`) runs it in one
+transaction. Run once after the examples are converted (migration `37c04a6faa6f`):
+[deployment](../../../technical/deployment.md#maintenance-commands).
+
 ### `ImportEntryCollection(dictionary, entries, collections, sentences).execute(user_id, shared, source=None)`
 
 Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)

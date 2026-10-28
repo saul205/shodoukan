@@ -139,6 +139,20 @@ morpheme, after a prefix like お) and whatever inflects it (引か + れ + た)
   and the gap with its last morpheme as a lemma (いけない, an expression). Used to
   find the gap's word in the library.
 
+### `sentence_analysis_service`: a sentence's words from its morphemes
+
+- `span_morphemes(morphemes, start, end)`: the morphemes exactly covering a span, or
+  `None` when it cuts one (心地 inside 使い心地).
+- `analyze_gap(morphemes, forms=())` → `GapAnalysis(lemma, reading, pos,
+  inflection)`: the lemma is the first of `gap_dictionary_forms` that is one of the
+  linked word's `forms` (its enabled spellings and readings), else the head's lemma;
+  the reading is the gap's in context, in hiragana (katakana for a word written in
+  katakana); `pos` is the head's.
+- `find_gap(morphemes, forms, taken=())`: where a linked word without a span is: the
+  first content morpheme whose lemma is one of `forms` (kana compared as hiragana),
+  with what inflects it (auxiliaries, te-form て / で), clear of the `taken` spans. A
+  word written in kanji is found by its spelling, one in kana by its reading.
+
 ## Exceptions (`domain/exceptions.py`)
 
 | Exception | Base | Raised when |

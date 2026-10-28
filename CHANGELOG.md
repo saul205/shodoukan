@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and conjugation, and the form of a word in a sentence, merged across verb classes
   (飲んだ / 食べた). The groundwork for sentences in the library and sentence
   exercises; a benchmark checks it on JMDict example sentences.
+- **shodoukan-practice:** Sentences are items of the library, linked to the words
+  they use (a gap per word), instead of examples inside each word: a sentence can
+  serve several words, and importing a word brings its JMDict sentences, reusing the
+  ones the user already has. A migration converts every example into a sentence
+  linked to its word. **After deploying, run once**
+  `python -m shodoukan_practice.cli analyze-sentences`, which analyzes the gaps and
+  finds those of the user's own inflected sentences.
 
 ## [0.3.0] — 2026-10-23
 

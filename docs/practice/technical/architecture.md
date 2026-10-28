@@ -57,6 +57,7 @@ packages/shodoukan-practice/
       deps.py                         wiring: session, verifier, current user, use cases
       routes/                         *_routes.py
       schemas/                        *_schemas.py, request/response models
+    cli.py                            maintenance commands (analyze-sentences), wired like the API
 ```
 
 Module names follow `<subject>_<role>.py`; packages are plural and classes singular.

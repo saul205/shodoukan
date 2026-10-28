@@ -182,6 +182,21 @@ instead.
 Old images pile up, one set per deployed commit. Clean them with
 `docker image prune` (dangling) or `docker image rm shodoukan-pre/<image>:<sha>`.
 
+### Maintenance commands
+
+Some changes need a command run once after their deploy (each one says so in the
+changelog). They run in the practice API's container, which has the database URL:
+
+```bash
+deploy/deploy.sh exec practice-api python -m shodoukan_practice.cli analyze-sentences
+```
+
+- `analyze-sentences`: completes the sentences' words with the analyzer (the gap's
+  dictionary form, reading, part of speech and form) and finds the gap of linked
+  words without one. Needed once after the migration that turns examples into
+  sentences (`37c04a6faa6f`); safe to run again. See
+  [the use case](../practice/technical/application/use-cases.md#analyzesentencessentences-entries-morphologyexecute).
+
 ### Monthly dictionary refresh
 
 `shodoukan-db` publishes a new dictionary at the start of each month.
