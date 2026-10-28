@@ -26,6 +26,7 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
 )
 
 
@@ -48,9 +49,9 @@ def test_search_get_and_preview_a_public_collection(
     collections = SqlAlchemyEntryCollectionRepository(session)
     entries = SqlAlchemyPracticeEntryRepository(session)
     words = CreateEntryCollection(collections).execute(user.id, "Words", "N5")
-    eat = ImportEntry(gateway, entries, collections).execute(
-        user.id, 1000001, [words.id or 0]
-    )
+    eat = ImportEntry(
+        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+    ).execute(user.id, 1000001, [words.id or 0])
     eat.item.add_gloss(eat.item.senses[0].id or 0, "to scoff", "eng")
     entries.update(eat.item)
     CreateOwnEntry(entries, collections).execute(

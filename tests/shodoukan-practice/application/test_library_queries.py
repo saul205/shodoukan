@@ -24,6 +24,7 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
 )
 
 
@@ -34,7 +35,10 @@ def test_status_lists_only_imported_items(
     entries = SqlAlchemyPracticeEntryRepository(session)
     kanji = SqlAlchemyPracticeKanjiRepository(session)
     import_entry = ImportEntry(
-        gateway, entries, SqlAlchemyEntryCollectionRepository(session)
+        gateway,
+        entries,
+        SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
     import_kanji = ImportKanji(
         gateway, kanji, SqlAlchemyKanjiCollectionRepository(session)

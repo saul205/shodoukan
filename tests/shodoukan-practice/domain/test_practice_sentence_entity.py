@@ -237,3 +237,18 @@ def test_deactivate_and_notes() -> None:
 
     assert not sentence.is_active
     assert sentence.notes == "a note"
+
+
+def test_a_second_dictionary_word_takes_a_free_occurrence() -> None:
+    sentence = PracticeSentence.from_dictionary(
+        USER_ID, "日本の日本語。", [], word="日本", entry_id=1, sense_id=None
+    )
+
+    second = sentence.add_dictionary_word("日本", entry_id=2, sense_id=None)
+    overlapping = sentence.add_dictionary_word("日本語", entry_id=3, sense_id=None)
+
+    assert second is not None and overlapping is not None
+    assert (second.start, second.end) == (3, 5)  # the first 日本 is taken
+    assert not overlapping.has_span  # 日本語 overlaps the second: linked only
+    assert sentence.add_dictionary_word("日本", entry_id=1, sense_id=None) is None
+    assert len(sentence.words) == 3

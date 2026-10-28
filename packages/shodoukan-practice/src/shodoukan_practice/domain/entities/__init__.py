@@ -55,6 +55,7 @@ from .exercise_session_entity import (
 from .nested_item_lookup import FILE, SourceRef
 from .notes_value import NOTES_MAX_LENGTH, Notes
 from .practice_entry_entity import (
+    JAPANESE,
     EntryPart,
     PracticeEntry,
     PracticeExample,
@@ -105,6 +106,7 @@ __all__ = [
     "FILE",
     "HANDWRITING_ANSWERS",
     "IDLE_TIMEOUT",
+    "JAPANESE",
     "KANJI_FIELDS",
     "MAX_CELLS",
     "MAX_SHARED_ITEMS",

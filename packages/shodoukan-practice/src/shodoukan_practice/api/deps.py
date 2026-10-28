@@ -122,6 +122,7 @@ from ..infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
     SqlAlchemyUserRepository,
 )
 from .auth import (
@@ -219,6 +220,7 @@ def get_import_entry(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 
@@ -473,6 +475,7 @@ def get_import_entry_collection(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 
@@ -599,6 +602,7 @@ def get_import_public_entry_collection(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 
@@ -629,6 +633,7 @@ def get_update_entry_collection_from_source(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 

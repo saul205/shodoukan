@@ -126,23 +126,14 @@ class PracticeSentence(TimestampedEntity):
         inflected): its first occurrence is the gap. When it isn't found, the
         word is linked without a span.
         """
-        text = clean_sentence(text)
-        start = text.find(word) if word else -1
-        return cls(
+        sentence = cls(
             id=None,
             user_id=user_id,
-            text=text,
+            text=clean_sentence(text),
             translations=[t for t in translations if t.lang != JAPANESE],
-            words=[
-                SentenceWord(
-                    id=None,
-                    start=start if start >= 0 else None,
-                    end=start + len(word) if start >= 0 else None,
-                    entry_id=entry_id,
-                    sense_id=sense_id,
-                )
-            ],
         )
+        sentence.add_dictionary_word(word, entry_id, sense_id)
+        return sentence
 
     @classmethod
     def create_own(
@@ -229,6 +220,27 @@ class PracticeSentence(TimestampedEntity):
         )
         self._set_words([*self.words, word])
         return word
+
+    def add_dictionary_word(
+        self, form: str, entry_id: int | None, sense_id: int | None
+    ) -> SentenceWord | None:
+        """Link one more library word, given its form in the sentence.
+
+        The gap is the first occurrence of `form` no other word takes; when
+        there's none, the word is linked without a span. Nothing changes (and
+        `None` is returned) if the sentence already has a word linked to
+        `entry_id`.
+        """
+        if entry_id is not None and self.words_of(entry_id):
+            return None
+        taken = [
+            (w.start, w.end)
+            for w in self.words
+            if w.start is not None and w.end is not None
+        ]
+        start = _free_occurrence(self.text, form, taken) if form else None
+        end = None if start is None else start + len(form)
+        return self.add_word(start, end, entry_id=entry_id, sense_id=sense_id)
 
     def remove_word(self, word_id: int) -> None:
         word = self._word(word_id)

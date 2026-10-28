@@ -44,6 +44,7 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
 )
 
 
@@ -270,6 +271,7 @@ def import_entries(session: Session, dictionary: Dictionary) -> ImportEntryColle
         ShodoukanDictionaryGateway(dictionary),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 
@@ -296,7 +298,13 @@ def exported_verbs(
     """The user's "verbs": 食べる with their own meaning, note and a hidden
     spelling, and a word of their own."""
     gateway = ShodoukanDictionaryGateway(dictionary)
-    eat = ImportEntry(gateway, entries, collections).execute(user.id, 1000001).item
+    eat = (
+        ImportEntry(
+            gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        )
+        .execute(user.id, 1000001)
+        .item
+    )
     assert eat.id is not None
     eat.add_gloss(eat.senses[0].id or 0, "to scoff", "eng")
     eat.set_notes("my note")

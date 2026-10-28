@@ -19,6 +19,7 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
 )
 
 
@@ -28,6 +29,7 @@ def import_entry(session: Session, dictionary: Dictionary) -> ImportEntry:
         ShodoukanDictionaryGateway(dictionary),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 
