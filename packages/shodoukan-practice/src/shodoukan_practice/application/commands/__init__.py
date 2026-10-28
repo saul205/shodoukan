@@ -51,6 +51,7 @@ from .practice_kanji_commands import (
     SetKanjiNotes,
     SetKanjiPartEnabled,
 )
+from .practice_sentence_commands import AnalyzeSentences, SentenceAnalysis
 from .public_collection_commands import (
     ImportPublicEntryCollection,
     ImportPublicKanjiCollection,
@@ -72,6 +73,7 @@ __all__ = [
     "AddEntryToCollection",
     "AddKanjiMeaning",
     "AddKanjiToCollection",
+    "AnalyzeSentences",
     "AnswerExerciseQuestion",
     "CollectionImport",
     "CollectionUpdate",
@@ -106,6 +108,7 @@ __all__ = [
     "RemoveKanjiFromCollection",
     "RemoveKanjiFromLibrary",
     "RemoveKanjiMeaning",
+    "SentenceAnalysis",
     "SetEntryActive",
     "SetEntryNotes",
     "SetEntryPartEnabled",

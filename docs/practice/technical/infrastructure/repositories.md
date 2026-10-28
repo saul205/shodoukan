@@ -45,6 +45,15 @@ Python. No ORM objects are built, which is what makes an exercise's pool cheap:
 with 1000 real JMDict entries (about 22,500 glosses) it takes about 30 ms, where
 `get_many` takes over a second.
 
+## Sentences
+
+`SqlAlchemyPracticeSentenceRepository` loads a sentence with its translations and
+words (`selectinload`, one query each). "The sentences of a word" (`for_entry`) and
+`needing_analysis` filter with `EXISTS` on `practice_sentence_words`, so a sentence
+with two matching words comes once. `users_needing_analysis` is the only query not
+scoped to a user: it returns user ids, and the maintenance command loads each user's
+sentences through the scoped methods.
+
 ## Searching the library
 
 `find` / `count` build one query (`_search`) shared by both, so the total always

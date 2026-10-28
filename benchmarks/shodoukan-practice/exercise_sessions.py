@@ -65,6 +65,7 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
     SqlAlchemyUserRepository,
 )
 
@@ -191,7 +192,10 @@ def _seed(
     characters = CreateKanjiCollection(kanji_collections).execute(user_id, "kanji")
     assert words.id is not None and characters.id is not None
     import_entry = ImportEntry(
-        gateway, SqlAlchemyPracticeEntryRepository(session), entry_collections
+        gateway,
+        SqlAlchemyPracticeEntryRepository(session),
+        entry_collections,
+        SqlAlchemyPracticeSentenceRepository(session),
     )
     for entry_id in entry_ids:
         import_entry.execute(user_id, entry_id, [words.id])

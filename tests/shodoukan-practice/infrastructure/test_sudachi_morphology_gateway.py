@@ -1,8 +1,8 @@
 import pytest
 
+from shodoukan_practice.domain.entities import Inflection
 from shodoukan_practice.domain.gateways import Morpheme
 from shodoukan_practice.domain.services import (
-    Inflection,
     gap_dictionary_forms,
     gap_inflection,
 )
@@ -69,3 +69,20 @@ def test_kana_words_find_their_lemma(gateway: SudachiMorphologyGateway) -> None:
     yatte = between(gateway.morphemes(text), text, "やって")
 
     assert yatte[0].lemma == "やる"
+
+
+def test_a_counter_is_part_of_the_word(gateway: SudachiMorphologyGateway) -> None:
+    text = "りんごを七つ買った。"
+
+    assert gap_inflection(between(gateway.morphemes(text), text, "七つ")) == (
+        Inflection(endings=(), form=None)
+    )
+
+
+def test_a_verb_before_a_noun_is_in_the_plain_form(
+    gateway: SudachiMorphologyGateway,
+) -> None:
+    def form(text: str, word: str) -> Inflection | None:
+        return gap_inflection(between(gateway.morphemes(text), text, word))
+
+    assert form("走った人がいる。", "走った") == form("もう走った。", "走った")

@@ -30,10 +30,12 @@ from ...domain.repositories import (
     KanjiCollectionRepository,
     PracticeEntryRepository,
     PracticeKanjiRepository,
+    PracticeSentenceRepository,
 )
 from ...domain.services import free_collection_name
 from .collection_lookups import entry_collection, kanji_collection
 from .collection_membership import put_entry, put_kanji
+from .dictionary_sentences import add_dictionary_sentences
 
 C = TypeVar("C", EntryCollection, KanjiCollection)
 R = TypeVar("R", int, str)
@@ -287,10 +289,12 @@ class ImportEntryCollection:
         dictionary: DictionaryGateway,
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
+        sentences: PracticeSentenceRepository,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
+        self._sentences = sentences
 
     def execute(
         self,
@@ -389,6 +393,7 @@ class ImportEntryCollection:
             snapshot.merge_shared(item, created=True, source_collection_id=source)
             entry, created = self._entries.add_if_absent(snapshot)
             if created:
+                add_dictionary_sentences(self._sentences, entry)
                 result.created += 1
                 return entry
             existing = entry  # imported meanwhile: merge as the user's

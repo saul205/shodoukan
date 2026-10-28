@@ -18,7 +18,7 @@ SudachiMorphologyGateway(dictionary="core", split_mode="C")
   gateway, in about 30 ms. A tokenizer is created per call, since tokenizers aren't
   safe to share between threads; analyzing a sentence takes about 0.1 ms.
 - **Split mode C** (long units): it matches dictionary words best (日本語, not 日本 +
-  語) and gives fewer distinct gap forms than mode A, so more words share a form.
+  語), so it links a gap to its word most often.
 - Each Sudachi morpheme becomes a `Morpheme`: `surface()`, `dictionary_form()` as
   `lemma`, `reading_form()` (katakana) as `reading`, the first four fields of
   `part_of_speech()` as `pos` (without the `*` placeholders), the last two as
@@ -39,7 +39,7 @@ sentence (`examples.text`):
 | Gap on morpheme boundaries | 98 % | 99 % | 99 % |
 | Gap linked to its word (`gap_dictionary_forms`) | 98 % | 97 % | 98 % |
 | Reading right, words not inflected | 99 % | 99 % | 99 % |
-| Distinct forms among inflected gaps | 58 | 87 | 77 |
+| Distinct forms among inflected gaps | 44 | 44 | 44 |
 | Size installed | 193 MB | 193 MB | 110 MB |
 
 - A gap that isn't on morpheme boundaries is part of a longer unit (心地 in 使い心地,
@@ -50,6 +50,11 @@ sentence (`examples.text`):
   a gap's reading stays editable.
 - `small` is as accurate on this sample, which is all JLPT vocabulary; `core` covers
   rarer words, which the user's own sentences may have, for 83 MB more in the image.
+
+On a copy of pre's library (1891 examples, 569 of them the user's own), the conversion
+and `analyze-sentences` found the gap of every sentence: 1322 from JMDict's form, 520
+own ones written as is, 49 inflected or expressions (引いた, 持っていって, 首になった),
+falling into 50 distinct forms.
 
 ## Tests
 

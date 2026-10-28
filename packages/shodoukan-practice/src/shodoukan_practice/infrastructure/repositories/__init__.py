@@ -16,6 +16,9 @@ from .sqlalchemy_exercise_statistics_repository import (
 from .sqlalchemy_kanji_collection_repository import SqlAlchemyKanjiCollectionRepository
 from .sqlalchemy_practice_entry_repository import SqlAlchemyPracticeEntryRepository
 from .sqlalchemy_practice_kanji_repository import SqlAlchemyPracticeKanjiRepository
+from .sqlalchemy_practice_sentence_repository import (
+    SqlAlchemyPracticeSentenceRepository,
+)
 from .sqlalchemy_user_repository import SqlAlchemyUserRepository
 
 __all__ = [
@@ -26,5 +29,6 @@ __all__ = [
     "SqlAlchemyKanjiCollectionRepository",
     "SqlAlchemyPracticeEntryRepository",
     "SqlAlchemyPracticeKanjiRepository",
+    "SqlAlchemyPracticeSentenceRepository",
     "SqlAlchemyUserRepository",
 ]

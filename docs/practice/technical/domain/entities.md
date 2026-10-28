@@ -14,6 +14,7 @@ All entities are Pydantic models. Aggregate roots inherit
 |---|---|---|
 | `User` | `user_entity.py` | `id: UUID`, the identity provider's user id (the token's `sub`), so practice users map 1:1 to provider users; `username` (display name from the provider, not unique) |
 | `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id` (`None` for a word of the user's own; `is_own`), `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
+| `PracticeSentence` | `practice_sentence_entity.py` | `user_id`, `text` (Japanese), `translations`, `words` (the words it uses, see [sentences](#sentences)), `is_active`, `notes`, `origin` (`"imported"` from JMDict, `"added"` the user's own), and the copy and version fields of an entry's parts |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active`, `notes` |
 | `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description`; sharing: `is_public`, `published_version` (0 if never), `published_at`; a copy's `source_collection_id`, `source_version` |
 | `ExerciseSession` | `exercise_session_entity.py` | `user_id`, `exercise_id` (`None` once the exercise is deleted), `exercise_name`, `item_kind`, `meaning_lang`, `current` (the active question), `history` (the answered ones), `finished_at`; `created_at` is the start, `updated_at` the last activity |
@@ -72,6 +73,40 @@ On top of the snapshot:
 - **Entry and kanji collections are separate subclasses** and never mixed. Code that
   only needs the grouping (e.g. exercises) works against the `Collection` base.
   Why subclasses: [decisions](../decisions.md#entry-and-kanji-collections-are-subclasses).
+
+## Sentences
+
+A sentence is an item of the library, not a part of a word: it can use several of the
+user's words, and a word has as many sentences as the user gives it
+([proposal](../../proposals/sentences.md)). Being built: until #97, words still carry
+their `examples`, which #96 also converts into sentences.
+
+- **`words`** (`SentenceWord`): where the word is (`start`, `end`, character offsets;
+  both or neither), what the analyzer says (`lemma`, `reading`, `pos`, `inflection`;
+  `None` until analyzed, `is_analyzed`), and the library word and sense it's linked to
+  (`entry_id`, `sense_id`). A word with a span (`has_span`) is a **gap**; one without
+  is linked to the word but not asked until it's marked. Spans stay inside the text
+  and never overlap; a method that would break that raises `ValueError` and changes
+  nothing.
+- **Both ways.** The link lives in the sentence; "the sentences of a word" is the
+  reverse query by `entry_id` (`words_of(entry_id)` within one sentence).
+- `from_dictionary(user_id, text, translations, word, entry_id, sense_id)`: a JMDict
+  sentence of a library word; `word` is the word's form in the sentence, whose first
+  occurrence is the gap (linked without a span if it isn't found). Japanese
+  translations are dropped (the text is the Japanese).
+- `create_own(user_id, text, translation, lang)`: a sentence of the user's own, with
+  no words yet.
+- Words: `add_word`, `remove_word`, `mark_word` (a new span drops the analysis),
+  `link_word` / `unlink_word`, `analyze_word` (stores the analyzer's result; only for
+  a word with a span), `correct_word` (the user's lemma and reading).
+- `rewrite(text, translation, lang)` (own sentences only, `OriginalDataError`
+  otherwise): replaces the translation in `lang`, keeps the others; a word keeps its
+  span if its text is still there (same place, else the first free occurrence), or
+  loses span and analysis and stays linked. Each rewrite is a new version
+  (`revision`, `edited_id = None`), as with an entry's own parts.
+- `activate` / `deactivate`, `set_notes`.
+- `Inflection(endings, form)` is the form of a gap, computed by
+  [`inflection_service`](services-and-errors.md#inflection_service-the-form-of-a-word-in-a-sentence).
 
 ## Exercises
 

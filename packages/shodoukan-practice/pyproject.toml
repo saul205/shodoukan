@@ -32,6 +32,7 @@ dev = [
 
 [project.scripts]
 shodoukan-practice = "shodoukan_practice.api.app:run"
+shodoukan-practice-admin = "shodoukan_practice.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/shodoukan_practice"]

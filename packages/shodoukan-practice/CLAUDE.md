@@ -38,7 +38,9 @@ standalone: never call shodoukan-api from here.
 `src/shodoukan_practice/`:
 
 - `domain/`
-  - `entities/`: `practice_entry_entity.py`, `practice_kanji_entity.py`,
+  - `entities/`: `practice_entry_entity.py`, `practice_sentence_entity.py`
+    (`PracticeSentence`, its `SentenceWord`s and their `Inflection`),
+    `practice_kanji_entity.py`,
     `user_entity.py`, `collection_entity.py`, `exercise_entity.py`,
     `exercise_session_entity.py`, and `timestamped_entity.py` (`TimestampedEntity`
     with `touch()`); `shared_collection_value.py`: the portable form of a collection
@@ -64,7 +66,8 @@ standalone: never call shodoukan-api from here.
     (`draft_next_word_question`) and `services/word_grading_service.py` (`grade_word`;
     kana recognised by `grade_kana`, small kana by size); for sentences,
     `services/inflection_service.py` (`gap_head`, `gap_inflection`: a gap's form,
-    `gap_dictionary_forms`).
+    `gap_dictionary_forms`) and `services/sentence_analysis_service.py`
+    (`analyze_gap`, `find_gap`).
   - `exceptions.py`, and `clock.py` with `utc_now()`.
 - `infrastructure/db/`
   - `orm/`: `base_orm.py` (`Base`, `UtcDateTime`, `children()`) plus one `*_orm.py`
@@ -73,6 +76,10 @@ standalone: never call shodoukan-api from here.
 - `application/commands/library_commands.py`: `ImportEntry`, `ImportKanji`
   (idempotent, return `ImportResult(item, created)`), `CreateOwnEntry`.
 - `application/commands/user_commands.py`: `EnsureUser` (creates the user on first use).
+- `application/commands/dictionary_sentences.py`: `add_dictionary_sentences` (an
+  imported word's examples as sentences); `practice_sentence_commands.py`:
+  `AnalyzeSentences` (maintenance), run by `cli.py` (`python -m
+  shodoukan_practice.cli analyze-sentences`, `shodoukan-practice-admin`).
 - `application/commands/practice_entry_commands.py` / `practice_kanji_commands.py`:
   customising one library item (`SetEntryNotes`, `SetEntryPartEnabled`,
   `AddKanjiMeaning`, `RemoveEntryFromLibrary`, ...). Routes in

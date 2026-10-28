@@ -55,6 +55,7 @@ from .exercise_session_entity import (
 from .nested_item_lookup import FILE, SourceRef
 from .notes_value import NOTES_MAX_LENGTH, Notes
 from .practice_entry_entity import (
+    JAPANESE,
     EntryPart,
     PracticeEntry,
     PracticeExample,
@@ -69,6 +70,12 @@ from .practice_kanji_entity import (
     PracticeKanji,
     PracticeKanjiMeaning,
     PracticeReadingItem,
+)
+from .practice_sentence_entity import (
+    Inflection,
+    PracticeSentence,
+    SentenceTranslation,
+    SentenceWord,
 )
 from .shared_collection_value import (
     MAX_SHARED_ITEMS,
@@ -99,6 +106,7 @@ __all__ = [
     "FILE",
     "HANDWRITING_ANSWERS",
     "IDLE_TIMEOUT",
+    "JAPANESE",
     "KANJI_FIELDS",
     "MAX_CELLS",
     "MAX_SHARED_ITEMS",
@@ -124,6 +132,7 @@ __all__ = [
     "HandwritingCardSettings",
     "HandwritingGrade",
     "HandwritingQuestion",
+    "Inflection",
     "ItemKind",
     "KanjiCollection",
     "KanjiExercise",
@@ -141,10 +150,13 @@ __all__ = [
     "PracticeReading",
     "PracticeReadingItem",
     "PracticeSense",
+    "PracticeSentence",
     "QuestionBase",
     "ReferenceKanji",
     "ReferenceStroke",
     "ReferenceWord",
+    "SentenceTranslation",
+    "SentenceWord",
     "SessionStatus",
     "SharedCollection",
     "SharedEntry",

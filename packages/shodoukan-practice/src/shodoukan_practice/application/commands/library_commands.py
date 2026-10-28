@@ -14,9 +14,11 @@ from ...domain.repositories import (
     KanjiCollectionRepository,
     PracticeEntryRepository,
     PracticeKanjiRepository,
+    PracticeSentenceRepository,
 )
 from .collection_lookups import entry_collection, kanji_collection
 from .collection_membership import put_entry, put_kanji
+from .dictionary_sentences import add_dictionary_sentences
 
 T = TypeVar("T")
 
@@ -32,10 +34,12 @@ class ImportResult(Generic[T]):
 class ImportEntry:
     """Copy a dictionary entry into the user's library, and into collections.
 
-    Idempotent: if the user already has the entry, that copy is returned
-    unchanged (it's still put in the given collections). The collections are
-    checked first, so an unknown one (`EntityNotFoundError`) imports nothing.
-    Doesn't commit; the caller owns the transaction.
+    Its example sentences come with it, as sentences linked to it
+    (`add_dictionary_sentences`). Idempotent: if the user already has the
+    entry, that copy is returned unchanged (it's still put in the given
+    collections). The collections are checked first, so an unknown one
+    (`EntityNotFoundError`) imports nothing. Doesn't commit; the caller owns
+    the transaction.
     """
 
     def __init__(
@@ -43,10 +47,12 @@ class ImportEntry:
         dictionary: DictionaryGateway,
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
+        sentences: PracticeSentenceRepository,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
+        self._sentences = sentences
 
     def execute(
         self,
@@ -74,6 +80,8 @@ class ImportEntry:
         if snapshot is None:
             raise DictionaryItemNotFoundError(f"entry {source_entry_id} not found")
         item, created = self._entries.add_if_absent(snapshot)
+        if created:
+            add_dictionary_sentences(self._sentences, item)
         return ImportResult(item, created)
 
 

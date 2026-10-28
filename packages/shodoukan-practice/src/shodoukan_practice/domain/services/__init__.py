@@ -11,7 +11,6 @@ from .handwriting_question_service import (
 )
 from .inflection_service import (
     CONTENT_POS,
-    Inflection,
     gap_dictionary_forms,
     gap_head,
     gap_inflection,
@@ -27,6 +26,12 @@ from .question_order_service import (
     ensure_enough_items,
     fits_prompt,
     items_in_order,
+)
+from .sentence_analysis_service import (
+    GapAnalysis,
+    analyze_gap,
+    find_gap,
+    span_morphemes,
 )
 from .study_field_service import (
     FieldValue,
@@ -58,10 +63,11 @@ __all__ = [
     "SMALL_TWINS",
     "TWINS",
     "FieldValue",
+    "GapAnalysis",
     "HandwritingDraft",
-    "Inflection",
     "StudyCard",
     "WordHandwritingDraft",
+    "analyze_gap",
     "build_next_question",
     "can_ask",
     "card_back",
@@ -77,6 +83,7 @@ __all__ = [
     "entry_card",
     "entry_label",
     "entry_study_text",
+    "find_gap",
     "fits_prompt",
     "free_collection_name",
     "gap_dictionary_forms",
@@ -92,6 +99,7 @@ __all__ = [
     "kanji_card",
     "kanji_literal",
     "kanji_study_text",
+    "span_morphemes",
     "word_characters",
     "writable_items",
     "written_word",

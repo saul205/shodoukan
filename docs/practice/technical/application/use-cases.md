@@ -11,7 +11,7 @@ commit: the caller (the API route) owns the transaction. See
 
 ## Commands (`commands/library_commands.py`)
 
-### `ImportEntry(dictionary, entries, collections).execute(user_id, source_entry_id, collection_ids=())`
+### `ImportEntry(dictionary, entries, collections, sentences).execute(user_id, source_entry_id, collection_ids=())`
 
 Copies dictionary entry `source_entry_id` into the user's library and, optionally,
 into some of the user's entry collections.
@@ -26,6 +26,7 @@ into some of the user's entry collections.
 4. Store it with `entries.add_if_absent`. If a concurrent request stored the same item
    in between, that copy is returned with `created=False`. See
    [repositories](../infrastructure/repositories.md#add_if_absent).
+   A new copy brings its example sentences (`add_dictionary_sentences`, below).
 5. Add the item to each collection (`collections.add_item`, idempotent). This also
    happens when the item was already imported.
 
@@ -80,7 +81,40 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
-### `ImportEntryCollection(dictionary, entries, collections).execute(user_id, shared, source=None)`
+### `add_dictionary_sentences(sentences, entry)`
+
+Shared by every use case that imports a dictionary entry (`ImportEntry`, and the
+collection imports for the words they import from the dictionary). Each of the new
+entry's dictionary examples becomes a [sentence](../domain/entities.md#sentences)
+linked to the entry and its sense, the gap being JMDict's form of the word. A sentence
+the user already has from another word (same text, `imported_by_text`) gets this word
+as one more of its words instead of being stored twice; a sentence under two senses
+of the entry is linked to the first. Until #97, the entry still keeps its examples
+too.
+
+### `AnalyzeSentences(sentences, entries, morphology).execute()`
+
+Maintenance, for every user with sentences to analyze
+(`sentences.users_needing_analysis`), through the
+[morphology gateway](../infrastructure/morphology-gateway.md); returns a
+`SentenceAnalysis(users, sentences, analyzed, marked, unmarked)`. For each word of the
+user's `needing_analysis` sentences:
+
+- a word linked to a library word but without a span gets one where that word is in
+  the sentence (`find_gap`, by the entry's enabled spellings and readings, inflected
+  or not, clear of the other words' spans), and is counted `marked`; if it isn't
+  there it stays without a span (`unmarked`);
+- a gap not analyzed yet is analyzed (`analyze_gap` on its morphemes, or on its own
+  text when it cuts one of the sentence's): lemma, reading in context, part of speech,
+  inflection.
+
+Only words without an analysis are touched, so what the user corrected stays and a
+second run does nothing. Doesn't commit; `python -m shodoukan_practice.cli
+analyze-sentences` (also `shodoukan-practice-admin analyze-sentences`) runs it in one
+transaction. Run once after the examples are converted (migration `37c04a6faa6f`):
+[deployment](../../../technical/deployment.md#maintenance-commands).
+
+### `ImportEntryCollection(dictionary, entries, collections, sentences).execute(user_id, shared, source=None)`
 
 Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)
 (an exported file, or a public collection's snapshot) as a **new** collection named
@@ -118,7 +152,7 @@ Publishes a new version of one of the user's collections: its snapshot is
 `published_version` and makes it public. `EntityNotFoundError` for a collection the
 user doesn't have; `ValidationError` with more active items than an import takes.
 
-### `UpdateEntryCollectionFromSource(dictionary, entries, collections).execute(user_id, collection_id)`
+### `UpdateEntryCollectionFromSource(dictionary, entries, collections, sentences).execute(user_id, collection_id)`
 
 Brings a copy up to its source's latest version (#90) and returns a
 `CollectionUpdate` (an import's counts plus `removed`). The source must still be
@@ -140,7 +174,7 @@ of a copy. The kanji use cases are the same.
 `Collection.unpublish()`: private again; its last version, downloads and the rest are
 kept for publishing it again.
 
-### `ImportPublicEntryCollection(dictionary, entries, collections).execute(user_id, collection_id)`
+### `ImportPublicEntryCollection(dictionary, entries, collections, sentences).execute(user_id, collection_id)`
 
 `ImportEntryCollection` with the public collection's snapshot and
 `source_version = published_version`, then `record_download` unless the user is its

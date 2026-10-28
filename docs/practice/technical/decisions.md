@@ -975,13 +975,17 @@ same form, so the ending never gives the answer away and no conjugation engine i
 needed). A morphological analyzer gives both: per morpheme the dictionary form, the
 reading, the part of speech and the conjugation type and form. SudachiPy (`core`
 dictionary, long units) links 98 % of 1000 JMDict example gaps to their word and reads
-99 % of the uninflected ones right, at 0.1 ms per sentence
+99 % of the uninflected ones right, at 0.1 ms per sentence, and found the gap of all
+1891 sentences converted from a copy of pre
 ([morphology gateway](infrastructure/morphology-gateway.md#accuracy)).
 
 - **Behind a port** (`MorphologyGateway`): fugashi + UniDic gives the same fields, and
   the rules on them (`inflection_service`) don't depend on the analyzer.
-- **The form is computed in the domain**, from the morphemes after the head, merging
-  variants that only depend on the verb's class (飲んだ / 食べた, 読んで / 食べて).
+- **The form is computed in the domain**, from the morphemes after the word (its head
+  with the compounds and suffixes that are part of it), merging what is written alike:
+  variants of the verb's class (飲んだ / 食べた, 読んで / 食べて) and 連体形 with
+  終止形 (走った人 / 走った。). Distractors need options that look alike, not a
+  grammatical classification: on 1000 JMDict gaps this leaves 44 forms.
 - **Only gaps are stored, not morphemes**: re-analyzing is cheap, and stored morphemes
   would tie the data to one version of the analyzer's dictionary. The analyzer runs
   when sentences are added or edited, never in a session.

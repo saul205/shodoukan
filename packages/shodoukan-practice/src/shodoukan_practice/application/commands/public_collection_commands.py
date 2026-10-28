@@ -15,6 +15,7 @@ from ...domain.repositories import (
     KanjiCollectionRepository,
     PracticeEntryRepository,
     PracticeKanjiRepository,
+    PracticeSentenceRepository,
 )
 from ..queries.collection_queries import ExportEntryCollection, ExportKanjiCollection
 from .collection_commands import (
@@ -124,10 +125,12 @@ class ImportPublicEntryCollection:
         dictionary: DictionaryGateway,
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
+        sentences: PracticeSentenceRepository,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
+        self._sentences = sentences
 
     def execute(
         self, user_id: UUID, collection_id: int
@@ -138,7 +141,7 @@ class ImportPublicEntryCollection:
             raise EntityNotFoundError(f"public collection {collection_id} not found")
         version = source.published_version
         result = ImportEntryCollection(
-            self._dictionary, self._entries, self._collections
+            self._dictionary, self._entries, self._collections, self._sentences
         ).execute(user_id, shared, source=source)
         if user_id != source.user_id:
             self._collections.record_download(source, user_id, version)
@@ -197,10 +200,12 @@ class UpdateEntryCollectionFromSource:
         dictionary: DictionaryGateway,
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
+        sentences: PracticeSentenceRepository,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
+        self._sentences = sentences
 
     def execute(
         self, user_id: UUID, collection_id: int
@@ -221,7 +226,7 @@ class UpdateEntryCollectionFromSource:
         dismissed = self._collections.dismissed_items(copy)
         items = [item for item in shared.items if item.key not in dismissed]
         importer = ImportEntryCollection(
-            self._dictionary, self._entries, self._collections
+            self._dictionary, self._entries, self._collections, self._sentences
         )
         for _, entry in importer.copy_items(
             user_id, items, source.id, result, prune=True
