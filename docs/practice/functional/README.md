@@ -24,7 +24,9 @@ page per use case.
 - [Browsing the library](library/browse.md): see every imported word and kanji, and
   pick items for collections.
 - [Customising the library](library/customise.md): notes, hiding parts, own meanings,
-  meaning groups, examples, spellings and readings, deactivating and removing items.
+  meaning groups, sentences, spellings and readings, deactivating and removing items.
+- [Sentences](library/sentences.md): the library's sentences, linked to the words they
+  use; adding them one by one or in bulk, and the sentence editor.
 
 ## Collections
 

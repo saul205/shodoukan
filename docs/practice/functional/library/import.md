@@ -23,8 +23,9 @@ without leaving the word (兄 and 弟 from 兄弟, *kyoudai*). When more than on
 The library keeps **its own copy** of the item, taken at the moment of import:
 
 - **Entries:** spellings, readings, every meaning in **every language** the dictionary
-  has, parts of speech, notes, examples with their translations, JLPT level and
-  whether the word is common.
+  has, parts of speech, notes, JLPT level and whether the word is common. Its
+  example sentences, with their translations, become [sentences](sentences.md) of
+  the library linked to it.
 - **Kanji:** on and kun readings, name readings (nanori), meanings in every language,
   school grade, stroke count, frequency and JLPT level.
 

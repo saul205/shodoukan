@@ -13,7 +13,7 @@ library.
   v3, …), so they decide when it's ready.
 - Only the **active** items are published. The owner's **notes** go only if they tick
   "Incluir mis notas" (they're off by default: notes are often personal). Everything
-  else the owner added to the words (their own meanings, examples, spellings and
+  else the owner added to the words (their own meanings, sentences, spellings and
   readings) and what they hid go with them.
 - The owner can **stop sharing** it at any time. Nobody can find or import it then,
   but what others already imported stays theirs. Publishing it again brings back its
@@ -34,7 +34,7 @@ library.
 
 A public collection can be **browsed page by page** before importing it, each word or
 kanji as the owner shares it: what the dictionary says, plus what the owner added and
-hid. Opening one shows it whole, read-only: the meanings, senses, examples, spellings
+hid. Opening one shows it whole, read-only: the meanings, senses, sentences, spellings
 and readings the collection adds to the dictionary are marked **Nuevo**, and its notes
 read "Nota de la colección". The user's own data is never mixed in: items they already have are only
 marked **En tu librería** (on importing, those keep the user's data and just gain
@@ -59,7 +59,7 @@ and the user can **update** it whenever they want; it never happens on its own.
 Updating follows one rule: **what came from the collection and the user hasn't
 touched follows it; what the user touched or added stays theirs.**
 
-- New words or kanji, and new meanings, examples, spellings or readings, are added.
+- New words or kanji, and new meanings, sentences, spellings or readings, are added.
 - What the owner changed replaces the old version, unless the user edited it: then
   both are kept.
 - What the owner removed leaves the copy, unless the user touched it. A word the owner

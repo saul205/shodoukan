@@ -6,7 +6,7 @@ How a user adapts a word or kanji in their library to the way they study it.
 
 ## The detail page
 
-Opening an item of the library shows the user's copy: readings, meanings, examples,
+Opening an item of the library shows the user's copy: readings, meanings, sentences,
 notes, and the collections it's in. The folder icon beside **Collections** adds it to
 another one: it searches the collections it isn't in yet, and typing a new name offers
 **Create "…"**, which creates the collection with the item in it. Everything below is saved as
@@ -27,19 +27,19 @@ start with it, as on Jisho.
 
 ## What the user can change
 
-- **Hide what they don't need.** Any reading, spelling, meaning or example can be
+- **Hide what they don't need.** Any reading, spelling, meaning or sentence can be
   disabled, and enabled again later. A disabled part stays visible on the detail page
   (greyed out) but is left out when practising. A word's whole meaning group (sense)
   can be hidden with one switch too; enabling it again brings it back as it was, with
-  the meanings and examples the user had hidden inside it still hidden.
+  the meanings the user had hidden inside it still hidden.
 - **Add their own meanings.** Words get them per meaning group (sense), kanji on the
   kanji. The user's meanings are marked as their own, and they can edit or delete them.
-- **Add their own examples.** Each meaning group has **Añadir un ejemplo propio**: a
+- **Add their own sentences.** Each meaning group has **Añadir una frase propia**: a
   sentence in Japanese and, optionally, its translation in the language chosen in the
-  side menu. To add one to a sense the dictionary doesn't have, the user first creates
-  that meaning group. Their examples are marked as their own and can be rewritten (the
-  translation in the current language; translations written in other languages stay)
-  or deleted.
+  side menu; the word is found in it, inflected or not. Their sentences are marked as
+  their own and can be rewritten (the translation in the current language;
+  translations written in other languages stay) or deleted. Sentences are part of the
+  library, linked to the words they use: see [sentences](sentences.md).
 - **Add their own spellings and readings.** Beside a word's spellings and readings, a
   box adds one of the user's own (readings in kana), marked as their own and deletable.
   A word always keeps at least one reading. Words of the user's own are made of these
@@ -59,7 +59,7 @@ start with it, as on Jisho.
 
 ## What the user can't change
 
-The dictionary's own data is never edited or deleted: readings, spellings, examples
+The dictionary's own data is never edited or deleted: readings, spellings, sentences
 and the dictionary's meaning groups and meanings can only be disabled. That way nothing original is ever
 lost, and re-enabling it is always possible.
 
@@ -71,7 +71,7 @@ lost, and re-enabling it is always possible.
 | The item isn't in the user's library | Rejected as not found |
 | Editing or deleting one of the dictionary's meanings | Rejected; it can only be disabled |
 | An empty meaning, or a note over 2000 characters | Rejected as invalid |
-| A meaning, example, sense, spelling or reading that can't be saved (e.g. no connection) | An error message; what the user typed stays in the form to try again |
+| A meaning, sentence, sense, spelling or reading that can't be saved (e.g. no connection) | An error message; what the user typed stays in the form to try again |
 | Deleting the only meaning of a meaning group | Not possible: its delete button is disabled, and its tooltip says to edit it or delete the whole group |
 
 Technical details: [use cases](../../technical/application/use-cases.md) and

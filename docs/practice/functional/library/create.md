@@ -26,7 +26,7 @@ a dialect. The user creates them themselves and studies them like any other word
 ## What they get
 
 The word works like an imported one: it can get more meanings and meaning groups,
-examples, notes, collections, and be practised in exercises and in writing practice
+sentences, notes, collections, and be practised in exercises and in writing practice
 (its kanji are drawn with the dictionary's stroke order). Its page is marked **palabra
 propia**, lists the kanji of its first spelling as the dictionary has them, and has no
 link to the dictionary.
