@@ -6,7 +6,6 @@ import { answerQuestion, finishSession, getSession, listSessions, startSession }
 import { getExerciseStatistics, getPracticeStatistics } from '../../app/services/statistics'
 import { createExercise, deleteExercise, getExercise, listExercises, updateExercise } from '../../app/services/exercises'
 import {
-  addExample,
   addGloss,
   addReading,
   addSpelling,
@@ -15,15 +14,23 @@ import {
   getImportStatus,
   importEntry,
   listLibraryEntries,
-  editExample,
   listLibraryKanji,
-  removeExample,
   removeReading,
   removeSense,
   removeSpelling,
   setEntryPartEnabled,
   setKanjiNotes,
 } from '../../app/services/library'
+import {
+  addSentence,
+  addSentences,
+  addSentenceWord,
+  analyzeSentences,
+  linkSentenceWord,
+  listSentences,
+  removeSentence,
+  rewriteSentence,
+} from '../../app/services/sentences'
 import type { ApiClient } from '../../app/utils/api-client'
 
 function fakeApi() {
@@ -55,9 +62,6 @@ describe('practice API services', () => {
     await addGloss(api, 3, 5, 'to scoff', 'eng')
     await addSense(api, 3, 'to dine', 'eng')
     await removeSense(api, 3, 6)
-    await addExample(api, 3, 5, '水を飲む。', null, 'eng')
-    await editExample(api, 3, 8, '水を飲んだ。', 'I drank water.', 'eng')
-    await removeExample(api, 3, 8)
     await createOwnEntry(api, { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng' })
     await addSpelling(api, 3, '猫')
     await removeSpelling(api, 3, 9)
@@ -72,15 +76,36 @@ describe('practice API services', () => {
       ['/library/entries/3/senses/5/glosses', { method: 'POST', body: { text: 'to scoff', lang: 'eng' } }],
       ['/library/entries/3/senses', { method: 'POST', body: { text: 'to dine', lang: 'eng' } }],
       ['/library/entries/3/senses/6', { method: 'DELETE' }],
-      ['/library/entries/3/senses/5/examples', { method: 'POST', body: { japanese: '水を飲む。', translation: null, lang: 'eng' } }],
-      ['/library/entries/3/examples/8', { method: 'PUT', body: { japanese: '水を飲んだ。', translation: 'I drank water.', lang: 'eng' } }],
-      ['/library/entries/3/examples/8', { method: 'DELETE' }],
       ['/library/entries/own', { method: 'POST', body: { spellings: [], readings: ['ねこ'], meaning: 'cat', lang: 'eng', collection_ids: [] } }],
       ['/library/entries/3/kanji-readings', { method: 'POST', body: { kanji: '猫' } }],
       ['/library/entries/3/kanji-readings/9', { method: 'DELETE' }],
       ['/library/entries/3/readings', { method: 'POST', body: { text: 'ネコ' } }],
       ['/library/entries/3/readings/10', { method: 'DELETE' }],
       ['/library/kanji/4/notes', { method: 'PUT', body: { notes: null } }],
+    ])
+  })
+
+  it('sentences use the documented routes', async () => {
+    const { api, calls } = fakeApi()
+
+    await listSentences(api, { entry_id: 3, limit: 100 })
+    await addSentence(api, '水を飲んだ。', null, 'eng', 3, 5)
+    await analyzeSentences(api, ['水を飲んだ。'])
+    await addSentences(api, [{ japanese: '水。', translation: null, lang: 'eng', words: [] }])
+    await rewriteSentence(api, 8, '水を飲む。', 'I drink.', 'eng')
+    await addSentenceWord(api, 8, 0, 1, 3)
+    await linkSentenceWord(api, 8, 2, null)
+    await removeSentence(api, 8)
+
+    expect(calls).toEqual([
+      ['/library/sentences', { query: { entry_id: 3, limit: 100 } }],
+      ['/library/sentences', { method: 'POST', body: { japanese: '水を飲んだ。', translation: null, lang: 'eng', entry_id: 3, sense_id: 5 } }],
+      ['/library/sentences/analyze', { method: 'POST', body: { texts: ['水を飲んだ。'] } }],
+      ['/library/sentences/batch', { method: 'POST', body: { sentences: [{ japanese: '水。', translation: null, lang: 'eng', words: [] }] } }],
+      ['/library/sentences/8', { method: 'PUT', body: { japanese: '水を飲む。', translation: 'I drink.', lang: 'eng' } }],
+      ['/library/sentences/8/words', { method: 'POST', body: { start: 0, end: 1, entry_id: 3 } }],
+      ['/library/sentences/8/words/2/link', { method: 'PUT', body: { entry_id: null, sense_id: null } }],
+      ['/library/sentences/8', { method: 'DELETE' }],
     ])
   })
 

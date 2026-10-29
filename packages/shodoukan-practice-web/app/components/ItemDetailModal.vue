@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { ItemKind, PracticeEntry, PracticeKanji } from '~/models/practice'
+import type { ItemKind, PracticeEntry, PracticeKanji, PracticeSentence } from '~/models/practice'
 import { getLibraryEntry, getLibraryKanji } from '~/services/library'
+import { sentencesOfEntry } from '~/services/sentences'
 import { apiStatus } from '~/utils/api-error'
 
 // A library item's full detail, view-only, without leaving the session.
@@ -14,9 +15,12 @@ const api = useApi()
 
 const { data: item, status, error } = useAsyncData(
   `item-detail-${props.kind}-${props.itemId}`,
-  async (): Promise<{ entry: PracticeEntry } | { kanji: PracticeKanji }> =>
+  async (): Promise<{ entry: PracticeEntry, sentences: PracticeSentence[] } | { kanji: PracticeKanji }> =>
     props.kind === 'entries'
-      ? { entry: await getLibraryEntry(api, props.itemId) }
+      ? {
+          entry: await getLibraryEntry(api, props.itemId),
+          sentences: await sentencesOfEntry(api, props.itemId),
+        }
       : { kanji: await getLibraryKanji(api, props.itemId) },
 )
 
@@ -50,7 +54,7 @@ async function openInLibrary() {
         title="No se ha podido cargar"
       />
       <template v-else-if="item">
-        <EntryDetail v-if="'entry' in item" :entry="item.entry" view-only />
+        <EntryDetail v-if="'entry' in item" :entry="item.entry" :sentences="item.sentences" view-only />
         <KanjiDetail v-else :kanji="item.kanji" view-only />
         <p
           v-if="'entry' in item ? item.entry.notes : item.kanji.notes"

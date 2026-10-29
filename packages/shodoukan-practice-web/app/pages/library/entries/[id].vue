@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import ConfirmModal from '~/components/ConfirmModal.vue'
-import type { EntryPart, PracticeEntry } from '~/models/practice'
+import type { EntryPart, PracticeEntry, PracticeSentence } from '~/models/practice'
 import {
-  addExample,
   addGloss,
   addReading,
   addSpelling,
   addSense,
-  editExample,
   editGloss,
   getLibraryEntry,
-  removeExample,
   removeGloss,
   removeLibraryEntry,
   removeReading,
@@ -22,6 +19,7 @@ import {
   setSenseNotes,
 } from '~/services/library'
 import { getDictionaryEntryKanji, getDictionaryKanji } from '~/services/dictionary'
+import { addSentence, removeSentence, rewriteSentence, sentencesOfEntry, setSentenceActive } from '~/services/sentences'
 import { kanjiIn } from '~/utils/own-entry'
 import { entryHeadword } from '~/utils/practice-text'
 import { entryWriting } from '~/utils/writing-practice'
@@ -42,6 +40,55 @@ const { item: entry, status, saving, save } = useEditableItem<PracticeEntry>(
   () => `library-entry-${id.value}`,
   () => getLibraryEntry(api, id.value),
 )
+
+// The word's sentences are the library's, linked to it: loaded apart, and
+// each change replaces the one it touched.
+const sentences = ref<PracticeSentence[]>([])
+const savingSentence = ref(false)
+watch(id, async () => {
+  try {
+    sentences.value = await sentencesOfEntry(api, id.value)
+  }
+  catch {
+    sentences.value = []
+  }
+}, { immediate: true })
+
+async function saveSentence(change: () => Promise<PracticeSentence | null>, removedId?: number): Promise<boolean> {
+  savingSentence.value = true
+  try {
+    const changed = await change()
+    if (removedId !== undefined) sentences.value = sentences.value.filter(s => s.id !== removedId)
+    else if (changed) {
+      const at = sentences.value.findIndex(s => s.id === changed.id)
+      sentences.value = at < 0
+        ? [...sentences.value, changed]
+        : sentences.value.map(s => (s.id === changed.id ? changed : s))
+    }
+    return true
+  }
+  catch (failure) {
+    notify.failure(failure)
+    return false
+  }
+  finally {
+    savingSentence.value = false
+  }
+}
+
+const addWordSentence = (senseId: number, japanese: string, translation: string | null) =>
+  saveSentence(() => addSentence(api, japanese, translation, glossCode.value, id.value, senseId))
+const rewriteWordSentence = (sentenceId: number, japanese: string, translation: string | null) =>
+  saveSentence(() => rewriteSentence(api, sentenceId, japanese, translation, glossCode.value))
+
+async function deleteSentence(sentenceId: number) {
+  const confirmed = await overlay.create(ConfirmModal).open({
+    title: '¿Eliminar la frase?',
+    description: 'Se quita de tu librería, también de las demás palabras que la usan.',
+    confirmLabel: 'Eliminar',
+  }).result
+  if (confirmed) await saveSentence(async () => { await removeSentence(api, sentenceId); return null }, sentenceId)
+}
 
 // The word's kanji come from the dictionary, with whether each one is imported:
 // the dictionary entry's, or for a word of the user's own, those of its first
@@ -77,11 +124,11 @@ const spellings = computed(() => entry.value?.kanji_readings.map(k => ({ ...k, t
 const toggle = (part: EntryPart, itemId: number, enabled: boolean) =>
   save(() => setEntryPartEnabled(api, id.value, part, itemId, enabled))
 
-// An own sense goes with its meanings, examples and note, so it asks first.
+// An own sense goes with its meanings and note, so it asks first.
 async function deleteSense(senseId: number) {
   const confirmed = await overlay.create(ConfirmModal).open({
     title: '¿Eliminar este significado?',
-    description: 'Se borran sus significados, ejemplos y nota propios.',
+    description: 'Se borran sus significados y su nota propios; sus frases se quedan en la palabra.',
     confirmLabel: 'Eliminar',
   }).result
   if (confirmed) await save(() => removeSense(api, id.value, senseId))
@@ -152,16 +199,18 @@ async function remove() {
       <div class="space-y-8 lg:col-span-2">
         <EntryDetail
           :entry="entry"
-          :saving="saving"
+          :sentences="sentences"
+          :saving="saving || savingSentence"
           @toggle="toggle"
           @add-sense="text => save(() => addSense(api, id, text, glossCode))"
           @remove-sense="deleteSense"
           @add-gloss="(senseId, text) => save(() => addGloss(api, id, senseId, text, glossCode))"
           @edit-gloss="(glossId, text) => save(() => editGloss(api, id, glossId, text))"
           @remove-gloss="glossId => save(() => removeGloss(api, id, glossId))"
-          @add-example="(senseId, japanese, translation) => save(() => addExample(api, id, senseId, japanese, translation, glossCode))"
-          @edit-example="(exampleId, japanese, translation) => save(() => editExample(api, id, exampleId, japanese, translation, glossCode))"
-          @remove-example="exampleId => save(() => removeExample(api, id, exampleId))"
+          :on-add-sentence="addWordSentence"
+          :on-rewrite-sentence="rewriteWordSentence"
+          @toggle-sentence="(sentenceId, active) => saveSentence(() => setSentenceActive(api, sentenceId, active))"
+          @remove-sentence="deleteSentence"
           @sense-notes="(senseId, notes) => save(() => setSenseNotes(api, id, senseId, notes))"
         />
 
