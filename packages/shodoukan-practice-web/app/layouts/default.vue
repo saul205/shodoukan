@@ -7,6 +7,7 @@ const { lang, options: languages } = useMeaningLang()
 const items: NavigationMenuItem[] = [
   { label: 'Diccionario', icon: 'i-lucide-book-open', to: '/dictionary' },
   { label: 'Mi librería', icon: 'i-lucide-library-big', to: '/library' },
+  { label: 'Frases', icon: 'i-lucide-quote', to: '/library/sentences' },
   { label: 'Mis colecciones', icon: 'i-lucide-folders', to: '/collections' },
   { label: 'Públicas', icon: 'i-lucide-globe', to: '/public-collections', tooltip: { text: 'Colecciones públicas' } },
   { label: 'Practicar', icon: 'i-lucide-pen-line', to: '/practice' },
