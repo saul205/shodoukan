@@ -8,7 +8,8 @@ import type { ChoiceQuestion, ExerciseAnswer, StudyField } from '~/models/practi
 // 2:3 (neither below its content), so the options grow into room the card
 // doesn't need; from `sm` the card takes what the options and the row leave.
 // Either way answering moves nothing and a phone never scrolls. It measures
-// the time to answer and emits; the session page talks to the API.
+// the time to answer and emits (`useOptionPlayer`, shared with the sentence
+// player); the session page talks to the API.
 const props = defineProps<{ question: ChoiceQuestion; busy?: boolean; backFields?: StudyField[] }>()
 const emit = defineEmits<{
   'answer': [answer: ExerciseAnswer, responseMs: number]
@@ -16,60 +17,12 @@ const emit = defineEmits<{
   'open-item': [itemId: number]
 }>()
 
-const shownAt = ref(0)
-const picked = ref<number | null>(null)
-
-watch(() => props.question.id, () => {
-  shownAt.value = performance.now()
-  const answer = props.question.answer
-  picked.value = answer?.type === 'option' ? answer.option : null
-}, { immediate: true })
-
-function pick(option: number) {
-  if (props.busy || props.question.answered) return
-  picked.value = option
-  emit('answer', { type: 'option', option }, elapsed())
-}
-
-function skip() {
-  if (props.busy || props.question.answered) return
-  emit('answer', { type: 'skip' }, elapsed())
-}
-
-function elapsed() {
-  return Math.round(performance.now() - shownAt.value)
-}
-
-const skipped = computed(() => props.question.answer?.type === 'skip')
-
-// Where the shortcuts never apply: typing, a dialog (the item detail), or an
-// open menu or select list (the sidebar's), whose keys are their own.
-const OWN_KEYS = 'input, textarea, select, [contenteditable], [role="dialog"], [role="menu"], [role="listbox"], [role="combobox"]'
-
-function onKey(event: KeyboardEvent) {
-  if (event.defaultPrevented || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return
-  const target = event.target instanceof Element ? event.target : null
-  if (target?.closest(OWN_KEYS)) return
-  if (props.question.answered) {
-    // Enter on a focused control ("Terminar", a link, a detail button) is that
-    // control's; it means "next" only from the page itself or an option.
-    const free = !target || target === document.body || target.closest('[data-option-shortcuts]')
-    if (event.key === 'Enter' && free) {
-      event.preventDefault()
-      emit('next')
-    }
-    return
-  }
-  if (event.key === 'Escape' || event.key.toLowerCase() === 's') {
-    skip()
-    return
-  }
-  const option = Number(event.key) - 1
-  if (Number.isInteger(option) && option >= 0 && option < props.question.options.length) pick(option)
-}
-
-onMounted(() => window.addEventListener('keydown', onKey))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+const { picked, pick, skip, skipped } = useOptionPlayer(
+  () => props.question,
+  () => props.busy,
+  (answer, responseMs) => emit('answer', answer, responseMs),
+  () => emit('next'),
+)
 </script>
 
 <template>

@@ -101,6 +101,39 @@ describe('ExerciseForm', () => {
     expect(form.wrapper.emitted('saved')).toEqual([[saved]])
   })
 
+  it('creates a sentence exercise from the directions picked', async () => {
+    const form = await mountForm()
+
+    await form.typeName('Verbos en frases')
+    form.pickCollections([1])
+    form.wrapper.findAllComponents(URadioGroup)
+      .find(r => r.attributes('data-testid') === 'exercise-type')!
+      .vm.$emit('update:modelValue', 'sentence.choice')
+    await flushPromises()
+    expect(form.wrapper.find('[data-testid="sentence-directions"]').exists()).toBe(true)
+    const checkboxes = form.wrapper.findComponent({ name: 'UCheckboxGroup' })
+    checkboxes.vm.$emit('update:modelValue', ['writing', 'meaning'])
+    await flushPromises()
+    await form.submit()
+
+    expect(form.posted()[0]![1]).toMatchObject({
+      method: 'POST',
+      body: {
+        settings: {
+          type: 'sentence.choice',
+          directions: [
+            { prompt: ['meaning'], answer: 'writing' },
+            { prompt: ['writing'], answer: 'meaning' },
+          ],
+          back_fields: ['reading'],
+          option_count: 4,
+          show_translation: false,
+        },
+        item_kind: 'entries',
+      },
+    })
+  })
+
   it('requires a collection', async () => {
     const form = await mountForm()
 
