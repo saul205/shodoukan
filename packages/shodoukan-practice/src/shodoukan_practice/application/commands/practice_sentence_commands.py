@@ -10,7 +10,11 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from ...domain.entities import PracticeEntry, PracticeSentence
-from ...domain.exceptions import EntityNotFoundError, SentenceWordError
+from ...domain.exceptions import (
+    EntityNotFoundError,
+    OriginalDataError,
+    SentenceWordError,
+)
 from ...domain.gateways import Morpheme, MorphologyGateway
 from ...domain.repositories import PracticeEntryRepository, PracticeSentenceRepository
 from ...domain.services import analyze_gap, find_gap, span_morphemes
@@ -295,11 +299,15 @@ class SetSentenceNotes(_SentenceCommand):
 
 
 class RemoveSentence(_SentenceCommand):
-    """Remove a sentence from the library. A copy of someone's is remembered
-    on the words it was linked to, so their source doesn't bring it back."""
+    """Remove one of the user's own sentences from the library (a dictionary
+    one is only deactivated: `OriginalDataError`). A copy of someone's is
+    remembered on the words it was linked to, so their source doesn't bring
+    it back."""
 
     def execute(self, user_id: UUID, sentence_id: int) -> None:
         sentence = self._get(user_id, sentence_id)
+        if not sentence.is_own:
+            raise OriginalDataError("dictionary sentences can only be deactivated")
         linked = {w.entry_id for w in sentence.words if w.entry_id is not None}
         for entry in self._entries.get_many(linked, user_id):
             if entry.dismiss_example(sentence):

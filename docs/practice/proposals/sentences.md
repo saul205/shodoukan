@@ -134,8 +134,8 @@ dismissed references used by updating from the source (#90) point at the sentenc
    without one by matching the lemma (inflected own sentences);
    More links for a sentence (the user's own ones were linked to one word) are
    proposed by `/library/sentences/analyze` on its text, in the editor; no
-   `--suggest-links` option is needed. Until then a gap can be asked for its meaning, not for the
-   gap or the reading.
+   `--suggest-links` option is needed. Until then a gap can be asked for its
+   meaning, not for the gap or the reading.
 
 ## API and sharing (#97)
 

@@ -154,7 +154,7 @@ linked word without a gap, is completed with the analyzer before answering
 | `POST /library/sentences/batch` | `{"sentences": [...]}` (1–200), each a sentence with its `words` (`start` / `end`, `entry_id`, `sense_id`; a word without a span must be linked), as the user reviewed them. All or nothing: a word that isn't the user's is a `404` and stores none. `201` | `AddSentences` |
 | `GET /library/sentences/{id}` | The sentence | `GetSentence` |
 | `PUT /library/sentences/{id}` | Rewrite an own sentence and its translation in `lang`; its words keep their gap where their text still is. `409` for a dictionary sentence | `RewriteSentence` |
-| `DELETE /library/sentences/{id}` | Remove it (`204`); a copy of someone's is remembered on its words, so their source doesn't bring it back | `RemoveSentence` |
+| `DELETE /library/sentences/{id}` | Remove an own sentence (`204`; a dictionary one is a `409`: it's only deactivated); a copy of someone's is remembered on its words, so their source doesn't bring it back | `RemoveSentence` |
 | `PUT /library/sentences/{id}/active` · `/notes` | `{"active": bool}` · `{"notes": ...}` | `SetSentenceActive` · `SetSentenceNotes` |
 | `POST /library/sentences/{id}/words` | Mark a word (`start`, `end`) linked or not, or link a word without a span (`entry_id`) | `AddSentenceWord` |
 | `PUT /library/sentences/{id}/words/{word_id}/span` | Move its gap (analyzed again) | `MarkSentenceWord` |
@@ -163,7 +163,7 @@ linked word without a gap, is completed with the analyzer before answering
 | `DELETE /library/sentences/{id}/words/{word_id}` | Remove the word; returns the sentence | `RemoveSentenceWord` |
 
 Errors: `404` for a sentence, word, entry or sense that isn't the user's; `409` for
-rewriting a dictionary sentence; `422` (`SentenceWordError`) for a word over another
+rewriting or removing a dictionary sentence; `422` (`SentenceWordError`) for a word over another
 or outside the sentence, or a reading that isn't kana.
 
 ## `POST /library/kanji`

@@ -203,14 +203,19 @@ def rewrite_sentence(
     return SentenceResponse.model_validate(sentence)
 
 
-@router.delete("/{sentence_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{sentence_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_409_CONFLICT: {"description": "A dictionary sentence."}},
+)
 def remove_sentence(
     sentence_id: int,
     user: CurrentUserDep,
     session: SessionDep,
     use_case: Annotated[RemoveSentence, Depends(get_remove_sentence)],
 ) -> None:
-    """Remove the sentence from the library."""
+    """Remove one of the user's own sentences (a dictionary one is a 409: it's
+    only deactivated)."""
     use_case.execute(user.id, sentence_id)
     session.commit()
 
