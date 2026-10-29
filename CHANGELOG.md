@@ -31,6 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   doubtful ones, save all); and a sentence editor to mark a word by clicking it, link
   it to a word of the library, correct its reading, or link the suggested ones.
 
+- **shodoukan-practice:** Sentence exercises (`sentence.choice`): a word asked in one
+  of its sentences, rotating through them. Fill the gap (the options are other words'
+  gaps in the same form, so the ending never gives the answer away), give its reading
+  in context, or its meaning; the translation can be shown. The answer to a
+  fill-the-gap question isn't sent with it.
+
 ### Changed
 
 - **shodoukan-practice-web:** A word's page shows its sentences, the word underlined,

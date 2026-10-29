@@ -717,6 +717,7 @@ def get_start_exercise_session(
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
         dictionary,
         SqlAlchemyUserRepository(session),
     )
@@ -732,6 +733,7 @@ def get_answer_exercise_question(
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
         dictionary,
     )
 

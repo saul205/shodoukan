@@ -120,7 +120,8 @@ alone (`study_texts`), starting a session, and answering (each answer asks the n
 question; drawings are skipped, so the grader isn't timed).
 
 Reference, on a development laptop with the defaults (SQLite, so Postgres will
-differ): starting and answering take about 25–55 ms per question. Before the pool was
+differ): starting and answering take about 25–55 ms per question; a sentence session
+(`words, sentences`, the words' JMDict sentences) about 55–85 ms. Before the pool was
 read as study text, a question over 1000 words took about 1.15 s
 ([decision](decisions.md#an-exercises-pool-reads-a-study-read-model)).
 

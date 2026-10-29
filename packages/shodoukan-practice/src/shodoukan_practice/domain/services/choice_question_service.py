@@ -71,7 +71,7 @@ def _question(
     directions = [d for d in settings.directions if can_ask(card, d)]
     rng.shuffle(directions)
     for direction in directions:
-        options = _options(card, pool, direction, settings.option_count, rng)
+        options = choice_options(card, pool, direction, settings.option_count, rng)
         if options is None:
             continue
         correct = options[0]
@@ -90,14 +90,15 @@ def _question(
     return None
 
 
-def _options(
+def choice_options(
     card: StudyCard,
     pool: Sequence[StudyCard],
     direction: Direction,
     option_count: int,
     rng: Random,
 ) -> list[ChoiceOption] | None:
-    """The right option first, then the distractors; None if there's none."""
+    """The right option first, then the distractors; None if there's none.
+    Shared by the sentence questions that ask a word's meaning."""
     answer = rng.choice(card.answers(direction.answer))
     # Every key that answers this prompt, from any item that fits it.
     valid_keys = frozenset().union(

@@ -36,6 +36,7 @@ changes.
 | `card.flip` | Card | Sees the front, flips the card, says whether they knew it | Future |
 | `card.typed` | Card | Types the answer (kana, meaning) | Future |
 | `card.handwriting` | Card | Draws the kanji, or writes a word (its spelling or reading) a character per cell; the strokes are graded against KanjiVG | #37, #67 **(built)** |
+| `sentence.choice` | Sentence | Sees a word in one of its sentences: fills its gap, or gives its reading or meaning, among N options | #99 **(built)** |
 | `sentence.gap` | Sentence | Fills the gaps of an example sentence with kanji, given the kana | Future |
 
 All card types share `CardSettings`:
@@ -224,6 +225,39 @@ Pure domain services, testable with a seeded `random.Random`:
 
 Tests cover every ambiguity: shared kun'yomi, shared on'yomi, homophones, synonyms,
 same spelling.
+
+## Sentences
+
+A `sentence.choice` exercise (`SentenceChoiceSettings`, a `CardSettings`) is an entry
+exercise: **the item asked is still the word**, so the deck, reviews, history and
+statistics work as for cards. Each question shows it in one of its
+[sentences](domain/entities.md#sentences): an active one with a gap linked to the word
+and analyzed, the least used so far in the session (they rotate).
+
+| Direction | The sentence shows | Asked | Options |
+|---|---|---|---|
+| `meaning → writing` (fill the gap) | The gap hidden; the prompt fields as hints | The word as written in the sentence | The gaps of other words in the **same form**: same part of speech and `Inflection` (引かれた among 飲まれた, 押された) |
+| `writing → reading` | The word highlighted | Its reading in context (ひかれた) | The readings of other gaps in the same form |
+| `writing → meaning` | The word highlighted | Its meaning | Other words' meanings, with the card rule |
+
+- A direction asking `reading` or `meaning` must show `writing` (the word is in the
+  sentence); fill-the-gap shows any other fields as hints. `option_count` (2–8) and
+  `show_translation` (the sentence's translation in the session's language) are the
+  other settings. Kanji exercises can't use it (no `writing`).
+- **No conjugation is made up**: options are real gaps. With too few in the gap's form
+  there are fewer options; with none, that direction isn't asked of that word (a word
+  alone in its form, like 水 among verbs). A distractor is never the same text nor
+  from a word that fits the prompt (it would fit the gap too). Built in
+  `sentence_question_service.build_next_sentence_question`.
+- A session needs `MIN_POOL_SIZE` words with a sentence (`ExercisePoolTooSmallError`).
+- The pool reads the gaps as columns (`PracticeSentenceRepository.gaps` → `GapText`),
+  as cards read `EntryStudyText`: about 56 ms an answer with 1000 words, against 150
+  ms loading whole sentences.
+- A `SentenceChoiceQuestion` (an `OptionQuestion`, answered with an `OptionAnswer`
+  like a choice card) keeps a snapshot of the sentence, the gap's span and the
+  translation. The API sends the sentence split at the gap (`before`, `gap`, `after`)
+  and, while a fill-the-gap question is unanswered, `gap` is null, so the answer isn't
+  in the response.
 
 ## Handwriting
 
@@ -460,7 +494,8 @@ review; that id isn't updated if the item is later removed.
 
 The queryable columns (`item_id`, `answer_field`, `is_correct`, `answered_at`, ...) are
 what statistics filter and group by. `details` holds what only the
-question's type has: `{options, correct_option}` for a choice card, `{references,
+question's type has: `{options, correct_option}` for a choice card (plus `{sentence_id,
+sentence, gap_start, gap_end, translation}` for a sentence question), `{references,
 grade}` for a handwriting card, `{words, grade}` for a word
 ([decisions](decisions.md#questions-are-a-union-too-with-what-each-type-adds-in-one-json-column)).
 `answer` is a discriminated union like `settings`: `{type: "option", option}`,
@@ -592,4 +627,5 @@ go in the order 3 → A → 4 → 5 → C.
 | 7 | Handwriting (backend), #58 **(built)** | `card.handwriting`: KanjiVG references, grading, questions by type in storage |
 | 8 | Handwriting (frontend), #59 **(built)** | Drawing pad, the handwriting player, reviewing drawings |
 | 9 | Writing words, #67 **(built)** | `card.handwriting_word`: a word's spelling or reading written a character per cell, graded per cell; its player and review |
+| 10 | Sentence choice, #99 **(built)** | `sentence.choice`: a word in one of its sentences (fill the gap, reading, meaning), options from gaps in the same form; its player |
 | — | Future types | `card.flip`, `card.typed`, `sentence.gap` |

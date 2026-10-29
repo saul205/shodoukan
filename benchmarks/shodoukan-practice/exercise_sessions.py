@@ -39,13 +39,14 @@ from shodoukan_practice.application.commands import (
 from shodoukan_practice.domain.clock import utc_now
 from shodoukan_practice.domain.entities import (
     ChoiceCardSettings,
-    ChoiceQuestion,
     ExerciseAnswer,
     ExerciseQuestion,
     ExerciseSettings,
     HandwritingCardSettings,
     ItemKind,
     OptionAnswer,
+    OptionQuestion,
+    SentenceChoiceSettings,
     SkipAnswer,
 )
 from shodoukan_practice.domain.gateways import DictionaryGateway
@@ -84,6 +85,19 @@ SCENARIOS: list[tuple[str, ItemKind, str, ExerciseSettings]] = [
         "entries",
         "eng",
         _choice(("meaning", "writing"), ("writing", "meaning")),
+    ),
+    (
+        "words, sentences",
+        "entries",
+        "eng",
+        SentenceChoiceSettings.model_validate(
+            {
+                "directions": [
+                    {"prompt": ["meaning"], "answer": "writing"},
+                    {"prompt": ["writing"], "answer": "reading"},
+                ]
+            }
+        ),
     ),
     (
         "kanji, choice",
@@ -245,6 +259,7 @@ def _run(
             kanji_collections,
             entries,
             kanji,
+            SqlAlchemyPracticeSentenceRepository(session),
             gateway,
         )
 
@@ -289,9 +304,9 @@ def _run(
 
 
 def _answer_to(question: ExerciseQuestion) -> ExerciseAnswer:
-    """A choice question's first option. A drawing is skipped: grading one
+    """A choice (or sentence) question's first option. A drawing is skipped: grading one
     would time the grader, not how the session loads its pool."""
-    if isinstance(question, ChoiceQuestion):
+    if isinstance(question, OptionQuestion):
         return OptionAnswer(option=0)
     return SkipAnswer()
 

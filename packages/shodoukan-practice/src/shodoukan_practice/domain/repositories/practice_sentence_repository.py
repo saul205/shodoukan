@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-from ..entities import PracticeSentence
+from ..entities import Inflection, PracticeSentence
 
 
 @dataclass(frozen=True)
@@ -21,12 +21,45 @@ class SentenceSearch:
     active: bool | None = None
 
 
+@dataclass(frozen=True)
+class GapText:
+    """A word's gap as a sentence exercise reads it: only the columns a
+    question uses, not the whole sentence (`gaps`)."""
+
+    entry_id: int
+    sentence_id: int
+    sentence: str
+    start: int
+    end: int
+    reading: str
+    pos: str | None
+    inflection: Inflection | None
+    translation: str | None = None
+
+    @property
+    def surface(self) -> str:
+        return self.sentence[self.start : self.end]
+
+    @property
+    def form(self) -> tuple[str | None, Inflection | None]:
+        """What gaps must share to be options of each other."""
+        return self.pos, self.inflection
+
+
 class PracticeSentenceRepository(Protocol):
     def get(self, sentence_id: int, user_id: UUID) -> PracticeSentence | None: ...
 
     def for_entry(self, entry_id: int, user_id: UUID) -> list[PracticeSentence]:
         """The user's sentences with a word linked to entry `entry_id`, oldest
         first: "the sentences of a word"."""
+        ...
+
+    def gaps(
+        self, entry_ids: Iterable[int], user_id: UUID, translation_lang: str
+    ) -> list[GapText]:
+        """The analyzed gaps of the entries in the user's active sentences,
+        with each sentence's translation in `translation_lang` (if any):
+        what a sentence exercise's pool reads. Columns only."""
         ...
 
     def for_entries(

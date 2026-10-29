@@ -13,12 +13,14 @@ from factories import (
     make_kanji_with,
     make_session,
     make_word,
+    sudachi,
     word_handwriting_settings,
 )
 from sqlalchemy.orm import Session
 
 from shodoukan import Dictionary
 from shodoukan_practice.application.commands import (
+    AddSentence,
     AnswerExerciseQuestion,
     CreateExercise,
     FinishExerciseSession,
@@ -35,6 +37,8 @@ from shodoukan_practice.domain.entities import (
     HandwritingQuestion,
     KanjiCollection,
     OptionAnswer,
+    SentenceChoiceQuestion,
+    SentenceChoiceSettings,
     SkipAnswer,
     StrokesAnswer,
     WordHandwritingQuestion,
@@ -48,6 +52,7 @@ from shodoukan_practice.domain.exceptions import (
     SessionFinishedError,
 )
 from shodoukan_practice.domain.gateways import DictionaryGateway
+from shodoukan_practice.domain.repositories import SentenceSearch
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.dictionary import ShodoukanDictionaryGateway
 from shodoukan_practice.infrastructure.repositories import (
@@ -57,6 +62,7 @@ from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
     SqlAlchemyUserRepository,
 )
 
@@ -76,6 +82,7 @@ Repos = tuple[
     SqlAlchemyKanjiCollectionRepository,
     SqlAlchemyPracticeEntryRepository,
     SqlAlchemyPracticeKanjiRepository,
+    SqlAlchemyPracticeSentenceRepository,
     DictionaryGateway,
 ]
 
@@ -96,6 +103,7 @@ def _repos(session: Session, gateway: DictionaryGateway) -> Repos:
         SqlAlchemyKanjiCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyPracticeKanjiRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
         gateway,
     )
 
@@ -696,3 +704,93 @@ def test_writing_needs_two_words_with_every_stroke_order(
 
     with pytest.raises(ExercisePoolTooSmallError):
         start.execute(user.id, exercise.id or 0, "eng")
+
+
+def _sentence_exercise(
+    session: Session, user: UserORM, answers: tuple[str, ...]
+) -> Exercise:
+    """Three verbs, each with an own sentence in the past (食べた, 飲んだ,
+    見た), and a sentence exercise on them."""
+    collections = SqlAlchemyEntryCollectionRepository(session)
+    entries = SqlAlchemyPracticeEntryRepository(session)
+    sentences = SqlAlchemyPracticeSentenceRepository(session)
+    verbs = collections.add(EntryCollection(id=None, user_id=user.id, name="verbs"))
+    words = [
+        ("食べる", "たべる", "to eat", "パンを食べた。"),
+        ("飲む", "のむ", "to drink", "水を飲んだ。"),
+        ("見る", "みる", "to see", "映画を見た。"),
+    ]
+    add = AddSentence(sentences, entries, sudachi())
+    for i, (writing, reading, meaning, text) in enumerate(words):
+        entry = entries.add(
+            make_word(user.id, i + 1, writing, reading, [(meaning, "eng")])
+        )
+        collections.add_item(verbs, entry)
+        add.execute(user.id, text, None, "eng", entry_id=entry.id)
+    assert verbs.id is not None
+    prompts = {
+        "writing": ("meaning",),
+        "reading": ("writing",),
+        "meaning": ("writing",),
+    }
+    return CreateExercise(
+        SqlAlchemyExerciseRepository(session),
+        collections,
+        SqlAlchemyKanjiCollectionRepository(session),
+    ).execute(
+        user.id,
+        "entries",
+        "Verbs in context",
+        None,
+        [verbs.id],
+        SentenceChoiceSettings.model_validate(
+            {
+                "directions": [
+                    {"prompt": list(prompts[a]), "answer": a} for a in answers
+                ],
+                "show_translation": True,
+            }
+        ),
+    )
+
+
+def test_a_sentence_session_fills_gaps_with_words_in_the_same_form(
+    session: Session,
+    start: StartExerciseSession,
+    answer: AnswerExerciseQuestion,
+    user: UserORM,
+) -> None:
+    exercise = _sentence_exercise(session, user, ("writing",))
+    assert exercise.id is not None
+
+    started = start.execute(user.id, exercise.id, "eng")
+
+    question = started.current
+    assert isinstance(question, SentenceChoiceQuestion)
+    assert question.sentence[question.gap_start : question.gap_end] in {
+        "食べた",
+        "飲んだ",
+        "見た",
+    }
+    assert {o.text for o in question.options} == {"食べた", "飲んだ", "見た"}
+    assert started.id is not None and question.id is not None
+    right = OptionAnswer(option=question.correct_option)
+    _, graded, following = answer.execute(user.id, started.id, question.id, right)
+    assert graded.is_correct is True
+    assert isinstance(following, SentenceChoiceQuestion)
+    assert following.item_id != graded.item_id
+
+
+def test_a_sentence_session_needs_words_with_sentences(
+    session: Session, start: StartExerciseSession, user: UserORM
+) -> None:
+    exercise = _sentence_exercise(session, user, ("meaning",))
+    assert exercise.id is not None
+    for sentence in SqlAlchemyPracticeSentenceRepository(session).find(
+        user.id, SentenceSearch(), 10, 0
+    )[:2]:
+        sentence.deactivate()
+        SqlAlchemyPracticeSentenceRepository(session).update(sentence)
+
+    with pytest.raises(ExercisePoolTooSmallError):
+        start.execute(user.id, exercise.id, "eng")
