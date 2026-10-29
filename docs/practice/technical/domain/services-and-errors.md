@@ -177,6 +177,15 @@ What [sentences in a collection](entities.md#sentences-in-a-collection) describe
 - `preview_sentences(shared, user_id)`: the word's examples as unstored sentences,
   each once, with their gap: what a preview shows.
 
+### `sentence_question_service.build_next_sentence_question(cards, gaps, settings, history, rng)`
+
+The next `SentenceChoiceQuestion`: the word from `items_in_order` among those with a
+gap (`askable_items`; `ensure_enough_sentence_items` checks there are
+`MIN_POOL_SIZE`), shown in its least used sentence, with the options of
+[sentences](../exercises.md#sentences): gaps of other words in the same form for
+writing and reading, `choice_options` (the card rule, shared with
+`choice_question_service`) for meaning.
+
 ## Exceptions (`domain/exceptions.py`)
 
 | Exception | Base | Raised when |

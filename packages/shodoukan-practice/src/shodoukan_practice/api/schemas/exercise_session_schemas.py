@@ -24,6 +24,7 @@ from ...domain.entities import (
     Point,
     ReferenceKanji,
     ReferenceWord,
+    SentenceChoiceQuestion,
     ShownField,
     StudyField,
     WordGrade,
@@ -112,6 +113,56 @@ class ChoiceQuestionResponse(_QuestionResponse):
             is_correct=question.is_correct,
             answered_at=question.answered_at,
             response_ms=question.response_ms,
+            options=[
+                OptionResponse(
+                    text=option.text, item_id=option.item_id if answered else None
+                )
+                for option in question.options
+            ],
+            correct_option=question.correct_option if answered else None,
+        )
+
+
+class SentenceChoiceQuestionResponse(_QuestionResponse):
+    """A word in one of its sentences. The sentence comes split at the
+    word's gap; while a fill-the-gap question (`answer_field` "writing") is
+    unanswered, `gap` is null, so the answer isn't sent with the question."""
+
+    type: Literal["sentence.choice"] = "sentence.choice"
+    sentence_id: int | None = Field(description="Null if it was removed since.")
+    before: str = Field(description="The sentence before the gap.")
+    gap: str | None = Field(
+        description="The word in the sentence; null while it's the hidden answer."
+    )
+    after: str = Field(description="The sentence after the gap.")
+    translation: str | None
+    options: list[OptionResponse]
+    correct_option: int | None
+
+    @classmethod
+    def of(cls, question: SentenceChoiceQuestion) -> "SentenceChoiceQuestionResponse":
+        assert question.id is not None
+        answered = question.answered
+        hidden = question.answer_field == "writing" and not answered
+        text = question.sentence
+        return cls(
+            id=question.id,
+            position=question.position,
+            prompt_fields=list(question.prompt_fields),
+            answer_field=question.answer_field,
+            prompt=list(question.prompt),
+            answered=answered,
+            item_id=question.item_id if answered else None,
+            back=list(question.back) if answered else None,
+            answer=question.answer,
+            is_correct=question.is_correct,
+            answered_at=question.answered_at,
+            response_ms=question.response_ms,
+            sentence_id=question.sentence_id,
+            before=text[: question.gap_start],
+            gap=None if hidden else text[question.gap_start : question.gap_end],
+            after=text[question.gap_end :],
+            translation=question.translation,
             options=[
                 OptionResponse(
                     text=option.text, item_id=option.item_id if answered else None
@@ -232,7 +283,8 @@ class WordHandwritingQuestionResponse(_QuestionResponse):
 QuestionResponse = Annotated[
     ChoiceQuestionResponse
     | HandwritingQuestionResponse
-    | WordHandwritingQuestionResponse,
+    | WordHandwritingQuestionResponse
+    | SentenceChoiceQuestionResponse,
     Field(discriminator="type"),
 ]
 
@@ -243,6 +295,7 @@ def question_response(
     ChoiceQuestionResponse
     | HandwritingQuestionResponse
     | WordHandwritingQuestionResponse
+    | SentenceChoiceQuestionResponse
 ):
     if isinstance(question, ChoiceQuestion):
         return ChoiceQuestionResponse.of(question)
@@ -250,6 +303,8 @@ def question_response(
         return HandwritingQuestionResponse.of(question)
     if isinstance(question, WordHandwritingQuestion):
         return WordHandwritingQuestionResponse.of(question)
+    if isinstance(question, SentenceChoiceQuestion):
+        return SentenceChoiceQuestionResponse.of(question)
     assert_never(question)
 
 

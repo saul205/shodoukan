@@ -4,9 +4,13 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, Select, and_, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from ...domain.entities import PracticeSentence
+from ...domain.entities import Inflection, PracticeSentence
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.repositories import PracticeSentenceRepository, SentenceSearch
+from ...domain.repositories import (
+    GapText,
+    PracticeSentenceRepository,
+    SentenceSearch,
+)
 from ..db.mappers import practice_sentence_to_db, practice_sentence_to_domain
 from ..db.orm import (
     PracticeSentenceORM,
@@ -45,6 +49,76 @@ class SqlAlchemyPracticeSentenceRepository(PracticeSentenceRepository):
 
     def for_entry(self, entry_id: int, user_id: UUID) -> list[PracticeSentence]:
         return self._find(user_id, PracticeSentenceWordORM.entry_id == entry_id)
+
+    def gaps(
+        self, entry_ids: Iterable[int], user_id: UUID, translation_lang: str
+    ) -> list[GapText]:
+        wanted = list(set(entry_ids))
+        if not wanted:
+            return []
+        word, sentence = PracticeSentenceWordORM, PracticeSentenceORM
+        translation = (
+            select(PracticeSentenceTranslationORM.text)
+            .where(
+                PracticeSentenceTranslationORM.sentence_id == sentence.id,
+                PracticeSentenceTranslationORM.lang == translation_lang,
+            )
+            .order_by(PracticeSentenceTranslationORM.position)
+            .limit(1)
+            .scalar_subquery()
+        )
+        rows = self._session.execute(
+            select(
+                word.entry_id,
+                sentence.id,
+                sentence.text,
+                word.span_start,
+                word.span_end,
+                word.reading,
+                word.pos,
+                word.inflection_endings,
+                word.inflection_form,
+                translation,
+            )
+            .join(sentence, sentence.id == word.sentence_id)
+            .where(
+                sentence.user_id == user_id,
+                sentence.is_active,
+                word.entry_id.in_(wanted),
+                word.span_start.is_not(None),
+                word.reading.is_not(None),
+            )
+            .order_by(sentence.id, word.position)
+        )
+        return [
+            GapText(
+                entry_id=entry_id,
+                sentence_id=sentence_id,
+                sentence=text,
+                start=start,
+                end=end,
+                reading=reading,
+                pos=pos[0] if pos else None,
+                inflection=(
+                    None
+                    if endings is None
+                    else Inflection(endings=tuple(endings), form=form)
+                ),
+                translation=translated,
+            )
+            for (
+                entry_id,
+                sentence_id,
+                text,
+                start,
+                end,
+                reading,
+                pos,
+                endings,
+                form,
+                translated,
+            ) in rows
+        ]
 
     def for_entries(
         self, entry_ids: Iterable[int], user_id: UUID

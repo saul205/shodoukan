@@ -189,3 +189,32 @@ def test_find_and_count(
     assert ids(SentenceSearch(linked=True, active=True)) == [home.id]
     assert repo.count(USER_ID, SentenceSearch()) == 2
     assert [s.id for s in repo.find(USER_ID, SentenceSearch(), 1, 1)] == [home.id]
+
+
+def test_gaps_read_the_analyzed_gaps_of_active_sentences(
+    repo: SqlAlchemyPracticeSentenceRepository,
+    entry: PracticeEntry,
+    other_user: UserORM,
+) -> None:
+    assert entry.id is not None
+    analyzed = dictionary_sentence(entry)
+    plain = Inflection(endings=(), form="終止形")
+    analyzed.words[0].lemma = "帰る"
+    analyzed.words[0].reading = "かえる"
+    analyzed.words[0].pos = ["動詞", "一般"]
+    analyzed.words[0].inflection = plain
+    stored = repo.add(analyzed)
+    repo.add(dictionary_sentence(entry, "早く帰る。"))  # not analyzed: no reading
+    hidden = dictionary_sentence(entry, "もう帰る。")
+    hidden.words[0].reading = "かえる"
+    hidden.deactivate()
+    repo.add(hidden)
+
+    [gap] = repo.gaps([entry.id], USER_ID, "eng")
+
+    assert (gap.entry_id, gap.sentence_id, gap.surface) == (entry.id, stored.id, "帰る")
+    assert (gap.reading, gap.pos, gap.inflection) == ("かえる", "動詞", plain)
+    assert gap.translation == "I go home."
+    assert repo.gaps([entry.id], USER_ID, "spa")[0].translation is None
+    assert repo.gaps([entry.id], OTHER_USER_ID, "eng") == []
+    assert repo.gaps([], USER_ID, "eng") == []

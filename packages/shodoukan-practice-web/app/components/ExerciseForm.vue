@@ -1,25 +1,29 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { Form, FormSubmitEvent } from '@nuxt/ui'
-import type { Direction, Exercise, ExerciseInput, ExerciseSettings, ExerciseType, ItemKind } from '~/models/practice'
+import type { Direction, Exercise, ExerciseInput, ExerciseSettings, ExerciseType, ItemKind, StudyField } from '~/models/practice'
 import { listCollections } from '~/services/collections'
 import { createExercise, updateExercise } from '~/services/exercises'
 import { apiStatus } from '~/utils/api-error'
 import {
   defaultChoiceSettings,
   defaultHandwritingSettings,
+  defaultSentenceSettings,
   directionKey,
   EXERCISE_TYPE_LABELS,
   EXERCISE_TYPES,
   fieldItems,
   HANDWRITING_ANSWERS,
   ITEM_KIND_LABELS,
+  SENTENCE_DIRECTION_LABELS,
+  SENTENCE_DIRECTIONS,
 } from '~/utils/study-fields'
 
 // Create an exercise, or edit one when `exercise` is given (its item kind
 // can't change then). Both kinds choose between a choice card and writing by
 // hand, which asks for something to write (the kanji; a word's spelling or
-// reading) and has no options. It saves on its own and emits `saved`; the
+// reading) and has no options; words can also be asked in their sentences
+// (fill the gap, or the word's reading or meaning), picked as checkboxes. It saves on its own and emits `saved`; the
 // rules mirror the backend's so mistakes show on their field.
 const props = defineProps<{ exercise?: Exercise }>()
 const emit = defineEmits<{ saved: [exercise: Exercise] }>()
@@ -33,7 +37,7 @@ const schema = z.object({
   name: z.string().trim().min(1, 'Ponle un nombre.').max(100, 'Como mucho 100 caracteres.'),
   description: z.string().trim().optional(),
   item_kind: z.enum(['entries', 'kanji']),
-  type: z.enum(['card.choice', 'card.handwriting']),
+  type: z.enum(['card.choice', 'card.handwriting', 'sentence.choice']),
   collection_ids: z.array(z.number()).min(1, 'Elige al menos una colección.'),
   directions: z
     .array(z.object({ prompt: z.array(field), answer: field }))
@@ -43,6 +47,7 @@ const schema = z.object({
     }),
   back_fields: z.array(field),
   option_count: z.number().int().min(2, 'Al menos 2 opciones.').max(8, 'Como mucho 8 opciones.'),
+  show_translation: z.boolean(),
 })
 type Schema = z.output<typeof schema>
 
@@ -57,6 +62,7 @@ function directionsProblem(directions: Direction[]): string | undefined {
 }
 
 function defaults(kind: ItemKind, type: ExerciseType): ExerciseSettings {
+  if (type === 'sentence.choice') return defaultSentenceSettings()
   return type === 'card.handwriting' ? defaultHandwritingSettings(kind) : defaultChoiceSettings(kind)
 }
 
@@ -71,7 +77,8 @@ const state = reactive<Schema>({
   collection_ids: [...(props.exercise?.collection_ids ?? [])],
   directions: initialSettings.directions.map(direction => ({ ...direction, prompt: [...direction.prompt] })),
   back_fields: [...initialSettings.back_fields],
-  option_count: initialSettings.type === 'card.choice' ? initialSettings.option_count : 4,
+  option_count: initialSettings.type === 'card.handwriting' ? 4 : initialSettings.option_count,
+  show_translation: initialSettings.type === 'sentence.choice' ? initialSettings.show_translation : false,
 })
 const form = useTemplateRef<Form<Schema>>('form')
 const saving = ref(false)
@@ -107,9 +114,42 @@ const typeItems = computed(() =>
   EXERCISE_TYPES[state.item_kind].map(type => ({ label: EXERCISE_TYPE_LABELS[type], value: type })),
 )
 const handwriting = computed(() => state.type === 'card.handwriting')
+const sentences = computed(() => state.type === 'sentence.choice')
+
+// A sentence exercise's directions, as the answers they ask.
+const sentenceItems = SENTENCE_DIRECTIONS.map(d => ({ label: SENTENCE_DIRECTION_LABELS[d.answer]!, value: d.answer }))
+const sentenceAnswers = computed<StudyField[]>({
+  get: () => state.directions.map(d => d.answer),
+  set: answers => {
+    state.directions = SENTENCE_DIRECTIONS
+      .filter(d => answers.includes(d.answer))
+      .map(d => ({ ...d, prompt: [...d.prompt] }))
+  },
+})
 
 const kindItems = (['entries', 'kanji'] as const).map(kind => ({ label: ITEM_KIND_LABELS[kind], value: kind }))
 const backItems = computed(() => fieldItems(state.item_kind))
+
+function settingsOf(data: Schema): ExerciseSettings {
+  if (data.type === 'card.handwriting')
+    return { type: 'card.handwriting', directions: data.directions, back_fields: data.back_fields }
+  if (data.type === 'sentence.choice') {
+    return {
+      type: 'sentence.choice',
+      directions: data.directions,
+      back_fields: data.back_fields,
+      option_count: data.option_count,
+      show_translation: data.show_translation,
+    }
+  }
+  return {
+    type: 'card.choice',
+    directions: data.directions,
+    back_fields: data.back_fields,
+    option_count: data.option_count,
+    distractor_source: 'collection',
+  }
+}
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   const data = event.data
@@ -117,15 +157,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     name: data.name,
     description: data.description || null,
     collection_ids: data.collection_ids,
-    settings: data.type === 'card.handwriting'
-      ? { type: 'card.handwriting', directions: data.directions, back_fields: data.back_fields }
-      : {
-          type: 'card.choice',
-          directions: data.directions,
-          back_fields: data.back_fields,
-          option_count: data.option_count,
-          distractor_source: 'collection',
-        },
+    settings: settingsOf(data),
   }
   saving.value = true
   try {
@@ -174,7 +206,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       v-if="typeItems.length > 1"
       name="type"
       label="Ejercicio"
-      description="Elegir la respuesta entre varias opciones, o dibujar el kanji."
+      description="Elegir la respuesta entre varias opciones, dibujarla, o ver cada palabra en una de sus frases."
     >
       <URadioGroup v-model="state.type" :items="typeItems" orientation="horizontal" data-testid="exercise-type" />
     </UFormField>
@@ -205,6 +237,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     </UFormField>
 
     <UFormField
+      v-if="sentences"
+      name="directions"
+      label="Qué se pregunta"
+      description="Cada pregunta muestra la palabra en una de sus frases y usa una de estas al azar. Rellenar el hueco da su significado como pista."
+      required
+    >
+      <UCheckboxGroup v-model="sentenceAnswers" :items="sentenceItems" data-testid="sentence-directions" />
+    </UFormField>
+
+    <UFormField
+      v-else
       name="directions"
       label="Direcciones"
       description="Qué se muestra → qué se pregunta. Cada tarjeta usa una de ellas al azar."
@@ -227,6 +270,14 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
     <UFormField v-if="!handwriting" name="option_count" label="Opciones por tarjeta" description="La correcta y las incorrectas, de 2 a 8.">
       <UInputNumber v-model="state.option_count" :min="2" :max="8" class="w-32" />
+    </UFormField>
+
+    <UFormField v-if="sentences" name="show_translation">
+      <USwitch
+        v-model="state.show_translation"
+        label="Mostrar la traducción"
+        description="La de la frase en tu idioma, si la tiene."
+      />
     </UFormField>
 
     <div class="flex justify-end gap-2">

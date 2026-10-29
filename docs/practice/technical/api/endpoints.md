@@ -564,6 +564,11 @@ can't make another, or if the exercise was deleted, which finishes the session),
 | `409` | Starting: another session was started at the same moment. Answering: the session is finished, or idle for over 30 minutes; `question_id` isn't the active question (answered already, e.g. a double click) |
 | `422` | Invalid body or `meaning_lang`; an option the question doesn't have; or the exercise's collections have too few usable items (`ExercisePoolTooSmallError`, with the reason in `detail`). Listing: `status`, `limit` or `offset` out of range |
 
+Sentence questions (`"type": "sentence.choice"`): `sentence_id`, `before`, `gap`,
+`after` (the sentence split at the word's gap; `gap` is null while a fill-the-gap
+question is unanswered), `translation`, `options` and `correct_option` as a choice
+card's. Answered with `{"type": "option", "option": n}`.
+
 ## Exercise statistics
 
 How the user does, computed from the answered questions on every request

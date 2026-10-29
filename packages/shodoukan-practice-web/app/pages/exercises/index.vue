@@ -109,11 +109,11 @@ function actions(exercise: Exercise): DropdownMenuItem[][] {
         <div class="flex flex-wrap gap-1">
           <UBadge :label="ITEM_KIND_LABELS[exercise.item_kind]" color="primary" variant="subtle" />
           <UBadge
-            v-if="exercise.settings.type === 'card.handwriting'"
+            v-if="exercise.settings.type !== 'card.choice'"
             :label="EXERCISE_TYPE_LABELS[exercise.settings.type]"
             color="primary"
             variant="outline"
-            icon="i-lucide-pencil"
+            :icon="exercise.settings.type === 'card.handwriting' ? 'i-lucide-pencil' : 'i-lucide-quote'"
             data-testid="exercise-type"
           />
           <UBadge

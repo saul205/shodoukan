@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { QuestionType } from '~/models/practice'
 import ChoiceCardPlayer from './ChoiceCardPlayer.vue'
 import HandwritingPlayer from './HandwritingPlayer.vue'
+import SentencePlayer from './SentencePlayer.vue'
 import WordHandwritingPlayer from './WordHandwritingPlayer.vue'
 
 /**
@@ -14,4 +15,5 @@ export const PLAYERS: Record<QuestionType, Component> = {
   'card.choice': ChoiceCardPlayer,
   'card.handwriting': HandwritingPlayer,
   'card.handwriting_word': WordHandwritingPlayer,
+  'sentence.choice': SentencePlayer,
 }

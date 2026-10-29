@@ -22,7 +22,7 @@ export const VERDICT_LABELS: Record<QuestionVerdict, string> = {
 
 export function verdictOf(question: ExerciseQuestion): QuestionVerdict {
   if (question.answer?.type === 'skip') return 'skipped'
-  if (question.type !== 'card.choice' && question.grade?.verdict === 'close') return 'close'
+  if ('grade' in question && question.grade?.verdict === 'close') return 'close'
   return question.is_correct ? 'correct' : 'wrong'
 }
 

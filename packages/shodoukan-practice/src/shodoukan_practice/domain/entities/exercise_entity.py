@@ -114,9 +114,40 @@ class HandwritingCardSettings(CardSettings):
         return self
 
 
+# What a sentence question can ask about the word of a gap.
+SENTENCE_ANSWERS: frozenset[StudyField] = frozenset({"writing", "reading", "meaning"})
+
+
+class SentenceChoiceSettings(CardSettings):
+    """A word in one of its sentences: pick the right option among
+    `option_count`. Each direction asks the gap's `writing` (fill the gap:
+    the sentence hides it, the prompt fields are hints), its `reading` in
+    context or its `meaning`; those two show the word in the sentence, so
+    their prompt includes `writing`. `show_translation` shows the
+    sentence's translation in the session's language, when it has one."""
+
+    type: Literal["sentence.choice"] = "sentence.choice"
+    option_count: int = Field(default=4, ge=2, le=8)
+    show_translation: bool = False
+
+    @model_validator(mode="after")
+    def _check_sentence(self) -> Self:
+        for direction in self.directions:
+            if direction.answer not in SENTENCE_ANSWERS:
+                raise ValueError(
+                    "a sentence question asks a word's writing, reading or meaning"
+                )
+            if direction.answer != "writing" and "writing" not in direction.prompt:
+                raise ValueError(
+                    "asking a word's reading or meaning shows the word (writing)"
+                )
+        return self
+
+
 # The settings of every exercise type, by `type`.
 ExerciseSettings = Annotated[
-    ChoiceCardSettings | HandwritingCardSettings, Field(discriminator="type")
+    ChoiceCardSettings | HandwritingCardSettings | SentenceChoiceSettings,
+    Field(discriminator="type"),
 ]
 
 

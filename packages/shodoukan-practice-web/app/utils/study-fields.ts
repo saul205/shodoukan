@@ -1,4 +1,4 @@
-import type { ChoiceCardSettings, Direction, ExerciseType, HandwritingCardSettings, ItemKind, StudyField } from '~/models/practice'
+import type { ChoiceCardSettings, Direction, ExerciseType, HandwritingCardSettings, ItemKind, SentenceChoiceSettings, StudyField } from '~/models/practice'
 
 // The fields an exercise can study, per item kind, and how they're named in
 // the UI. Mirrors ENTRY_FIELDS / KANJI_FIELDS in the practice backend.
@@ -25,11 +25,12 @@ export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
 export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
   'card.choice': 'Elegir entre opciones',
   'card.handwriting': 'Escribir a mano',
+  'sentence.choice': 'En frases',
 }
 
 /** The types an item kind can use. */
 export const EXERCISE_TYPES: Record<ItemKind, ExerciseType[]> = {
-  entries: ['card.choice', 'card.handwriting'],
+  entries: ['card.choice', 'card.handwriting', 'sentence.choice'],
   kanji: ['card.choice', 'card.handwriting'],
 }
 
@@ -73,6 +74,34 @@ export function defaultChoiceSettings(kind: ItemKind): ChoiceCardSettings {
         option_count: 4,
         distractor_source: 'collection',
       }
+}
+
+/**
+ * The directions a sentence exercise offers (word exercises): fill the gap
+ * with the meaning as a hint, and the highlighted word's reading or meaning.
+ * Mirrors SentenceChoiceSettings in the backend.
+ */
+export const SENTENCE_DIRECTIONS: Direction[] = [
+  { prompt: ['meaning'], answer: 'writing' },
+  { prompt: ['writing'], answer: 'reading' },
+  { prompt: ['writing'], answer: 'meaning' },
+]
+
+export const SENTENCE_DIRECTION_LABELS: Record<string, string> = {
+  writing: 'Rellenar el hueco',
+  reading: 'Lectura de la palabra',
+  meaning: 'Significado de la palabra',
+}
+
+/** What a new sentence exercise starts with: fill the gap. */
+export function defaultSentenceSettings(): SentenceChoiceSettings {
+  return {
+    type: 'sentence.choice',
+    directions: [SENTENCE_DIRECTIONS[0]!],
+    back_fields: ['reading'],
+    option_count: 4,
+    show_translation: false,
+  }
 }
 
 /**

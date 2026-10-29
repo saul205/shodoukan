@@ -155,9 +155,13 @@ function openSessionRow(_event: Event, row: TableRow<SessionSummary>) {
           <dd class="text-toned">
             {{ exercise.settings.back_fields.map(field => FIELD_LABELS[field]).join(', ') || 'Solo la pregunta y la respuesta' }}
           </dd>
-          <template v-if="exercise.settings.type === 'card.choice'">
+          <template v-if="exercise.settings.type !== 'card.handwriting'">
             <dt class="text-dimmed">Opciones</dt>
             <dd class="text-toned">{{ exercise.settings.option_count }} por tarjeta</dd>
+          </template>
+          <template v-if="exercise.settings.type === 'sentence.choice'">
+            <dt class="text-dimmed">Traducción</dt>
+            <dd class="text-toned">{{ exercise.settings.show_translation ? 'Se muestra' : 'No se muestra' }}</dd>
           </template>
         </dl>
       </UCard>

@@ -263,12 +263,17 @@ class QuestionBase(BaseModel):
         return self.is_correct is False
 
 
-class ChoiceQuestion(QuestionBase):
+class OptionQuestion(QuestionBase):
+    """A question answered by picking one of its options (`OptionAnswer`)."""
+
+    options: tuple[ChoiceOption, ...]
+    correct_option: int
+
+
+class ChoiceQuestion(OptionQuestion):
     """Pick the right answer among `options`."""
 
     type: Literal["card.choice"] = "card.choice"
-    options: tuple[ChoiceOption, ...]
-    correct_option: int
 
 
 class HandwritingQuestion(QuestionBase):
@@ -314,9 +319,32 @@ class WordHandwritingQuestion(QuestionBase):
         return self.is_correct is False or close
 
 
+class SentenceChoiceQuestion(OptionQuestion):
+    """A word asked in one of its sentences: the sentence, with the word's
+    gap from `gap_start` to `gap_end` (hidden when the answer is its writing,
+    highlighted otherwise), and its translation if the exercise shows it.
+    The sentence is a snapshot, like the rest of the question."""
+
+    type: Literal["sentence.choice"] = "sentence.choice"
+    sentence_id: int | None
+    sentence: str
+    gap_start: int = Field(ge=0)
+    gap_end: int
+    translation: str | None = None
+
+    @model_validator(mode="after")
+    def _check_gap(self) -> Self:
+        if not self.gap_start < self.gap_end <= len(self.sentence):
+            raise ValueError("the gap must be inside the sentence")
+        return self
+
+
 # Questions of every exercise type, by `type`.
 ExerciseQuestion = Annotated[
-    ChoiceQuestion | HandwritingQuestion | WordHandwritingQuestion,
+    ChoiceQuestion
+    | HandwritingQuestion
+    | WordHandwritingQuestion
+    | SentenceChoiceQuestion,
     Field(discriminator="type"),
 ]
 
@@ -407,7 +435,7 @@ class ExerciseSession(TimestampedEntity):
             raise ValueError("only a drawing is graded with a handwriting grade")
         if isinstance(answer, SkipAnswer):
             question.is_correct = False  # skipped: a miss
-        elif isinstance(question, ChoiceQuestion):
+        elif isinstance(question, OptionQuestion):
             question.is_correct = _grade_option(question, answer)
         elif isinstance(question, HandwritingQuestion):
             question.is_correct = _record_grade(question, answer, grade)
@@ -463,7 +491,7 @@ class ExerciseSession(TimestampedEntity):
             raise SessionFinishedError(f"exercise session {self.id} is finished")
 
 
-def _grade_option(question: ChoiceQuestion, answer: ExerciseAnswer) -> bool:
+def _grade_option(question: OptionQuestion, answer: ExerciseAnswer) -> bool:
     if not isinstance(answer, OptionAnswer):
         raise InvalidAnswerError(f"question {question.id} is answered with an option")
     if answer.option >= len(question.options):

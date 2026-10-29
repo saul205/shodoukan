@@ -67,6 +67,7 @@ The sentences of the user's library (`practice_sentence_repository.py`).
 | `get(id, user_id)` | the sentence or `None` |
 | `for_entry(entry_id, user_id)` | the user's sentences with a word linked to that entry, oldest first: "the sentences of a word" |
 | `find(user_id, search, limit, offset)` / `count(user_id, search)` | the user's sentences matching a `SentenceSearch(text, entry_id, linked, active)`, newest first, paginated: `text` in the sentence or a translation (any case, as typed), `entry_id` the sentences of a word, `linked=False` those with no linked word |
+| `gaps(entry_ids, user_id, translation_lang)` | `GapText`s (entry, sentence, its text, the gap's span, reading, part of speech, `Inflection`, the translation in that language): the analyzed gaps of those words in the user's active sentences, as columns; what a sentence exercise's pool reads |
 | `for_entries(entry_ids, user_id)` | the sentences of several words at once, each once: what an export carries |
 | `by_versions(versions, user_id)` | the user's sentences in one of `versions` (`(edited_id or id, revision)`): copies an import may already have |
 | `copies(user_id)` | the user's copies of someone's sentences (`source_id` set): what an update from a source may let go of |

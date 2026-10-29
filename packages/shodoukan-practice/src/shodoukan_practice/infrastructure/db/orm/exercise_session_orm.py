@@ -73,7 +73,12 @@ class ExerciseSessionORM(Base):
     )
 
 
-QUESTION_TYPES = ("card.choice", "card.handwriting", "card.handwriting_word")
+QUESTION_TYPES = (
+    "card.choice",
+    "card.handwriting",
+    "card.handwriting_word",
+    "sentence.choice",
+)
 
 
 class ExerciseQuestionORM(Base):

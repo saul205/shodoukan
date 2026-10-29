@@ -235,8 +235,23 @@ export interface HandwritingCardSettings {
   back_fields: StudyField[]
 }
 
+/**
+ * A word in one of its sentences (word exercises only). Each direction asks
+ * the gap's `writing` (fill it: the sentence hides it, the prompt fields are
+ * hints), its `reading` in context or its `meaning`; those show the word, so
+ * their prompt has `writing`.
+ */
+export interface SentenceChoiceSettings {
+  type: 'sentence.choice'
+  directions: Direction[]
+  back_fields: StudyField[]
+  option_count: number // 2–8
+  /** Show the sentence's translation in the session's language, if it has one. */
+  show_translation: boolean
+}
+
 /** Settings by exercise type, discriminated by `type`. */
-export type ExerciseSettings = ChoiceCardSettings | HandwritingCardSettings
+export type ExerciseSettings = ChoiceCardSettings | HandwritingCardSettings | SentenceChoiceSettings
 
 export type ExerciseType = ExerciseSettings['type']
 
@@ -415,7 +430,22 @@ export interface WordHandwritingQuestion extends QuestionBase {
 }
 
 /** A question of a session, by type. */
-export type ExerciseQuestion = ChoiceQuestion | HandwritingQuestion | WordHandwritingQuestion
+/**
+ * A word in one of its sentences, split at its gap: `gap` is null while a
+ * fill-the-gap question (`answer_field` "writing") is unanswered.
+ */
+export interface SentenceChoiceQuestion extends QuestionBase {
+  type: 'sentence.choice'
+  sentence_id: number | null
+  before: string
+  gap: string | null
+  after: string
+  translation: string | null
+  options: ChoiceOption[]
+  correct_option: number | null
+}
+
+export type ExerciseQuestion = ChoiceQuestion | HandwritingQuestion | WordHandwritingQuestion | SentenceChoiceQuestion
 
 export interface ExerciseSession {
   id: number

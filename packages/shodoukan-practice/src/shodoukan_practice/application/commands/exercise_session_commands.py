@@ -6,8 +6,9 @@ the client. Each new question is built from the session's history, so items
 aren't repeated before the round is done and missed ones come back. A
 handwriting question needs the dictionary: which kanji (or, for a word, which
 characters) have a stroke order, and their strokes, against which the drawing
-is graded here before the session records it. None of them commit; the
-caller owns the transaction.
+is graded here before the session records it. A sentence question needs the
+pool words' sentences, read with the pool (`GapText`s). None of them
+commit; the caller owns the transaction.
 """
 
 from collections.abc import Callable, Mapping
@@ -28,6 +29,7 @@ from ...domain.entities import (
     HandwritingQuestion,
     ItemKind,
     ReferenceKanji,
+    SentenceChoiceSettings,
     StrokesAnswer,
     WordGrade,
     WordHandwritingQuestion,
@@ -41,19 +43,23 @@ from ...domain.repositories import (
     EntryCollectionRepository,
     ExerciseRepository,
     ExerciseSessionRepository,
+    GapText,
     KanjiCollectionRepository,
     PracticeEntryRepository,
     PracticeKanjiRepository,
+    PracticeSentenceRepository,
     UserRepository,
 )
 from ...domain.services import (
     KANA,
     StudyCard,
     build_next_question,
+    build_next_sentence_question,
     draft_next_question,
     draft_next_word_question,
     ensure_enough_drawable_items,
     ensure_enough_items,
+    ensure_enough_sentence_items,
     ensure_enough_writable_items,
     entry_card,
     grade_drawing,
@@ -68,7 +74,8 @@ from .collection_lookups import entry_collection, kanji_collection
 class _Pool:
     """Reads an exercise's pool: the active items of its collections, as study
     cards in a meaning language. Only the text the cards use is read
-    (`study_texts`), not the items' whole snapshots."""
+    (`study_texts`), not the items' whole snapshots. A sentence exercise
+    reads the words' sentences too (`gaps`)."""
 
     def __init__(
         self,
@@ -76,11 +83,27 @@ class _Pool:
         kanji_collections: KanjiCollectionRepository,
         entries: PracticeEntryRepository,
         kanji: PracticeKanjiRepository,
+        sentences: PracticeSentenceRepository,
     ) -> None:
         self._entry_collections = entry_collections
         self._kanji_collections = kanji_collections
         self._entries = entries
         self._kanji = kanji
+        self._sentences = sentences
+
+    def gaps(
+        self, exercise: Exercise, cards: list[StudyCard], meaning_lang: str
+    ) -> dict[int, list[GapText]]:
+        """Each word's gaps a sentence question can ask, for a sentence
+        exercise: in its active sentences, analyzed (columns only:
+        `PracticeSentenceRepository.gaps`). Empty otherwise."""
+        if not isinstance(exercise.settings, SentenceChoiceSettings):
+            return {}
+        ids = {card.item_id for card in cards}
+        gaps: dict[int, list[GapText]] = {}
+        for gap in self._sentences.gaps(ids, exercise.user_id, meaning_lang):
+            gaps.setdefault(gap.entry_id, []).append(gap)
+        return gaps
 
     def cards(self, exercise: Exercise, meaning_lang: str) -> list[StudyCard]:
         user_id, fields = exercise.user_id, exercise.settings.fields
@@ -116,10 +139,16 @@ class _Questions:
         self._kana: dict[str, ReferenceKanji] | None = None
 
     def ensure_enough(
-        self, cards: list[StudyCard], settings: CardSettings, item_kind: ItemKind
+        self,
+        cards: list[StudyCard],
+        settings: CardSettings,
+        item_kind: ItemKind,
+        gaps: Mapping[int, list[GapText]],
     ) -> None:
         """Raises `ExercisePoolTooSmallError` if the pool can't run a session."""
-        if isinstance(settings, HandwritingCardSettings) and item_kind == "entries":
+        if isinstance(settings, SentenceChoiceSettings):
+            ensure_enough_sentence_items(cards, gaps)
+        elif isinstance(settings, HandwritingCardSettings) and item_kind == "entries":
             drawable = self._drawable_characters(cards, settings)
             ensure_enough_writable_items(cards, settings, drawable)
         elif isinstance(settings, HandwritingCardSettings):
@@ -133,9 +162,14 @@ class _Questions:
         settings: CardSettings,
         item_kind: ItemKind,
         history: list[ExerciseQuestion],
+        gaps: Mapping[int, list[GapText]],
     ) -> ExerciseQuestion:
         """The next question. Raises `ExercisePoolTooSmallError` if the pool
         can't make one."""
+        if isinstance(settings, SentenceChoiceSettings):
+            return build_next_sentence_question(
+                cards, gaps, settings, history, self._rng
+            )
         if isinstance(settings, HandwritingCardSettings) and item_kind == "entries":
             drawable = self._drawable_characters(cards, settings)
             word = draft_next_word_question(
@@ -226,6 +260,7 @@ class StartExerciseSession:
         kanji_collections: KanjiCollectionRepository,
         entries: PracticeEntryRepository,
         kanji: PracticeKanjiRepository,
+        sentences: PracticeSentenceRepository,
         dictionary: DictionaryGateway,
         users: UserRepository,
         rng: Random | None = None,
@@ -233,7 +268,9 @@ class StartExerciseSession:
         self._exercises = exercises
         self._sessions = sessions
         self._users = users
-        self._pool = _Pool(entry_collections, kanji_collections, entries, kanji)
+        self._pool = _Pool(
+            entry_collections, kanji_collections, entries, kanji, sentences
+        )
         self._questions = _Questions(dictionary, rng or Random())
 
     def execute(
@@ -243,8 +280,10 @@ class StartExerciseSession:
         if exercise is None:
             raise EntityNotFoundError(f"exercise {exercise_id} not found")
         cards = self._pool.cards(exercise, meaning_lang)
-        self._questions.ensure_enough(cards, exercise.settings, exercise.item_kind)
-        first = self._questions.next(cards, exercise.settings, exercise.item_kind, [])
+        gaps = self._pool.gaps(exercise, cards, meaning_lang)
+        settings, kind = exercise.settings, exercise.item_kind
+        self._questions.ensure_enough(cards, settings, kind, gaps)
+        first = self._questions.next(cards, settings, kind, [], gaps)
 
         # One open session per user: lock the user so concurrent starts take
         # turns, then close the open ones (locked too, so an answer being
@@ -287,12 +326,15 @@ class AnswerExerciseQuestion:
         kanji_collections: KanjiCollectionRepository,
         entries: PracticeEntryRepository,
         kanji: PracticeKanjiRepository,
+        sentences: PracticeSentenceRepository,
         dictionary: DictionaryGateway,
         rng: Random | None = None,
     ) -> None:
         self._exercises = exercises
         self._sessions = sessions
-        self._pool = _Pool(entry_collections, kanji_collections, entries, kanji)
+        self._pool = _Pool(
+            entry_collections, kanji_collections, entries, kanji, sentences
+        )
         self._questions = _Questions(dictionary, rng or Random())
 
     def execute(
@@ -321,9 +363,10 @@ class AnswerExerciseQuestion:
             session.finish()  # the exercise was deleted: nothing more to ask
             return
         cards = self._pool.cards(exercise, session.meaning_lang)
+        gaps = self._pool.gaps(exercise, cards, session.meaning_lang)
         try:
             question = self._questions.next(
-                cards, exercise.settings, exercise.item_kind, session.history
+                cards, exercise.settings, exercise.item_kind, session.history, gaps
             )
         except ExercisePoolTooSmallError:
             return

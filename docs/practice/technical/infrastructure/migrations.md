@@ -68,6 +68,7 @@ Once any environment is deployed, migrations are append-only.
 | `c3a9f5e0d2b1` | `source_collection_id` on parts with content becomes `source_collection_ids` (JSON list; existing values become one-element lists): several followed collections can bring one part |
 | `37c04a6faa6f` | Sentences: `practice_sentences`, `practice_sentence_translations`, `practice_sentence_words`. Every example becomes a sentence with the example's id (so copies' identities and versions, and `example:<id>` dismissals, still match), its state, translations and version fields, and one word linked to its entry and sense; the span is JMDict's form of the word, or for an own example its first enabled spelling or reading found as is, else none. Examples stay; downgrading drops the sentences |
 | `d0c3e71ccd60` | Drops `practice_examples` and `practice_example_sentences`: the code reads and writes sentences only. Downgrading brings them back from the sentences, one per word linked to an entry (under its sense, else the entry's first), the first with the sentence's id; sentences linked to no word don't come back |
+| `5e8b3c71a4d2` | Sentence questions (`sentence.choice`) join the `type` check of `exercise_questions`; downgrading deletes them and the sentence exercises |
 
 ## Safety nets
 

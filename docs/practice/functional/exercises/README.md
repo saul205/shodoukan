@@ -26,6 +26,9 @@ from one or more collections of that kind; an item in several of them counts onc
   answer by hand, stroke by stroke. In a kanji exercise that's the kanji (see
   [writing the kanji](#writing-the-kanji)); in a word exercise, the word's spelling
   or its reading, a character per box (see [writing a word](#writing-a-word)).
+- **In sentences** (word exercises): each word is shown in one of its
+  [sentences](../library/sentences.md), and the user picks among options (see
+  [words in sentences](#words-in-sentences)).
 
 Planned kinds, sharing the same structure: a plain card the user flips and marks as
 known or not, a card where the user types the answer, and sentences with gaps to fill
@@ -170,6 +173,28 @@ practised.
 Words with a character without a stroke order, or longer than 12 characters, aren't
 asked. If several words of the collections fit what's asked and have as many
 characters, any of them is right.
+
+## Words in sentences
+
+A sentence exercise asks the words of its collections, each in one of its sentences
+(the ones it has in the library, active, with the word marked as a gap). The sentence
+changes from one time to the next, so the user doesn't learn one by heart. When
+creating the exercise, the user picks what's asked (one or more; each question uses
+one at random):
+
+- **Rellenar el hueco:** the sentence has a blank where the word goes, and its
+  meaning as a hint. The options are words of the collections **in the same form**
+  (食べた among 飲んだ and 見た; 引かれた among 呼ばれた), so the ending doesn't give
+  the answer away. A word that no other word shares its form with isn't asked this
+  way.
+- **Lectura de la palabra:** the word is underlined in the sentence; the options are
+  readings, as the word is read there (たべた).
+- **Significado de la palabra:** the word is underlined; the options are meanings.
+
+The exercise can also show the sentence's translation, in the language chosen in the
+side menu, when it has one. Words without a sentence aren't asked; an exercise needs
+at least two words with one. The keys and the bottom row are a choice card's, and the
+review shows each sentence with its word.
 
 ## History and statistics
 

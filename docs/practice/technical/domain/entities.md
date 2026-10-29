@@ -150,6 +150,11 @@ A saved exercise. The design (types, sessions, statistics) is in
   - `HandwritingCardSettings` (`card.handwriting`): every direction asks for
     something to write (`HANDWRITING_ANSWERS`): `literal` (a `KanjiExercise`), or
     `writing` / `reading` (an `EntryExercise`, a word written a character per cell).
+  - `SentenceChoiceSettings` (`sentence.choice`): every direction asks a word's
+    `writing` (fill the gap), `reading` or `meaning` (`SENTENCE_ANSWERS`); asking the
+    reading or meaning shows the word, so its prompt has `writing`. `option_count`
+    (2–8), `show_translation`. Only for entry exercises (see
+    [sentences](../exercises.md#sentences)).
 - **`Direction(prompt, answer)`**: the fields shown (at least one, no repeats) and the
   field asked, which can't be one of them. An exercise needs at least one direction
   and can't repeat one (the prompt's order doesn't count); back fields can't repeat.
@@ -164,8 +169,10 @@ An open-ended study session of an exercise: one active question (`current`) and 
 answered ones (`history`). Its questions are built by the
 [question services](services-and-errors.md#services-domainservices).
 `ExerciseQuestion` is a union discriminated by `type`, like the settings:
-`ChoiceQuestion` (`card.choice`), `HandwritingQuestion` (`card.handwriting`) and
-`WordHandwritingQuestion` (`card.handwriting_word`), on a shared `QuestionBase`. Each is a snapshot of the card, so the session reads the same
+`ChoiceQuestion` (`card.choice`), `HandwritingQuestion` (`card.handwriting`),
+`WordHandwritingQuestion` (`card.handwriting_word`) and `SentenceChoiceQuestion`
+(`sentence.choice`), on a shared `QuestionBase`; the two answered with an option share
+`OptionQuestion`. Each is a snapshot of the card, so the session reads the same
 after its items or its exercise change:
 
 - `item_id` (the item asked about; `None` once it leaves the library),
@@ -173,6 +180,8 @@ after its items or its exercise change:
 - `prompt` and `back`: `ShownField(field, values)`, what the front and the back show;
 - choice cards: `options`, `ChoiceOption(text, item_id)`, with `correct_option` as an
   index;
+- sentence questions: the same options, and the sentence (`sentence_id`, `sentence`,
+  the gap's `gap_start` / `gap_end`, inside it, and `translation`);
 - handwriting cards: `references`, the kanji it accepts (at least one):
   `ReferenceKanji(literal, strokes)`, each stroke a `ReferenceStroke(path, label,
   points)` from KanjiVG (the path to draw it, its number's place, its centre line as

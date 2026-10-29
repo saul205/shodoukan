@@ -1,6 +1,6 @@
 """Pure business logic, one module per subject."""
 
-from .choice_question_service import build_next_question
+from .choice_question_service import build_next_question, choice_options
 from .collection_service import ensure_combinable, free_collection_name
 from .handwriting_grading_service import grade_drawing, grade_kana
 from .handwriting_question_service import (
@@ -35,6 +35,11 @@ from .sentence_analysis_service import (
     find_gap,
     propose_words,
     span_morphemes,
+)
+from .sentence_question_service import (
+    askable_items,
+    build_next_sentence_question,
+    ensure_enough_sentence_items,
 )
 from .sentence_sharing_service import (
     SentenceMerge,
@@ -80,11 +85,14 @@ __all__ = [
     "WordHandwritingDraft",
     "WordProposal",
     "analyze_gap",
+    "askable_items",
     "build_next_question",
+    "build_next_sentence_question",
     "can_ask",
     "candidate_forms",
     "card_back",
     "card_front",
+    "choice_options",
     "draft_next_question",
     "draft_next_word_question",
     "drawable_items",
@@ -92,6 +100,7 @@ __all__ = [
     "ensure_combinable",
     "ensure_enough_drawable_items",
     "ensure_enough_items",
+    "ensure_enough_sentence_items",
     "ensure_enough_writable_items",
     "entry_card",
     "entry_label",

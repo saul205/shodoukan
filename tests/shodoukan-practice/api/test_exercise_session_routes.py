@@ -9,7 +9,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from tokens import TokenFactory, bearer
 
-from shodoukan_practice.domain.entities import EntryCollection
+from shodoukan_practice.api.schemas.exercise_session_schemas import (
+    SentenceChoiceQuestionResponse,
+)
+from shodoukan_practice.domain.entities import (
+    ChoiceOption,
+    EntryCollection,
+    OptionAnswer,
+    SentenceChoiceQuestion,
+)
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
@@ -568,3 +576,36 @@ def test_a_word_in_the_wrong_number_of_cells_is_422(
     )
 
     assert response.status_code == 422
+
+
+def test_a_fill_the_gap_question_hides_its_answer_until_answered() -> None:
+    def question(answer: str) -> SentenceChoiceQuestion:
+        return SentenceChoiceQuestion(
+            id=1,
+            position=0,
+            item_id=7,
+            prompt_fields=("meaning",) if answer == "writing" else ("writing",),
+            answer_field=answer,  # type: ignore[arg-type]
+            prompt=(),
+            back=(),
+            options=(
+                ChoiceOption(text="食べた", item_id=7),
+                ChoiceOption(text="飲んだ", item_id=8),
+            ),
+            correct_option=0,
+            sentence_id=3,
+            sentence="パンを食べた。",
+            gap_start=3,
+            gap_end=6,
+        )
+
+    fill = SentenceChoiceQuestionResponse.of(question("writing"))
+    reading = SentenceChoiceQuestionResponse.of(question("reading"))
+    answered = question("writing")
+    answered.answer = OptionAnswer(option=0)
+    answered.is_correct = True
+
+    assert (fill.before, fill.gap, fill.after) == ("パンを", None, "。")
+    assert fill.correct_option is None
+    assert reading.gap == "食べた"  # the word is shown; its reading is asked
+    assert SentenceChoiceQuestionResponse.of(answered).gap == "食べた"

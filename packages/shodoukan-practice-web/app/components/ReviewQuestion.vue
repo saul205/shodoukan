@@ -13,7 +13,8 @@ import { VERDICT_COLORS, VERDICT_LABELS, verdictOf } from '~/utils/verdict'
 // and time have fixed widths, so every line's prompt starts at the same place.
 // Opened (`v-model:open`), it shows the card and how it was answered, as it
 // was played, in compact form: the options, the drawing next to the kanji, or
-// the word cell by cell. A drawn kanji or word can be practised from there.
+// the word cell by cell, or a sentence question's sentence with its gap. A
+// drawn kanji or word can be practised from there.
 const props = defineProps<{ question: ExerciseQuestion }>()
 defineEmits<{ 'open-item': [itemId: number] }>()
 const open = defineModel<boolean>('open', { default: false })
@@ -23,7 +24,10 @@ const verdict = computed(() => {
   return { label: VERDICT_LABELS[kind], color: VERDICT_COLORS[kind] }
 })
 
-const choice = computed(() => (props.question.type === 'card.choice' ? props.question : null))
+const choice = computed(() =>
+  props.question.type === 'card.choice' || props.question.type === 'sentence.choice' ? props.question : null,
+)
+const sentence = computed(() => (props.question.type === 'sentence.choice' ? props.question : null))
 const handwriting = computed(() => (props.question.type === 'card.handwriting' ? props.question : null))
 const written = computed(() => (props.question.type === 'card.handwriting_word' ? props.question : null))
 
@@ -56,7 +60,11 @@ function practise() {
 }
 
 const japaneseAnswer = computed(() => props.question.answer_field !== 'meaning')
-const prompt = computed(() => props.question.prompt.map(field => field.values.join('、')).join(' · '))
+const prompt = computed(() => {
+  const s = sentence.value
+  if (s) return `${s.before}＿${s.after}`
+  return props.question.prompt.map(field => field.values.join('、')).join(' · ')
+})
 const rightText = computed(() => {
   if (handwriting.value) return handwriting.value.references?.map(r => r.literal).join('、')
   if (written.value) return written.value.words?.map(w => w.text).join('、')
@@ -113,6 +121,10 @@ const wrongText = computed(() => {
 
     <template #content>
       <div class="space-y-3 border-t border-default p-3" data-testid="review-detail">
+        <p v-if="sentence" class="font-japanese text-lg text-default" data-testid="review-sentence">
+          {{ sentence.before }}<span class="underline decoration-primary decoration-2 underline-offset-4">{{ sentence.gap }}</span>{{ sentence.after }}
+        </p>
+        <p v-if="sentence?.translation" class="text-sm text-muted">{{ sentence.translation }}</p>
         <StudyCard :question="question" compact @open-item="$emit('open-item', $event)" />
         <ChoiceOptions
           v-if="choice"
