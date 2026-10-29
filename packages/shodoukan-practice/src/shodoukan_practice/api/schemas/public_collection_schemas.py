@@ -1,8 +1,9 @@
 """Request and response models for sharing collections.
 
 Public collections of both kinds share these models; the route says which
-kind it is. A preview's items are the library's `PracticeEntryResponse` /
-`PracticeKanjiResponse`, numbered (`preview_ids`) since they aren't stored.
+kind it is. A preview's items are the library's `PracticeEntryResponse` (with
+the sentences the word brings) / `PracticeKanjiResponse`, numbered
+(`preview_ids`) since they aren't stored.
 """
 
 from datetime import datetime
@@ -13,6 +14,8 @@ from pydantic import BaseModel, Field
 
 from ...domain.entities import Collection
 from ...domain.searches import PublicCollectionSummary
+from .library_schemas import PracticeEntryResponse
+from .sentence_schemas import SentenceResponse
 
 C = TypeVar("C", bound=Collection)
 
@@ -89,3 +92,16 @@ def preview_ids(item: dict[str, Any], start: int) -> dict[str, Any]:
 
     result: dict[str, Any] = number(item)
     return result
+
+
+class EntryPreviewResponse(PracticeEntryResponse):
+    """A word as importing it would give it, with the sentences it brings."""
+
+    sentences: list[SentenceResponse]
+
+
+class EntryPreviewPageResponse(BaseModel):
+    items: list[EntryPreviewResponse]
+    total: int
+    limit: int
+    offset: int

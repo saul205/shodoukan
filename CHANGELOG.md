@@ -15,11 +15,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   exercises; a benchmark checks it on JMDict example sentences.
 - **shodoukan-practice:** Sentences are items of the library, linked to the words
   they use (a gap per word), instead of examples inside each word: a sentence can
-  serve several words, and importing a word brings its JMDict sentences, reusing the
-  ones the user already has. A migration converts every example into a sentence
-  linked to its word. **After deploying, run once**
-  `python -m shodoukan_practice.cli analyze-sentences`, which analyzes the gaps and
-  finds those of the user's own inflected sentences.
+  serve several words, and importing a word brings its JMDict sentences, analyzed,
+  reusing the ones the user already has. Migrations convert every example into a
+  sentence linked to its word, then drop the examples. **After deploying, run once**
+  `python -m shodoukan_practice.cli analyze-sentences`, which analyzes the converted
+  gaps and finds those of the user's own inflected sentences.
+- **shodoukan-practice:** `/library/sentences`: list and search sentences (by text or
+  translation, by word, unlinked), add one (linked to a word, its gap found where it
+  is) or many after `/analyze` proposes the library words each uses, rewrite own ones,
+  and mark, link, correct and remove their words.
+
+### Changed
+
+- **shodoukan-practice:** A word's sentences travel with exported and published
+  collections as its senses' `examples`, now with their gap; files and publications
+  made before still import. A public collection's preview lists each word's
+  `sentences`.
+
+### Removed
+
+- **shodoukan-practice:** A word's `examples` in library responses, and the routes
+  for own examples (`/library/entries/{id}/senses/{sense_id}/examples`,
+  `/library/entries/{id}/examples/{example_id}`, the `examples` part to enable): use
+  `/library/sentences` (`?entry_id=` for a word's).
 
 ## [0.3.0] — 2026-10-23
 

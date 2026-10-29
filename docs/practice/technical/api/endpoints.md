@@ -60,19 +60,19 @@ disabled.
 | `PUT` | `/library/entries/{id}/active` | `{"active": false}` | `200` |
 | `PUT` | `/library/entries/{id}/notes` | `{"notes": "..."}` (≤ 2000; blank or `null` removes it) | `200` |
 | `PUT` | `/library/entries/{id}/senses/{sense_id}/notes` | `{"notes": "..."}` | `200` |
-| `PUT` | `/library/entries/{id}/{part}/{item_id}/enabled` | `{"enabled": false}` | `200`; `part` is `kanji-readings`, `readings`, `senses`, `glosses` or `examples` (a disabled sense hides its meanings and examples, keeping their flags) |
+| `PUT` | `/library/entries/{id}/{part}/{item_id}/enabled` | `{"enabled": false}` | `200`; `part` is `kanji-readings`, `readings`, `senses` or `glosses` (a disabled sense hides its meanings, keeping their flags) |
 | `POST` | `/library/entries/{id}/kanji-readings` | `{"kanji": "..."}` | `201`; a spelling of the user's own |
 | `DELETE` | `/library/entries/{id}/kanji-readings/{spelling_id}` | — | `200`; `409` for a dictionary spelling |
 | `POST` | `/library/entries/{id}/readings` | `{"text": "..."}` (kana) | `201`; a reading of the user's own |
 | `DELETE` | `/library/entries/{id}/readings/{reading_id}` | — | `200`; `409` for a dictionary reading or the word's last one |
 | `POST` | `/library/entries/{id}/senses` | `{"text": "...", "lang": "eng"}`: its first meaning | `201`; an own sense at the end |
-| `DELETE` | `/library/entries/{id}/senses/{sense_id}` | — | `200`; with its meanings and examples; `409` for a dictionary sense |
+| `DELETE` | `/library/entries/{id}/senses/{sense_id}` | — | `200`; with its meanings (its sentences stay, linked to the word); `409` for a dictionary sense |
 | `POST` | `/library/entries/{id}/senses/{sense_id}/glosses` | `{"text": "...", "lang": "eng"}` (ISO 639-2) | `201`; `422` if `lang` isn't the sense's (a sense's meanings are in one language) |
 | `PUT` | `/library/entries/{id}/glosses/{gloss_id}` | `{"text": "..."}` | `200`; `409` for a dictionary meaning |
 | `DELETE` | `/library/entries/{id}/glosses/{gloss_id}` | — | `200`; `409` for a dictionary meaning or the sense's only one |
-| `POST` | `/library/entries/{id}/senses/{sense_id}/examples` | `{"japanese": "...", "translation": "..." \| null, "lang": "eng"}` | `201`; an own example at the end of the sense |
-| `PUT` | `/library/entries/{id}/examples/{example_id}` | same body | `200`; replaces the Japanese sentence and the translation in `lang`, keeps the others; `409` for a dictionary example |
-| `DELETE` | `/library/entries/{id}/examples/{example_id}` | — | `200`; `409` for a dictionary example |
+
+A word's sentences are the library's: `GET /library/sentences?entry_id={id}` lists
+them, and they're added and edited under [`/library/sentences`](#sentences-librarysentences).
 
 Kanji, under `/library/kanji/{id}`: the same `GET`, `DELETE`, `/collections`,
 `/active` and `/notes`; `/{part}/{item_id}/enabled` with `part` `readings` (on, kun and
@@ -131,7 +131,7 @@ is imported. They're added even when the entry was already in the library (`200`
 | `422` | Invalid body (e.g. more than 50 `collection_ids`) | validation errors |
 
 `PracticeEntryResponse`: `id`, `source_entry_id` (`null` for a word of the user's own), `kanji_readings`, `readings`,
-`senses` (with `glosses` and `examples`), `jlpt`, `is_common`, `is_active`,
+`senses` (with `glosses`), `jlpt`, `is_common`, `is_active`,
 `created_at`, `updated_at`. Nested items carry their `id`, `enabled` and, where
 applicable, `origin`. `user_id` isn't exposed.
 
@@ -371,7 +371,11 @@ file back (in any account) and creates a new collection from it. The file:
         "senses": [{
           "origin": "imported", "id": 3, "original_id": 3, "enabled": true, "notes": null,
           "glosses": [{ "origin": "added", "id": 9, "original_id": 7, "edited_id": 9, "enabled": true, "text": "to scoff", "lang": "eng" }],
-          "examples": []
+          "examples": [{
+            "origin": "added", "id": 41, "original_id": 41, "edited_id": 41, "revision": 0, "enabled": true,
+            "sentences": [{ "lang": "jpn", "text": "昨日パンを食べた。" }, { "lang": "eng", "text": "I ate bread." }],
+            "word": { "start": 5, "end": 8, "lemma": "食べる", "reading": "たべた", "pos": ["動詞", "一般"], "endings": ["た"], "form": "終止形" }
+          }]
         }]
       }
     ]
@@ -384,6 +388,9 @@ file back (in any account) and creates a new collection from it. The file:
 (`SharedKanjiCollection` for `"kind": "kanji"`), so the file format is the import
 contract. `format`, `version` and `kind` are required and checked: a kanji file sent to
 the entries route, or an unknown version, is a `422`. An import is all or nothing.
+A word's sentences are its senses' `examples`, each with its gap (`word`); files made
+before sentences have no `word` and still import (the format `version` is unchanged):
+see [sentences in a collection](../domain/entities.md#sentences-in-a-collection).
 
 `EntryCollectionImportResponse`: `collection` (`CollectionResponse`; its name gets a
 `" (2)"` suffix when taken), `created` (items added to the library), `existing` (items
@@ -409,7 +416,7 @@ under `/collections`).
 |---|---|---|---|
 | `GET` | `/public-collections/entries` | `SearchPublicEntryCollections` | `200` `PublicCollectionPageResponse` |
 | `GET` | `/public-collections/entries/{collection_id}` | `GetPublicEntryCollection` | `200` `PublicCollectionResponse` |
-| `GET` | `/public-collections/entries/{collection_id}/items` | `PreviewPublicEntryCollection` | `200` `PracticeEntryPageResponse` |
+| `GET` | `/public-collections/entries/{collection_id}/items` | `PreviewPublicEntryCollection` | `200` `EntryPreviewPageResponse`: `PracticeEntryResponse`s with the `sentences` each word brings |
 | `POST` | `/public-collections/entries/{collection_id}/import` | `ImportPublicEntryCollection` | `201` `EntryCollectionImportResponse` |
 
 - The list takes `q` (in the name, the description and the owner's username,
@@ -419,7 +426,8 @@ under `/collections`).
   `is_mine`, `version`, `published_at`, `item_count`, `downloads` (users other than
   the owner) and `imported_version` (the version the current user last imported).
 - The preview's items are built as importing them would give them to the current
-  user, but aren't stored: their ids are numbered per page only to tell them apart
+  user, with their sentences (`SentenceResponse`s, not linked to a library word), but
+  aren't stored: their ids are numbered per page only to tell them apart
   (`preview_ids`). Never use them with the library routes.
 - Importing is the same as `POST /collections/entries/import` with the published
   snapshot; the copy's `source_version` is the version imported, and the download is

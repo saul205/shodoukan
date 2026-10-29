@@ -9,8 +9,6 @@ from shodoukan_practice.domain.entities import (
     FILE,
     EntryPart,
     PracticeEntry,
-    PracticeExample,
-    PracticeExampleSentence,
     PracticeGloss,
     PracticeKanjiReading,
     PracticeReading,
@@ -60,15 +58,6 @@ def make_entry() -> PracticeEntry:
                         lang="eng",
                         type=None,
                         origin="added",
-                    ),
-                ],
-                examples=[
-                    PracticeExample(
-                        id=1,
-                        text="",
-                        sentences=[
-                            PracticeExampleSentence(lang="jpn", text="ご飯を食べる。"),
-                        ],
                     ),
                 ],
             ),
@@ -154,18 +143,13 @@ def test_set_sense_notes() -> None:
         ("readings", lambda e: e.readings[0]),
         ("senses", lambda e: e.senses[0]),
         ("glosses", lambda e: e.senses[0].glosses[0]),
-        ("examples", lambda e: e.senses[0].examples[0]),
     ],
 )
 def test_set_enabled_toggles_one_item(
     part: EntryPart,
     get: Callable[
         [PracticeEntry],
-        PracticeKanjiReading
-        | PracticeReading
-        | PracticeSense
-        | PracticeGloss
-        | PracticeExample,
+        PracticeKanjiReading | PracticeReading | PracticeSense | PracticeGloss,
     ],
 ) -> None:
     entry = stored_entry()
@@ -259,64 +243,6 @@ def test_dictionary_senses_can_be_disabled_but_not_removed() -> None:
     with pytest.raises(EntityNotFoundError):
         entry.remove_sense(99)
     assert len(entry.senses) == 1
-
-
-def _texts(example: PracticeExample) -> list[tuple[str, str]]:
-    return [(s.lang, s.text) for s in example.sentences]
-
-
-def test_add_edit_and_remove_own_examples() -> None:
-    entry = stored_entry()
-
-    added = entry.add_example(1, " 朝ご飯を食べる。 ", " I eat breakfast. ", "eng")
-    assert (added.id, added.origin, added.text) == (None, "added", "")
-    assert entry.senses[0].examples[-1] is added
-    assert _texts(added) == [("jpn", "朝ご飯を食べる。"), ("eng", "I eat breakfast.")]
-    assert entry.updated_at > NOW
-
-    added.id = 2  # as stored
-    entry.edit_example(2, "朝ご飯を食べた。", "Desayuné.", "spa")
-    assert _texts(added) == [
-        ("jpn", "朝ご飯を食べた。"),
-        ("spa", "Desayuné."),
-        ("eng", "I eat breakfast."),
-    ]
-    entry.edit_example(2, "朝ご飯を食べた。", "  ", "eng")
-    assert _texts(added) == [("jpn", "朝ご飯を食べた。"), ("spa", "Desayuné.")]
-
-    entry.remove_example(2)
-    assert [e.id for e in entry.senses[0].examples] == [1]
-
-
-def test_own_examples_without_a_translation_or_change() -> None:
-    entry = stored_entry()
-    added = entry.add_example(1, "食べる。", None, "eng")
-    assert _texts(added) == [("jpn", "食べる。")]
-
-    added.id = 2
-    touched = entry.updated_at
-    entry.edit_example(2, "食べる。", None, "eng")
-    assert entry.updated_at == touched
-
-
-def test_own_examples_need_a_sentence_and_a_foreign_translation() -> None:
-    entry = stored_entry()
-    with pytest.raises(ValueError):
-        entry.add_example(1, "   ", "x", "eng")
-    with pytest.raises(ValueError):
-        entry.add_example(1, "食べる。", "食べる。", "jpn")
-    with pytest.raises(EntityNotFoundError):
-        entry.add_example(99, "食べる。", None, "eng")
-
-
-def test_dictionary_examples_can_be_disabled_but_not_changed() -> None:
-    entry = stored_entry()
-    with pytest.raises(OriginalDataError):
-        entry.edit_example(1, "x", None, "eng")
-    with pytest.raises(OriginalDataError):
-        entry.remove_example(1)
-    with pytest.raises(EntityNotFoundError):
-        entry.remove_example(99)
 
 
 def test_create_own_word() -> None:
@@ -437,14 +363,6 @@ def origin_entry() -> PracticeEntry:
         )
     )
     entry.senses[0].notes = "a sense note"
-    entry.senses[0].examples.append(
-        PracticeExample(
-            id=2,
-            text="",
-            sentences=[PracticeExampleSentence(lang="jpn", text="パンを食べる。")],
-            origin="added",
-        )
-    )
     entry.senses.append(
         PracticeSense(
             id=2,
@@ -457,7 +375,6 @@ def origin_entry() -> PracticeEntry:
                     id=3, text="to live on", lang="eng", type=None, origin="added"
                 )
             ],
-            examples=[],
             enabled=False,
             origin="added",
         )
@@ -489,7 +406,8 @@ def test_to_shared_carries_every_part_in_order() -> None:
         (1, "imported"),
         (2, "added"),
     ]
-    assert shared.senses[0].examples[1].sentences[0].text == "パンを食べる。"
+    # Its sentences are the library's: `with_examples` adds them.
+    assert shared.senses[0].examples == []
 
 
 def test_merge_into_a_created_copy_takes_everything() -> None:
@@ -516,7 +434,6 @@ def test_merge_into_a_created_copy_takes_everything() -> None:
         ("to eat", None),
         ("to scoff (colloquial)", 2),
     ]
-    assert [e.source_id for e in sense.examples] == [None, 2]
     own = entry.senses[1]
     assert (own.origin, own.enabled, own.original_id) == ("added", False, 2)
     assert [(g.text, g.source_id) for g in own.glosses] == [("to live on", 3)]
@@ -618,8 +535,6 @@ def stored(entry: PracticeEntry, first_id: int) -> PracticeEntry:
         sense.id = sense.id or next(ids)
         for gloss in sense.glosses:
             gloss.id = gloss.id or next(ids)
-        for example in sense.examples:
-            example.id = example.id or next(ids)
     return entry
 
 
@@ -707,9 +622,8 @@ def test_copies_remember_the_collection_they_came_with() -> None:
         entry.kanji_readings[1].source_collection_ids,
         entry.readings[1].source_collection_ids,
         sense.glosses[1].source_collection_ids,
-        sense.examples[1].source_collection_ids,
         own_sense.glosses[0].source_collection_ids,
-    ] == [[9]] * 5
+    ] == [[9]] * 4
     # What the dictionary snapshot brought isn't the collection's.
     assert sense.glosses[0].source_collection_ids == []
     own = PracticeEntry.from_shared(USER_ID, own_word().to_shared(), 9)
@@ -732,13 +646,11 @@ def test_prune_removes_what_the_source_dropped_untouched() -> None:
     origin = origin_entry()
     copy = copied_from_source(origin, 100)
     origin.kanji_readings.pop()  # 喰べる
-    origin.senses[0].examples.pop()  # パンを食べる。
     origin.senses.pop()  # the own sense "to live on"
 
     assert copy.prune_source(origin.to_shared(), SOURCE) is True
 
     assert [s.kanji for s in copy.kanji_readings] == ["食べる"]
-    assert [e.origin for e in copy.senses[0].examples] == ["imported"]
     assert [s.origin for s in copy.senses] == ["imported"]
     # What's still in the source stays.
     assert "to scoff (colloquial)" in [g.text for g in copy.senses[0].glosses]
@@ -860,7 +772,5 @@ def test_what_a_file_brought_or_the_source_never_did_stays() -> None:
     for sense in old.senses:
         for gloss in sense.glosses:
             gloss.source_collection_ids = []
-        for example in sense.examples:
-            example.source_collection_ids = []
     old.prune_source(make_entry().to_shared(), 5)
     assert len(old.senses) == 2

@@ -46,6 +46,37 @@ class SqlAlchemyPracticeSentenceRepository(PracticeSentenceRepository):
     def for_entry(self, entry_id: int, user_id: UUID) -> list[PracticeSentence]:
         return self._find(user_id, PracticeSentenceWordORM.entry_id == entry_id)
 
+    def for_entries(
+        self, entry_ids: Iterable[int], user_id: UUID
+    ) -> list[PracticeSentence]:
+        wanted = list(set(entry_ids))
+        if not wanted:
+            return []
+        return self._find(user_id, PracticeSentenceWordORM.entry_id.in_(wanted))
+
+    def by_versions(
+        self, versions: Iterable[tuple[int, int]], user_id: UUID
+    ) -> list[PracticeSentence]:
+        wanted = set(versions)
+        if not wanted:
+            return []
+        row = func.coalesce(PracticeSentenceORM.edited_id, PracticeSentenceORM.id)
+        query = (
+            self._select(user_id)
+            .where(row.in_({r for r, _ in wanted}))
+            .order_by(PracticeSentenceORM.id)
+        )
+        found = [practice_sentence_to_domain(r) for r in self._session.scalars(query)]
+        return [s for s in found if s.version in wanted]
+
+    def copies(self, user_id: UUID) -> list[PracticeSentence]:
+        query = (
+            self._select(user_id)
+            .where(PracticeSentenceORM.source_id.is_not(None))
+            .order_by(PracticeSentenceORM.id)
+        )
+        return [practice_sentence_to_domain(r) for r in self._session.scalars(query)]
+
     def find(
         self, user_id: UUID, search: SentenceSearch, limit: int, offset: int
     ) -> list[PracticeSentence]:

@@ -1,5 +1,5 @@
 import pytest
-from factories import make_entry_collection, make_kanji_collection
+from factories import make_entry_collection, make_kanji_collection, sudachi
 from sqlalchemy.orm import Session
 
 from shodoukan import Dictionary
@@ -30,6 +30,7 @@ def import_entry(session: Session, dictionary: Dictionary) -> ImportEntry:
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     )
 
 

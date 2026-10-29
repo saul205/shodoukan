@@ -153,8 +153,8 @@ standalone: never call shodoukan-api from here.
   words of the user's own (`PracticeEntry.create_own`, no `source_entry_id`), own
   spellings and readings (`add_spelling` / `remove_spelling`, `add_reading` /
   `remove_reading`), own senses (`add_sense` / `remove_sense`), own meanings (`add_gloss` /
-  `edit_gloss` / `remove_gloss`, `add_meaning` / ...), own examples (`add_example` /
-  `edit_example` / `remove_example`),
+  `edit_gloss` / `remove_gloss`, `add_meaning` / ...), `dismiss_example` (a copied
+  sentence the user removed),
   `PracticeEntry.set_sense_notes`, sharing (`to_shared`, `merge_shared(shared, created)`,
   `PracticeEntry.from_shared`); `Exercise.rename` / `describe` / `configure` /
   `use_collections`. Each calls `touch()` only on a real change.
@@ -205,9 +205,15 @@ standalone: never call shodoukan-api from here.
   source content follows the source (`prune_source`), the user's stays; removals are
   remembered (`dismiss_item`, `dismissed_parts` as `"<kind>:<identity>"`); a version
   is `(edited_id or id, revision)`.
+- Sentences (`PracticeSentence`) are items of the library linked to words through
+  their `words` (a span makes a gap); a word's sentences are a reverse query
+  (`for_entry`). Importing a word brings and analyzes its JMDict sentences; sharing
+  carries them as the word's senses' `examples` with their gap (`SharedExample.word`),
+  the format examples had (`sentence_sharing_service`). A dictionary sentence is only
+  deactivated; own ones are rewritten. Contract: `docs/practice/proposals/sentences.md`.
 - Dictionary data in the library is never edited or deleted, only disabled
   (`OriginalDataError` → 409); only the user's own spellings, readings, senses,
-  meanings and examples change. A disabled sense hides its glosses and examples (a
+  meanings change. A disabled sense hides its glosses (a
   gloss counts when `sense.enabled and gloss.enabled`). A word keeps one reading
   (`LastReadingError` → 409), and a sense one meaning (`LastMeaningError` → 409), all in
   one language (`SenseLanguageError` → 422). A word of the user's own (`POST /library/entries/own`)

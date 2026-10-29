@@ -14,7 +14,7 @@ package registers every table on `Base.metadata`, which Alembic and `create_all`
 |---|---|
 | `base_orm.py` | `Base` (naming convention), `UtcDateTime`, helpers |
 | `user_orm.py` | `UserORM` |
-| `practice_entry_orm.py` | `PracticeEntryORM`, `PracticeEntryKanjiReadingORM`, `PracticeEntryReadingORM`, `PracticeSenseORM`, `PracticeGlossORM`, `PracticeExampleORM`, `PracticeExampleSentenceORM` |
+| `practice_entry_orm.py` | `PracticeEntryORM`, `PracticeEntryKanjiReadingORM`, `PracticeEntryReadingORM`, `PracticeSenseORM`, `PracticeGlossORM` |
 | `practice_kanji_orm.py` | `PracticeKanjiORM`, `PracticeKanjiReadingItemORM`, `PracticeKanjiMeaningORM` |
 | `practice_sentence_orm.py` | `PracticeSentenceORM`, `PracticeSentenceTranslationORM`, `PracticeSentenceWordORM` (a word's `Inflection` as `inflection_endings` JSON and `inflection_form`; NULL endings: not analyzed, `[]`: analyzed, nothing follows) |
 | `entry_collection_orm.py` | `EntryCollectionORM`, `entry_collection_items` (plain `Table`) |
@@ -47,8 +47,8 @@ Mapping rules:
 - A list's index in the domain becomes `position` in the row.
 - Kanji `on_readings`, `kun_readings` and `nanori` go into one table, split by `kind`
   (`position` is the index within its kind).
-- `PracticeExampleSentence` has no identity in the domain. Its rows get a fresh id on
-  every update.
+- A sentence's translations (`SentenceTranslation`) have no identity in the domain.
+  Their rows get a fresh id on every update; its words keep theirs.
 - An exercise's `collection_ids` become rows of the link table of its kind
   (`ExerciseEntryCollectionORM` for an `EntryExercise`, `ExerciseKanjiCollectionORM`
   for a `KanjiExercise`), with their order as `position`. `item_kind` picks the

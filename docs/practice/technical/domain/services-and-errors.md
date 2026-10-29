@@ -157,6 +157,26 @@ morpheme, after a prefix like お) and whatever inflects it (引か + れ + た)
   (auxiliaries, te-form て / で), clear of the `taken` spans. A word written in kanji
   is found by its spelling, one in kana by its reading.
 
+### `sentence_sharing_service`: a word's sentences in a collection
+
+What [sentences in a collection](entities.md#sentences-in-a-collection) describes:
+
+- `with_examples(shared, entry, sentences)`: the word's `to_shared()` with its
+  sentences as examples, each under the sense its word is linked to (the first when
+  none), with its gap and analysis (`SharedExample.word`).
+- `merge_examples(entry, shared, candidates, *, created, source)` →
+  `SentenceMerge(created, changed)`: dictionary sentences located by text among the
+  candidates and linked (their flag taken only when `created`), copies of someone's
+  own matched by version (linked, `brought_by(source)`) or created
+  (`PracticeSentence.copied`, linked at the shared gap with its analysis when it fits,
+  without a gap otherwise), dismissed ones skipped. New copies join `candidates`, so a
+  sentence that comes twice is copied once.
+- `prune_examples(sentences, shared, source)` → `(changed, removed)`: copies `source`
+  brought, untouched, whose version the new snapshot lacks let go of it; those nothing
+  brings any more are removed.
+- `preview_sentences(shared, user_id)`: the word's examples as unstored sentences,
+  each once, with their gap: what a preview shows.
+
 ## Exceptions (`domain/exceptions.py`)
 
 | Exception | Base | Raised when |

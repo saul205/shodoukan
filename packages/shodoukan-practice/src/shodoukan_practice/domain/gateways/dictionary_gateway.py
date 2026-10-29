@@ -127,7 +127,21 @@ class DictionarySearchResult(_ReadModel):
     kanji: list[DictionaryKanji]
 
 
+class NewPracticeEntry(_ReadModel):
+    """A fresh snapshot of a dictionary entry, and the examples of each of its
+    senses (in the snapshot's order): what importing a word stores."""
+
+    entry: PracticeEntry
+    sense_examples: list[list[DictionaryExample]]
+
+
 class DictionaryGateway(Protocol):
+    def new_practice_entry_with_examples(
+        self, source_entry_id: int, user_id: UUID
+    ) -> NewPracticeEntry | None:
+        """`new_practice_entry`, with the entry's examples, in one read."""
+        ...
+
     def new_practice_entry(
         self, source_entry_id: int, user_id: UUID
     ) -> PracticeEntry | None:

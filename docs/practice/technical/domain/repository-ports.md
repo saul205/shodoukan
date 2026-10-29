@@ -67,6 +67,9 @@ The sentences of the user's library (`practice_sentence_repository.py`).
 | `get(id, user_id)` | the sentence or `None` |
 | `for_entry(entry_id, user_id)` | the user's sentences with a word linked to that entry, oldest first: "the sentences of a word" |
 | `find(user_id, search, limit, offset)` / `count(user_id, search)` | the user's sentences matching a `SentenceSearch(text, entry_id, linked, active)`, newest first, paginated: `text` in the sentence or a translation (any case, as typed), `entry_id` the sentences of a word, `linked=False` those with no linked word |
+| `for_entries(entry_ids, user_id)` | the sentences of several words at once, each once: what an export carries |
+| `by_versions(versions, user_id)` | the user's sentences in one of `versions` (`(edited_id or id, revision)`): copies an import may already have |
+| `copies(user_id)` | the user's copies of someone's sentences (`source_id` set): what an update from a source may let go of |
 | `imported_by_text(texts, user_id)` | `{text: sentence}` for the user's dictionary sentences among `texts` (the oldest if two have the same text): importing a word reuses a sentence another word brought |
 | `needing_analysis(user_id)` | sentences with a word to analyze: a gap not analyzed yet, or a linked word without a span |
 | `users_needing_analysis()` | the users with such sentences; the one query across users, for `analyze-sentences`, which then goes user by user |
@@ -185,6 +188,7 @@ Read-only access to the shodoukan dictionary. It returns **fresh practice entiti
 | Method | Returns |
 |---|---|
 | `new_practice_entry(source_entry_id, user_id)` | a `PracticeEntry` snapshot of the dictionary entry, or `None` if it doesn't exist |
+| `new_practice_entry_with_examples(source_entry_id, user_id)` | `NewPracticeEntry(entry, sense_examples)`: the snapshot and each sense's `DictionaryExample`s, in one dictionary read; what importing a word stores (the examples as sentences) |
 | `new_practice_kanji(literal, user_id)` | a `PracticeKanji` snapshot of the dictionary kanji, or `None` |
 | `search(query, lang, limit, offset)` | `DictionarySearchResult`: a page of `DictionaryEntry`s and the related `DictionaryKanji`s |
 

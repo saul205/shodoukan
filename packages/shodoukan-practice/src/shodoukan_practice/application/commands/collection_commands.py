@@ -24,7 +24,7 @@ from ...domain.entities import (
     SourceRef,
 )
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.gateways import DictionaryGateway
+from ...domain.gateways import DictionaryGateway, MorphologyGateway
 from ...domain.repositories import (
     EntryCollectionRepository,
     KanjiCollectionRepository,
@@ -35,7 +35,7 @@ from ...domain.repositories import (
 from ...domain.services import free_collection_name
 from .collection_lookups import entry_collection, kanji_collection
 from .collection_membership import put_entry, put_kanji
-from .dictionary_sentences import add_dictionary_sentences
+from .dictionary_sentences import add_dictionary_sentences, merge_shared_sentences
 
 C = TypeVar("C", EntryCollection, KanjiCollection)
 R = TypeVar("R", int, str)
@@ -279,9 +279,10 @@ class ImportEntryCollection:
     are marked as the source's (`from_source`) and the parts copied into them
     as brought by it: what an update from it relies on. From a file there's
     no source: the copy is never updated, and the parts it copies are pinned
-    (`FILE`), so no update from another collection removes them. Doesn't
-    commit: the caller owns the transaction, so an invalid item
-    imports nothing.
+    (`FILE`), so no update from another collection removes them. A word's
+    examples come as sentences (`merge_shared_sentences`), stored once
+    however many words share them, and analyzed. Doesn't commit: the caller
+    owns the transaction, so an invalid item imports nothing.
     """
 
     def __init__(
@@ -290,11 +291,13 @@ class ImportEntryCollection:
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
         sentences: PracticeSentenceRepository,
+        morphology: MorphologyGateway,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
         self._sentences = sentences
+        self._morphology = morphology
 
     def execute(
         self,
@@ -368,12 +371,15 @@ class ImportEntryCollection:
             entry = self._entries.add(PracticeEntry.from_shared(user_id, item, source))
             own.append(entry)  # the file may list it twice
             result.created += 1
+            self._merge_sentences(entry, item, created=True, source=source)
             return entry
         result.existing += 1
         changed = match.merge_shared(item, created=False, source_collection_id=source)
         if prune and isinstance(source, int):
             changed |= match.prune_source(item, source)
-        return self._entries.update(match) if changed else match
+        stored = self._entries.update(match) if changed else match
+        self._merge_sentences(stored, item, created=False, source=source)
+        return stored
 
     def _dictionary_word(
         self,
@@ -386,14 +392,24 @@ class ImportEntryCollection:
     ) -> PracticeEntry | None:
         existing = self._entries.get_by_source_entry_id(source_entry_id, user_id)
         if existing is None:
-            snapshot = self._dictionary.new_practice_entry(source_entry_id, user_id)
-            if snapshot is None:
+            new = self._dictionary.new_practice_entry_with_examples(
+                source_entry_id, user_id
+            )
+            if new is None:
                 result.missing.append(source_entry_id)
                 return None
+            snapshot = new.entry
             snapshot.merge_shared(item, created=True, source_collection_id=source)
             entry, created = self._entries.add_if_absent(snapshot)
             if created:
-                add_dictionary_sentences(self._sentences, entry)
+                add_dictionary_sentences(
+                    self._sentences,
+                    self._entries,
+                    self._morphology,
+                    entry,
+                    new.sense_examples,
+                )
+                self._merge_sentences(entry, item, created=True, source=source)
                 result.created += 1
                 return entry
             existing = entry  # imported meanwhile: merge as the user's
@@ -403,7 +419,27 @@ class ImportEntryCollection:
         )
         if prune and isinstance(source, int):
             changed |= existing.prune_source(item, source)
-        return self._entries.update(existing) if changed else existing
+        stored = self._entries.update(existing) if changed else existing
+        self._merge_sentences(stored, item, created=False, source=source)
+        return stored
+
+    def _merge_sentences(
+        self,
+        entry: PracticeEntry,
+        item: SharedEntry,
+        *,
+        created: bool,
+        source: SourceRef | None,
+    ) -> None:
+        merge_shared_sentences(
+            self._sentences,
+            self._entries,
+            self._morphology,
+            entry,
+            item,
+            created=created,
+            source=source,
+        )
 
 
 class ImportKanjiCollection:

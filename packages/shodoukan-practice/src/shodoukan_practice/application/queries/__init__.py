@@ -57,6 +57,7 @@ from .practice_sentence_queries import (
     SentenceProposal,
 )
 from .public_collection_queries import (
+    EntryPreview,
     GetPublicEntryCollection,
     GetPublicKanjiCollection,
     LatestEntrySourceVersions,
@@ -75,6 +76,7 @@ __all__ = [
     "MOST_MISSED_LIMIT",
     "AnalyzeSentenceTexts",
     "DayActivity",
+    "EntryPreview",
     "ExerciseStatistics",
     "ExportEntryCollection",
     "ExportKanjiCollection",

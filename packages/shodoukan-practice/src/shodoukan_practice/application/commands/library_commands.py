@@ -8,7 +8,7 @@ from uuid import UUID
 
 from ...domain.entities import PracticeEntry, PracticeKanji
 from ...domain.exceptions import DictionaryItemNotFoundError
-from ...domain.gateways import DictionaryGateway
+from ...domain.gateways import DictionaryGateway, MorphologyGateway
 from ...domain.repositories import (
     EntryCollectionRepository,
     KanjiCollectionRepository,
@@ -34,8 +34,8 @@ class ImportResult(Generic[T]):
 class ImportEntry:
     """Copy a dictionary entry into the user's library, and into collections.
 
-    Its example sentences come with it, as sentences linked to it
-    (`add_dictionary_sentences`). Idempotent: if the user already has the
+    Its example sentences come with it, as sentences linked to it and
+    analyzed (`add_dictionary_sentences`). Idempotent: if the user already has the
     entry, that copy is returned unchanged (it's still put in the given
     collections). The collections are checked first, so an unknown one
     (`EntityNotFoundError`) imports nothing. Doesn't commit; the caller owns
@@ -48,11 +48,13 @@ class ImportEntry:
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
         sentences: PracticeSentenceRepository,
+        morphology: MorphologyGateway,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
         self._sentences = sentences
+        self._morphology = morphology
 
     def execute(
         self,
@@ -76,12 +78,20 @@ class ImportEntry:
         if existing is not None:
             return ImportResult(existing, created=False)
 
-        snapshot = self._dictionary.new_practice_entry(source_entry_id, user_id)
-        if snapshot is None:
+        new = self._dictionary.new_practice_entry_with_examples(
+            source_entry_id, user_id
+        )
+        if new is None:
             raise DictionaryItemNotFoundError(f"entry {source_entry_id} not found")
-        item, created = self._entries.add_if_absent(snapshot)
+        item, created = self._entries.add_if_absent(new.entry)
         if created:
-            add_dictionary_sentences(self._sentences, item)
+            add_dictionary_sentences(
+                self._sentences,
+                self._entries,
+                self._morphology,
+                item,
+                new.sense_examples,
+            )
         return ImportResult(item, created)
 
 

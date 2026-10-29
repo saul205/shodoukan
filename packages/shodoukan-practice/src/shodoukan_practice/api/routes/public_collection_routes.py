@@ -36,8 +36,8 @@ from ..deps import (
 from ..schemas import (
     CollectionResponse,
     EntryCollectionImportResponse,
+    EntryPreviewPageResponse,
     KanjiCollectionImportResponse,
-    PracticeEntryPageResponse,
     PracticeKanjiPageResponse,
     PublicCollectionPageResponse,
     PublicCollectionResponse,
@@ -120,7 +120,7 @@ def get_public_entry_collection(
 
 @entry_router.get(
     "/{collection_id}/items",
-    response_model=PracticeEntryPageResponse,
+    response_model=EntryPreviewPageResponse,
     responses=_NOT_FOUND,
 )
 def preview_public_entry_collection(
@@ -132,17 +132,23 @@ def preview_public_entry_collection(
     ],
     limit: Limit = 20,
     offset: Offset = 0,
-) -> PracticeEntryPageResponse:
+) -> EntryPreviewPageResponse:
     """A page of its published version, each item as importing it would give
-    it to the current user. They aren't stored: their ids only tell them
-    apart on the page."""
+    it to the current user, with the sentences it brings. They aren't
+    stored: their ids only tell them apart on the page."""
     page = use_case.execute(user.id, collection_id, limit, offset)
     session.commit()
     items = [
-        preview_ids(item.model_dump(), (offset + i) * _PREVIEW_ID_SPAN + 1)
-        for i, item in enumerate(page.items)
+        preview_ids(
+            {
+                **preview.entry.model_dump(),
+                "sentences": [s.model_dump() for s in preview.sentences],
+            },
+            (offset + i) * _PREVIEW_ID_SPAN + 1,
+        )
+        for i, preview in enumerate(page.items)
     ]
-    return PracticeEntryPageResponse.model_validate(
+    return EntryPreviewPageResponse.model_validate(
         {"items": items, "total": page.total, "limit": limit, "offset": offset}
     )
 

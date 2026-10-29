@@ -14,8 +14,10 @@ from ...domain.repositories import (
     KanjiCollectionRepository,
     PracticeEntryRepository,
     PracticeKanjiRepository,
+    PracticeSentenceRepository,
 )
 from ...domain.searches import InCollection, LibrarySearch
+from ...domain.services import with_examples
 
 # An export is the whole collection; a publication only its active items.
 _EVERY_ITEM = LibrarySearch()
@@ -72,19 +74,23 @@ class ExportEntryCollection:
     """One of the user's entry collections in its portable form: its items, in
     the order they were added, each with the user's own data.
 
-    `active_only` leaves deactivated items out, and `include_notes=False`
-    the notes (both for publishing it). Raises `EntityNotFoundError` for a
-    collection the user doesn't have, and `ValidationError` for one with more
-    items than an import takes (`MAX_SHARED_ITEMS`).
+    Each word carries its sentences as examples (`with_examples`).
+    `active_only` leaves deactivated items and sentences out, and
+    `include_notes=False` the notes (both for publishing it). Raises
+    `EntityNotFoundError` for a collection the user doesn't have, and
+    `ValidationError` for one with more items than an import takes
+    (`MAX_SHARED_ITEMS`).
     """
 
     def __init__(
         self,
         collections: EntryCollectionRepository,
         entries: PracticeEntryRepository,
+        sentences: PracticeSentenceRepository,
     ) -> None:
         self._collections = collections
         self._entries = entries
+        self._sentences = sentences
 
     def execute(
         self,
@@ -101,11 +107,21 @@ class ExportEntryCollection:
         search = _ACTIVE_ITEMS if active_only else _EVERY_ITEM
         total = self._entries.count(user_id, search, scope)
         items = self._entries.find(user_id, search, scope, total, 0)
+        sentences = [
+            s
+            for s in self._sentences.for_entries(
+                [i.id for i in items if i.id is not None], user_id
+            )
+            if s.is_active or not active_only
+        ]
         return SharedEntryCollection(
             id=collection.id,
             name=collection.name,
             description=collection.description,
-            items=[item.to_shared(include_notes) for item in items],
+            items=[
+                with_examples(item.to_shared(include_notes), item, sentences)
+                for item in items
+            ],
         )
 
 

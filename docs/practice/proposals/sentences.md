@@ -103,6 +103,11 @@ A gap that isn't on morpheme boundaries (心地 in 使い心地) is analyzed on 
 
 ## Converting the existing examples (#96)
 
+Built: migrations `37c04a6faa6f` (conversion) and `d0c3e71ccd60` (examples dropped,
+#97), `analyze-sentences`
+([use cases](../technical/application/use-cases.md#analyzesentencessentences-entries-morphologyexecute)).
+Tried on a copy of pre: every sentence got its gap.
+
 A full conversion, because the self-hosted pre holds many examples of the user's own.
 On an empty database the conversion goes through zero rows and only the schema change
 applies. It's written in self-contained SQL (no domain imports), since it stays in the
@@ -130,6 +135,15 @@ dismissed references used by updating from the source (#90) point at the sentenc
    `--suggest-links` proposes links to other library words in the sentence, reviewed
    with the bulk-add list. Until then a gap can be asked for its meaning, not for the
    gap or the reading.
+
+## API and sharing (#97)
+
+Built: `/library/sentences` ([endpoints](../technical/api/endpoints.md#sentences-librarysentences)),
+sharing as the word's examples
+([sentences in a collection](../technical/domain/entities.md#sentences-in-a-collection),
+[decision](../technical/decisions.md#sentences-travel-as-a-words-examples)), and
+imports analyze what they bring
+([decision](../technical/decisions.md#imports-analyze-the-sentences-they-bring)).
 
 ## Exercises (#99)
 

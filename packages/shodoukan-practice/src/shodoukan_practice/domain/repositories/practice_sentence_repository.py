@@ -29,6 +29,25 @@ class PracticeSentenceRepository(Protocol):
         first: "the sentences of a word"."""
         ...
 
+    def for_entries(
+        self, entry_ids: Iterable[int], user_id: UUID
+    ) -> list[PracticeSentence]:
+        """The user's sentences with a word linked to any of the entries,
+        oldest first, each once: what an export of those words carries."""
+        ...
+
+    def by_versions(
+        self, versions: Iterable[tuple[int, int]], user_id: UUID
+    ) -> list[PracticeSentence]:
+        """The user's sentences in one of `versions` (the row that wrote the
+        content, and its revision): copies an import may already have."""
+        ...
+
+    def copies(self, user_id: UUID) -> list[PracticeSentence]:
+        """The user's copies of someone's sentences (`source_id` set): what
+        an update from a source may let go of."""
+        ...
+
     def find(
         self, user_id: UUID, search: SentenceSearch, limit: int, offset: int
     ) -> list[PracticeSentence]:

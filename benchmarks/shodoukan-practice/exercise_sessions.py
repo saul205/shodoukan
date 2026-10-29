@@ -58,6 +58,7 @@ from shodoukan_practice.infrastructure.db.orm import (
     UserORM,
 )
 from shodoukan_practice.infrastructure.dictionary import ShodoukanDictionaryGateway
+from shodoukan_practice.infrastructure.morphology import SudachiMorphologyGateway
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyExerciseRepository,
@@ -196,6 +197,7 @@ def _seed(
         SqlAlchemyPracticeEntryRepository(session),
         entry_collections,
         SqlAlchemyPracticeSentenceRepository(session),
+        SudachiMorphologyGateway(),
     )
     for entry_id in entry_ids:
         import_entry.execute(user_id, entry_id, [words.id])

@@ -5,7 +5,7 @@ word without a span, completes it with the analyzer (`complete_words`), so
 the API never returns a gap it can't ask.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -65,18 +65,24 @@ def entry_forms(
 def complete_words(
     sentence: PracticeSentence,
     morphology: MorphologyGateway,
-    forms: dict[int, tuple[str, ...]],
+    forms: Mapping[int, Sequence[str]],
     result: SentenceAnalysis | None = None,
 ) -> None:
     """Analyze the sentence's gaps that aren't, and find the gap of its linked
     words without one (by `forms` of the entries they're linked to).
 
     What's analyzed already is left as it is: the user may have corrected it.
+    Works on a sentence not stored yet too (its words have no ids).
     """
     result = result if result is not None else SentenceAnalysis()
+    if all(
+        w.is_analyzed or (w.start is None and w.entry_id is None)
+        for w in sentence.words
+    ):
+        return
     morphemes = morphology.morphemes(sentence.text)
-    for word_id in [w.id for w in sentence.words if w.id is not None]:
-        word = next(w for w in sentence.words if w.id == word_id)
+    for position in range(len(sentence.words)):
+        word = sentence.words[position]
         word_forms = forms.get(word.entry_id, ()) if word.entry_id else ()
         if word.start is None and word.entry_id is not None:
             taken = [
@@ -88,17 +94,21 @@ def complete_words(
             if gap is None:
                 result.unmarked += 1
                 continue
-            sentence.mark_word(word_id, *gap)
+            sentence.mark_word_at(position, *gap)
             result.marked += 1
-            word = next(w for w in sentence.words if w.id == word_id)
+            word = sentence.words[position]
         if word.start is None or word.end is None or word.is_analyzed:
             continue
         span = span_morphemes(morphemes, word.start, word.end) or _alone(
             morphology, sentence.text, word.start, word.end
         )
         analysis = analyze_gap(span, word_forms)
-        sentence.analyze_word(
-            word_id, analysis.lemma, analysis.reading, analysis.pos, analysis.inflection
+        sentence.analyze_word_at(
+            position,
+            analysis.lemma,
+            analysis.reading,
+            analysis.pos,
+            analysis.inflection,
         )
         result.analyzed += 1
 
@@ -180,19 +190,15 @@ class _SentenceCommand:
 
     def _store(self, sentence: PracticeSentence) -> PracticeSentence:
         """Complete the sentence's words and store it."""
-        stored = (
-            self._sentences.add(sentence)
-            if sentence.id is None
-            else self._sentences.update(sentence)
-        )
         forms = entry_forms(
             self._entries,
-            {w.entry_id for w in stored.words if w.entry_id},
-            stored.user_id,
+            {w.entry_id for w in sentence.words if w.entry_id},
+            sentence.user_id,
         )
-        before = stored.model_copy(deep=True)
-        complete_words(stored, self._morphology, forms)
-        return self._sentences.update(stored) if stored != before else stored
+        complete_words(sentence, self._morphology, forms)
+        if sentence.id is None:
+            return self._sentences.add(sentence)
+        return self._sentences.update(sentence)
 
 
 class AddSentence(_SentenceCommand):

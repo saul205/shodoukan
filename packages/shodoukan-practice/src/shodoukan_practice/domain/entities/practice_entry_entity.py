@@ -3,7 +3,8 @@
 
 The dictionary's data is never edited or removed: the user disables what
 they don't want, and adds, edits and removes senses and meanings of their
-own.
+own. A word's example sentences aren't part of it: they're sentences of the
+library linked to it (`practice_sentence_entity.py`).
 """
 
 from collections.abc import Iterable, Sequence
@@ -27,7 +28,6 @@ from .nested_item_lookup import (
     brought_by,
     clean_kana,
     clean_meaning,
-    clean_sentence,
     clean_spelling,
     dismissal_key,
     dismissed_of,
@@ -42,20 +42,18 @@ from .nested_item_lookup import (
 from .notes_value import Notes, parse_notes
 from .shared_collection_value import (
     SharedEntry,
-    SharedExample,
     SharedMeaning,
     SharedReading,
     SharedSense,
-    SharedSentence,
     SharedSpelling,
 )
 from .timestamped_entity import TimestampedEntity
 
 # The parts of an entry the user can enable or disable, one item at a time.
-EntryPart = Literal["kanji_readings", "readings", "senses", "glosses", "examples"]
+EntryPart = Literal["kanji_readings", "readings", "senses", "glosses"]
 Origin = Literal["imported", "added"]
 
-# Example sentences store the Japanese one under this language, like JMDict.
+# Sentences store the Japanese one under this language, like JMDict's.
 JAPANESE = "jpn"
 
 
@@ -78,25 +76,6 @@ class PracticeGloss(BaseModel):
     source_collection_ids: list[SourceRef] = Field(default_factory=list)
 
 
-class PracticeExampleSentence(BaseModel):
-    lang: str
-    text: str
-
-
-class PracticeExample(BaseModel):
-    id: int | None
-    # JMDict's form of the word in the sentence; empty in the user's own.
-    text: str
-    sentences: list[PracticeExampleSentence]
-    enabled: bool = True
-    origin: Origin = "imported"
-    original_id: int | None = None
-    source_id: int | None = None
-    edited_id: int | None = None
-    revision: int = 0
-    source_collection_ids: list[SourceRef] = Field(default_factory=list)
-
-
 class PracticeSense(BaseModel):
     id: int | None
     pos: list[str]
@@ -104,10 +83,9 @@ class PracticeSense(BaseModel):
     dialects: list[str]
     info: list[str]
     glosses: list[PracticeGloss]
-    examples: list[PracticeExample]
     notes: Notes = None
-    # A disabled sense hides its glosses and examples without changing their
-    # own flags, so enabling it again brings it back as it was.
+    # A disabled sense hides its glosses without changing their own flags, so
+    # enabling it again brings it back as it was.
     enabled: bool = True
     origin: Origin = "imported"
     # A container: its identity only; its parts carry their versions.
@@ -359,7 +337,7 @@ class PracticeEntry(TimestampedEntity):
             self.touch()
 
     def set_enabled(self, part: EntryPart, item_id: int, enabled: bool) -> None:
-        """Show or hide one reading, spelling, sense, meaning or example."""
+        """Show or hide one reading, spelling, sense or meaning."""
         item = find_item(self._items(part), item_id, part)
         if item.enabled != enabled:
             item.enabled = enabled
@@ -378,7 +356,7 @@ class PracticeEntry(TimestampedEntity):
         return sense
 
     def remove_sense(self, sense_id: int) -> None:
-        """Remove one of the user's own senses, with its meanings and examples."""
+        """Remove one of the user's own senses, with its meanings."""
         sense = self._sense(sense_id)
         if sense.origin == "imported":
             raise OriginalDataError("dictionary senses can only be disabled")
@@ -452,7 +430,7 @@ class PracticeEntry(TimestampedEntity):
         """Remove one of the user's own meanings.
 
         A sense keeps at least one (`LastMeaningError`): without one it would
-        show in no language, nor could its examples and note be reached. To
+        show in no language, nor could its note be reached. To
         get rid of an own sense, remove the sense.
         """
         sense, gloss = self._own_gloss(gloss_id)
@@ -460,47 +438,6 @@ class PracticeEntry(TimestampedEntity):
             raise LastMeaningError("a sense keeps at least one meaning")
         sense.glosses.remove(gloss)
         self._dismiss("gloss", gloss)
-        self.touch()
-
-    def add_example(
-        self, sense_id: int, japanese: str, translation: str | None, lang: str
-    ) -> PracticeExample:
-        """Add an example sentence of the user's own at the end of the sense.
-
-        `translation` (optional) is in `lang` (ISO 639-2, e.g. "eng"). The new
-        example has no id until the entry is stored.
-        """
-        example = PracticeExample(
-            id=None,
-            text="",
-            sentences=_sentences([], japanese, translation, lang),
-            origin="added",
-        )
-        self._sense(sense_id).examples.append(example)
-        self.touch()
-        return example
-
-    def edit_example(
-        self, example_id: int, japanese: str, translation: str | None, lang: str
-    ) -> None:
-        """Rewrite one of the user's own examples.
-
-        The Japanese sentence and the translation in `lang` are replaced (no
-        translation removes it); translations in other languages are kept.
-        """
-        _, example = self._own_example(example_id)
-        sentences = _sentences(example.sentences, japanese, translation, lang)
-        if sentences != example.sentences:
-            example.sentences = sentences
-            example.edited_id = None  # this version is now the user's
-            example.revision += 1
-            self.touch()
-
-    def remove_example(self, example_id: int) -> None:
-        """Remove one of the user's own examples."""
-        sense, example = self._own_example(example_id)
-        sense.examples.remove(example)
-        self._dismiss("example", example)
         self.touch()
 
     def prune_source(self, shared: SharedEntry, source_collection_id: int) -> bool:
@@ -535,6 +472,34 @@ class PracticeEntry(TimestampedEntity):
         if changed:
             self.touch()
         return changed
+
+    def shared_sense_ids(self, shared: SharedEntry) -> list[int | None]:
+        """For each sense of a shared copy of this word, the id of the
+        user's sense it is, or `None`: imported senses by place (checked by
+        their first meaning), own ones by identity. What a sentence that came
+        with a shared sense is linked to."""
+        imported = [s for s in self.senses if s.origin == "imported"]
+        position = 0
+        ids: list[int | None] = []
+        for part in shared.senses:
+            if part.origin == "imported":
+                target = imported[position] if position < len(imported) else None
+                position += 1
+                same = target is not None and _same_sense(target, part)
+                ids.append(target.id if target is not None and same else None)
+            else:
+                ids.append(
+                    next(
+                        (
+                            s.id
+                            for s in self.senses
+                            if part.identity is not None
+                            and identity(s) == part.identity
+                        ),
+                        None,
+                    )
+                )
+        return ids
 
     def dismiss_example(self, sentence: Copyable) -> bool:
         """Remember a copied sentence the user removed, so the word's source
@@ -603,17 +568,6 @@ class PracticeEntry(TimestampedEntity):
                     return sense, gloss
         raise EntityNotFoundError(f"gloss {gloss_id} not found")
 
-    def _own_example(self, example_id: int) -> tuple[PracticeSense, PracticeExample]:
-        for sense in self.senses:
-            for example in sense.examples:
-                if example.id == example_id:
-                    if example.origin == "imported":
-                        raise OriginalDataError(
-                            "dictionary examples can only be disabled"
-                        )
-                    return sense, example
-        raise EntityNotFoundError(f"example {example_id} not found")
-
     def _items(self, part: EntryPart) -> Iterable[Toggleable]:
         if part == "kanji_readings":
             return self.kanji_readings
@@ -621,29 +575,7 @@ class PracticeEntry(TimestampedEntity):
             return self.readings
         if part == "senses":
             return self.senses
-        if part == "glosses":
-            return [g for s in self.senses for g in s.glosses]
-        return [e for s in self.senses for e in s.examples]
-
-
-def _sentences(
-    current: list[PracticeExampleSentence],
-    japanese: str,
-    translation: str | None,
-    lang: str,
-) -> list[PracticeExampleSentence]:
-    """The Japanese sentence, then the translation in `lang` (none when
-    blank), then the other translations already there, in their order."""
-    if lang == JAPANESE:
-        raise ValueError("a translation can't be in Japanese")
-    sentences = [PracticeExampleSentence(lang=JAPANESE, text=clean_sentence(japanese))]
-    for sentence in current:
-        if sentence.lang not in (JAPANESE, lang):
-            sentences.append(sentence)
-    translation = (translation or "").strip()
-    if translation:
-        sentences.insert(1, PracticeExampleSentence(lang=lang, text=translation))
-    return sentences
+        return [g for s in self.senses for g in s.glosses]
 
 
 def _own_spelling(kanji: str) -> PracticeKanjiReading:
@@ -668,7 +600,6 @@ def _own_sense(text: str, lang: str) -> PracticeSense:
         dialects=[],
         info=[],
         glosses=[gloss],
-        examples=[],
         origin="added",
     )
 
@@ -694,20 +625,6 @@ def _shared_sense(sense: PracticeSense, include_notes: bool) -> SharedSense:
         enabled=sense.enabled,
         notes=sense.notes if include_notes else None,
         glosses=[_shared_meaning(g) for g in sense.glosses],
-        examples=[
-            SharedExample(
-                origin=e.origin,
-                id=e.id,
-                original_id=identity(e),
-                edited_id=version_row(e),
-                revision=e.revision,
-                enabled=e.enabled,
-                sentences=[
-                    SharedSentence(lang=s.lang, text=s.text) for s in e.sentences
-                ],
-            )
-            for e in sense.examples
-        ],
     )
 
 
@@ -718,10 +635,6 @@ def _same_sense(target: PracticeSense, part: SharedSense) -> bool:
     return ours == theirs
 
 
-def _japanese(sentences: Iterable[PracticeExampleSentence | SharedSentence]) -> str:
-    return next((s.text for s in sentences if s.lang == JAPANESE), "")
-
-
 def _merge_sense_parts(
     target: PracticeSense,
     part: SharedSense,
@@ -729,7 +642,8 @@ def _merge_sense_parts(
     source: SourceRef | None,
     dismissed: list[str],
 ) -> bool:
-    """Notes, meanings and examples of a shared sense into the user's one."""
+    """Notes and meanings of a shared sense into the user's one (its
+    examples are sentences: `sentence_sharing_service`)."""
     changed = False
     if target.notes is None and part.notes is not None:
         target.notes = part.notes
@@ -744,17 +658,6 @@ def _merge_sense_parts(
         copy=lambda gloss: _copied_gloss(gloss, source),
         source=source,
         dismissed=dismissed_of(dismissed, "gloss"),
-    )
-    changed |= merge_parts(
-        target.examples,
-        part.examples,
-        created=created,
-        same=lambda ours, theirs: (
-            _japanese(ours.sentences) == _japanese(theirs.sentences)
-        ),
-        copy=lambda example: _copied_example(example, source),
-        source=source,
-        dismissed=dismissed_of(dismissed, "example"),
     )
     return changed
 
@@ -813,28 +716,8 @@ def _copied_gloss(
     )
 
 
-def _copied_example(
-    part: SharedExample, source_collection_id: SourceRef | None
-) -> PracticeExample:
-    return PracticeExample(
-        id=None,
-        text="",
-        sentences=[
-            PracticeExampleSentence(lang=s.lang, text=clean_sentence(s.text))
-            for s in part.sentences
-        ],
-        enabled=part.enabled,
-        origin="added",
-        original_id=part.identity,
-        source_id=part.id,
-        edited_id=part.edited_id if part.edited_id is not None else part.id,
-        revision=part.revision,
-        source_collection_ids=brought_by(source_collection_id),
-    )
-
-
 def _copied_sense(part: SharedSense) -> PracticeSense:
-    """An empty sense of the user's own; its meanings and examples follow."""
+    """An empty sense of the user's own; its meanings follow."""
     return PracticeSense(
         id=None,
         pos=[],
@@ -842,7 +725,6 @@ def _copied_sense(part: SharedSense) -> PracticeSense:
         dialects=[],
         info=[],
         glosses=[],
-        examples=[],
         enabled=part.enabled,
         origin="added",
         original_id=part.identity,
@@ -853,28 +735,19 @@ def _copied_sense(part: SharedSense) -> PracticeSense:
 def _prune_sense_parts(
     target: PracticeSense, part: SharedSense | None, source: int
 ) -> bool:
-    """Prune a sense's meanings (keeping one) and examples against the
-    shared sense, or against nothing when the collection dropped it."""
+    """Prune a sense's meanings (keeping one) against the shared sense, or
+    against nothing when the collection dropped it."""
     glosses = part.glosses if part else []
-    examples = part.examples if part else []
-    changed = prune_parts(target.glosses, glosses, source, keep=1)
-    changed |= prune_parts(target.examples, examples, source)
-    return changed
+    return prune_parts(target.glosses, glosses, source, keep=1)
 
 
 def _brings(sense: PracticeSense, source: int) -> bool:
     """Whether the collection brings something in the sense: only then can
     it drop the sense (one it never brought isn't its to remove)."""
-    return any(untouched_from(g, source) for g in sense.glosses) or any(
-        untouched_from(e, source) for e in sense.examples
-    )
+    return any(untouched_from(g, source) for g in sense.glosses)
 
 
 def _left_over(sense: PracticeSense) -> bool:
     """Whether nothing in an own sense is the user's or brought by a
     collection any more: no notes, and every part an unclaimed copy."""
-    return (
-        sense.notes is None
-        and all(unclaimed(gloss) for gloss in sense.glosses)
-        and all(unclaimed(example) for example in sense.examples)
-    )
+    return sense.notes is None and all(unclaimed(g) for g in sense.glosses)

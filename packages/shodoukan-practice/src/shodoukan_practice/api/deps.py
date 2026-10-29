@@ -17,7 +17,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from shodoukan import Dictionary
 
 from ..application.commands import (
-    AddEntryExample,
     AddEntryGloss,
     AddEntryReading,
     AddEntrySense,
@@ -37,7 +36,6 @@ from ..application.commands import (
     DeleteEntryCollection,
     DeleteExercise,
     DeleteKanjiCollection,
-    EditEntryExample,
     EditEntryGloss,
     EditKanjiMeaning,
     EnsureUser,
@@ -52,7 +50,6 @@ from ..application.commands import (
     MarkSentenceWord,
     PublishEntryCollection,
     PublishKanjiCollection,
-    RemoveEntryExample,
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
     RemoveEntryGloss,
@@ -228,15 +225,31 @@ def get_create_own_entry(session: SessionDep) -> CreateOwnEntry:
     )
 
 
+@lru_cache(maxsize=1)
+def _get_morphology() -> SudachiMorphologyGateway:
+    # The Sudachi dictionary loads once per process (about 30 ms); each call
+    # makes its own tokenizer, so it's safe to share between threads.
+    return SudachiMorphologyGateway()
+
+
+def get_morphology_gateway() -> MorphologyGateway:
+    return _get_morphology()
+
+
+MorphologyDep = Annotated[MorphologyGateway, Depends(get_morphology_gateway)]
+
+
 def get_import_entry(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+    morphology: MorphologyDep,
 ) -> ImportEntry:
     return ImportEntry(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeSentenceRepository(session),
+        morphology,
     )
 
 
@@ -313,18 +326,6 @@ def get_search_kanji(session: SessionDep, kana: KanaGatewayDep) -> SearchKanji:
 
 
 # --- Library items ---
-
-
-def get_add_entry_example(session: SessionDep) -> AddEntryExample:
-    return AddEntryExample(SqlAlchemyPracticeEntryRepository(session))
-
-
-def get_edit_entry_example(session: SessionDep) -> EditEntryExample:
-    return EditEntryExample(SqlAlchemyPracticeEntryRepository(session))
-
-
-def get_remove_entry_example(session: SessionDep) -> RemoveEntryExample:
-    return RemoveEntryExample(SqlAlchemyPracticeEntryRepository(session))
 
 
 def get_add_entry_gloss(session: SessionDep) -> AddEntryGloss:
@@ -480,18 +481,21 @@ def get_export_entry_collection(session: SessionDep) -> ExportEntryCollection:
     return ExportEntryCollection(
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 
 def get_import_entry_collection(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+    morphology: MorphologyDep,
 ) -> ImportEntryCollection:
     return ImportEntryCollection(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeSentenceRepository(session),
+        morphology,
     )
 
 
@@ -554,6 +558,7 @@ def get_publish_entry_collection(session: SessionDep) -> PublishEntryCollection:
     return PublishEntryCollection(
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeEntryRepository(session),
+        SqlAlchemyPracticeSentenceRepository(session),
     )
 
 
@@ -613,12 +618,14 @@ def get_preview_public_kanji_collection(
 def get_import_public_entry_collection(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+    morphology: MorphologyDep,
 ) -> ImportPublicEntryCollection:
     return ImportPublicEntryCollection(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeSentenceRepository(session),
+        morphology,
     )
 
 
@@ -644,12 +651,14 @@ def get_latest_kanji_source_versions(session: SessionDep) -> LatestKanjiSourceVe
 def get_update_entry_collection_from_source(
     session: SessionDep,
     dictionary: Annotated[DictionaryGateway, Depends(get_dictionary_gateway)],
+    morphology: MorphologyDep,
 ) -> UpdateEntryCollectionFromSource:
     return UpdateEntryCollectionFromSource(
         dictionary,
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeSentenceRepository(session),
+        morphology,
     )
 
 
@@ -768,20 +777,6 @@ def _unauthorized(detail: str) -> HTTPException:
 
 
 # --- Sentences ---
-
-
-@lru_cache(maxsize=1)
-def _get_morphology() -> SudachiMorphologyGateway:
-    # The Sudachi dictionary loads once per process (about 30 ms); each call
-    # makes its own tokenizer, so it's safe to share between threads.
-    return SudachiMorphologyGateway()
-
-
-def get_morphology_gateway() -> MorphologyGateway:
-    return _get_morphology()
-
-
-MorphologyDep = Annotated[MorphologyGateway, Depends(get_morphology_gateway)]
 
 
 def get_add_sentence(session: SessionDep, morphology: MorphologyDep) -> AddSentence:

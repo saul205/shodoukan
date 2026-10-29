@@ -7,8 +7,6 @@ from sqlalchemy.orm import Session
 from shodoukan_practice.infrastructure.db.orm import (
     PracticeEntryORM,
     PracticeEntryReadingORM,
-    PracticeExampleORM,
-    PracticeExampleSentenceORM,
     PracticeGlossORM,
     PracticeSenseORM,
     UserORM,
@@ -39,17 +37,6 @@ def make_entry(user: UserORM, source_entry_id: int = 1000001) -> PracticeEntryOR
                 info=[],
                 glosses=[
                     PracticeGlossORM(position=0, text="to eat", lang="eng"),
-                ],
-                examples=[
-                    PracticeExampleORM(
-                        position=0,
-                        text="",
-                        sentences=[
-                            PracticeExampleSentenceORM(
-                                position=0, lang="jpn", text="ご飯を食べる。"
-                            ),
-                        ],
-                    ),
                 ],
             ),
         ],
@@ -94,8 +81,6 @@ def test_deleting_entry_cascades_to_nested_rows(
         PracticeEntryReadingORM,
         PracticeSenseORM,
         PracticeGlossORM,
-        PracticeExampleORM,
-        PracticeExampleSentenceORM,
     ):
         assert count(session, model) == 0
 

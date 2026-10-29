@@ -47,7 +47,6 @@ from .exercise_statistics_schemas import (
 from .library_schemas import (
     ActiveRequest,
     EnabledRequest,
-    ExampleRequest,
     ImportedEntryResponse,
     ImportedKanjiResponse,
     ImportEntryRequest,
@@ -67,6 +66,8 @@ from .library_schemas import (
 )
 from .library_search_schemas import MeaningLang, NotInCollection, SearchText
 from .public_collection_schemas import (
+    EntryPreviewPageResponse,
+    EntryPreviewResponse,
     PublicationRequest,
     PublicCollectionPageResponse,
     PublicCollectionResponse,
@@ -109,7 +110,8 @@ __all__ = [
     "EntryCollectionFile",
     "EntryCollectionImportResponse",
     "EntryCollectionUpdateResponse",
-    "ExampleRequest",
+    "EntryPreviewPageResponse",
+    "EntryPreviewResponse",
     "ExerciseRequest",
     "ExerciseResponse",
     "ExerciseStatisticsResponse",

@@ -6,7 +6,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ...application.queries import MAX_ANALYZED_SENTENCES
-from .library_schemas import ExampleRequest, Origin, SentenceText
+from .library_schemas import Origin, SentenceText
 
 # Words a reviewed sentence may mark: a long sentence has a few dozen.
 MAX_SENTENCE_WORDS = 50
@@ -18,8 +18,25 @@ class _Response(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SentenceRequest(ExampleRequest):
-    """A sentence of the user's own and a translation, as for an example."""
+class SentenceRequest(BaseModel):
+    """A sentence of the user's own and its translation in one language."""
+
+    japanese: SentenceText
+    translation: str | None = Field(
+        default=None, max_length=500, description="Blank or null for none."
+    )
+    lang: str = Field(
+        pattern="^[a-z]{3}$",
+        description="The translation's language, ISO 639-2 (e.g. `eng`, `spa`); "
+        "not `jpn`, the sentence's own.",
+    )
+
+    @field_validator("lang")
+    @classmethod
+    def _not_japanese(cls, lang: str) -> str:
+        if lang == "jpn":
+            raise ValueError("the translation can't be in Japanese")
+        return lang
 
 
 class NewSentenceRequest(SentenceRequest):

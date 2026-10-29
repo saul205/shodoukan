@@ -21,6 +21,12 @@ An added part is skipped when the item already has that version; another
 version of the same part is added next to it (better to duplicate than to
 lose it). Senses and words are containers: they're matched by identity, and
 their parts merged. None of these ids is stored as an id by the importer.
+
+A word's examples are the library's sentences linked to it (and to that
+sense), each with where the word is in it (`word`). They keep travelling as
+`examples`, so files and publications made before sentences still import,
+and a sentence of two words travels with both: the importer stores it once
+(by its version) and links it to both. See `sentence_sharing_service`.
 """
 
 from typing import Literal, Self
@@ -110,10 +116,25 @@ class SharedSentence(SharedValue):
     text: str
 
 
+class SharedSentenceWord(SharedValue):
+    """Where the word an example travels with is in it (its gap), and what
+    the owner's analyzer said about it."""
+
+    start: int | None = Field(default=None, ge=0)
+    end: int | None = Field(default=None, ge=0)
+    lemma: str | None = None
+    reading: str | None = None
+    pos: list[str] = Field(default=[], max_length=8)
+    endings: list[str] | None = Field(default=None, max_length=8)
+    form: str | None = None
+
+
 class SharedExample(SharedContent):
-    """An example sentence: the Japanese one (`jpn`) and its translations."""
+    """A sentence of the word: the Japanese one (`jpn`) and its translations,
+    and where the word is in it (`word`; absent in files made before)."""
 
     sentences: list[SharedSentence] = Field(default=[], max_length=MAX_SHARED_PARTS)
+    word: SharedSentenceWord | None = None
 
     @model_validator(mode="after")
     def _check_added(self) -> Self:

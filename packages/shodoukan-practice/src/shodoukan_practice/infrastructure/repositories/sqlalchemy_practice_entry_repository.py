@@ -29,7 +29,6 @@ from ..db.orm import (
     PracticeEntryKanjiReadingORM,
     PracticeEntryORM,
     PracticeEntryReadingORM,
-    PracticeExampleORM,
     PracticeGlossORM,
     PracticeSenseORM,
     entry_collection_items,
@@ -43,9 +42,6 @@ _LOAD = (
     selectinload(PracticeEntryORM.kanji_readings),
     selectinload(PracticeEntryORM.readings),
     selectinload(PracticeEntryORM.senses).selectinload(PracticeSenseORM.glosses),
-    selectinload(PracticeEntryORM.senses)
-    .selectinload(PracticeSenseORM.examples)
-    .selectinload(PracticeExampleORM.sentences),
 )
 
 

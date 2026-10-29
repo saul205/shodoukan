@@ -14,6 +14,7 @@ from ...domain.entities import (
     KanjiCollection,
     PracticeEntry,
     PracticeKanji,
+    PracticeSentence,
 )
 from ...domain.exceptions import EntityNotFoundError
 from ...domain.gateways import DictionaryGateway
@@ -27,6 +28,7 @@ from ...domain.searches import (
     PublicOwner,
     PublicSort,
 )
+from ...domain.services import preview_sentences
 from .library_queries import LibraryPage
 
 C = TypeVar("C", EntryCollection, KanjiCollection)
@@ -128,12 +130,21 @@ class GetPublicKanjiCollection:
         return self._collections.public_summary(collection, viewer_id)
 
 
+@dataclass(frozen=True)
+class EntryPreview:
+    """A word of a public collection as importing it would give it, with
+    the sentences it would bring (`preview_sentences`)."""
+
+    entry: PracticeEntry
+    sentences: list[PracticeSentence]
+
+
 class PreviewPublicEntryCollection:
     """A page of a public entry collection's published version, each word as
     the viewer would get it by importing it into an empty library: a fresh
-    dictionary snapshot with the owner's data merged in. Nothing is stored,
-    so the words have no ids. A word the dictionary no longer has is left
-    out of its page (`total` still counts it)."""
+    dictionary snapshot with the owner's data merged in, and its sentences.
+    Nothing is stored, so they have no ids. A word the dictionary no longer
+    has is left out of its page (`total` still counts it)."""
 
     def __init__(
         self,
@@ -145,21 +156,24 @@ class PreviewPublicEntryCollection:
 
     def execute(
         self, viewer_id: UUID, collection_id: int, limit: int = 20, offset: int = 0
-    ) -> LibraryPage[PracticeEntry]:
+    ) -> LibraryPage[EntryPreview]:
         collection = self._collections.get_public(collection_id)
         shared = self._collections.get_publication(collection) if collection else None
         if shared is None:
             raise EntityNotFoundError(f"public collection {collection_id} not found")
-        entries: list[PracticeEntry] = []
+        previews: list[EntryPreview] = []
         for item in shared.items[offset : offset + limit]:
             if item.source_entry_id is None:
-                entries.append(PracticeEntry.from_shared(viewer_id, item))
-                continue
-            entry = self._dictionary.new_practice_entry(item.source_entry_id, viewer_id)
+                entry: PracticeEntry | None = PracticeEntry.from_shared(viewer_id, item)
+            else:
+                entry = self._dictionary.new_practice_entry(
+                    item.source_entry_id, viewer_id
+                )
+                if entry is not None:
+                    entry.merge_shared(item, created=True)
             if entry is not None:
-                entry.merge_shared(item, created=True)
-                entries.append(entry)
-        return LibraryPage(entries, len(shared.items), limit, offset)
+                previews.append(EntryPreview(entry, preview_sentences(item, viewer_id)))
+        return LibraryPage(previews, len(shared.items), limit, offset)
 
 
 class PreviewPublicKanjiCollection:

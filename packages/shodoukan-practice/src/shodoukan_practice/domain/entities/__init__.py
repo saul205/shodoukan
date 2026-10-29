@@ -58,8 +58,6 @@ from .practice_entry_entity import (
     JAPANESE,
     EntryPart,
     PracticeEntry,
-    PracticeExample,
-    PracticeExampleSentence,
     PracticeGloss,
     PracticeKanjiReading,
     PracticeReading,
@@ -92,6 +90,7 @@ from .shared_collection_value import (
     SharedReading,
     SharedSense,
     SharedSentence,
+    SharedSentenceWord,
     SharedSpelling,
 )
 from .timestamped_entity import TimestampedEntity
@@ -141,8 +140,6 @@ __all__ = [
     "OptionAnswer",
     "Point",
     "PracticeEntry",
-    "PracticeExample",
-    "PracticeExampleSentence",
     "PracticeGloss",
     "PracticeKanji",
     "PracticeKanjiMeaning",
@@ -170,6 +167,7 @@ __all__ = [
     "SharedReading",
     "SharedSense",
     "SharedSentence",
+    "SharedSentenceWord",
     "SharedSpelling",
     "ShownField",
     "SkipAnswer",

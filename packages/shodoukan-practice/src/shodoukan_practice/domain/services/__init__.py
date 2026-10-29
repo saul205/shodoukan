@@ -36,6 +36,13 @@ from .sentence_analysis_service import (
     propose_words,
     span_morphemes,
 )
+from .sentence_sharing_service import (
+    SentenceMerge,
+    merge_examples,
+    preview_sentences,
+    prune_examples,
+    with_examples,
+)
 from .study_field_service import (
     FieldValue,
     StudyCard,
@@ -68,6 +75,7 @@ __all__ = [
     "FieldValue",
     "GapAnalysis",
     "HandwritingDraft",
+    "SentenceMerge",
     "StudyCard",
     "WordHandwritingDraft",
     "WordProposal",
@@ -104,8 +112,12 @@ __all__ = [
     "kanji_card",
     "kanji_literal",
     "kanji_study_text",
+    "merge_examples",
+    "preview_sentences",
     "propose_words",
+    "prune_examples",
     "span_morphemes",
+    "with_examples",
     "word_characters",
     "writable_items",
     "written_word",

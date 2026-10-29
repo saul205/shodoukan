@@ -41,8 +41,12 @@ mean writing a new adapter; use cases wouldn't change.
 | `stroke_references(literals)` | `Dictionary.get_kanji_strokes(literal)` per literal | `ReferenceKanji` by literal, for those with a stroke order: each stroke's path, number place and centre line as points (`path_points`, every `REFERENCE_POINT_SPACING` = 2 units), to grade drawings against |
 
 "Fresh" means not stored yet: all ids are `None`, every part is enabled, and
-glosses, examples and meanings have `origin="imported"`. Both dictionary calls return
-**every language**, so the snapshot keeps them all.
+glosses and meanings have `origin="imported"`. Both dictionary calls return
+**every language**, so the snapshot keeps them all. An entry's examples aren't part of
+its snapshot: importing it reads both in one dictionary call
+(`new_practice_entry_with_examples` → `NewPracticeEntry(entry, sense_examples)`, the
+examples of each sense in the snapshot's order) and stores them as sentences
+([`add_dictionary_sentences`](../application/use-cases.md#add_dictionary_sentencessentences-entries-morphology-entry-dictionary_entry)).
 
 ## Anti-corruption mapping (`shodoukan_mapper.py`)
 
@@ -54,7 +58,8 @@ practice entities. The domain never imports `shodoukan`.
 |---|---|---|
 | `Entry.id` | `PracticeEntry.source_entry_id` | the only link back to the dictionary |
 | `Kanji.literal` | `PracticeKanji.literal` | the only link back |
-| nested ids (readings, senses, glosses, examples) | `None` | the snapshot gets its own ids when stored |
+| nested ids (readings, senses, glosses) | `None` | the snapshot gets its own ids when stored |
+| `Sense.examples` | not in the snapshot | `NewPracticeEntry.sense_examples`, stored as sentences |
 | `Kanji.on_readings` / `kun_readings` / `nanori` (strings) | `PracticeReadingItem`s | each gets its own identity |
 | `priority`, `cross_references`, `score`, example `source_name` / `source_id` | dropped | not needed for practice |
 
