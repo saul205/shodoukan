@@ -37,6 +37,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   in context, or its meaning; the translation can be shown. The answer to a
   fill-the-gap question isn't sent with it.
 
+- **shodoukan-practice-web:** Word exercises "En frases": pick what's asked (fill the
+  gap, the word's reading, its meaning) and whether to show the translation; the
+  session shows each word in one of its sentences, a blank where it goes or the word
+  underlined, with the same options and keys as a choice card, and the review shows
+  the sentence.
+
 ### Changed
 
 - **shodoukan-practice-web:** A word's page shows its sentences, the word underlined,
