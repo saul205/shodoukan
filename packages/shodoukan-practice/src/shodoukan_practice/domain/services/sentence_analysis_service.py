@@ -2,14 +2,16 @@
 
 `analyze_gap` gives what a sentence word stores about a gap (lemma, reading
 in context, part of speech, inflection); `find_gap` finds where a linked word
-is when it has no span yet (an inflected own sentence: 引いた for 引く).
+is when it has no span yet (an inflected own sentence: 引いた for 引く);
+`propose_words` finds the library words a new sentence uses
+(`candidate_forms` says which forms to look up).
 `forms` are the linked word's enabled spellings and readings, so the lemma
 stored is the word's own form when one of its dictionary forms matches.
 
 See docs/practice/proposals/sentences.md.
 """
 
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 
 from ..entities import Inflection
@@ -25,6 +27,19 @@ from .study_field_service import kana_key
 # Morphemes an expression of the dictionary may span (持っ + て + いく).
 _LONGEST_EXPRESSION = 4
 _KATAKANA = frozenset(chr(c) for c in range(ord("ァ"), ord("ヺ") + 1)) | {"ー"}
+
+
+@dataclass(frozen=True)
+class WordProposal:
+    """A word of a new sentence that is in the library."""
+
+    start: int
+    end: int
+    # The library form it was found by (引く for 引いた, 持っていく).
+    form: str
+    entry_ids: tuple[int, ...]
+    # Found by a spelling with kanji; a kana-only match (はし) is a guess.
+    certain: bool
 
 
 @dataclass(frozen=True)
@@ -90,17 +105,77 @@ def find_gap(
     return None
 
 
+def candidate_forms(morphemes: Sequence[Morpheme]) -> set[str]:
+    """Every form `propose_words` may look up in the library."""
+    forms: set[str] = set()
+    for i, morpheme in enumerate(morphemes):
+        if is_content_word(morpheme):
+            for form, _ in _expressions(morphemes, i):
+                forms |= {form, kana_key(form)}
+    return forms
+
+
+def propose_words(
+    morphemes: Sequence[Morpheme], library: Mapping[str, Sequence[int]]
+) -> list[WordProposal]:
+    """The library words a sentence uses, left to right, never overlapping.
+
+    `library` maps forms to the user's entries that have them (enabled
+    spellings and readings). From each content morpheme, the longest
+    expression that is a library form wins (日本語 over 日本), with what
+    inflects it.
+    """
+    proposals: list[WordProposal] = []
+    i = 0
+    while i < len(morphemes):
+        best: tuple[int, str, Sequence[int]] | None = None
+        if is_content_word(morphemes[i]):
+            for form, last in _expressions(morphemes, i):
+                ids = library.get(form) or library.get(kana_key(form))
+                if ids:
+                    best = (last, form, ids)
+        if best is None:
+            i += 1
+            continue
+        last, form, ids = best
+        while last + 1 < len(morphemes) and _inflects(morphemes[last + 1]):
+            last += 1
+        proposals.append(
+            WordProposal(
+                start=morphemes[i].start,
+                end=morphemes[last].end,
+                form=form,
+                entry_ids=tuple(ids),
+                certain=any(_is_kanji(char) for char in form),
+            )
+        )
+        i = last + 1
+    return proposals
+
+
+def _expressions(morphemes: Sequence[Morpheme], first: int) -> list[tuple[str, int]]:
+    """`(form, last morpheme)` of the words and expressions starting at
+    `first`, shortest first: as written, and with the last one's lemma."""
+    expressions: list[tuple[str, int]] = []
+    written = ""
+    for last in range(first, min(first + _LONGEST_EXPRESSION, len(morphemes))):
+        expressions.append((written + morphemes[last].lemma, last))
+        written += morphemes[last].surface
+        expressions.append((written, last))
+    return expressions
+
+
+def _is_kanji(char: str) -> bool:
+    return "\u4e00" <= char <= "\u9fff" or char in "々〆ヶ"
+
+
 def _expression_end(
     morphemes: Sequence[Morpheme], first: int, forms: Collection[str]
 ) -> int | None:
     """The last morpheme of the shortest word or expression starting at
     `first` that is one of `forms`."""
-    written = ""
-    for last in range(first, min(first + _LONGEST_EXPRESSION, len(morphemes))):
-        if _matches(written + morphemes[last].lemma, forms):
-            return last
-        written += morphemes[last].surface
-        if _matches(written, forms):
+    for form, last in _expressions(morphemes, first):
+        if _matches(form, forms):
             return last
     return None
 

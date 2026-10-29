@@ -175,6 +175,7 @@ morpheme, after a prefix like お) and whatever inflects it (引か + れ + た)
 | `SessionAlreadyOpenError` | `ValueError` | A session is stored while the user has another open one; a user studies one at a time (HTTP `409`) |
 | `SessionFinishedError` | `ValueError` | An answer or question on a finished (or idle) session (HTTP `409`) |
 | `InvalidAnswerError` | `ValueError` | An answer doesn't fit its question, e.g. an option it doesn't have (HTTP `422`) |
+| `SentenceWordError` | `ValueError` | A sentence's word that can't be: a span outside the sentence or over another word, an analysis of a word without a span, a lemma or reading that isn't one (HTTP `422`) |
 
 ## Clock (`domain/clock.py`)
 

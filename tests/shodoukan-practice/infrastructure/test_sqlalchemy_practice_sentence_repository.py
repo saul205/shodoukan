@@ -9,6 +9,7 @@ from shodoukan_practice.domain.entities import (
     SentenceTranslation,
 )
 from shodoukan_practice.domain.exceptions import EntityNotFoundError
+from shodoukan_practice.domain.repositories import SentenceSearch
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
     SqlAlchemyPracticeEntryRepository,
@@ -163,3 +164,28 @@ def test_needing_analysis(
     assert repo.needing_analysis(USER_ID) == [gap, unmarked]
     assert repo.needing_analysis(OTHER_USER_ID) == []
     assert repo.users_needing_analysis() == [USER_ID]
+
+
+def test_find_and_count(
+    repo: SqlAlchemyPracticeSentenceRepository,
+    entry: PracticeEntry,
+    other_user: UserORM,
+) -> None:
+    home = repo.add(dictionary_sentence(entry))
+    rain = PracticeSentence.create_own(USER_ID, "雨が降る。", "It rains.", "eng")
+    rain.deactivate()
+    rain = repo.add(rain)
+    repo.add(PracticeSentence.create_own(OTHER_USER_ID, "家に帰る。", None, "eng"))
+
+    def ids(search: SentenceSearch) -> list[int | None]:
+        return [s.id for s in repo.find(USER_ID, search, 10, 0)]
+
+    assert ids(SentenceSearch()) == [rain.id, home.id]  # newest first
+    assert ids(SentenceSearch(text="家")) == [home.id]
+    assert ids(SentenceSearch(text="RAINS")) == [rain.id]  # translations, any case
+    assert ids(SentenceSearch(text="%")) == []  # matched as typed
+    assert ids(SentenceSearch(entry_id=entry.id)) == [home.id]
+    assert ids(SentenceSearch(linked=False)) == [rain.id]
+    assert ids(SentenceSearch(linked=True, active=True)) == [home.id]
+    assert repo.count(USER_ID, SentenceSearch()) == 2
+    assert [s.id for s in repo.find(USER_ID, SentenceSearch(), 1, 1)] == [home.id]

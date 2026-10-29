@@ -20,7 +20,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ..exceptions import OriginalDataError
+from ..exceptions import OriginalDataError, SentenceWordError
 from .nested_item_lookup import SourceRef, clean_kana, clean_sentence, find_item
 from .notes_value import Notes, parse_notes
 from .practice_entry_entity import JAPANESE, Origin
@@ -279,7 +279,7 @@ class PracticeSentence(TimestampedEntity):
         """Store what the analyzer says about a word with a span."""
         word = self._word(word_id)
         if not word.has_span:
-            raise ValueError("only a word with a span can be analyzed")
+            raise SentenceWordError("only a word with a span can be analyzed")
         values = (lemma, reading, list(pos), inflection)
         if (word.lemma, word.reading, word.pos, word.inflection) != values:
             word.lemma, word.reading, word.pos, word.inflection = values
@@ -291,8 +291,11 @@ class PracticeSentence(TimestampedEntity):
         word = self._word(word_id)
         lemma = lemma.strip()
         if not lemma:
-            raise ValueError("a word's lemma can't be empty")
-        reading = clean_kana(reading)
+            raise SentenceWordError("a word's lemma can't be empty")
+        try:
+            reading = clean_kana(reading)
+        except ValueError as error:
+            raise SentenceWordError(str(error)) from error
         if (word.lemma, word.reading) != (lemma, reading):
             word.lemma = lemma
             word.reading = reading
@@ -314,10 +317,10 @@ def _check_spans(text: str, words: Sequence[SentenceWord]) -> None:
         (w.start, w.end) for w in words if w.start is not None and w.end is not None
     )
     if spans and max(end for _, end in spans) > len(text):
-        raise ValueError("a word's span is outside the sentence")
+        raise SentenceWordError("a word's span is outside the sentence")
     for (_, end), (start, _) in pairwise(spans):
         if start < end:
-            raise ValueError("two words of a sentence can't overlap")
+            raise SentenceWordError("two words of a sentence can't overlap")
 
 
 def _changed(word: SentenceWord, **changes: object) -> SentenceWord:

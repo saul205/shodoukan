@@ -171,6 +171,34 @@ class SqlAlchemyPracticeEntryRepository(PracticeEntryRepository):
         # The IN leaves the user's own words (no source) out; this tells mypy.
         return {source: id_ for source, id_ in rows if source is not None}
 
+    def ids_by_form(self, forms: Iterable[str], user_id: UUID) -> dict[str, list[int]]:
+        wanted = list(dict.fromkeys(forms))
+        if not wanted:
+            return {}
+        owned = PracticeEntryORM.user_id == user_id
+        spellings = (
+            select(PracticeEntryKanjiReadingORM.kanji, PracticeEntryORM.id)
+            .join(PracticeEntryORM)
+            .where(
+                owned,
+                PracticeEntryKanjiReadingORM.enabled,
+                PracticeEntryKanjiReadingORM.kanji.in_(wanted),
+            )
+        )
+        readings = (
+            select(PracticeEntryReadingORM.text, PracticeEntryORM.id)
+            .join(PracticeEntryORM)
+            .where(
+                owned,
+                PracticeEntryReadingORM.enabled,
+                PracticeEntryReadingORM.text.in_(wanted),
+            )
+        )
+        found: defaultdict[str, set[int]] = defaultdict(set)
+        for form, entry_id in self._session.execute(spellings.union(readings)):
+            found[form].add(entry_id)
+        return {form: sorted(ids) for form, ids in found.items()}
+
     def find_own_by_identity(
         self, identities: Iterable[int], user_id: UUID
     ) -> list[PracticeEntry]:

@@ -4,8 +4,11 @@ from shodoukan_practice.domain.entities import Inflection
 from shodoukan_practice.domain.gateways import Morpheme
 from shodoukan_practice.domain.services import (
     GapAnalysis,
+    WordProposal,
     analyze_gap,
+    candidate_forms,
     find_gap,
+    propose_words,
     span_morphemes,
 )
 
@@ -135,3 +138,34 @@ def test_find_an_expression_of_several_words() -> None:
 
     assert find_gap(motte, ["持っていく", "もっていく"]) == (0, 6)  # 持っていって
     assert find_gap(motte, ["持つ"]) == (0, 3)  # 持って
+
+
+def test_propose_the_library_words_of_a_sentence() -> None:
+    # 日本語を引いた: 日本語 (a longer match than 日本), 引く inflected.
+    nihongo = sentence(
+        ("日本", "日本", "ニホン", NOUN, None),
+        ("語", "語", "ゴ", ("接尾辞",), None),
+        ("を", "を", "ヲ", ("助詞", "格助詞"), None),
+        ("引い", "引く", "ヒイ", VERB, "連用形-イ音便"),
+        ("た", "た", "タ", ("助動詞",), "終止形-一般"),
+    )
+    library = {"日本": [1], "日本語": [2], "引く": [3]}
+
+    assert {"日本", "日本語", "引く"} <= candidate_forms(nihongo)
+    assert propose_words(nihongo, library) == [
+        WordProposal(start=0, end=3, form="日本語", entry_ids=(2,), certain=True),
+        WordProposal(start=4, end=7, form="引く", entry_ids=(3,), certain=True),
+    ]
+    assert propose_words(nihongo, {}) == []
+
+
+def test_a_kana_only_match_is_a_guess() -> None:
+    # はしを渡る: はし may be 橋 or 箸, found by their reading only.
+    hashi = sentence(
+        ("はし", "はし", "ハシ", NOUN, None),
+        ("を", "を", "ヲ", ("助詞", "格助詞"), None),
+    )
+
+    assert propose_words(hashi, {"はし": [5, 6]}) == [
+        WordProposal(start=0, end=2, form="はし", entry_ids=(5, 6), certain=False)
+    ]

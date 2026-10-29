@@ -16,6 +16,7 @@ from ..domain.exceptions import (
     OriginalDataError,
     QuestionNotActiveError,
     SenseLanguageError,
+    SentenceWordError,
     SessionAlreadyOpenError,
     SessionFinishedError,
 )
@@ -30,6 +31,7 @@ from .routes import (
     library_router,
     practice_entry_router,
     practice_kanji_router,
+    practice_sentence_router,
     public_entry_collection_router,
     public_kanji_collection_router,
     user_router,
@@ -65,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(library_router)
     app.include_router(practice_entry_router)
     app.include_router(practice_kanji_router)
+    app.include_router(practice_sentence_router)
     app.include_router(user_router)
     app.include_router(entry_collection_router)
     app.include_router(kanji_collection_router)
@@ -92,6 +95,8 @@ def create_app() -> FastAPI:
     app.add_exception_handler(InvalidAnswerError, _unprocessable_detail)
     # A meaning in another language than its sense's.
     app.add_exception_handler(SenseLanguageError, _unprocessable_detail)
+    # A sentence's word over another, outside the sentence, or not kana.
+    app.add_exception_handler(SentenceWordError, _unprocessable_detail)
     # Rules entities check when built or changed in a use case (e.g. exercise
     # settings that use fields of the other item kind), shaped like FastAPI's
     # own request validation errors.

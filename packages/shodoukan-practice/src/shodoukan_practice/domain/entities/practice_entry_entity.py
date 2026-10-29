@@ -536,6 +536,17 @@ class PracticeEntry(TimestampedEntity):
             self.touch()
         return changed
 
+    def dismiss_example(self, sentence: Copyable) -> bool:
+        """Remember a copied sentence the user removed, so the word's source
+        doesn't bring it back. Sentences keep the `example` kind: they travel
+        as the word's examples. Returns whether anything changed."""
+        before = len(self.dismissed_parts)
+        self._dismiss("example", sentence)
+        if len(self.dismissed_parts) == before:
+            return False
+        self.touch()
+        return True
+
     def _dismiss(self, kind: PartKind, part: Copyable) -> None:
         """Remember a deleted copy, so its source doesn't bring it back."""
         key = dismissal_key(kind, part)

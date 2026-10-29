@@ -135,6 +135,37 @@ is imported. They're added even when the entry was already in the library (`200`
 `created_at`, `updated_at`. Nested items carry their `id`, `enabled` and, where
 applicable, `origin`. `user_id` isn't exposed.
 
+## Sentences (`/library/sentences`)
+
+The sentences of the user's library ([entities](../domain/entities.md#sentences)),
+in `practice_sentence_routes.py`. Every change returns the whole
+`SentenceResponse`: `id`, `text`, `translations` (`lang`, `text`), `words`, `is_active`,
+`notes`, `origin`, `created_at`, `updated_at`. A word: `id`, `start` / `end` (its gap,
+or both `null`), `lemma`, `reading`, `pos`, `inflection` (`endings`, `form`; `null`
+until analyzed), `entry_id`, `sense_id`. Whatever leaves a gap unanalyzed, or a
+linked word without a gap, is completed with the analyzer before answering
+(`complete_words`).
+
+| Method and path | Does | Use case |
+|---|---|---|
+| `GET /library/sentences` | A page of the user's sentences, newest first: `q` (in the text or a translation, any case), `entry_id` (the sentences of a word), `linked` (`false`: none of its words is linked), `active`, `limit` (1–100, default 20), `offset`. `SentencePageResponse` (`items`, `total`, `limit`, `offset`) | `SearchSentences` |
+| `POST /library/sentences` | Add one of the user's own (`japanese`, `translation`, `lang` as for an example), linked to one of their words if `entry_id` (and `sense_id`) is given: the gap is found where the word is, inflected or not. `201` | `AddSentence` |
+| `POST /library/sentences/analyze` | `{"texts": [...]}` (1–200): each one's `morphemes` (`surface`, `lemma`, `reading`, `pos`, `start`, `end`) and the user's words it uses (`words`: `start`, `end`, `form`, `entry_ids`, `certain`, false for a kana-only match). Stores nothing | `AnalyzeSentenceTexts` |
+| `POST /library/sentences/batch` | `{"sentences": [...]}` (1–200), each a sentence with its `words` (`start` / `end`, `entry_id`, `sense_id`; a word without a span must be linked), as the user reviewed them. All or nothing: a word that isn't the user's is a `404` and stores none. `201` | `AddSentences` |
+| `GET /library/sentences/{id}` | The sentence | `GetSentence` |
+| `PUT /library/sentences/{id}` | Rewrite an own sentence and its translation in `lang`; its words keep their gap where their text still is. `409` for a dictionary sentence | `RewriteSentence` |
+| `DELETE /library/sentences/{id}` | Remove it (`204`); a copy of someone's is remembered on its words, so their source doesn't bring it back | `RemoveSentence` |
+| `PUT /library/sentences/{id}/active` · `/notes` | `{"active": bool}` · `{"notes": ...}` | `SetSentenceActive` · `SetSentenceNotes` |
+| `POST /library/sentences/{id}/words` | Mark a word (`start`, `end`) linked or not, or link a word without a span (`entry_id`) | `AddSentenceWord` |
+| `PUT /library/sentences/{id}/words/{word_id}/span` | Move its gap (analyzed again) | `MarkSentenceWord` |
+| `PUT /library/sentences/{id}/words/{word_id}/link` | `{"entry_id": ..., "sense_id": ...}`; `entry_id: null` unlinks | `LinkSentenceWord` |
+| `PUT /library/sentences/{id}/words/{word_id}/correction` | The user's `lemma` and `reading` (kana) | `CorrectSentenceWord` |
+| `DELETE /library/sentences/{id}/words/{word_id}` | Remove the word; returns the sentence | `RemoveSentenceWord` |
+
+Errors: `404` for a sentence, word, entry or sense that isn't the user's; `409` for
+rewriting a dictionary sentence; `422` (`SentenceWordError`) for a word over another
+or outside the sentence, or a reading that isn't kana.
+
 ## `POST /library/kanji`
 
 Imports a dictionary kanji
@@ -607,6 +638,8 @@ committed is rolled back when the session closes.
 | `get_list_exercise_sessions` | the history, over the session repository |
 | `get_get_exercise_statistics`, `get_get_practice_statistics` | statistics use cases: the statistics repository and both item repositories (plus the exercise repository per exercise) on the request's session |
 | `get_get_library_entry`, `get_set_entry_notes`, `get_add_kanji_meaning`, ... | one factory per library item use case, on the request's session |
+| `get_morphology_gateway` | `SudachiMorphologyGateway`, cached per process (its dictionary loads once) |
+| `get_add_sentence`, `get_rewrite_sentence`, `get_add_sentence_word`, ... / `get_search_sentences`, `get_get_sentence`, `get_analyze_sentence_texts` | sentence use cases: the sentence and entry repositories on the request's session, and the morphology gateway |
 | `get_search_dictionary`, `get_get_dictionary_entry`, `get_get_dictionary_kanji`, `get_get_dictionary_kanji_strokes`, `get_list_entries_for_kanji`, `get_list_kanji_for_entry` | dictionary use cases over the gateway (no session, no user) |
 
 Tests replace `get_session`, `get_dictionary_gateway` and `get_token_verifier` with

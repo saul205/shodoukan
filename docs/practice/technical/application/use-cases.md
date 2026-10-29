@@ -114,6 +114,34 @@ analyze-sentences` (also `shodoukan-practice-admin analyze-sentences`) runs it i
 transaction. Run once after the examples are converted (migration `37c04a6faa6f`):
 [deployment](../../../technical/deployment.md#maintenance-commands).
 
+### Sentences (`practice_sentence_commands.py`, `practice_sentence_queries.py`)
+
+Commands take `(sentences, entries, morphology)` and don't commit. Whatever they
+change goes through `complete_words` before it's returned: a gap without an analysis
+is analyzed, a linked word without a gap gets one where its word is (by the entry's
+enabled forms, `entry_forms`), and what's analyzed already is kept.
+
+- `AddSentence.execute(user_id, text, translation, lang, entry_id=None,
+  sense_id=None)`: an own sentence, linked to one of the user's words if given (an
+  unknown entry or sense is `EntityNotFoundError`).
+- `AddSentences.execute(user_id, drafts)`: several `SentenceDraft(text, translation,
+  lang, words)` with their `WordDraft(start, end, entry_id, sense_id)`; every linked
+  word is checked first, so a foreign one stores nothing.
+- `RewriteSentence`, `SetSentenceActive`, `SetSentenceNotes`: the entity's methods.
+- `RemoveSentence`: deletes it; a copy of someone's (`source_id`) is dismissed on the
+  entries it was linked to (`PracticeEntry.dismiss_example`), as a removed example
+  was, so their sources don't bring it back.
+- Words: `AddSentenceWord` (a span, linked or not, or a linked word without one),
+  `MarkSentenceWord`, `LinkSentenceWord` (`entry_id=None` unlinks),
+  `CorrectSentenceWord`, `RemoveSentenceWord`.
+
+Queries: `GetSentence`, `SearchSentences` (a `SentencePage` for a `SentenceSearch`),
+`ListSentencesOfEntry` (the sentences of one of the user's words) and
+`AnalyzeSentenceTexts.execute(user_id, texts)`: each text's morphemes and the library
+words it uses (`propose_words` over `entries.ids_by_form` of every `candidate_forms`,
+one query for all the texts), as `SentenceProposal(text, morphemes, words)`. At most
+`MAX_ANALYZED_SENTENCES` (200).
+
 ### `ImportEntryCollection(dictionary, entries, collections, sentences).execute(user_id, shared, source=None)`
 
 Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)

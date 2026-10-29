@@ -44,6 +44,7 @@ span several of their rows (starting an exercise session).
 | `count(user_id, search, scope)` | how many items `find` pages through |
 | `get_by_source_entry_id(source_entry_id, user_id)` / `get_by_literal(literal, user_id)` | the user's copy of that dictionary item, or `None` |
 | `practice_ids_by_source_entry_id(source_entry_ids, user_id)` / `practice_ids_by_literal(literals, user_id)` | `{source_entry_id or literal: practice id}` for the ones the user has imported; reads two columns, no snapshot |
+| `ids_by_form(forms, user_id)` (entries) | `{form: entry ids}` for the user's entries with an enabled spelling or reading among `forms`, as written: which library words a sentence's word may be |
 | `find_own_by_identity(identities, user_id)` (entries) | the user's own words (no source) whose identity (`original_id`, or `id` for an original) is in `identities`, ordered by id: what a shared word of someone's own may already be in the library |
 | `add(item)` | the stored item, with ids for it and every nested part |
 | `add_if_absent(item)` | `(stored item, created)`: stores it unless the user already has it, and is safe against a concurrent import of the same item |
@@ -65,6 +66,7 @@ The sentences of the user's library (`practice_sentence_repository.py`).
 |---|---|
 | `get(id, user_id)` | the sentence or `None` |
 | `for_entry(entry_id, user_id)` | the user's sentences with a word linked to that entry, oldest first: "the sentences of a word" |
+| `find(user_id, search, limit, offset)` / `count(user_id, search)` | the user's sentences matching a `SentenceSearch(text, entry_id, linked, active)`, newest first, paginated: `text` in the sentence or a translation (any case, as typed), `entry_id` the sentences of a word, `linked=False` those with no linked word |
 | `imported_by_text(texts, user_id)` | `{text: sentence}` for the user's dictionary sentences among `texts` (the oldest if two have the same text): importing a word reuses a sentence another word brought |
 | `needing_analysis(user_id)` | sentences with a word to analyze: a gap not analyzed yet, or a linked word without a span |
 | `users_needing_analysis()` | the users with such sentences; the one query across users, for `analyze-sentences`, which then goes user by user |

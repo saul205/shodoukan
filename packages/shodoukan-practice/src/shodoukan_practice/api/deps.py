@@ -25,7 +25,11 @@ from ..application.commands import (
     AddEntryToCollection,
     AddKanjiMeaning,
     AddKanjiToCollection,
+    AddSentence,
+    AddSentences,
+    AddSentenceWord,
     AnswerExerciseQuestion,
+    CorrectSentenceWord,
     CreateEntryCollection,
     CreateExercise,
     CreateKanjiCollection,
@@ -44,6 +48,8 @@ from ..application.commands import (
     ImportKanjiCollection,
     ImportPublicEntryCollection,
     ImportPublicKanjiCollection,
+    LinkSentenceWord,
+    MarkSentenceWord,
     PublishEntryCollection,
     PublishKanjiCollection,
     RemoveEntryExample,
@@ -56,6 +62,9 @@ from ..application.commands import (
     RemoveKanjiFromCollection,
     RemoveKanjiFromLibrary,
     RemoveKanjiMeaning,
+    RemoveSentence,
+    RemoveSentenceWord,
+    RewriteSentence,
     SetEntryActive,
     SetEntryNotes,
     SetEntryPartEnabled,
@@ -63,6 +72,8 @@ from ..application.commands import (
     SetKanjiNotes,
     SetKanjiPartEnabled,
     SetSenseNotes,
+    SetSentenceActive,
+    SetSentenceNotes,
     StartExerciseSession,
     UnpublishEntryCollection,
     UnpublishKanjiCollection,
@@ -73,6 +84,7 @@ from ..application.commands import (
     UpdateKanjiCollectionFromSource,
 )
 from ..application.queries import (
+    AnalyzeSentenceTexts,
     ExportEntryCollection,
     ExportKanjiCollection,
     GetDictionaryEntry,
@@ -89,6 +101,7 @@ from ..application.queries import (
     GetPracticeStatistics,
     GetPublicEntryCollection,
     GetPublicKanjiCollection,
+    GetSentence,
     LatestEntrySourceVersions,
     LatestKanjiSourceVersions,
     ListCollectionsOfEntry,
@@ -99,6 +112,7 @@ from ..application.queries import (
     ListExerciseSessions,
     ListKanjiCollections,
     ListKanjiForEntry,
+    ListSentencesOfEntry,
     PreviewPublicEntryCollection,
     PreviewPublicKanjiCollection,
     SearchDictionary,
@@ -106,14 +120,16 @@ from ..application.queries import (
     SearchKanji,
     SearchPublicEntryCollections,
     SearchPublicKanjiCollections,
+    SearchSentences,
 )
 from ..domain.entities import User
-from ..domain.gateways import DictionaryGateway, KanaGateway
+from ..domain.gateways import DictionaryGateway, KanaGateway, MorphologyGateway
 from ..infrastructure.db.connection import create_db_engine, create_session_factory
 from ..infrastructure.dictionary import (
     ShodoukanDictionaryGateway,
     ShodoukanKanaGateway,
 )
+from ..infrastructure.morphology import SudachiMorphologyGateway
 from ..infrastructure.repositories import (
     SqlAlchemyEntryCollectionRepository,
     SqlAlchemyExerciseRepository,
@@ -749,3 +765,147 @@ def _unauthorized(detail: str) -> HTTPException:
         detail=detail,
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+# --- Sentences ---
+
+
+@lru_cache(maxsize=1)
+def _get_morphology() -> SudachiMorphologyGateway:
+    # The Sudachi dictionary loads once per process (about 30 ms); each call
+    # makes its own tokenizer, so it's safe to share between threads.
+    return SudachiMorphologyGateway()
+
+
+def get_morphology_gateway() -> MorphologyGateway:
+    return _get_morphology()
+
+
+MorphologyDep = Annotated[MorphologyGateway, Depends(get_morphology_gateway)]
+
+
+def get_add_sentence(session: SessionDep, morphology: MorphologyDep) -> AddSentence:
+    return AddSentence(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_add_sentences(session: SessionDep, morphology: MorphologyDep) -> AddSentences:
+    return AddSentences(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_add_sentence_word(
+    session: SessionDep, morphology: MorphologyDep
+) -> AddSentenceWord:
+    return AddSentenceWord(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_correct_sentence_word(
+    session: SessionDep, morphology: MorphologyDep
+) -> CorrectSentenceWord:
+    return CorrectSentenceWord(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_link_sentence_word(
+    session: SessionDep, morphology: MorphologyDep
+) -> LinkSentenceWord:
+    return LinkSentenceWord(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_mark_sentence_word(
+    session: SessionDep, morphology: MorphologyDep
+) -> MarkSentenceWord:
+    return MarkSentenceWord(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_remove_sentence(
+    session: SessionDep, morphology: MorphologyDep
+) -> RemoveSentence:
+    return RemoveSentence(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_remove_sentence_word(
+    session: SessionDep, morphology: MorphologyDep
+) -> RemoveSentenceWord:
+    return RemoveSentenceWord(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_rewrite_sentence(
+    session: SessionDep, morphology: MorphologyDep
+) -> RewriteSentence:
+    return RewriteSentence(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_set_sentence_active(
+    session: SessionDep, morphology: MorphologyDep
+) -> SetSentenceActive:
+    return SetSentenceActive(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_set_sentence_notes(
+    session: SessionDep, morphology: MorphologyDep
+) -> SetSentenceNotes:
+    return SetSentenceNotes(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+        morphology,
+    )
+
+
+def get_get_sentence(session: SessionDep) -> GetSentence:
+    return GetSentence(SqlAlchemyPracticeSentenceRepository(session))
+
+
+def get_search_sentences(session: SessionDep) -> SearchSentences:
+    return SearchSentences(SqlAlchemyPracticeSentenceRepository(session))
+
+
+def get_list_sentences_of_entry(session: SessionDep) -> ListSentencesOfEntry:
+    return ListSentencesOfEntry(
+        SqlAlchemyPracticeSentenceRepository(session),
+        SqlAlchemyPracticeEntryRepository(session),
+    )
+
+
+def get_analyze_sentence_texts(
+    session: SessionDep, morphology: MorphologyDep
+) -> AnalyzeSentenceTexts:
+    return AnalyzeSentenceTexts(SqlAlchemyPracticeEntryRepository(session), morphology)

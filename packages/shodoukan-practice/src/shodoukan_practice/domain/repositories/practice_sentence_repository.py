@@ -1,10 +1,24 @@
 """Port for the sentences of the user's library."""
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
 from ..entities import PracticeSentence
+
+
+@dataclass(frozen=True)
+class SentenceSearch:
+    """Which of the user's sentences a list shows. `None` doesn't filter."""
+
+    # Part of the sentence or of a translation, as typed.
+    text: str | None = None
+    # Sentences with a word linked to this entry.
+    entry_id: int | None = None
+    # True: with a linked word; False: none linked ("unlinked").
+    linked: bool | None = None
+    active: bool | None = None
 
 
 class PracticeSentenceRepository(Protocol):
@@ -13,6 +27,16 @@ class PracticeSentenceRepository(Protocol):
     def for_entry(self, entry_id: int, user_id: UUID) -> list[PracticeSentence]:
         """The user's sentences with a word linked to entry `entry_id`, oldest
         first: "the sentences of a word"."""
+        ...
+
+    def find(
+        self, user_id: UUID, search: SentenceSearch, limit: int, offset: int
+    ) -> list[PracticeSentence]:
+        """The user's sentences matching `search`, newest first, paginated."""
+        ...
+
+    def count(self, user_id: UUID, search: SentenceSearch) -> int:
+        """How many sentences `find` pages through."""
         ...
 
     def imported_by_text(

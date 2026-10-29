@@ -1,14 +1,18 @@
 from collections.abc import Iterable
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, and_, exists, or_, select
+from sqlalchemy import ColumnElement, Select, and_, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ...domain.entities import PracticeSentence
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.repositories import PracticeSentenceRepository
+from ...domain.repositories import PracticeSentenceRepository, SentenceSearch
 from ..db.mappers import practice_sentence_to_db, practice_sentence_to_domain
-from ..db.orm import PracticeSentenceORM, PracticeSentenceWordORM
+from ..db.orm import (
+    PracticeSentenceORM,
+    PracticeSentenceTranslationORM,
+    PracticeSentenceWordORM,
+)
 
 _LOAD = (
     selectinload(PracticeSentenceORM.translations),
@@ -41,6 +45,24 @@ class SqlAlchemyPracticeSentenceRepository(PracticeSentenceRepository):
 
     def for_entry(self, entry_id: int, user_id: UUID) -> list[PracticeSentence]:
         return self._find(user_id, PracticeSentenceWordORM.entry_id == entry_id)
+
+    def find(
+        self, user_id: UUID, search: SentenceSearch, limit: int, offset: int
+    ) -> list[PracticeSentence]:
+        query = (
+            self._select(user_id)
+            .where(*self._filters(search))
+            .order_by(PracticeSentenceORM.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return [practice_sentence_to_domain(r) for r in self._session.scalars(query)]
+
+    def count(self, user_id: UUID, search: SentenceSearch) -> int:
+        query = select(func.count(PracticeSentenceORM.id)).where(
+            PracticeSentenceORM.user_id == user_id, *self._filters(search)
+        )
+        return self._session.scalar(query) or 0
 
     def imported_by_text(
         self, texts: Iterable[str], user_id: UUID
@@ -103,6 +125,33 @@ class SqlAlchemyPracticeSentenceRepository(PracticeSentenceRepository):
             .order_by(PracticeSentenceORM.id)
         )
         return [practice_sentence_to_domain(r) for r in self._session.scalars(query)]
+
+    def _filters(self, search: SentenceSearch) -> list[ColumnElement[bool]]:
+        filters: list[ColumnElement[bool]] = []
+        text = (search.text or "").strip().lower()
+        if text:
+            in_translation = exists().where(
+                PracticeSentenceTranslationORM.sentence_id == PracticeSentenceORM.id,
+                func.lower(PracticeSentenceTranslationORM.text).contains(
+                    text, autoescape=True
+                ),
+            )
+            filters.append(
+                or_(
+                    PracticeSentenceORM.text.contains(text, autoescape=True),
+                    in_translation,
+                )
+            )
+        if search.entry_id is not None:
+            filters.append(
+                self._has_word(PracticeSentenceWordORM.entry_id == search.entry_id)
+            )
+        if search.linked is not None:
+            linked = self._has_word(PracticeSentenceWordORM.entry_id.is_not(None))
+            filters.append(linked if search.linked else ~linked)
+        if search.active is not None:
+            filters.append(PracticeSentenceORM.is_active.is_(search.active))
+        return filters
 
     @staticmethod
     def _has_word(word: ColumnElement[bool]) -> ColumnElement[bool]:
