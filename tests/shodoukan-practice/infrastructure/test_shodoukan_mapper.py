@@ -90,7 +90,6 @@ def test_entry_keeps_every_language_and_marks_items_imported() -> None:
         ("comer", "spa"),
     ]
     assert all(g.origin == "imported" and g.enabled for g in sense.glosses)
-    assert [s.lang for s in sense.examples[0].sentences] == ["jpn", "eng"]
 
 
 def test_dictionary_ids_are_not_copied_to_nested_items() -> None:
@@ -100,7 +99,6 @@ def test_dictionary_ids_are_not_copied_to_nested_items() -> None:
     assert practice.readings[0].id is None
     assert sense.id is None
     assert sense.glosses[0].id is None
-    assert sense.examples[0].id is None
 
 
 def test_kanji_becomes_a_fresh_snapshot_for_the_user() -> None:

@@ -9,7 +9,7 @@ from uuid import UUID
 
 from ...domain.entities import EntryCollection, KanjiCollection
 from ...domain.exceptions import EntityNotFoundError
-from ...domain.gateways import DictionaryGateway
+from ...domain.gateways import DictionaryGateway, MorphologyGateway
 from ...domain.repositories import (
     EntryCollectionRepository,
     KanjiCollectionRepository,
@@ -17,6 +17,7 @@ from ...domain.repositories import (
     PracticeKanjiRepository,
     PracticeSentenceRepository,
 )
+from ...domain.services import prune_examples
 from ..queries.collection_queries import ExportEntryCollection, ExportKanjiCollection
 from .collection_commands import (
     CollectionImport,
@@ -42,16 +43,18 @@ class PublishEntryCollection:
         self,
         collections: EntryCollectionRepository,
         entries: PracticeEntryRepository,
+        sentences: PracticeSentenceRepository,
     ) -> None:
         self._collections = collections
         self._entries = entries
+        self._sentences = sentences
 
     def execute(
         self, user_id: UUID, collection_id: int, include_notes: bool
     ) -> EntryCollection:
-        shared = ExportEntryCollection(self._collections, self._entries).execute(
-            user_id, collection_id, active_only=True, include_notes=include_notes
-        )
+        shared = ExportEntryCollection(
+            self._collections, self._entries, self._sentences
+        ).execute(user_id, collection_id, active_only=True, include_notes=include_notes)
         collection = entry_collection(self._collections, collection_id, user_id)
         collection.publish()
         collection = self._collections.update(collection)
@@ -126,11 +129,13 @@ class ImportPublicEntryCollection:
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
         sentences: PracticeSentenceRepository,
+        morphology: MorphologyGateway,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
         self._sentences = sentences
+        self._morphology = morphology
 
     def execute(
         self, user_id: UUID, collection_id: int
@@ -141,7 +146,11 @@ class ImportPublicEntryCollection:
             raise EntityNotFoundError(f"public collection {collection_id} not found")
         version = source.published_version
         result = ImportEntryCollection(
-            self._dictionary, self._entries, self._collections, self._sentences
+            self._dictionary,
+            self._entries,
+            self._collections,
+            self._sentences,
+            self._morphology,
         ).execute(user_id, shared, source=source)
         if user_id != source.user_id:
             self._collections.record_download(source, user_id, version)
@@ -188,7 +197,9 @@ class UpdateEntryCollectionFromSource:
     follows it, what the user touched or added is theirs. New items and parts
     are imported as an import does; the source's dropped items leave the
     collection (never the library) and its dropped parts, if untouched, leave
-    the word (`PracticeEntry.prune_source`). What the user took out of the
+    the word (`PracticeEntry.prune_source`), and so do the sentences it
+    brought, untouched, that it no longer has (`prune_examples`). What the
+    user took out of the
     copy (`dismiss_item`) or deleted from a word (`dismissed_parts`) isn't
     brought back. The user's download row takes the new version (it isn't
     another download). Nothing changes if the copy is up to date. A source that's
@@ -201,11 +212,13 @@ class UpdateEntryCollectionFromSource:
         entries: PracticeEntryRepository,
         collections: EntryCollectionRepository,
         sentences: PracticeSentenceRepository,
+        morphology: MorphologyGateway,
     ) -> None:
         self._dictionary = dictionary
         self._entries = entries
         self._collections = collections
         self._sentences = sentences
+        self._morphology = morphology
 
     def execute(
         self, user_id: UUID, collection_id: int
@@ -226,7 +239,11 @@ class UpdateEntryCollectionFromSource:
         dismissed = self._collections.dismissed_items(copy)
         items = [item for item in shared.items if item.key not in dismissed]
         importer = ImportEntryCollection(
-            self._dictionary, self._entries, self._collections, self._sentences
+            self._dictionary,
+            self._entries,
+            self._collections,
+            self._sentences,
+            self._morphology,
         )
         for _, entry in importer.copy_items(
             user_id, items, source.id, result, prune=True
@@ -238,6 +255,14 @@ class UpdateEntryCollectionFromSource:
             if entry.shared_key not in keys:
                 self._collections.remove_item(copy, entry)
                 result.removed += 1
+        if source.id is not None:
+            changed, removed = prune_examples(
+                self._sentences.copies(user_id), shared, source.id
+            )
+            for sentence in changed:
+                self._sentences.update(sentence)
+            for sentence in removed:
+                self._sentences.delete(sentence)
         copy.follow_source(version)
         result.collection = self._collections.update(copy)
         # The user now has this version: what the public listing shows them.

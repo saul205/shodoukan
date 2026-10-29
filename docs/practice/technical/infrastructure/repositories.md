@@ -35,7 +35,7 @@ collection's owner. Reading another user's item returns `None`.
 ## Loading
 
 The nested snapshot is loaded eagerly with `selectinload`, one query per level
-(entry → readings, senses → glosses, examples → sentences), so lists don't trigger
+(entry → readings, senses → glosses), so lists don't trigger
 N+1 queries.
 
 `study_texts` doesn't load the snapshot: it selects columns only, one query per part

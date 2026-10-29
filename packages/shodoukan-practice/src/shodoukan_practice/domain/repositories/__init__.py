@@ -20,7 +20,7 @@ from .exercise_statistics_repository import (
 from .kanji_collection_repository import KanjiCollectionRepository
 from .practice_entry_repository import EntryStudyText, PracticeEntryRepository
 from .practice_kanji_repository import KanjiStudyText, PracticeKanjiRepository
-from .practice_sentence_repository import PracticeSentenceRepository
+from .practice_sentence_repository import PracticeSentenceRepository, SentenceSearch
 from .user_repository import UserRepository
 
 __all__ = [
@@ -39,6 +39,7 @@ __all__ = [
     "PracticeEntryRepository",
     "PracticeKanjiRepository",
     "PracticeSentenceRepository",
+    "SentenceSearch",
     "SessionSummary",
     "UserRepository",
 ]

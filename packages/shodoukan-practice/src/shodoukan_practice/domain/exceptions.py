@@ -64,3 +64,9 @@ class InvalidAnswerError(ValueError):
 class SessionAlreadyOpenError(ValueError):
     """The user already has an open exercise session (one was started
     meanwhile); a user studies one session at a time."""
+
+
+class SentenceWordError(ValueError):
+    """A word of a sentence that can't be: a span outside the sentence or over
+    another word, an analysis of a word without a span, a lemma or reading
+    that isn't one."""

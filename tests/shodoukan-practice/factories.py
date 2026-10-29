@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from functools import cache
 from random import Random
 from uuid import UUID
 
@@ -25,8 +26,6 @@ from shodoukan_practice.domain.entities import (
     OptionAnswer,
     Point,
     PracticeEntry,
-    PracticeExample,
-    PracticeExampleSentence,
     PracticeGloss,
     PracticeKanji,
     PracticeKanjiMeaning,
@@ -43,6 +42,7 @@ from shodoukan_practice.domain.entities import (
     WordGrade,
     WordHandwritingQuestion,
 )
+from shodoukan_practice.infrastructure.morphology import SudachiMorphologyGateway
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -80,16 +80,6 @@ def make_entry(
                 glosses=[
                     PracticeGloss(id=None, text="to eat", lang="eng", type=None),
                 ],
-                examples=[
-                    PracticeExample(
-                        id=None,
-                        text="",
-                        sentences=[
-                            PracticeExampleSentence(lang="jpn", text="ご飯を食べる。"),
-                            PracticeExampleSentence(lang="eng", text="Eat rice."),
-                        ],
-                    ),
-                ],
             ),
             # Like JMDict, each language's meanings are in senses of their own.
             PracticeSense(
@@ -101,7 +91,6 @@ def make_entry(
                 glosses=[
                     PracticeGloss(id=None, text="comer", lang="spa", type=None),
                 ],
-                examples=[],
             ),
         ],
         jlpt=5,
@@ -180,7 +169,6 @@ def make_word(
                     PracticeGloss(id=None, text=text, lang=lang, type=None)
                     for text, lang in meanings
                 ],
-                examples=[],
             )
         ],
         jlpt=None,
@@ -547,3 +535,9 @@ def hand_drawn(
 
 def kanjivg_strokes(literal: str) -> list[tuple[Point, ...]]:
     return [s.points for s in kanjivg_reference(literal).strokes]
+
+
+@cache
+def sudachi() -> SudachiMorphologyGateway:
+    """The real analyzer, loaded once (its dictionary takes a moment)."""
+    return SudachiMorphologyGateway()

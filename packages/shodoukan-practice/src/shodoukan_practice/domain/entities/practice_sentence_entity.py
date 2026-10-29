@@ -20,8 +20,16 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ..exceptions import OriginalDataError
-from .nested_item_lookup import SourceRef, clean_kana, clean_sentence, find_item
+from ..exceptions import OriginalDataError, SentenceWordError
+from .nested_item_lookup import (
+    SourceRef,
+    Version,
+    brought_by,
+    clean_kana,
+    clean_sentence,
+    find_item,
+    identity,
+)
 from .notes_value import Notes, parse_notes
 from .practice_entry_entity import JAPANESE, Origin
 from .timestamped_entity import TimestampedEntity
@@ -136,6 +144,38 @@ class PracticeSentence(TimestampedEntity):
         return sentence
 
     @classmethod
+    def copied(
+        cls,
+        user_id: UUID,
+        text: str,
+        translations: Sequence[SentenceTranslation],
+        *,
+        is_active: bool,
+        original_id: int | None,
+        source_id: int | None,
+        edited_id: int | None,
+        revision: int,
+        source: SourceRef | None,
+    ) -> Self:
+        """A copy of someone's own sentence (shared with a collection): the
+        user's, remembering the sentence all copies share (`original_id`),
+        the row it came from and its version, and the collection that brings
+        it. Its words are added by whoever copies it."""
+        return cls(
+            id=None,
+            user_id=user_id,
+            text=clean_sentence(text),
+            translations=[t for t in translations if t.lang != JAPANESE],
+            is_active=is_active,
+            origin="added",
+            original_id=original_id,
+            source_id=source_id,
+            edited_id=edited_id if edited_id is not None else source_id,
+            revision=revision,
+            source_collection_ids=brought_by(source),
+        )
+
+    @classmethod
     def create_own(
         cls, user_id: UUID, text: str, translation: str | None, lang: str
     ) -> Self:
@@ -152,6 +192,46 @@ class PracticeSentence(TimestampedEntity):
     @property
     def is_own(self) -> bool:
         return self.origin == "added"
+
+    @property
+    def identity(self) -> int | None:
+        """The sentence all copies of this one share."""
+        return identity(self)
+
+    @property
+    def version(self) -> Version | None:
+        """The version of its content: the row that wrote it, and its
+        revision there (as for an entry's parts)."""
+        row = self.edited_id if self.edited_id is not None else self.id
+        return None if row is None else (row, self.revision)
+
+    def brought_by(self, source: SourceRef) -> bool:
+        """Remember one more collection that brings this copy (a sentence
+        the user wrote or edited isn't anyone's to bring). Returns whether
+        anything changed."""
+        if self.edited_id is None or source in self.source_collection_ids:
+            return False
+        self.source_collection_ids = [*self.source_collection_ids, source]
+        self.touch()
+        return True
+
+    def untouched_from(self, source: int) -> bool:
+        """Whether that collection brings it and the user hasn't edited it."""
+        return (
+            self.is_own
+            and source in self.source_collection_ids
+            and self.edited_id is not None
+        )
+
+    def let_go(self, source: int) -> bool:
+        """The collection no longer brings it. Returns whether nothing does
+        any more (the copy can go)."""
+        if source in self.source_collection_ids:
+            self.source_collection_ids = [
+                s for s in self.source_collection_ids if s != source
+            ]
+            self.touch()
+        return not self.source_collection_ids
 
     def surface(self, word: SentenceWord) -> str | None:
         """The text of the word in the sentence, if it has a span."""
@@ -213,10 +293,24 @@ class PracticeSentence(TimestampedEntity):
         end: int | None,
         entry_id: int | None = None,
         sense_id: int | None = None,
+        analysis: tuple[str, str, Sequence[str], Inflection | None] | None = None,
     ) -> SentenceWord:
-        """Mark a word of the sentence, linked or not (no id until stored)."""
+        """Mark a word of the sentence, linked or not (no id until stored),
+        with its `(lemma, reading, pos, inflection)` if known (a copy brings
+        its owner's)."""
+        if analysis is not None and start is None:
+            raise SentenceWordError("only a word with a span can be analyzed")
+        lemma, reading, pos, inflection = analysis or (None, None, (), None)
         word = SentenceWord(
-            id=None, start=start, end=end, entry_id=entry_id, sense_id=sense_id
+            id=None,
+            start=start,
+            end=end,
+            lemma=lemma,
+            reading=reading,
+            pos=list(pos),
+            inflection=inflection,
+            entry_id=entry_id,
+            sense_id=sense_id,
         )
         self._set_words([*self.words, word])
         return word
@@ -248,7 +342,12 @@ class PracticeSentence(TimestampedEntity):
 
     def mark_word(self, word_id: int, start: int, end: int) -> None:
         """Set where a word is in the sentence; a new span drops its analysis."""
-        word = self._word(word_id)
+        self.mark_word_at(self._position(word_id), start, end)
+
+    def mark_word_at(self, position: int, start: int, end: int) -> None:
+        """`mark_word` for the word at `position` (one not stored yet has no
+        id)."""
+        word = self.words[position]
         if (word.start, word.end) == (start, end):
             return
         moved = _unanalyzed(word, start, end)
@@ -277,9 +376,20 @@ class PracticeSentence(TimestampedEntity):
         inflection: Inflection | None,
     ) -> None:
         """Store what the analyzer says about a word with a span."""
-        word = self._word(word_id)
+        self.analyze_word_at(self._position(word_id), lemma, reading, pos, inflection)
+
+    def analyze_word_at(
+        self,
+        position: int,
+        lemma: str,
+        reading: str,
+        pos: Sequence[str],
+        inflection: Inflection | None,
+    ) -> None:
+        """`analyze_word` for the word at `position`."""
+        word = self.words[position]
         if not word.has_span:
-            raise ValueError("only a word with a span can be analyzed")
+            raise SentenceWordError("only a word with a span can be analyzed")
         values = (lemma, reading, list(pos), inflection)
         if (word.lemma, word.reading, word.pos, word.inflection) != values:
             word.lemma, word.reading, word.pos, word.inflection = values
@@ -291,8 +401,11 @@ class PracticeSentence(TimestampedEntity):
         word = self._word(word_id)
         lemma = lemma.strip()
         if not lemma:
-            raise ValueError("a word's lemma can't be empty")
-        reading = clean_kana(reading)
+            raise SentenceWordError("a word's lemma can't be empty")
+        try:
+            reading = clean_kana(reading)
+        except ValueError as error:
+            raise SentenceWordError(str(error)) from error
         if (word.lemma, word.reading) != (lemma, reading):
             word.lemma = lemma
             word.reading = reading
@@ -300,6 +413,10 @@ class PracticeSentence(TimestampedEntity):
 
     def _word(self, word_id: int) -> SentenceWord:
         return find_item(self.words, word_id, "sentence word")
+
+    def _position(self, word_id: int) -> int:
+        word = self._word(word_id)
+        return next(i for i, w in enumerate(self.words) if w is word)
 
     def _set_words(self, words: list[SentenceWord]) -> None:
         # Checked first: a failed assignment would still be applied.
@@ -314,10 +431,10 @@ def _check_spans(text: str, words: Sequence[SentenceWord]) -> None:
         (w.start, w.end) for w in words if w.start is not None and w.end is not None
     )
     if spans and max(end for _, end in spans) > len(text):
-        raise ValueError("a word's span is outside the sentence")
+        raise SentenceWordError("a word's span is outside the sentence")
     for (_, end), (start, _) in pairwise(spans):
         if start < end:
-            raise ValueError("two words of a sentence can't overlap")
+            raise SentenceWordError("two words of a sentence can't overlap")
 
 
 def _changed(word: SentenceWord, **changes: object) -> SentenceWord:

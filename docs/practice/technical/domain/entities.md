@@ -13,7 +13,7 @@ All entities are Pydantic models. Aggregate roots inherit
 | Aggregate | Module | Key fields |
 |---|---|---|
 | `User` | `user_entity.py` | `id: UUID`, the identity provider's user id (the token's `sub`), so practice users map 1:1 to provider users; `username` (display name from the provider, not unique) |
-| `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id` (`None` for a word of the user's own; `is_own`), `kanji_readings`, `readings`, `senses` → `glosses`, `examples` → `sentences`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes` |
+| `PracticeEntry` | `practice_entry_entity.py` | `user_id` (UUID), `source_entry_id` (`None` for a word of the user's own; `is_own`), `kanji_readings`, `readings`, `senses` → `glosses`, `jlpt`, `is_common`, `is_active`, `notes`; each sense has its own `notes`. Its example sentences are [sentences](#sentences) of the library linked to it |
 | `PracticeSentence` | `practice_sentence_entity.py` | `user_id`, `text` (Japanese), `translations`, `words` (the words it uses, see [sentences](#sentences)), `is_active`, `notes`, `origin` (`"imported"` from JMDict, `"added"` the user's own), and the copy and version fields of an entry's parts |
 | `PracticeKanji` | `practice_kanji_entity.py` | `user_id`, `literal`, `on_readings`, `kun_readings`, `nanori`, `meanings`, `grade`, `stroke_count`, `freq`, `jlpt`, `is_active`, `notes` |
 | `Collection` → `EntryCollection`, `KanjiCollection` | `collection_entity.py` | `user_id`, `name` (1–100 characters, `COLLECTION_NAME_MAX_LENGTH`, unique per user and kind), `description`; sharing: `is_public`, `published_version` (0 if never), `published_at`; a copy's `source_collection_id`, `source_version` |
@@ -36,12 +36,12 @@ doesn't have, such as counters with their numbers (三匹).
 
 On top of the snapshot:
 
-- `enabled: bool` on readings, kanji spellings, senses, glosses, examples, kanji
-  reading items and kanji meanings: the user can hide individual parts. A disabled
-  sense hides its glosses and examples without changing their own flags, so a gloss
-  counts only when `sense.enabled and gloss.enabled`.
-- `origin: "imported" | "added"` on spellings, readings, senses, glosses, examples and
-  kanji meanings: the user can add their own, and they stay distinguishable from
+- `enabled: bool` on readings, kanji spellings, senses, glosses, kanji reading items
+  and kanji meanings: the user can hide individual parts. A disabled sense hides its
+  glosses without changing their own flags, so a gloss counts only when
+  `sense.enabled and gloss.enabled`.
+- `origin: "imported" | "added"` on spellings, readings, senses, glosses, kanji
+  meanings and sentences: the user can add their own, and they stay distinguishable from
   imported ones.
 - `notes` on the entry, on each of its senses, and on the kanji: the user's own
   free text (`Notes` in `notes_value.py`: stripped, blank becomes `None`, at most
@@ -52,11 +52,11 @@ On top of the snapshot:
 - Where a copy came from (see [sharing](#sharing-shared_collection_valuepy)):
   `original_id` (identity) and `source_id` (the row it was copied from) on the parts
   the user can add, senses and words of the user's own, plus `edited_id` (the version)
-  on parts with content (spellings, readings, glosses, examples, kanji meanings);
+  on parts with content (spellings, readings, glosses, kanji meanings, and sentences);
   `source_collection_id` on collections; parts with content also record the
   collections that bring them (`source_collection_ids`: the one they were copied
   with, and any other followed collection found to bring the same version). `None` is the row itself. Editing a meaning or
-  an example sets `edited_id = None`: that version is now the user's.
+  a sentence sets `edited_id = None`: that version is now the user's.
   `PracticeEntry.identity` is `original_id`, or `id` for an original.
 
 `PracticeKanjiReading` (a word's kanji spelling, e.g. 食べる) isn't the same as
@@ -78,8 +78,8 @@ On top of the snapshot:
 
 A sentence is an item of the library, not a part of a word: it can use several of the
 user's words, and a word has as many sentences as the user gives it
-([proposal](../../proposals/sentences.md)). Being built: until #97, words still carry
-their `examples`, which #96 also converts into sentences.
+([proposal](../../proposals/sentences.md)). They replace the examples words used to
+carry (migration `37c04a6faa6f` converted them, keeping their ids).
 
 - **`words`** (`SentenceWord`): where the word is (`start`, `end`, character offsets;
   both or neither), what the analyzer says (`lemma`, `reading`, `pos`, `inflection`;
@@ -105,8 +105,33 @@ their `examples`, which #96 also converts into sentences.
   loses span and analysis and stays linked. Each rewrite is a new version
   (`revision`, `edited_id = None`), as with an entry's own parts.
 - `activate` / `deactivate`, `set_notes`.
+- Copies: `copied(...)` (a copy of someone's own sentence, remembering its identity,
+  the row it came from, its version and the collection that brings it), `identity`,
+  `version` (`(edited_id or id, revision)`), `brought_by(source)`,
+  `untouched_from(source)`, `let_go(source)` (true when nothing brings it any more).
+  `add_word` takes the word's analysis too, for a copy that brings its owner's.
 - `Inflection(endings, form)` is the form of a gap, computed by
   [`inflection_service`](services-and-errors.md#inflection_service-the-form-of-a-word-in-a-sentence).
+
+## Sentences in a collection
+
+A word's sentences travel in its exported or published collection as its `examples`,
+under the sense their word is linked to, as examples did before sentences
+(`sentence_sharing_service`). So files and publications made before still import, and
+the identities and versions they carry still match the converted sentences. Each
+carries its gap and analysis for that word (`SharedExample.word`, absent in older
+files: the word is then linked without a gap, and the analyzer finds it). A sentence
+of two words travels with both, and the importer stores it once:
+
+- **A dictionary sentence** is only located: the user's sentence with the same text
+  (a word imported from the dictionary brings its own), then linked to the word; its
+  `is_active` is taken only when the word was created by the import.
+- **Someone's own sentence** is copied (`PracticeSentence.copied`) unless the user
+  has that version already: then it's linked to the word too, and remembers one more
+  collection that brings it. One the user removed (`dismiss_example`) isn't brought
+  back.
+- **An update from the source** lets go of the copies it brought, untouched, that its
+  new version doesn't have; one nothing brings any more is removed.
 
 ## Exercises
 
@@ -215,8 +240,10 @@ file format. The contract is in the
   table).
 - `SharedEntry`: `id`, `original_id`, `source_entry_id` (`None` for a word of the
   owner's own, which then has only `added` parts and at least one reading),
-  `is_active`, `notes`, `spellings`, `readings`, `senses` → `glosses`, `examples` →
-  `sentences`. `SharedKanji`: `literal`, `is_active`, `notes`, `on_readings` /
+  `is_active`, `notes`, `spellings`, `readings`, `senses` → `glosses`, `examples`
+  (the word's sentences linked to that sense: `SharedExample`, with `sentences`, the
+  Japanese and its translations, and `word`, its gap and analysis; see
+  [sentences in a collection](#sentences-in-a-collection)). `SharedKanji`: `literal`, `is_active`, `notes`, `on_readings` /
   `kun_readings` / `nanori` (`SharedKanjiReading(text, enabled)`), `meanings`.
 - Every part is a `SharedPart`: `origin`, `id`, `original_id` (its `identity`),
   `enabled`; parts with content are `SharedContent`, with `edited_id` (its `version`).
@@ -233,6 +260,12 @@ Aggregate methods:
   shared copy adds; the parts it copies record the collection they came with in
   `source_collection_ids`, and a copy already there in that version gains it too. Parts in `dismissed_parts` are
   skipped.
+- `shared_sense_ids(shared) -> list[int | None]`: for each sense of a shared copy of
+  the word, the id of the user's sense it is (imported ones by place, checked by their
+  first meaning; own ones by identity): what its sentences are linked to.
+- `dismiss_example(sentence) -> bool`: remembers a copied sentence the user removed
+  (`example:<identity>` in `dismissed_parts`), so the word's source doesn't bring it
+  back.
 - `prune_source(shared, source_collection_id) -> bool` (#90): the collection lets go
   of the parts it brought, untouched (`edited_id` still set), that the shared item no
   longer has (by version): it leaves their `source_collection_ids`, and a part no
@@ -283,15 +316,14 @@ Current methods:
 | `ExerciseSession` | `ask(question)`, `answer(question_id, answer, response_ms)`, `finish()`, `close_at_last_activity()`, `close_if_idle(now)` (the last two don't touch) |
 | `Exercise` | `rename(name)`, `describe(description)`, `configure(settings)`, `use_collections(collection_ids)` (keeps order, drops duplicates) |
 | `PracticeEntry`, `PracticeKanji` | `activate()`, `deactivate()`, `set_notes(notes)`, `set_enabled(part, item_id, enabled)`, `merge_shared(shared, created)` |
-| `PracticeEntry` | `create_own(...)` and `from_shared(...)` (class methods), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `add_example(sense_id, japanese, translation, lang)`, `edit_example(example_id, japanese, translation, lang)`, `remove_example(example_id)` |
+| `PracticeEntry` | `create_own(...)` and `from_shared(...)` (class methods), `add_spelling(kanji)`, `remove_spelling(spelling_id)`, `add_reading(text)`, `remove_reading(reading_id)`, `set_sense_notes(sense_id, notes)`, `add_sense(text, lang)` (with its first gloss), `remove_sense(sense_id)`, `add_gloss(sense_id, text, lang)`, `edit_gloss(gloss_id, text)`, `remove_gloss(gloss_id)`, `dismiss_example(sentence)` |
 | `PracticeKanji` | `add_meaning(text, lang)`, `edit_meaning(meaning_id, text)`, `remove_meaning(meaning_id)` |
 
-`part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"senses"`, `"glosses"`,
-`"examples"`)
+`part` is an `EntryPart` (`"kanji_readings"`, `"readings"`, `"senses"`, `"glosses"`)
 or a `KanjiPart` (`"readings"`, covering on, kun and nanori, or `"meanings"`). A nested
 id that isn't there raises `EntityNotFoundError`. Nested models don't validate on
 assignment, so notes go through `parse_notes` and meaning texts through
-`clean_meaning`, example sentences through `clean_sentence` (`nested_item_lookup.py`).
+`clean_meaning`, sentences through `clean_sentence` (`nested_item_lookup.py`).
 
 ## Customisation rules
 
@@ -299,20 +331,18 @@ The library copy keeps the dictionary's data intact; the user layers their choic
 top:
 
 - **Dictionary data is never edited or deleted, only disabled.** That covers every
-  reading, spelling, example and imported (`origin="imported"`) sense and meaning.
+  reading, spelling, dictionary sentence (only deactivated) and imported (`origin="imported"`) sense and meaning.
   Editing or removing an imported spelling, reading, sense or meaning raises
   `OriginalDataError`.
 - **Senses of their own.** The user adds a sense (`origin="added"`, appended to the
   entry, `pos` / `misc` empty) with its first meaning, so it's never empty, and can
-  remove it with its meanings and examples. Imported senses take own meanings too.
-- **Examples of their own.** Like the dictionary's, they belong to a sense: a Japanese
-  sentence (`lang="jpn"`) and optionally a translation in the user's language (ISO
-  639-2). `text`, JMDict's form of the word in the sentence, is empty. Editing replaces
-  the Japanese sentence and the translation in that language (a blank one removes it)
-  and keeps the other translations. Only own examples are edited or removed.
+  remove it with its meanings (its sentences stay, linked to the word). Imported senses
+  take own meanings too.
+- **Sentences of their own** are the library's sentences (`PracticeSentence.create_own`),
+  linked to the word: see [sentences](#sentences).
 - **A sense keeps one meaning, in one language.** Removing a sense's only meaning
-  raises `LastMeaningError`: an empty sense shows in no language, and its examples
-  and note couldn't be reached. The user edits it, or removes the whole own sense.
+  raises `LastMeaningError`: an empty sense shows in no language, and its note
+  couldn't be reached. The user edits it, or removes the whole own sense.
   Like JMDict's (no sense in the dictionary mixes languages), a sense's meanings are
   all in one language: adding one in another raises `SenseLanguageError`.
 - **Meanings are an editable list.** The user adds meanings of their own

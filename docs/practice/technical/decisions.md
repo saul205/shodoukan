@@ -997,3 +997,27 @@ and generating grammar questions (particles, patterns) from the analysis: their
 correctness can't be guaranteed, so grammar will get written, reviewed exercises of
 its own ([proposal](../proposals/sentences.md#decisions)).
 
+## Sentences travel as a word's examples
+
+A collection's file or publication carries each word's sentences as its senses'
+`examples`, the format examples had, with one optional field more: the gap of that
+word (`word`). The converted sentences kept their examples' ids, so the identities and
+versions in files and publications made before sentences still match them: an old file
+still imports, an update from a source published before still finds what it brought,
+and `example:<identity>` dismissals still apply. A sentence of two words travels twice,
+once with each, and the importer stores it once (by version for copies, by text for
+dictionary sentences) and links it to both.
+
+Ruled out: a list of sentences at the collection's level. It reads better, but every
+existing file and publication would need converting, the format's version would
+change, and importing would need its own way to relink sentences to words that is
+already what travelling with the word gives.
+
+## Imports analyze the sentences they bring
+
+Importing a word (from the dictionary, a file or a public collection) stores its
+sentences with their gap, and completes them with the analyzer in the same request
+(`save_sentences`), so an imported word's gaps can be asked at once. The import use
+cases take the morphology gateway for it. The analyzer costs about 0.1 ms a sentence;
+the maintenance command `analyze-sentences` is only for data converted by a migration.
+

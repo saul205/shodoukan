@@ -11,6 +11,7 @@ from ...domain.gateways import (
     DictionaryKanji,
     DictionaryKanjiStrokes,
     DictionarySearchResult,
+    NewPracticeEntry,
 )
 from .shodoukan_mapper import (
     shodoukan_entry_page_to_dictionary,
@@ -29,6 +30,20 @@ class ShodoukanDictionaryGateway(DictionaryGateway):
 
     def __init__(self, dictionary: Dictionary) -> None:
         self._dictionary = dictionary
+
+    def new_practice_entry_with_examples(
+        self, source_entry_id: int, user_id: UUID
+    ) -> NewPracticeEntry | None:
+        entry = self._dictionary.get_entry(source_entry_id)
+        if entry is None:
+            return None
+        return NewPracticeEntry(
+            entry=shodoukan_entry_to_practice(entry, user_id),
+            sense_examples=[
+                list(sense.examples)
+                for sense in shodoukan_entry_to_dictionary(entry).senses
+            ],
+        )
 
     def new_practice_entry(
         self, source_entry_id: int, user_id: UUID

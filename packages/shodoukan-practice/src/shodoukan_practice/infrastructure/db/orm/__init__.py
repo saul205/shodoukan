@@ -29,8 +29,6 @@ from .practice_entry_orm import (
     PracticeEntryKanjiReadingORM,
     PracticeEntryORM,
     PracticeEntryReadingORM,
-    PracticeExampleORM,
-    PracticeExampleSentenceORM,
     PracticeGlossORM,
     PracticeSenseORM,
 )
@@ -60,8 +58,6 @@ __all__ = [
     "PracticeEntryKanjiReadingORM",
     "PracticeEntryORM",
     "PracticeEntryReadingORM",
-    "PracticeExampleORM",
-    "PracticeExampleSentenceORM",
     "PracticeGlossORM",
     "PracticeKanjiMeaningORM",
     "PracticeKanjiORM",

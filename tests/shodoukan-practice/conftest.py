@@ -23,13 +23,14 @@ from shodoukan_practice.api.deps import (
 )
 from shodoukan_practice.infrastructure.db.orm import Base, UserORM
 from shodoukan_practice.infrastructure.dictionary import ShodoukanDictionaryGateway
+from shodoukan_practice.infrastructure.morphology import SudachiMorphologyGateway
 
 # Make the local helpers (`factories`, `tokens`) and the core `db_helpers` importable.
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from db_helpers import SCHEMA, seed  # type: ignore[import-not-found]
-from factories import OTHER_USER_ID, TIMESTAMPS, USER_ID
+from factories import OTHER_USER_ID, TIMESTAMPS, USER_ID, sudachi
 from tokens import DEFAULT_SUBJECT, ISSUER, TokenFactory
 
 
@@ -129,6 +130,12 @@ def verifier(signing_key: rsa.RSAPrivateKey) -> TokenVerifier:
     return TokenVerifier(
         issuer=ISSUER, audience=None, key_for_token=lambda _: public_key
     )
+
+
+@pytest.fixture(scope="session")
+def morphology() -> SudachiMorphologyGateway:
+    """The real analyzer; its dictionary loads once for the whole run."""
+    return sudachi()
 
 
 @pytest.fixture

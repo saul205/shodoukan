@@ -13,7 +13,6 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
-    field_validator,
 )
 
 from ...domain.entities import NOTES_MAX_LENGTH
@@ -129,25 +128,6 @@ SentenceText = Annotated[
 ]
 
 
-class ExampleRequest(BaseModel):
-    japanese: SentenceText
-    translation: str | None = Field(
-        default=None, max_length=500, description="Blank or null for none."
-    )
-    lang: str = Field(
-        pattern="^[a-z]{3}$",
-        description="The translation's language, ISO 639-2 (e.g. `eng`, `spa`); "
-        "not `jpn`, the sentence's own.",
-    )
-
-    @field_validator("lang")
-    @classmethod
-    def _not_japanese(cls, lang: str) -> str:
-        if lang == "jpn":
-            raise ValueError("the translation can't be in Japanese")
-        return lang
-
-
 class _Response(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -161,19 +141,6 @@ class GlossResponse(_Response):
     origin: Origin
 
 
-class ExampleSentenceResponse(_Response):
-    lang: str
-    text: str
-
-
-class ExampleResponse(_Response):
-    id: int
-    text: str
-    sentences: list[ExampleSentenceResponse]
-    enabled: bool
-    origin: Origin
-
-
 class SenseResponse(_Response):
     id: int
     pos: list[str]
@@ -181,7 +148,6 @@ class SenseResponse(_Response):
     dialects: list[str]
     info: list[str]
     glosses: list[GlossResponse]
-    examples: list[ExampleResponse]
     notes: str | None
     enabled: bool
     origin: Origin

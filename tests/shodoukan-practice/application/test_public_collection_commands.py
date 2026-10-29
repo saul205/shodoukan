@@ -1,8 +1,10 @@
 import pytest
+from factories import sudachi
 from sqlalchemy.orm import Session
 
 from shodoukan import Dictionary
 from shodoukan_practice.application.commands import (
+    AddSentence,
     CollectionUpdate,
     CreateEntryCollection,
     ImportEntry,
@@ -10,6 +12,7 @@ from shodoukan_practice.application.commands import (
     PublishEntryCollection,
     RemoveEntryFromCollection,
     RemoveEntryFromLibrary,
+    RemoveSentence,
     UnpublishEntryCollection,
     UpdateEntryCollectionFromSource,
 )
@@ -52,7 +55,11 @@ def verbs(
     which they deactivated."""
     collection = CreateEntryCollection(collections).execute(user.id, "verbs")
     importer = ImportEntry(
-        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        gateway,
+        entries,
+        collections,
+        SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     )
     eat = importer.execute(user.id, 1000001, [collection.id or 0]).item
     eat.set_notes("my note")
@@ -65,44 +72,47 @@ def verbs(
 
 
 def publish(
+    session: Session,
     collections: SqlAlchemyEntryCollectionRepository,
     entries: SqlAlchemyPracticeEntryRepository,
     user: UserORM,
     collection: EntryCollection,
     include_notes: bool = False,
 ) -> EntryCollection:
-    return PublishEntryCollection(collections, entries).execute(
-        user.id, collection.id or 0, include_notes
-    )
+    return PublishEntryCollection(
+        collections, entries, SqlAlchemyPracticeSentenceRepository(session)
+    ).execute(user.id, collection.id or 0, include_notes)
 
 
 def test_publish_snapshots_the_active_items_without_notes(
+    session: Session,
     collections: SqlAlchemyEntryCollectionRepository,
     entries: SqlAlchemyPracticeEntryRepository,
     verbs: EntryCollection,
     user: UserORM,
 ) -> None:
-    published = publish(collections, entries, user, verbs)
+    published = publish(session, collections, entries, user, verbs)
 
     assert (published.is_public, published.published_version) == (True, 1)
     snapshot = collections.get_publication(published)
     assert snapshot is not None
     assert [i.source_entry_id for i in snapshot.items] == [1000001]
     assert snapshot.items[0].notes is None
-    with_notes = publish(collections, entries, user, verbs, include_notes=True)
+    with_notes = publish(session, collections, entries, user, verbs, include_notes=True)
     assert with_notes.published_version == 2
     snapshot = collections.get_publication(with_notes)
     assert snapshot is not None and snapshot.items[0].notes == "my note"
 
 
 def test_publishing_someone_elses_collection_fails(
+    session: Session,
     collections: SqlAlchemyEntryCollectionRepository,
     entries: SqlAlchemyPracticeEntryRepository,
     verbs: EntryCollection,
     other_user: UserORM,
 ) -> None:
     with pytest.raises(EntityNotFoundError):
-        publish(collections, entries, other_user, verbs)
+        publish(session, collections, entries, other_user, verbs)
 
 
 def test_import_public_records_the_download_and_the_source(
@@ -114,9 +124,13 @@ def test_import_public_records_the_download_and_the_source(
     user: UserORM,
     other_user: UserORM,
 ) -> None:
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
     importer = ImportPublicEntryCollection(
-        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        gateway,
+        entries,
+        collections,
+        SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     )
 
     result = importer.execute(other_user.id, verbs.id or 0)
@@ -146,12 +160,16 @@ def test_a_private_collection_cant_be_imported(
     other_user: UserORM,
 ) -> None:
     importer = ImportPublicEntryCollection(
-        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        gateway,
+        entries,
+        collections,
+        SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     )
     with pytest.raises(EntityNotFoundError):
         importer.execute(other_user.id, verbs.id or 0)
 
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
     UnpublishEntryCollection(collections).execute(user.id, verbs.id or 0)
     with pytest.raises(EntityNotFoundError):
         importer.execute(other_user.id, verbs.id or 0)
@@ -170,7 +188,11 @@ def update(
     copy: EntryCollection,
 ) -> CollectionUpdate[EntryCollection, int]:
     return UpdateEntryCollectionFromSource(
-        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        gateway,
+        entries,
+        collections,
+        SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     ).execute(user.id, copy.id or 0)
 
 
@@ -190,9 +212,13 @@ def copy(
     other_user: UserORM,
 ) -> EntryCollection:
     """The other user's copy of verbs' v1 (食べる with "to scoff")."""
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
     importer = ImportPublicEntryCollection(
-        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        gateway,
+        entries,
+        collections,
+        SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     )
     return importer.execute(other_user.id, verbs.id or 0).collection
 
@@ -222,7 +248,7 @@ def test_update_follows_what_the_source_changed(
     assert water is not None
     water.activate()
     entries.update(water)
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
     assert collections.latest_source_versions(other_user.id) == {copy.id: 2}
 
     result = update(session, collections, entries, gateway, other_user, copy)
@@ -258,7 +284,7 @@ def test_update_keeps_what_the_user_touched_or_removed(
         other_user.id, copy.id or 0, eat.id or 0
     )
     edit_scoff(entries, user, "to wolf down")
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
 
     result = update(session, collections, entries, gateway, other_user, copy)
 
@@ -284,7 +310,7 @@ def test_dropped_items_leave_the_collection_not_the_library(
     RemoveEntryFromCollection(collections, entries).execute(
         user.id, verbs.id or 0, eat.id or 0
     )
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
 
     result = update(session, collections, entries, gateway, other_user, copy)
 
@@ -325,7 +351,7 @@ def test_a_word_deleted_from_the_library_doesnt_come_back(
     assert eat is not None
     RemoveEntryFromLibrary(entries, collections).execute(other_user.id, eat.id or 0)
     edit_scoff(entries, user, "to wolf down")
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
 
     result = update(session, collections, entries, gateway, other_user, copy)
 
@@ -350,15 +376,86 @@ def test_putting_a_dismissed_word_back_lets_the_source_follow_it(
 
     # Imported again from the dictionary, straight into the copy.
     again = ImportEntry(
-        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        gateway,
+        entries,
+        collections,
+        SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     ).execute(other_user.id, 1000001, [copy.id or 0])
     assert collections.dismissed_items(copy) == set()
     assert collections.is_from_source(copy, again.item)
     edit_scoff(entries, user, "to wolf down")
-    publish(collections, entries, user, verbs)
+    publish(session, collections, entries, user, verbs)
 
     update(session, collections, entries, gateway, other_user, copy)
 
     assert own_glosses(entries.get_by_source_entry_id(1000001, other_user.id)) == [
         "to wolf down"
     ]
+
+
+def test_an_update_lets_go_of_a_sentence_the_source_dropped(
+    session: Session,
+    collections: SqlAlchemyEntryCollectionRepository,
+    entries: SqlAlchemyPracticeEntryRepository,
+    gateway: ShodoukanDictionaryGateway,
+    verbs: EntryCollection,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    sentences = SqlAlchemyPracticeSentenceRepository(session)
+    eat = entries.get_by_source_entry_id(1000001, user.id)
+    assert eat is not None
+    add = AddSentence(sentences, entries, sudachi())
+    dropped = add.execute(user.id, "パンを食べた。", None, "eng", entry_id=eat.id)
+    add.execute(user.id, "肉を食べた。", None, "eng", entry_id=eat.id)
+    publish(session, collections, entries, user, verbs)
+    copy = (
+        ImportPublicEntryCollection(gateway, entries, collections, sentences, sudachi())
+        .execute(other_user.id, verbs.id or 0)
+        .collection
+    )
+    theirs = entries.get_by_source_entry_id(1000001, other_user.id)
+    assert theirs is not None
+    assert len(sentences.for_entry(theirs.id or 0, other_user.id)) == 2
+
+    RemoveSentence(sentences, entries, sudachi()).execute(user.id, dropped.id or 0)
+    publish(session, collections, entries, user, verbs)
+    update(session, collections, entries, gateway, other_user, copy)
+
+    [kept] = sentences.for_entry(theirs.id or 0, other_user.id)
+    assert kept.text == "肉を食べた。"
+
+
+def test_a_copied_sentence_the_user_removed_isnt_brought_back(
+    session: Session,
+    collections: SqlAlchemyEntryCollectionRepository,
+    entries: SqlAlchemyPracticeEntryRepository,
+    gateway: ShodoukanDictionaryGateway,
+    verbs: EntryCollection,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    sentences = SqlAlchemyPracticeSentenceRepository(session)
+    eat = entries.get_by_source_entry_id(1000001, user.id)
+    assert eat is not None
+    AddSentence(sentences, entries, sudachi()).execute(
+        user.id, "パンを食べた。", None, "eng", entry_id=eat.id
+    )
+    publish(session, collections, entries, user, verbs)
+    copy = (
+        ImportPublicEntryCollection(gateway, entries, collections, sentences, sudachi())
+        .execute(other_user.id, verbs.id or 0)
+        .collection
+    )
+    theirs = entries.get_by_source_entry_id(1000001, other_user.id)
+    assert theirs is not None
+    [copied] = sentences.for_entry(theirs.id or 0, other_user.id)
+
+    RemoveSentence(sentences, entries, sudachi()).execute(other_user.id, copied.id or 0)
+    eat.set_notes("a new version")
+    entries.update(eat)
+    publish(session, collections, entries, user, verbs)
+    update(session, collections, entries, gateway, other_user, copy)
+
+    assert sentences.for_entry(theirs.id or 0, other_user.id) == []

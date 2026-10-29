@@ -47,7 +47,17 @@ from .library_search_queries import (
     build_search,
     resolve_scope,
 )
+from .practice_sentence_queries import (
+    MAX_ANALYZED_SENTENCES,
+    AnalyzeSentenceTexts,
+    GetSentence,
+    ListSentencesOfEntry,
+    SearchSentences,
+    SentencePage,
+    SentenceProposal,
+)
 from .public_collection_queries import (
+    EntryPreview,
     GetPublicEntryCollection,
     GetPublicKanjiCollection,
     LatestEntrySourceVersions,
@@ -62,8 +72,11 @@ from .public_collection_queries import (
 
 __all__ = [
     "MAX_ACTIVITY_DAYS",
+    "MAX_ANALYZED_SENTENCES",
     "MOST_MISSED_LIMIT",
+    "AnalyzeSentenceTexts",
     "DayActivity",
+    "EntryPreview",
     "ExerciseStatistics",
     "ExportEntryCollection",
     "ExportKanjiCollection",
@@ -81,6 +94,7 @@ __all__ = [
     "GetPracticeStatistics",
     "GetPublicEntryCollection",
     "GetPublicKanjiCollection",
+    "GetSentence",
     "ImportStatus",
     "LatestEntrySourceVersions",
     "LatestKanjiSourceVersions",
@@ -93,6 +107,7 @@ __all__ = [
     "ListExercises",
     "ListKanjiCollections",
     "ListKanjiForEntry",
+    "ListSentencesOfEntry",
     "MissedItem",
     "PracticeStatistics",
     "PreviewPublicEntryCollection",
@@ -103,6 +118,9 @@ __all__ = [
     "SearchKanji",
     "SearchPublicEntryCollections",
     "SearchPublicKanjiCollections",
+    "SearchSentences",
+    "SentencePage",
+    "SentenceProposal",
     "SessionSummaryPage",
     "build_public_search",
     "build_search",

@@ -4,6 +4,7 @@ from factories import (
     make_entry_collection,
     make_kanji,
     make_kanji_collection,
+    sudachi,
 )
 from sqlalchemy.orm import Session
 
@@ -39,6 +40,7 @@ def test_status_lists_only_imported_items(
         entries,
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     )
     import_kanji = ImportKanji(
         gateway, kanji, SqlAlchemyKanjiCollectionRepository(session)

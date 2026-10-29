@@ -16,6 +16,7 @@ from .dictionary_gateway import (
     DictionaryReading,
     DictionarySearchResult,
     DictionarySense,
+    NewPracticeEntry,
 )
 from .kana_gateway import KanaForms, KanaGateway
 from .morphology_gateway import Morpheme, MorphologyGateway
@@ -40,4 +41,5 @@ __all__ = [
     "KanaGateway",
     "Morpheme",
     "MorphologyGateway",
+    "NewPracticeEntry",
 ]

@@ -9,8 +9,6 @@ from typing import Literal
 from ....domain.entities import (
     FILE,
     PracticeEntry,
-    PracticeExample,
-    PracticeExampleSentence,
     PracticeGloss,
     PracticeKanjiReading,
     PracticeReading,
@@ -21,8 +19,6 @@ from ..orm import (
     PracticeEntryKanjiReadingORM,
     PracticeEntryORM,
     PracticeEntryReadingORM,
-    PracticeExampleORM,
-    PracticeExampleSentenceORM,
     PracticeGlossORM,
     PracticeSenseORM,
 )
@@ -127,24 +123,6 @@ def _sense_to_domain(row: PracticeSenseORM) -> PracticeSense:
             )
             for g in row.glosses
         ],
-        examples=[
-            PracticeExample(
-                id=ex.id,
-                text=ex.text,
-                sentences=[
-                    PracticeExampleSentence(lang=s.lang, text=s.text)
-                    for s in ex.sentences
-                ],
-                enabled=ex.enabled,
-                origin=_origin(ex.origin),
-                original_id=ex.original_id,
-                source_id=ex.source_id,
-                edited_id=ex.edited_id,
-                revision=ex.revision,
-                source_collection_ids=source_refs(ex.source_collection_ids),
-            )
-            for ex in row.examples
-        ],
     )
 
 
@@ -229,24 +207,5 @@ def _sense_to_db(entity: PracticeSense, position: int) -> PracticeSenseORM:
                 source_collection_ids=source_refs(g.source_collection_ids),
             )
             for i, g in enumerate(entity.glosses)
-        ],
-        examples=[
-            PracticeExampleORM(
-                id=ex.id,
-                position=i,
-                text=ex.text,
-                sentences=[
-                    PracticeExampleSentenceORM(position=j, lang=s.lang, text=s.text)
-                    for j, s in enumerate(ex.sentences)
-                ],
-                enabled=ex.enabled,
-                origin=ex.origin,
-                original_id=ex.original_id,
-                source_id=ex.source_id,
-                edited_id=ex.edited_id,
-                revision=ex.revision,
-                source_collection_ids=source_refs(ex.source_collection_ids),
-            )
-            for i, ex in enumerate(entity.examples)
         ],
     )

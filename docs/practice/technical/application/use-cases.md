@@ -11,7 +11,7 @@ commit: the caller (the API route) owns the transaction. See
 
 ## Commands (`commands/library_commands.py`)
 
-### `ImportEntry(dictionary, entries, collections, sentences).execute(user_id, source_entry_id, collection_ids=())`
+### `ImportEntry(dictionary, entries, collections, sentences, morphology).execute(user_id, source_entry_id, collection_ids=())`
 
 Copies dictionary entry `source_entry_id` into the user's library and, optionally,
 into some of the user's entry collections.
@@ -81,16 +81,26 @@ Links a library entry (its practice id) to the collection. Idempotent. Kanji:
 Unlinks it; the entry stays in the library. Idempotent, but the entry itself must
 exist (else `EntityNotFoundError`).
 
-### `add_dictionary_sentences(sentences, entry)`
+### `add_dictionary_sentences(sentences, entries, morphology, entry, dictionary_entry)`
 
 Shared by every use case that imports a dictionary entry (`ImportEntry`, and the
-collection imports for the words they import from the dictionary). Each of the new
-entry's dictionary examples becomes a [sentence](../domain/entities.md#sentences)
-linked to the entry and its sense, the gap being JMDict's form of the word. A sentence
-the user already has from another word (same text, `imported_by_text`) gets this word
-as one more of its words instead of being stored twice; a sentence under two senses
-of the entry is linked to the first. Until #97, the entry still keeps its examples
-too.
+collection imports for the words they import from the dictionary). Each example of the
+`DictionaryEntry` (`gateway.get_entry`, its senses in the snapshot's order) becomes a
+[sentence](../domain/entities.md#sentences) linked to the new entry and its sense,
+the gap being JMDict's form of the word. A sentence the user already has from another
+word (same text, `imported_by_text`) gets this word as one more of its words instead
+of being stored twice; a sentence under two senses of the entry is linked to the
+first. They're stored with `save_sentences`, which also completes their words with the
+analyzer, so an imported word's gaps can be asked at once.
+
+### `merge_shared_sentences(sentences, entries, morphology, entry, shared, *, created, source)`
+
+What a shared collection's word brings into the user's sentences, for their stored copy
+of it: the candidates (the word's sentences, the dictionary ones with the same texts,
+the copies with the same versions, `by_versions`) go through `merge_examples`
+([sentences in a collection](../domain/entities.md#sentences-in-a-collection)), and
+what it creates or changes is saved and analyzed. Called by `ImportEntryCollection`
+for every word it brings, created or not.
 
 ### `AnalyzeSentences(sentences, entries, morphology).execute()`
 
@@ -114,7 +124,35 @@ analyze-sentences` (also `shodoukan-practice-admin analyze-sentences`) runs it i
 transaction. Run once after the examples are converted (migration `37c04a6faa6f`):
 [deployment](../../../technical/deployment.md#maintenance-commands).
 
-### `ImportEntryCollection(dictionary, entries, collections, sentences).execute(user_id, shared, source=None)`
+### Sentences (`practice_sentence_commands.py`, `practice_sentence_queries.py`)
+
+Commands take `(sentences, entries, morphology)` and don't commit. Whatever they
+change goes through `complete_words` before it's returned: a gap without an analysis
+is analyzed, a linked word without a gap gets one where its word is (by the entry's
+enabled forms, `entry_forms`), and what's analyzed already is kept.
+
+- `AddSentence.execute(user_id, text, translation, lang, entry_id=None,
+  sense_id=None)`: an own sentence, linked to one of the user's words if given (an
+  unknown entry or sense is `EntityNotFoundError`).
+- `AddSentences.execute(user_id, drafts)`: several `SentenceDraft(text, translation,
+  lang, words)` with their `WordDraft(start, end, entry_id, sense_id)`; every linked
+  word is checked first, so a foreign one stores nothing.
+- `RewriteSentence`, `SetSentenceActive`, `SetSentenceNotes`: the entity's methods.
+- `RemoveSentence`: deletes it; a copy of someone's (`source_id`) is dismissed on the
+  entries it was linked to (`PracticeEntry.dismiss_example`), as a removed example
+  was, so their sources don't bring it back.
+- Words: `AddSentenceWord` (a span, linked or not, or a linked word without one),
+  `MarkSentenceWord`, `LinkSentenceWord` (`entry_id=None` unlinks),
+  `CorrectSentenceWord`, `RemoveSentenceWord`.
+
+Queries: `GetSentence`, `SearchSentences` (a `SentencePage` for a `SentenceSearch`),
+`ListSentencesOfEntry` (the sentences of one of the user's words) and
+`AnalyzeSentenceTexts.execute(user_id, texts)`: each text's morphemes and the library
+words it uses (`propose_words` over `entries.ids_by_form` of every `candidate_forms`,
+one query for all the texts), as `SentenceProposal(text, morphemes, words)`. At most
+`MAX_ANALYZED_SENTENCES` (200).
+
+### `ImportEntryCollection(dictionary, entries, collections, sentences, morphology).execute(user_id, shared, source=None)`
 
 Imports a [`SharedEntryCollection`](../domain/entities.md#sharing-shared_collection_valuepy)
 (an exported file, or a public collection's snapshot) as a **new** collection named
@@ -144,7 +182,7 @@ file there's no source: the copy is never updated, and its parts are **pinned** 
 Sharing collections; one use case per kind, like the rest. See the
 [proposal](../../proposals/library-authoring-and-sharing.md#sharing-public-collections-82-88-89-90).
 
-### `PublishEntryCollection(collections, entries).execute(user_id, collection_id, include_notes)`
+### `PublishEntryCollection(collections, entries, sentences).execute(user_id, collection_id, include_notes)`
 
 Publishes a new version of one of the user's collections: its snapshot is
 `ExportEntryCollection(active_only=True, include_notes=...)`, stored with
@@ -152,14 +190,15 @@ Publishes a new version of one of the user's collections: its snapshot is
 `published_version` and makes it public. `EntityNotFoundError` for a collection the
 user doesn't have; `ValidationError` with more active items than an import takes.
 
-### `UpdateEntryCollectionFromSource(dictionary, entries, collections, sentences).execute(user_id, collection_id)`
+### `UpdateEntryCollectionFromSource(dictionary, entries, collections, sentences, morphology).execute(user_id, collection_id)`
 
 Brings a copy up to its source's latest version (#90) and returns a
 `CollectionUpdate` (an import's counts plus `removed`). The source must still be
 public (`EntityNotFoundError` otherwise); an up-to-date copy is left as is. The new
 snapshot's items that the user didn't take out (`dismissed_items`) go through
 `ImportEntryCollection.copy_items(..., prune=True)`: imported or merged as an import
-does, then `prune_source`; they're linked `from_source`. `from_source` items the
+does, then `prune_source`; the copies of sentences the source brought, untouched, that
+it no longer has are let go of (`prune_examples`; removed when nothing brings them); they're linked `from_source`. `from_source` items the
 snapshot dropped are unlinked (they stay in the library), and `follow_source` records
 the version; the user's download row takes it too (`record_download`, still one
 download), so the public listing shows it as imported. Every use case that puts an item in a collection (`AddEntryToCollection`,
@@ -174,7 +213,7 @@ of a copy. The kanji use cases are the same.
 `Collection.unpublish()`: private again; its last version, downloads and the rest are
 kept for publishing it again.
 
-### `ImportPublicEntryCollection(dictionary, entries, collections, sentences).execute(user_id, collection_id)`
+### `ImportPublicEntryCollection(dictionary, entries, collections, sentences, morphology).execute(user_id, collection_id)`
 
 `ImportEntryCollection` with the public collection's snapshot and
 `source_version = published_version`, then `record_download` unless the user is its
@@ -262,13 +301,10 @@ and returns the stored item, with ids for anything new.
 | `AddEntrySpelling` / `AddEntryReading` | — | add a spelling / reading (kana) of the user's own |
 | `RemoveEntrySpelling` / `RemoveEntryReading` | — | remove an own one (`OriginalDataError` for imported ones; `LastReadingError` for a word's last reading) |
 | `AddEntrySense` | — | add a sense of the user's own, with its first meaning |
-| `RemoveEntrySense` | — | remove an own sense with its meanings and examples (`OriginalDataError` for imported ones) |
+| `RemoveEntrySense` | — | remove an own sense with its meanings (`OriginalDataError` for imported ones); its sentences stay, linked to the word |
 | `AddEntryGloss` | `AddKanjiMeaning` | add a meaning of the user's own |
 | `EditEntryGloss` | `EditKanjiMeaning` | change an own meaning's text (`OriginalDataError` for imported ones) |
 | `RemoveEntryGloss` | `RemoveKanjiMeaning` | remove an own meaning (`OriginalDataError` for imported ones) |
-| `AddEntryExample` | — | add an example of the user's own to a sense |
-| `EditEntryExample` | — | rewrite an own example (`OriginalDataError` for imported ones) |
-| `RemoveEntryExample` | — | remove an own example (`OriginalDataError` for imported ones) |
 | `RemoveEntryFromLibrary` | `RemoveKanjiFromLibrary` | `delete(item)`: the copy and its collection links go; returns nothing |
 
 ## Commands (`commands/user_commands.py`)
@@ -374,15 +410,16 @@ The user's entry collections, ordered by name. `ListKanjiCollections` likewise.
 
 One collection, or `EntityNotFoundError`. `GetKanjiCollection` likewise.
 
-### `ExportEntryCollection(collections, entries).execute(user_id, collection_id)`
+### `ExportEntryCollection(collections, entries, sentences).execute(user_id, collection_id)`
 
 The collection as a `SharedEntryCollection`: every item (active or not) in the order
-they were added, each `to_shared()`. `EntityNotFoundError` for a collection the user
+they were added, each `to_shared()` with its sentences as examples (`with_examples`,
+the sentences of every item read at once with `for_entries`). `EntityNotFoundError` for a collection the user
 doesn't have; `ValidationError` (422) with more than `MAX_SHARED_ITEMS` items, which no
 import would take. `ExportKanjiCollection(collections, kanji)` likewise.
 
-`active_only=True` leaves deactivated items out, and `include_notes=False` the notes
-(entry, sense, kanji): what publishing uses.
+`active_only=True` leaves deactivated items and sentences out, and
+`include_notes=False` the notes (entry, sense, kanji): what publishing uses.
 
 ## Queries (`queries/public_collection_queries.py`)
 
@@ -407,9 +444,10 @@ One public collection's summary.
 
 ### `PreviewPublicEntryCollection(collections, dictionary).execute(viewer_id, collection_id, limit=20, offset=0)`
 
-A `LibraryPage` of its published version, each word built as importing it into an
-empty library would: a fresh dictionary snapshot plus `merge_shared(created=True)`, or
-`PracticeEntry.from_shared` for a word of the owner's own. Nothing is stored (no
+A `LibraryPage` of `EntryPreview(entry, sentences)` for its published version, each
+word built as importing it into an empty library would: a fresh dictionary snapshot
+plus `merge_shared(created=True)`, or `PracticeEntry.from_shared` for a word of the
+owner's own, with the sentences it brings (`preview_sentences`). Nothing is stored (no
 ids); a word the dictionary no longer has is left out of its page. The kanji queries
 are the same.
 

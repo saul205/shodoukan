@@ -12,14 +12,12 @@ provenance (`source_name`, `source_id`).
 from uuid import UUID
 
 from shodoukan import path_points
-from shodoukan.models.entry import Entry, Example, Page, Sense
+from shodoukan.models.entry import Entry, Page, Sense
 from shodoukan.models.kanji import Kanji, KanjiStrokes
 from shodoukan.models.search import SearchResult
 
 from ...domain.entities import (
     PracticeEntry,
-    PracticeExample,
-    PracticeExampleSentence,
     PracticeGloss,
     PracticeKanji,
     PracticeKanjiMeaning,
@@ -83,17 +81,6 @@ def _sense(sense: Sense) -> PracticeSense:
         glosses=[
             PracticeGloss(id=None, text=g.text, lang=g.lang, type=g.type)
             for g in sense.glosses
-        ],
-        examples=[_example(ex) for ex in sense.examples],
-    )
-
-
-def _example(example: Example) -> PracticeExample:
-    return PracticeExample(
-        id=None,
-        text=example.text,
-        sentences=[
-            PracticeExampleSentence(lang=s.lang, text=s.text) for s in example.sentences
         ],
     )
 

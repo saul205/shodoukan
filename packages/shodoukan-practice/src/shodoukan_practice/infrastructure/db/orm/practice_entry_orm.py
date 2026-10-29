@@ -136,7 +136,6 @@ class PracticeSenseORM(Base):
     source_id: Mapped[int | None]
 
     glosses: Mapped[list[PracticeGlossORM]] = children("PracticeGlossORM.position")
-    examples: Mapped[list[PracticeExampleORM]] = children("PracticeExampleORM.position")
 
 
 class PracticeGlossORM(Base):
@@ -163,45 +162,3 @@ class PracticeGlossORM(Base):
     source_collection_ids: Mapped[list[int | str]] = mapped_column(
         JSON, default=list, server_default="[]"
     )
-
-
-class PracticeExampleORM(Base):
-    __tablename__ = "practice_examples"
-    __table_args__ = (CheckConstraint(in_check("origin", ORIGINS), name="origin"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    sense_id: Mapped[int] = mapped_column(
-        ForeignKey("practice_senses.id", ondelete="CASCADE"), index=True
-    )
-    position: Mapped[int]
-    text: Mapped[str]
-    enabled: Mapped[bool] = mapped_column(default=True, server_default=true())
-    origin: Mapped[str] = mapped_column(
-        String(16), default="imported", server_default="imported"
-    )
-    original_id: Mapped[int | None]
-    source_id: Mapped[int | None]
-    edited_id: Mapped[int | None]
-    revision: Mapped[int] = mapped_column(default=0, server_default="0")
-    # What brings the part (a copy): collection ids, or "file", as JSON.
-    source_collection_ids: Mapped[list[int | str]] = mapped_column(
-        JSON, default=list, server_default="[]"
-    )
-
-    sentences: Mapped[list[PracticeExampleSentenceORM]] = children(
-        "PracticeExampleSentenceORM.position"
-    )
-
-
-class PracticeExampleSentenceORM(Base):
-    """A translation of an example; no identity in the domain, only a row id."""
-
-    __tablename__ = "practice_example_sentences"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    example_id: Mapped[int] = mapped_column(
-        ForeignKey("practice_examples.id", ondelete="CASCADE"), index=True
-    )
-    position: Mapped[int]
-    lang: Mapped[str] = mapped_column(String(8))
-    text: Mapped[str]

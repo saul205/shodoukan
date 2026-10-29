@@ -509,3 +509,22 @@ def test_find_own_by_identity_matches_originals_and_copies(
     assert copy.id is not None
     assert repo.find_own_by_identity([copy.id], user.id) == []
     assert repo.find_own_by_identity([], user.id) == []
+
+
+def test_ids_by_form(
+    repo: SqlAlchemyPracticeEntryRepository, user: UserORM, other_user: UserORM
+) -> None:
+    eat = repo.add(make_entry(user.id))
+    also = make_entry(user.id, source_entry_id=1000002)
+    also.readings[0].enabled = False  # たべる, disabled
+    also = repo.add(also)
+    repo.add(make_entry(other_user.id))
+
+    found = repo.ids_by_form(["食べる", "たべる", "くう", "飲む"], user.id)
+
+    assert found == {
+        "食べる": sorted([eat.id or 0, also.id or 0]),
+        "たべる": [eat.id],
+        "くう": sorted([eat.id or 0, also.id or 0]),
+    }
+    assert repo.ids_by_form([], user.id) == {}

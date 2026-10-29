@@ -74,6 +74,12 @@ class PracticeEntryRepository(Protocol):
         """
         ...
 
+    def ids_by_form(self, forms: Iterable[str], user_id: UUID) -> dict[str, list[int]]:
+        """`{form: entry ids}` for the user's entries with an enabled spelling
+        or reading that is one of `forms`, as written: which library words a
+        sentence's word may be."""
+        ...
+
     def find_own_by_identity(
         self, identities: Iterable[int], user_id: UUID
     ) -> list[PracticeEntry]:

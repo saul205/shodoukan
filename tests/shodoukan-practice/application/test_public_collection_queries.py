@@ -1,4 +1,5 @@
 import pytest
+from factories import sudachi
 from sqlalchemy.orm import Session
 
 from shodoukan import Dictionary
@@ -50,14 +51,20 @@ def test_search_get_and_preview_a_public_collection(
     entries = SqlAlchemyPracticeEntryRepository(session)
     words = CreateEntryCollection(collections).execute(user.id, "Words", "N5")
     eat = ImportEntry(
-        gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+        gateway,
+        entries,
+        collections,
+        SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     ).execute(user.id, 1000001, [words.id or 0])
     eat.item.add_gloss(eat.item.senses[0].id or 0, "to scoff", "eng")
     entries.update(eat.item)
     CreateOwnEntry(entries, collections).execute(
         user.id, ["三匹"], ["さんびき"], "three animals", "eng", [words.id or 0]
     )
-    PublishEntryCollection(collections, entries).execute(user.id, words.id or 0, False)
+    PublishEntryCollection(
+        collections, entries, SqlAlchemyPracticeSentenceRepository(session)
+    ).execute(user.id, words.id or 0, False)
 
     page = SearchPublicEntryCollections(collections).execute(other_user.id, "n5")
     assert [s.collection.name for s in page.items] == ["Words"]
@@ -71,7 +78,7 @@ def test_search_get_and_preview_a_public_collection(
         other_user.id, words.id or 0, limit=10
     )
     assert preview.total == 2
-    eat_copy, own = preview.items
+    eat_copy, own = (p.entry for p in preview.items)
     assert eat_copy.user_id == other_user.id and eat_copy.id is None
     assert "to scoff" in [g.text for g in eat_copy.senses[0].glosses]
     assert own.is_own and [r.text for r in own.readings] == ["さんびき"]

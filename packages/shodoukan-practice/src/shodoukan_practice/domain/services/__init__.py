@@ -29,9 +29,19 @@ from .question_order_service import (
 )
 from .sentence_analysis_service import (
     GapAnalysis,
+    WordProposal,
     analyze_gap,
+    candidate_forms,
     find_gap,
+    propose_words,
     span_morphemes,
+)
+from .sentence_sharing_service import (
+    SentenceMerge,
+    merge_examples,
+    preview_sentences,
+    prune_examples,
+    with_examples,
 )
 from .study_field_service import (
     FieldValue,
@@ -65,11 +75,14 @@ __all__ = [
     "FieldValue",
     "GapAnalysis",
     "HandwritingDraft",
+    "SentenceMerge",
     "StudyCard",
     "WordHandwritingDraft",
+    "WordProposal",
     "analyze_gap",
     "build_next_question",
     "can_ask",
+    "candidate_forms",
     "card_back",
     "card_front",
     "draft_next_question",
@@ -99,7 +112,12 @@ __all__ = [
     "kanji_card",
     "kanji_literal",
     "kanji_study_text",
+    "merge_examples",
+    "preview_sentences",
+    "propose_words",
+    "prune_examples",
     "span_morphemes",
+    "with_examples",
     "word_characters",
     "writable_items",
     "written_word",

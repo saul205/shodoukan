@@ -1,11 +1,12 @@
 import pytest
-from factories import NOW, make_entry, make_kanji
+from factories import NOW, make_entry, make_kanji, sudachi
 from sqlalchemy.orm import Session
 
 from shodoukan import Dictionary
 from shodoukan_practice.application.commands import (
     AddEntryToCollection,
     AddKanjiToCollection,
+    AddSentence,
     CreateEntryCollection,
     CreateKanjiCollection,
     CreateOwnEntry,
@@ -272,6 +273,7 @@ def import_entries(session: Session, dictionary: Dictionary) -> ImportEntryColle
         SqlAlchemyPracticeEntryRepository(session),
         SqlAlchemyEntryCollectionRepository(session),
         SqlAlchemyPracticeSentenceRepository(session),
+        sudachi(),
     )
 
 
@@ -300,7 +302,11 @@ def exported_verbs(
     gateway = ShodoukanDictionaryGateway(dictionary)
     eat = (
         ImportEntry(
-            gateway, entries, collections, SqlAlchemyPracticeSentenceRepository(session)
+            gateway,
+            entries,
+            collections,
+            SqlAlchemyPracticeSentenceRepository(session),
+            sudachi(),
         )
         .execute(user.id, 1000001)
         .item
@@ -315,7 +321,9 @@ def exported_verbs(
         user.id, ["三匹"], ["さんびき"], "three animals", "eng", [verbs.id or 0]
     )
     session.expunge_all()
-    return ExportEntryCollection(collections, entries).execute(user.id, verbs.id or 0)
+    return ExportEntryCollection(
+        collections, entries, SqlAlchemyPracticeSentenceRepository(session)
+    ).execute(user.id, verbs.id or 0)
 
 
 def test_import_copies_a_collection_into_another_library(
@@ -409,3 +417,51 @@ def test_import_kanji_collection_round_trip(
     copy = kanji.get_by_literal("食", other_user.id)
     assert copy is not None
     assert [m.text for m in copy.meanings].count("meal") == 1
+
+
+def test_a_words_sentences_travel_with_the_collection(
+    session: Session,
+    dictionary: Dictionary,
+    import_entries: ImportEntryCollection,
+    collections: SqlAlchemyEntryCollectionRepository,
+    entries: SqlAlchemyPracticeEntryRepository,
+    verbs: EntryCollection,
+    user: UserORM,
+    other_user: UserORM,
+) -> None:
+    sentences = SqlAlchemyPracticeSentenceRepository(session)
+    eat = (
+        ImportEntry(
+            ShodoukanDictionaryGateway(dictionary),
+            entries,
+            collections,
+            sentences,
+            sudachi(),
+        )
+        .execute(user.id, 1000001, [verbs.id or 0])
+        .item
+    )
+    mine = AddSentence(sentences, entries, sudachi()).execute(
+        user.id, "昨日パンを食べた。", "I ate bread.", "eng", entry_id=eat.id
+    )
+    shared = ExportEntryCollection(collections, entries, sentences).execute(
+        user.id, verbs.id or 0
+    )
+    [example] = shared.items[0].senses[0].examples
+    assert example.word is not None and example.word.lemma == "食べる"
+
+    import_entries.execute(other_user.id, shared)
+    import_entries.execute(other_user.id, shared)  # again: nothing twice
+
+    theirs = entries.get_by_source_entry_id(1000001, other_user.id)
+    assert theirs is not None
+    [copy] = sentences.for_entry(theirs.id or 0, other_user.id)
+    [word] = copy.words
+    assert (copy.text, copy.origin, copy.original_id) == (mine.text, "added", mine.id)
+    assert copy.source_collection_ids == [FILE]
+    assert copy.surface(word) == "食べた"
+    assert (word.lemma, word.reading, word.sense_id) == (
+        "食べる",
+        "たべた",
+        theirs.senses[0].id,
+    )

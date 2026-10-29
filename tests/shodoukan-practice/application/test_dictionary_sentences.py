@@ -1,15 +1,16 @@
 import pytest
-from factories import USER_ID, make_entry
+from factories import USER_ID, make_entry, sudachi
 from sqlalchemy.orm import Session
 
 from shodoukan_practice.application.commands.dictionary_sentences import (
     add_dictionary_sentences,
 )
-from shodoukan_practice.domain.entities import (
-    PracticeEntry,
-    PracticeExample,
-    PracticeExampleSentence,
-    SentenceTranslation,
+from shodoukan_practice.domain.entities import PracticeEntry, SentenceTranslation
+from shodoukan_practice.domain.gateways import (
+    DictionaryEntry,
+    DictionaryExample,
+    DictionaryExampleSentence,
+    DictionarySense,
 )
 from shodoukan_practice.infrastructure.db.orm import UserORM
 from shodoukan_practice.infrastructure.repositories import (
@@ -29,36 +30,72 @@ def store(session: Session, entry: PracticeEntry) -> PracticeEntry:
     return SqlAlchemyPracticeEntryRepository(session).add(entry)
 
 
-def example(japanese: str, form: str) -> PracticeExample:
-    return PracticeExample(
-        id=None,
+def example(japanese: str, form: str, english: str | None = None) -> DictionaryExample:
+    return DictionaryExample(
         text=form,
-        sentences=[PracticeExampleSentence(lang="jpn", text=japanese)],
+        sentences=[
+            DictionaryExampleSentence(lang="jpn", text=japanese),
+            *([DictionaryExampleSentence(lang="eng", text=english)] if english else []),
+        ],
     )
 
 
-def eat(session: Session) -> PracticeEntry:
-    entry = make_entry(USER_ID)
-    entry.senses[0].examples[0].text = "食べる"
-    return store(session, entry)
+def dictionary_entry(*senses: list[DictionaryExample]) -> DictionaryEntry:
+    """The dictionary entry behind `make_entry`: its senses' examples."""
+    return DictionaryEntry(
+        id=1000001,
+        kanji_readings=[],
+        readings=[],
+        senses=[
+            DictionarySense(
+                pos=[],
+                misc=[],
+                dialects=[],
+                info=[],
+                glosses=[],
+                cross_references=[],
+                examples=examples,
+            )
+            for examples in senses
+        ],
+        jlpt=None,
+        is_common=False,
+    )
 
 
-def test_the_examples_become_linked_sentences(
+def add(
+    session: Session,
+    sentences: SqlAlchemyPracticeSentenceRepository,
+    entry: PracticeEntry,
+    dictionary: DictionaryEntry,
+) -> None:
+    add_dictionary_sentences(
+        sentences,
+        SqlAlchemyPracticeEntryRepository(session),
+        sudachi(),
+        entry,
+        [sense.examples for sense in dictionary.senses],
+    )
+
+
+def test_the_examples_become_linked_analyzed_sentences(
     session: Session,
     sentences: SqlAlchemyPracticeSentenceRepository,
     user: UserORM,
 ) -> None:
-    entry = eat(session)
+    entry = store(session, make_entry(USER_ID))
 
-    add_dictionary_sentences(sentences, entry)
+    add(session, sentences, entry, dictionary_entry([example(RICE, "食べる", "Eat.")]))
 
     [sentence] = sentences.for_entry(entry.id or 0, USER_ID)
     [word] = sentence.words
     assert sentence.text == RICE
     assert sentence.origin == "imported"
-    assert sentence.translations == [SentenceTranslation(lang="eng", text="Eat rice.")]
+    assert sentence.translations == [SentenceTranslation(lang="eng", text="Eat.")]
     assert sentence.surface(word) == "食べる"
     assert (word.entry_id, word.sense_id) == (entry.id, entry.senses[0].id)
+    # Analyzed when stored, so it can be asked at once.
+    assert (word.lemma, word.reading) == ("食べる", "たべる")
 
 
 def test_a_sentence_of_another_word_is_reused(
@@ -66,14 +103,16 @@ def test_a_sentence_of_another_word_is_reused(
     sentences: SqlAlchemyPracticeSentenceRepository,
     user: UserORM,
 ) -> None:
-    first = eat(session)
-    add_dictionary_sentences(sentences, first)
-    rice = make_entry(USER_ID, source_entry_id=1000002)
-    rice.senses[0].examples = [example(RICE, "ご飯")]
-    rice.senses[1].examples = [example("ご飯が好き。", "ご飯")]
-    second = store(session, rice)
+    first = store(session, make_entry(USER_ID))
+    add(session, sentences, first, dictionary_entry([example(RICE, "食べる")]))
+    second = store(session, make_entry(USER_ID, source_entry_id=1000002))
 
-    add_dictionary_sentences(sentences, second)
+    add(
+        session,
+        sentences,
+        second,
+        dictionary_entry([example(RICE, "ご飯")], [example("ご飯が好き。", "ご飯")]),
+    )
 
     shared, own = sentences.for_entry(second.id or 0, USER_ID)
     assert sentences.for_entry(first.id or 0, USER_ID) == [shared]
@@ -82,7 +121,7 @@ def test_a_sentence_of_another_word_is_reused(
         ("ご飯", second.id),
     ]
     assert own.text == "ご飯が好き。"
-    assert len(sentences.imported_by_text([RICE, "ご飯が好き。"], USER_ID)) == 2
+    assert [w.sense_id for w in own.words] == [second.senses[1].id]
 
 
 def test_a_sentence_under_two_senses_is_stored_once(
@@ -90,18 +129,21 @@ def test_a_sentence_under_two_senses_is_stored_once(
     sentences: SqlAlchemyPracticeSentenceRepository,
     user: UserORM,
 ) -> None:
-    entry = make_entry(USER_ID)
-    entry.senses[1].examples = [example(RICE, "食べる")]
-    stored = store(session, entry)
+    entry = store(session, make_entry(USER_ID))
 
-    add_dictionary_sentences(sentences, stored)
+    add(
+        session,
+        sentences,
+        entry,
+        dictionary_entry([example(RICE, "食べる")], [example(RICE, "食べる")]),
+    )
 
-    [sentence] = sentences.for_entry(stored.id or 0, USER_ID)
-    assert [w.sense_id for w in sentence.words] == [stored.senses[0].id]
+    [sentence] = sentences.for_entry(entry.id or 0, USER_ID)
+    assert [w.sense_id for w in sentence.words] == [entry.senses[0].id]
 
 
 def test_the_entry_must_be_stored(
-    sentences: SqlAlchemyPracticeSentenceRepository,
+    session: Session, sentences: SqlAlchemyPracticeSentenceRepository
 ) -> None:
     with pytest.raises(ValueError):
-        add_dictionary_sentences(sentences, make_entry(USER_ID))
+        add(session, sentences, make_entry(USER_ID), dictionary_entry())

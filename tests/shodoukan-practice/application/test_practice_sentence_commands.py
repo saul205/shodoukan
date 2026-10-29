@@ -16,11 +16,6 @@ from shodoukan_practice.infrastructure.repositories import (
 )
 
 
-@pytest.fixture(scope="module")
-def morphology() -> SudachiMorphologyGateway:
-    return SudachiMorphologyGateway()
-
-
 @pytest.fixture
 def sentences(session: Session) -> SqlAlchemyPracticeSentenceRepository:
     return SqlAlchemyPracticeSentenceRepository(session)
