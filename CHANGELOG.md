@@ -25,8 +25,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is) or many after `/analyze` proposes the library words each uses, rewrite own ones,
   and mark, link, correct and remove their words.
 
+- **shodoukan-practice-web:** **Frases** in the side menu: the library's sentences,
+  with their words underlined, searchable and filtered by those with no word; adding
+  them in bulk (paste them, review what words of the library each uses, confirm the
+  doubtful ones, save all); and a sentence editor to mark a word by clicking it, link
+  it to a word of the library, correct its reading, or link the suggested ones.
+
 ### Changed
 
+- **shodoukan-practice-web:** A word's page shows its sentences, the word underlined,
+  where it showed its examples; own ones are added, rewritten and deleted the same
+  way, and each opens in the sentence editor. Previews of public collections show the
+  sentences each word brings.
+- **shodoukan-practice:** Dictionary sentences can only be hidden, not removed (409).
 - **shodoukan-practice:** A word's sentences travel with exported and published
   collections as its senses' `examples`, now with their gap; files and publications
   made before still import. A public collection's preview lists each word's

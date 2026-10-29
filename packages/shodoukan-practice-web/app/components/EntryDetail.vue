@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { shortenPos } from 'shodoukan-ui'
-import type { EntryPart, PracticeEntry } from '~/models/practice'
+import type { EntryPart, PracticeEntry, PracticeSentence } from '~/models/practice'
 import { entryHeadword, entryReading, sensesIn } from '~/utils/practice-text'
+import { sentencesBySense } from '~/utils/sentences'
 
 // A library word: its headword and its senses in the meaning language, with
-// their examples and notes. Editable (switches, own senses, meanings and
-// examples, sense notes: the page saves) or `view-only`, showing only what
-// the user keeps enabled, as in the item detail opened from a session.
+// their sentences and notes. Editable (switches, own senses, meanings and
+// sentences, sense notes: the page saves) or `view-only`, showing only what
+// the user keeps enabled, as in the item detail opened from a session. The
+// word's sentences are the library's, linked to it (`sentences`): each shows
+// under the sense its word is linked to.
 //
-// What's typed into a form (a sense, a meaning, an example) is saved through
+// What's typed into a form (a sense, a meaning, a sentence) is saved through
 // handlers that resolve to whether it was saved (`@add-sense` arrives as the
 // `onAddSense` prop, and so on), so the form keeps its text if it fails.
 // Switches, removals and notes are plain events.
@@ -17,6 +20,7 @@ type Saved = Promise<boolean>
 
 const props = withDefaults(defineProps<{
   entry: PracticeEntry
+  sentences?: PracticeSentence[]
   viewOnly?: boolean
   saving?: boolean
   /**
@@ -27,25 +31,30 @@ const props = withDefaults(defineProps<{
   onAddSense?: (text: string) => Saved
   onAddGloss?: (senseId: number, text: string) => Saved
   onEditGloss?: (glossId: number, text: string) => Saved
-  onAddExample?: (senseId: number, japanese: string, translation: string | null) => Saved
-  onEditExample?: (exampleId: number, japanese: string, translation: string | null) => Saved
-}>(), { viewOnly: false, saving: false })
+  onAddSentence?: (senseId: number, japanese: string, translation: string | null) => Saved
+  onRewriteSentence?: (sentenceId: number, japanese: string, translation: string | null) => Saved
+}>(), { sentences: () => [], viewOnly: false, saving: false })
 
 const emit = defineEmits<{
   'toggle': [part: EntryPart, id: number, enabled: boolean]
   'remove-sense': [senseId: number]
   'remove-gloss': [glossId: number]
-  'remove-example': [exampleId: number]
+  'toggle-sentence': [sentenceId: number, active: boolean]
+  'remove-sentence': [sentenceId: number]
   'sense-notes': [senseId: number, notes: string | null]
 }>()
 
 const NOT_SAVED: Saved = Promise.resolve(false)
 const addGloss = (senseId: number) => (text: string) => props.onAddGloss?.(senseId, text) ?? NOT_SAVED
 const editGloss = (glossId: number, text: string) => props.onEditGloss?.(glossId, text) ?? NOT_SAVED
-const addExample = (senseId: number) => (japanese: string, translation: string | null) =>
-  props.onAddExample?.(senseId, japanese, translation) ?? NOT_SAVED
-const editExample = (exampleId: number, japanese: string, translation: string | null) =>
-  props.onEditExample?.(exampleId, japanese, translation) ?? NOT_SAVED
+const addSentence = (senseId: number) => (japanese: string, translation: string | null) =>
+  props.onAddSentence?.(senseId, japanese, translation) ?? NOT_SAVED
+const rewriteSentence = (sentenceId: number, japanese: string, translation: string | null) =>
+  props.onRewriteSentence?.(sentenceId, japanese, translation) ?? NOT_SAVED
+
+const sentencesOf = computed(() =>
+  sentencesBySense(props.sentences, props.entry.id, props.entry.senses.map(s => s.id)),
+)
 
 // Read-only, the spellings and readings someone added, besides the headword.
 const addedForms = computed(() =>
@@ -169,16 +178,17 @@ async function addSense() {
             @remove="glossId => emit('remove-gloss', glossId)"
           />
 
-          <ExampleList
-            :examples="sense.examples"
+          <SentenceList
+            :sentences="sentencesOf.get(sense.id) ?? []"
+            :entry-id="fromCollection ? null : entry.id"
             :gloss-lang="glossCode"
             :view-only="viewOnly"
             :from-collection="fromCollection"
             :disabled="saving"
-            @toggle="(exampleId, enabled) => emit('toggle', 'examples', exampleId, enabled)"
-            :on-add="addExample(sense.id)"
-            :on-edit="editExample"
-            @remove="exampleId => emit('remove-example', exampleId)"
+            @toggle="(sentenceId, active) => emit('toggle-sentence', sentenceId, active)"
+            :on-add="addSentence(sense.id)"
+            :on-rewrite="rewriteSentence"
+            @remove="sentenceId => emit('remove-sentence', sentenceId)"
           />
 
           <p v-if="viewOnly && sense.notes" class="text-sm whitespace-pre-line text-toned" data-testid="sense-notes">

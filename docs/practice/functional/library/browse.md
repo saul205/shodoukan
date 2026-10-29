@@ -10,7 +10,7 @@ The library has two lists: **words** (imported entries) and **kanji**. Each show
 user's own copies, most recently imported first, page by page, with the total number
 of items so the user knows how many pages there are.
 
-Each item shows its full copy (readings, meanings, examples...) and whether it's
+Each item shows its full copy (readings, meanings, sentences...) and whether it's
 active. Deactivated items are listed too, so the user can find and reactivate them;
 the list can also be narrowed to only active or only deactivated items.
 

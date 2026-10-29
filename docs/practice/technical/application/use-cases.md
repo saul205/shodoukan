@@ -138,7 +138,8 @@ enabled forms, `entry_forms`), and what's analyzed already is kept.
   lang, words)` with their `WordDraft(start, end, entry_id, sense_id)`; every linked
   word is checked first, so a foreign one stores nothing.
 - `RewriteSentence`, `SetSentenceActive`, `SetSentenceNotes`: the entity's methods.
-- `RemoveSentence`: deletes it; a copy of someone's (`source_id`) is dismissed on the
+- `RemoveSentence`: deletes an own sentence (a dictionary one is only deactivated,
+  `OriginalDataError`); a copy of someone's (`source_id`) is dismissed on the
   entries it was linked to (`PracticeEntry.dismiss_example`), as a removed example
   was, so their sources don't bring it back.
 - Words: `AddSentenceWord` (a span, linked or not, or a linked word without one),

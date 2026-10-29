@@ -2,7 +2,7 @@ import type { Page } from 'shodoukan-ui'
 import type {
   CollectionImport,
   ItemKind,
-  PracticeEntry,
+  PreviewEntry,
   PracticeKanji,
   PublicCollection,
   PublicCollectionQuery,
@@ -32,8 +32,8 @@ export function previewPublicEntries(
   api: ApiClient,
   id: number,
   query: { limit?: number, offset?: number } = {},
-): Promise<Page<PracticeEntry>> {
-  return api<Page<PracticeEntry>>(`/public-collections/entries/${id}/items`, { query })
+): Promise<Page<PreviewEntry>> {
+  return api<Page<PreviewEntry>>(`/public-collections/entries/${id}/items`, { query })
 }
 
 export function previewPublicKanji(

@@ -2,9 +2,14 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 from tokens import TokenFactory, bearer
 
+from shodoukan_practice.domain.entities import PracticeSentence
 from shodoukan_practice.infrastructure.db.orm import UserORM
+from shodoukan_practice.infrastructure.repositories import (
+    SqlAlchemyPracticeSentenceRepository,
+)
 
 URL = "/library/sentences"
 ATE = "昨日パンを食べた。"
@@ -191,6 +196,24 @@ def test_active_notes_and_removal(client: TestClient, headers: dict[str, str]) -
     assert noted.json()["notes"] == "casual"
     assert deleted.status_code == 204
     assert client.get(url, headers=headers).status_code == 404
+
+
+def test_a_dictionary_sentence_is_only_deactivated(
+    client: TestClient,
+    headers: dict[str, str],
+    session: Session,
+    user: UserORM,
+) -> None:
+    sentence = SqlAlchemyPracticeSentenceRepository(session).add(
+        PracticeSentence.from_dictionary(
+            user.id, ATE, [], word="", entry_id=None, sense_id=None
+        )
+    )
+    session.commit()
+
+    response = client.delete(f"{URL}/{sentence.id}", headers=headers)
+
+    assert response.status_code == 409
 
 
 def test_another_users_sentence_is_not_found(

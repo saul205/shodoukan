@@ -19,7 +19,7 @@ function mountDetail(props: Record<string, unknown>) {
 
 function sense(id: number, text: string, extra: Partial<PracticeSense> = {}): PracticeSense {
   return {
-    id, pos: [], misc: [], dialects: [], info: [], examples: [], notes: null, enabled: true, origin: 'imported',
+    id, pos: [], misc: [], dialects: [], info: [], notes: null, enabled: true, origin: 'imported',
     glosses: [{ id: id * 10, text, lang: 'eng', type: null, enabled: true, origin: extra.origin ?? 'imported' }],
     ...extra,
   }
@@ -70,22 +70,41 @@ describe('EntryDetail', () => {
     expect((form.find('input').element as HTMLInputElement).value).toBe('')
   })
 
-  it('passes a sense\'s new meanings and examples to the page with the sense', async () => {
+  it('passes a sense\'s new meanings and sentences to the page with the sense', async () => {
     const onAddGloss = vi.fn().mockResolvedValue(true)
-    const onAddExample = vi.fn().mockResolvedValue(true)
-    const wrapper = await mountDetail({ entry, onAddGloss, onAddExample })
+    const onAddSentence = vi.fn().mockResolvedValue(true)
+    const wrapper = await mountDetail({ entry, onAddGloss, onAddSentence })
 
     const own = wrapper.findAll('[data-testid="sense"]')[2]!
     const meaningForm = own.findAll('form').find(f => f.find('input[placeholder^="Añadir un significado propio"]').exists())!
     await meaningForm.find('input').setValue('to have dinner')
     await meaningForm.trigger('submit')
-    await own.find('[data-testid="add-example"]').trigger('click')
-    await own.find('[data-testid="example-form"] input').setValue('夕食を食べる。')
-    await own.find('[data-testid="example-form"]').trigger('submit')
+    await own.find('[data-testid="add-sentence"]').trigger('click')
+    await own.find('[data-testid="sentence-form"] input').setValue('夕食を食べる。')
+    await own.find('[data-testid="sentence-form"]').trigger('submit')
     await flushPromises()
 
     expect(onAddGloss).toHaveBeenCalledWith(3, 'to have dinner')
-    expect(onAddExample).toHaveBeenCalledWith(3, '夕食を食べる。', null)
+    expect(onAddSentence).toHaveBeenCalledWith(3, '夕食を食べる。', null)
+  })
+
+  it('shows each sentence under the sense its word is linked to', async () => {
+    const base = {
+      translations: [], is_active: true, notes: null, origin: 'imported' as const,
+      created_at: '', updated_at: '',
+    }
+    const linked = (id: number, text: string, senseId: number | null) => ({
+      ...base, id, text,
+      words: [{ id, start: 0, end: 3, lemma: null, reading: null, pos: [], inflection: null, entry_id: 1, sense_id: senseId }],
+    })
+    const wrapper = await mountDetail({
+      entry,
+      sentences: [linked(1, '食べる。', 2), linked(2, '食べた。', null)],
+    })
+
+    const senses = wrapper.findAll('[data-testid="sense"]')
+    expect(senses[0]!.findAll('[data-testid="sentence"]').map(s => s.text())).toEqual([expect.stringContaining('食べた。')])
+    expect(senses[1]!.findAll('[data-testid="sentence"]').map(s => s.text())).toEqual([expect.stringContaining('食べる。')])
   })
 
   it('leaves disabled senses out in view-only mode', async () => {

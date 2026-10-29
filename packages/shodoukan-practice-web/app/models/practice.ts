@@ -12,19 +12,6 @@ export interface PracticeGloss {
   origin: Origin
 }
 
-export interface PracticeExampleSentence {
-  lang: string
-  text: string
-}
-
-export interface PracticeExample {
-  id: number
-  text: string
-  sentences: PracticeExampleSentence[]
-  enabled: boolean
-  origin: Origin
-}
-
 export interface PracticeSense {
   id: number
   pos: string[]
@@ -32,9 +19,8 @@ export interface PracticeSense {
   dialects: string[]
   info: string[]
   glosses: PracticeGloss[]
-  examples: PracticeExample[]
   notes: string | null
-  // A disabled sense hides its meanings and examples, keeping their own flags.
+  // A disabled sense hides its meanings, keeping their own flags.
   enabled: boolean
   origin: Origin
 }
@@ -188,7 +174,7 @@ export interface CollectionImport {
 }
 
 /** Parts of an entry that can be enabled or disabled, as in the API's URLs. */
-export type EntryPart = 'kanji-readings' | 'readings' | 'senses' | 'glosses' | 'examples'
+export type EntryPart = 'kanji-readings' | 'readings' | 'senses' | 'glosses'
 /** Parts of a kanji that can be enabled or disabled (readings = on, kun and nanori). */
 export type KanjiPart = 'readings' | 'meanings'
 
@@ -548,4 +534,94 @@ export interface PracticeStatistics {
   exercises: ExerciseSummary[]
   most_missed_entries: MissedItem[]
   most_missed_kanji: MissedItem[]
+}
+
+// --- Sentences ---
+// Items of the library, linked to the words they use: a word with a span
+// (`start`, `end`) is a gap; one without is linked but not asked yet.
+
+export interface Inflection {
+  endings: string[]
+  form: string | null
+}
+
+export interface SentenceWord {
+  id: number
+  start: number | null
+  end: number | null
+  lemma: string | null
+  reading: string | null
+  pos: string[]
+  inflection: Inflection | null
+  entry_id: number | null
+  sense_id: number | null
+}
+
+export interface SentenceTranslation {
+  lang: string // ISO 639-2, e.g. "eng"
+  text: string
+}
+
+export interface PracticeSentence {
+  id: number
+  text: string
+  translations: SentenceTranslation[]
+  words: SentenceWord[]
+  is_active: boolean
+  notes: string | null
+  origin: Origin
+  created_at: string
+  updated_at: string
+}
+
+export interface SentenceQuery extends PageQuery {
+  q?: string
+  entry_id?: number
+  /** false: sentences none of whose words is linked. */
+  linked?: boolean
+  active?: boolean
+}
+
+export interface Morpheme {
+  surface: string
+  lemma: string
+  reading: string
+  pos: string[]
+  start: number
+  end: number
+}
+
+/** A library word a sentence to add uses, as `/library/sentences/analyze` finds it. */
+export interface WordProposal {
+  start: number
+  end: number
+  form: string
+  entry_ids: number[]
+  /** Found by a spelling with kanji; false for a kana-only match (はし), to confirm. */
+  certain: boolean
+}
+
+export interface SentenceProposal {
+  text: string
+  morphemes: Morpheme[]
+  words: WordProposal[]
+}
+
+export interface WordDraft {
+  start: number | null
+  end: number | null
+  entry_id: number | null
+  sense_id?: number | null
+}
+
+export interface SentenceDraft {
+  japanese: string
+  translation: string | null
+  lang: string
+  words: WordDraft[]
+}
+
+/** A word of a public collection's preview, with the sentences it brings. */
+export interface PreviewEntry extends PracticeEntry {
+  sentences: PracticeSentence[]
 }

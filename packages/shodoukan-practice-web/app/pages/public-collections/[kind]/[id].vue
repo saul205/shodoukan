@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PreviewItemModal from '~/components/PreviewItemModal.vue'
-import type { ItemKind, PracticeEntry, PracticeKanji } from '~/models/practice'
+import type { ItemKind, PracticeKanji, PreviewEntry } from '~/models/practice'
 import { getImportStatus } from '~/services/library'
 import {
   getPublicCollection,
@@ -60,7 +60,7 @@ const { data: owned, refresh: refreshOwned } = useAsyncData(
   async () => {
     const items = preview.value?.page.items ?? []
     const status = preview.value?.kind === 'entries'
-      ? await getImportStatus(api, (items as PracticeEntry[]).flatMap(e => e.source_entry_id ?? []), [])
+      ? await getImportStatus(api, (items as PreviewEntry[]).flatMap(e => e.source_entry_id ?? []), [])
       : await getImportStatus(api, [], (items as PracticeKanji[]).map(k => k.literal))
     return {
       entries: new Set(status.entries.map(e => e.source_entry_id)),
@@ -70,7 +70,7 @@ const { data: owned, refresh: refreshOwned } = useAsyncData(
   { watch: [preview] },
 )
 
-function openItem(item: { entry: PracticeEntry } | { kanji: PracticeKanji }) {
+function openItem(item: { entry: PreviewEntry } | { kanji: PracticeKanji }) {
   overlay.create(PreviewItemModal).open({ item })
 }
 
