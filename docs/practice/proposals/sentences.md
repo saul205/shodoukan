@@ -132,8 +132,9 @@ dismissed references used by updating from the source (#90) point at the sentenc
 2. **`shodoukan-practice analyze-sentences`**, run once after deploying and safe to
    run again: fills lemma, reading, pos and inflection; finds a span for linked words
    without one by matching the lemma (inflected own sentences);
-   `--suggest-links` proposes links to other library words in the sentence, reviewed
-   with the bulk-add list. Until then a gap can be asked for its meaning, not for the
+   More links for a sentence (the user's own ones were linked to one word) are
+   proposed by `/library/sentences/analyze` on its text, in the editor; no
+   `--suggest-links` option is needed. Until then a gap can be asked for its meaning, not for the
    gap or the reading.
 
 ## API and sharing (#97)
